@@ -17,13 +17,17 @@
 // Las entradas de pulsos no solo se configuran para pulso sino tambien
 // para generar interrupciones.
 
+bool wakeup_for_C0, wakeup_for_C1;
+
 //------------------------------------------------------------------------------------
 // API publica
-void COUNTERS_init( void );
-void COUNTERS_init_handle( TaskHandle_t taskHandle, TaskHandle_t libHandle );
+void COUNTERS_init( TaskHandle_t taskHandle );
 
-#define cTask_wakeup_for_C0() ( wakeup_for_C0 ? true: false; )
-#define cTask_wakeup_for_C1() ( wakeup_for_C1 ? true: false; )
+#define cTask_wakeup_for_C0() ( wakeup_for_C0 ? true: false )
+#define cTask_wakeup_for_C1() ( wakeup_for_C1 ? true: false )
+
+#define reset_wakeup_for_C0() ( wakeup_for_C0 = false )
+#define reset_wakeup_for_C1() ( wakeup_for_C1 = false )
 
 // API end
 //------------------------------------------------------------------------------------

@@ -139,7 +139,7 @@ void RTC_rtc2str(char *str, RtcTimeType_t *rtc)
 {
 	// Convierte los datos del RTC a un string con formato DD/MM/YYYY hh:mm:ss
 
-	snprintf( str, 32 ,"%02d/%02d/%04d %02d:%02d:%02d\r\n",rtc->day,rtc->month, rtc->year, rtc->hour,rtc->min, rtc->sec );
+	snprintf( str, 32 ,"%02d/%02d/%04d %02d:%02d:%02d\r\n",rtc->day, rtc->month, rtc->year, rtc->hour,rtc->min, rtc->sec );
 
 }
 //------------------------------------------------------------------------------------
@@ -177,6 +177,40 @@ bool retS;
 
 }
 //------------------------------------------------------------------------------------
+bool RTC_write_time( char *stime )
+{
+
+	// Acepta un string con el formato YYMMDDHHMM, lo decodifica y
+	// graba el RTC con el valor
+
+RtcTimeType_t rtc;
+bool retS;
+
+	RTC_str2rtc( stime, &rtc);			// Convierto el string YYMMDDHHMM a RTC.
+	retS = RTC_write_dtime(&rtc);		// Grabo el RTC
+	if ( ! retS )
+		xprintf_P(PSTR("ERROR: I2C:RTC:pv_cmd_rwRTC\r\n\0"));
+
+	return( retS );
+}
+//------------------------------------------------------------------------------------
+void RTC_read_time( void )
+{
+
+char datetime[32];
+RtcTimeType_t rtc;
+bool retS;
+
+	retS = RTC_read_dtime(&rtc);
+	if ( ! retS ) {
+		xprintf_P(PSTR("ERROR: I2C:RTC:pv_cmd_rwRTC\r\n\0"));
+	} else {
+		RTC_rtc2str( datetime, &rtc);
+		xprintf_P( PSTR("%s\r\n\0"), datetime );
+	}
+}
+//------------------------------------------------------------------------------------
+
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
 static char pv_dec2bcd(char num)

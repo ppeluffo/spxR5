@@ -44,13 +44,14 @@ typedef struct
 void RTC_init(void);
 bool RTC_read_dtime(RtcTimeType_t *rtc);
 bool RTC_write_dtime(RtcTimeType_t *rtc);
+bool RTC_write_time( char *stime );
+void RTC_read_time( void );
 
 // API END
 //--------------------------------------------------------------------------------
 
 void RTC_rtc2str(char *str, RtcTimeType_t *rtc);
 bool RTC_str2rtc(char *str, RtcTimeType_t *rtc);
-
 
 // Direccion del bus I2C donde esta el RTC79410
 #define RTC79410_DEVADDR		   	0xDE

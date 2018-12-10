@@ -9,11 +9,10 @@
 #include "l_counters.h"
 
 BaseType_t xHigherPriorityTaskWokenDigital = false;
-static bool wakeup_for_C0, wakeup_for_C1;
 TaskHandle_t countersTaskHandle;
 
 //------------------------------------------------------------------------------------
-void COUNTERS_init( void )
+void COUNTERS_init( TaskHandle_t taskHandle )
 {
 	CNT_config_CLRD();
 	CNT_config_CNT0();
@@ -30,11 +29,10 @@ void COUNTERS_init( void )
 	CNT_clr_CLRD();	// Borro el latch llevandolo a 0.
 	CNT_set_CLRD();	// Lo dejo en reposo en 1
 
-}
-//------------------------------------------------------------------------------------
-void COUNTERS_init_handle( TaskHandle_t taskHandle, TaskHandle_t libHandle )
-{
+	// https://www.freertos.org/FreeRTOS_Support_Forum_Archive/June_2005/freertos_Get_task_handle_1311096.html
+	// The task handle is just a pointer to the TCB of the task - but outside of tasks.c the type is hidden as a void*.
 
+	countersTaskHandle = ( xTaskHandle ) taskHandle;
 
 }
 //------------------------------------------------------------------------------------
