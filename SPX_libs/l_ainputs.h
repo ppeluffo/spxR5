@@ -19,11 +19,11 @@
 //------------------------------------------------------------------------------------
 // API publica
 
-void AINPUTS_init( void );
-uint16_t AINPUTS_read_channel( uint8_t dlg_type, uint8_t channel_id );
+void AINPUTS_init( uint8_t io_board );
+uint16_t AINPUTS_read_ina( uint8_t io_board, uint8_t channel_id );
 
 // Solo para SPX_5CH
-#define AINPUTS_read_battery()	ACH_read_channel(0, 5)
+#define AINPUTS_read_battery()	AINPUTS_read_ina(0, 99)
 #define AINPUTS_prender_12V()	IO_set_SENS_12V_CTL()
 #define AINPUTS_apagar_12V()	IO_clr_SENS_12V_CTL()
 //

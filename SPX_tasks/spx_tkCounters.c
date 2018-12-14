@@ -33,7 +33,7 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 10000 );
 	{
 
 		// Paso c/10s plt 30s es suficiente.
-		pub_ctl_watchdog_kick(WDG_COUNT, WDG_COUNT_TIMEOUT);
+		ctl_watchdog_kick(WDG_COUNT, WDG_COUNT_TIMEOUT);
 
 		// Cuando la interrupcion detecta un flanco, solo envia una notificacion
 		// Espero que me avisen. Si no me avisaron en 10s salgo y repito el ciclo.
@@ -77,7 +77,7 @@ uint8_t counter;
 
 	COUNTERS_init( xHandle_tkCounter );
 
-	for ( counter = 0; counter < NRO_COUNTER_CHANNELS; counter++) {
+	for ( counter = 0; counter < NRO_COUNTERS; counter++) {
 		cframe.counters[ counter ] = 0;
 	}
 
@@ -85,7 +85,7 @@ uint8_t counter;
 //------------------------------------------------------------------------------------
 // FUNCIONES PUBLICAS
 //------------------------------------------------------------------------------------
-void pub_counters_read_frame( st_counters_t dst_frame[], bool reset_counters )
+void counters_read_frame( st_counters_t dst_frame[], bool reset_counters )
 {
 
 	// Esta funcion la invoca tkData al completar un frame para agregar los datos
@@ -98,7 +98,7 @@ uint8_t i;
 
 	// Convierto los contadores a las magnitudes (todos, por ahora no importa cuales son contadores )
 	// Siempre multiplico por magPP. Si quiero que sea en mt3/h, en el server debo hacerlo (  * 3600 / systemVars.timerPoll )
-	for (i = 0; i < NRO_COUNTER_CHANNELS; i++) {
+	for (i = 0; i < NRO_COUNTERS; i++) {
 		cframe.counters[i] = cframe.counters[i] * systemVars.counters_magpp[i];
 	}
 
@@ -107,74 +107,11 @@ uint8_t i;
 
 	// Borro los contadores para iniciar un nuevo ciclo.
 	if ( reset_counters ) {
-		for (i = 0; i < NRO_COUNTER_CHANNELS; i++) {
+		for (i = 0; i < NRO_COUNTERS; i++) {
 			cframe.counters[i] = 0.0;
 		}
 	}
 
-}
-//------------------------------------------------------------------------------------
-void pub_counters_load_defaults(void)
-{
-
-	// Realiza la configuracion por defecto de los canales digitales.
-uint8_t i;
-
-	for ( i = 0; i < NRO_COUNTER_CHANNELS; i++ ) {
-		snprintf_P( systemVars.counters_name[i], PARAMNAME_LENGTH, PSTR("C%d\0"), i );
-		systemVars.counters_magpp[i] = 0.1;
-	}
-
-	// Debounce Time
-	systemVars.counter_debounce_time = 50;
-
-}
-//------------------------------------------------------------------------------------
-bool pub_counters_config_channel( uint8_t channel,char *s_param0, char *s_param1 )
-{
-	// Configuro un canal contador.
-	// channel: id del canal
-	// s_param0: string del nombre del canal
-	// s_param1: string con el valor del factor magpp.
-	//
-	// {0..1} dname magPP
-
-bool retS = false;
-
-	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
-		taskYIELD();
-
-	if ( ( channel >=  0) && ( channel < NRO_COUNTER_CHANNELS ) ) {
-
-		// NOMBRE
-		pub_control_string(s_param0);
-		snprintf_P( systemVars.counters_name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_param0 );
-
-		// MAGPP
-		if ( s_param1 != NULL ) { systemVars.counters_magpp[channel] = atof(s_param1); }
-
-		retS = true;
-	}
-
-	xSemaphoreGive( sem_SYSVars );
-	return(retS);
-
-}
-//------------------------------------------------------------------------------------
-void pub_counter_config_debounce_time( char *s_counter_debounce_time )
-{
-	// Configura el tiempo de debounce del conteo de pulsos
-
-	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
-		taskYIELD();
-
-	systemVars.counter_debounce_time = atoi(s_counter_debounce_time);
-
-	if ( systemVars.counter_debounce_time < 1 )
-		systemVars.counter_debounce_time = 50;
-
-	xSemaphoreGive( sem_SYSVars );
-	return;
 }
 //------------------------------------------------------------------------------------
 

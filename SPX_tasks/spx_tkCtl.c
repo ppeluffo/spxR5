@@ -8,11 +8,11 @@
 #include "spx.h"
 
 //------------------------------------------------------------------------------------
-static void pv_tkCtl_init_system(void);
-static void pv_tkCtl_wink_led(void);
-static void pv_tkCtl_check_wdg(void);
-static void pv_tkCtl_ajust_timerPoll(void);
-static void pv_daily_reset(void);
+static void pv_ctl_init_system(void);
+static void pv_ctl_wink_led(void);
+static void pv_ctl_check_wdg(void);
+static void pv_ctl_ajust_timerPoll(void);
+static void pv_ctl_daily_reset(void);
 
 static uint16_t time_to_next_poll;
 static uint16_t watchdog_timers[NRO_WDGS];
@@ -42,7 +42,7 @@ void tkCtl(void * pvParameters)
 
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 
-	pv_tkCtl_init_system();
+	pv_ctl_init_system();
 
 	xprintf_P( PSTR("\r\nstarting tkControl..\r\n\0"));
 
@@ -50,7 +50,7 @@ void tkCtl(void * pvParameters)
 	{
 
 		// Paso c/5s plt 30s es suficiente.
-		pub_ctl_watchdog_kick(WDG_CTL, WDG_CTL_TIMEOUT);
+		ctl_watchdog_kick(WDG_CTL, WDG_CTL_TIMEOUT);
 
 //		xprintf_P( PSTR("Control %d\r\n\0"),i++);
 
@@ -59,15 +59,15 @@ void tkCtl(void * pvParameters)
 		// entre que activo el switch de la terminal y que esta efectivamente responde.
 		vTaskDelay( ( TickType_t)( TKCTL_DELAY_S * 1000 / portTICK_RATE_MS ) );
 
-		pv_tkCtl_wink_led();
-		pv_tkCtl_check_wdg();
-//		pv_tkCtl_ajust_timerPoll();
-//		pv_daily_reset();
+		pv_ctl_wink_led();
+		pv_ctl_check_wdg();
+		pv_ctl_ajust_timerPoll();
+		pv_ctl_daily_reset();
 
 	}
 }
 //------------------------------------------------------------------------------------
-static void pv_tkCtl_init_system(void)
+static void pv_ctl_init_system(void)
 {
 
 	// Esta funcion corre cuando el RTOS esta inicializado y corriendo lo que nos
@@ -94,20 +94,40 @@ uint8_t wdg;
 	}
 
 	// Leo los parametros del la EE y si tengo error, cargo por defecto
-	if ( ! pub_load_params_from_NVMEE() ) {
-		pub_load_defaults();
+	if ( ! u_load_params_from_NVMEE() ) {
+		u_load_defaults();
 		xprintf_P( PSTR("\r\nLoading defaults !!\r\n\0"));
 	}
 
 	// Arranco el RTC. Si hay un problema lo inicializo.
 	RTC_init();
 
+	// Determino la io_board attached
+#ifdef SPX_5CH
+	spx_io_board = SPX_IO5CH;
+#endif
+
+#ifdef SPX_8CH
+	spx_io_board = SPX_IO8CH;
+#endif
+
+	// Inicializo los parametros operativos segun la spx_io_board
+	if ( spx_io_board == SPX_IO5CH ) {
+		NRO_COUNTERS = 2;
+		NRO_ANINPUTS = 5;
+	} else if ( spx_io_board == SPX_IO8CH ) {
+		NRO_COUNTERS = 2;
+		NRO_ANINPUTS = 8;
+	}
+
+	xprintf_P( PSTR("ioboard=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), spx_io_board, NRO_COUNTERS, NRO_ANINPUTS );
+
 	// Habilito a arrancar al resto de las tareas
 	startTask = true;
 
 }
 //------------------------------------------------------------------------------------
-static void pv_tkCtl_wink_led(void)
+static void pv_ctl_wink_led(void)
 {
 	// SI la terminal esta desconectada salgo.
 //	if ( IO_read_TERMCTL_PIN() == 0 )
@@ -128,7 +148,7 @@ static void pv_tkCtl_wink_led(void)
 
 }
 //------------------------------------------------------------------------------------
-static void pv_tkCtl_check_wdg(void)
+static void pv_ctl_check_wdg(void)
 {
 	// Cada tarea periodicamente reinicia su wdg timer.
 	// Esta tarea los decrementa cada 5 segundos.
@@ -140,7 +160,7 @@ static void pv_tkCtl_check_wdg(void)
 		// Cada ciclo reseteo el wdg para que no expire.
 		WDT_Reset();
 		//pub_ctl_print_wdg_timers();
-		//return;
+		return;
 
 		// Si algun WDG no se borro, me reseteo
 		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
@@ -171,13 +191,13 @@ static void pv_tkCtl_check_wdg(void)
 		xSemaphoreGive( sem_SYSVars );
 }
 //------------------------------------------------------------------------------------
-static void pv_tkCtl_ajust_timerPoll(void)
+static void pv_ctl_ajust_timerPoll(void)
 {
 	if ( time_to_next_poll > TKCTL_DELAY_S )
 		time_to_next_poll -= TKCTL_DELAY_S;
 }
 //------------------------------------------------------------------------------------
-static void pv_daily_reset(void)
+static void pv_ctl_daily_reset(void)
 {
 	// Todos los dias debo resetearme para restaturar automaticamente posibles
 	// problemas.
@@ -199,7 +219,7 @@ static uint32_t ticks_to_reset = 86400 / TKCTL_DELAY_S ; // Segundos en 1 dia.
 //------------------------------------------------------------------------------------
 // FUNCIONES PUBLICAS
 //------------------------------------------------------------------------------------
-void pub_ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs )
+void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs )
 {
 	// Reinicia el watchdog de la tarea taskwdg con el valor timeout.
 	// timeout es uint16_t por lo tanto su maximo valor en segundos es de 65536 ( 18hs )
@@ -212,7 +232,7 @@ void pub_ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs )
 	xSemaphoreGive( sem_SYSVars );
 }
 //------------------------------------------------------------------------------------
-void pub_ctl_print_wdg_timers(void)
+void ctl_print_wdg_timers(void)
 {
 
 uint8_t wdg;
@@ -233,23 +253,19 @@ char buffer[10];
 
 }
 //------------------------------------------------------------------------------------
-void pub_ctl_print_stack_watermarks(void)
+uint16_t ctl_readTimeToNextPoll(void)
 {
-
-UBaseType_t uxHighWaterMark;
-
-	// tkIdle
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_idle );
-	xprintf_P( PSTR("IDLE:%03d,%03d,[%03d]\r\n\0"),configMINIMAL_STACK_SIZE,uxHighWaterMark,(configMINIMAL_STACK_SIZE - uxHighWaterMark)) ;
-
-	// tkCmd
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkCmd );
-	xprintf_P( PSTR("CMD: %03d,%03d,[%03d]\r\n\0"),tkCmd_STACK_SIZE,uxHighWaterMark,(tkCmd_STACK_SIZE - uxHighWaterMark)) ;
-
-	// tkControl
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkCtl );
-	xprintf_P( PSTR("CTL: %03d,%03d,[%03d]\r\n\0"),tkCtl_STACK_SIZE,uxHighWaterMark, (tkCtl_STACK_SIZE - uxHighWaterMark));
-	
+	return(time_to_next_poll);
+}
+//------------------------------------------------------------------------------------
+void ctl_reload_timerPoll(void)
+{
+	// Como trabajo en modo tickless, no puedo estar cada 1s despertandome solo para
+	// ajustar el timerpoll.
+	// La alternativa es en tkData dormir todo lo necesario y al recargar el timerpoll,
+	// en tkCtl setear una variable con el mismo valor e irla decrementandola c/5 s solo
+	// a efectos de visualizarla.
+	time_to_next_poll = systemVars.timerPoll;
 }
 //------------------------------------------------------------------------------------
 

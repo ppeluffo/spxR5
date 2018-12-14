@@ -18,6 +18,7 @@
 #include "frtos-io.h"
 #include "stdint.h"
 #include "l_i2c.h"
+#include "l_printf.h"
 
 //--------------------------------------------------------------------------------
 // API START
@@ -38,6 +39,9 @@ typedef struct
 
 #define RTC_read( rdAddress, data, length ) I2C_read( BUSADDR_RTC_M79410, rdAddress, data, length );
 #define RTC_write( wrAddress, data, length ) I2C_write( BUSADDR_RTC_M79410, wrAddress, data, length );
+
+int8_t RTCSRAM_test_write( char *addr, char *str );
+int8_t RTCSRAM_test_read( char *addr, char *size );
 
 //------------------------------------------------------------------------------------
 // API publica

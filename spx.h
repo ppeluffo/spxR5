@@ -64,7 +64,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "0.0.1.R4"
-#define SPX_FW_DATE "@ 20181211"
+#define SPX_FW_DATE "@ 20181212"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -75,24 +75,13 @@
 //#define SYSMAINCLK 8
 #define SYSMAINCLK 32
 
-#define SPX_8CH
-//#define SPX_5CH
-// El datalogger tiene 6 canales fisicos pero 5 disponibles
-// ya que uno esta para monitorear la bateria.
+//#define SPX_8CH
+#define SPX_5CH
 //
-#ifdef SPX_8CH
-	#define NRO_ANALOG_CHANNELS		8
-	#define NRO_DINPUTS_CHANNELS	8
-	#define NRO_DOUTPUTS_CHANNELS	8
-	#define NRO_COUNTER_CHANNELS	2
-#endif
-
-#ifdef SPX_5CH
-	#define NRO_ANALOG_CHANNELS		5
-	#define NRO_DINPUTS_CHANNELS	2
-	#define NRO_DOUTPUTS_CHANNELS	2
-	#define NRO_COUNTER_CHANNELS	2
-#endif
+#define MAX_ANALOG_CHANNELS		8
+#define MAX_DINPUTS_CHANNELS	8
+#define MAX_DOUTPUTS_CHANNELS	8
+#define MAX_COUNTER_CHANNELS	2
 
 #define CHAR32	32
 #define CHAR64	64
@@ -102,17 +91,21 @@
 #define tkCtl_STACK_SIZE		512
 #define tkCmd_STACK_SIZE		512
 #define tkCounter_STACK_SIZE	512
+#define tkData_STACK_SIZE		512
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCounter_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
+#define tkData_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER } t_debug;
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
+typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter, xHandle_tkData;
 
 bool startTask;
+uint8_t spx_io_board;
 
 xSemaphoreHandle sem_SYSVars;
 StaticSemaphore_t SYSVARS_xMutexBuffer;
@@ -121,6 +114,7 @@ StaticSemaphore_t SYSVARS_xMutexBuffer;
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
 void tkCounter(void * pvParameters);
+void tkData(void * pvParameters);
 
 #define DLGID_LENGTH		10
 #define PARAMNAME_LENGTH	5
@@ -131,22 +125,41 @@ void tkCounter(void * pvParameters);
 #define PASSWD_LENGTH		15
 #define PARAMNAME_LENGTH	5
 
-// Tenemos 2 contadorees IN_C0, IN_C1
-// Si bien son 2 contadores de 16 bits, el tema es que
-// la magnitud debe ser un float.
+
 typedef struct {
-	float counters[NRO_COUNTER_CHANNELS];
+	float counters[MAX_COUNTER_CHANNELS];
 } st_counters_t;
+
+typedef struct {
+	float ainputs[MAX_ANALOG_CHANNELS];
+} st_analog_inputs_t;
+
+
+uint8_t NRO_COUNTERS;
+uint8_t NRO_ANINPUTS;
 
 typedef struct {
 	// Variables de trabajo.
 
 	// Configuracion de canales contadores
-	char counters_name[NRO_COUNTER_CHANNELS][PARAMNAME_LENGTH];
-	float counters_magpp[NRO_COUNTER_CHANNELS];
+	char counters_name[MAX_COUNTER_CHANNELS][PARAMNAME_LENGTH];
+	float counters_magpp[MAX_COUNTER_CHANNELS];
 	uint8_t counter_debounce_time;
 
+	// Configuracion de Canales analogicos
+	uint8_t ain_imin[MAX_ANALOG_CHANNELS];	// Coeficientes de conversion de I->magnitud (presion)
+	uint8_t ain_imax[MAX_ANALOG_CHANNELS];
+	float ain_mmin[MAX_ANALOG_CHANNELS];
+	float ain_mmax[MAX_ANALOG_CHANNELS];
+	char ain_name[MAX_ANALOG_CHANNELS][PARAMNAME_LENGTH];
+	float ain_mag_offset[MAX_ANALOG_CHANNELS];
+	float ain_mag_span[MAX_ANALOG_CHANNELS];
+
 	t_debug debug;
+	bool rangeMeter_enabled;
+	uint16_t timerPoll;
+	uint8_t pwr_settle_time;
+
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -159,21 +172,27 @@ systemVarsType systemVars;
 void initMCU(void);
 void u_configure_systemMainClock(void);
 void u_configure_RTC32(void);
-void pub_control_string( char *s_name );
-void pub_load_defaults( void );
-uint8_t pub_save_params_in_NVMEE(void);
-bool pub_load_params_from_NVMEE(void);
+void u_control_string( char *s_name );
+void u_load_defaults( void );
+uint8_t u_save_params_in_NVMEE(void);
+bool u_load_params_from_NVMEE(void);
+void u_config_timerpoll ( char *s_timerpoll );
+bool u_config_counter_channel( uint8_t channel,char *s_param0, char *s_param1 );
+bool u_config_analog_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax );
+void u_read_analog_channel ( uint8_t io_board, uint8_t io_channel, uint16_t *raw_val, float *mag_val );
 
 // TKCTL
-void pub_ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
-void pub_ctl_print_wdg_timers(void);
-void pub_ctl_print_stack_watermarks(void);
+void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
+void ctl_print_wdg_timers(void);
+uint16_t ctl_readTimeToNextPoll(void);
+void ctl_reload_timerPoll(void);
 
 // TKCOUNTER
-void pub_counter_config_debounce_time( char *s_counter_debounce_time );
-bool pub_counters_config_channel( uint8_t channel,char *s_param0, char *s_param1 );
-void pub_counters_load_defaults(void);
-void pub_counters_read_frame( st_counters_t dst_frame[], bool reset_counters );
+void counters_read_frame( st_counters_t dst_frame[], bool reset_counters );
+
+// TKDATA
+void data_read_frame(void);
+void data_print_frame(void);
 
 // WATCHDOG
 uint8_t wdg_resetCause;
@@ -181,9 +200,9 @@ uint8_t wdg_resetCause;
 #define WDG_CTL			0
 #define WDG_CMD			1
 #define WDG_COUNT		2
+#define WDG_DAT			3
 
-#define NRO_WDGS		3
-
+#define NRO_WDGS		4
 
 
 #endif /* SRC_SPX_H_ */

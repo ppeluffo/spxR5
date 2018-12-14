@@ -10,6 +10,7 @@
 
 #include "frtos-io.h"
 #include "clksys_driver.h"
+#include "l_printf.h"
 
 typedef uint16_t eeprom_addr_t;
 
@@ -21,6 +22,8 @@ uint8_t signature[11];
 #define NVMEE_read( rdAddress, data, length ) NVMEE_read_buffer (  rdAddress, data, length );
 #define NVMEE_write( wrAddress, data, length ) NVMEE_write_buffer ( wrAddress, data, length );
 char *NVMEE_readID( void );
+int8_t NVMEE_test_write( char *addr, char *str );
+int8_t NVMEE_test_read( char *addr, char *size );
 
 // API END
 //--------------------------------------------------------------------------------

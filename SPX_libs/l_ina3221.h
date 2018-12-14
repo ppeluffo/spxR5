@@ -12,6 +12,7 @@
 #include "stdint.h"
 
 #include "l_i2c.h"
+#include "l_printf.h"
 
 //------------------------------------------------------------------------------------
 
@@ -34,9 +35,13 @@ typedef int8_t i2c_bus_addr;
 
 #define INA3221_VCC_SETTLE_TIME	500
 
+#define INA_A	0
+#define INA_B	1
+#define INA_C	2
+
 //------------------------------------------------------------------------------------
 // API publica
-void INA_init(uint8_t spx_io_type );
+void INA_init( uint8_t io_board );
 void INA_config( uint8_t ina_id, uint16_t conf_reg_value );
 
 #define INA_read( dev_id, rdAddress, data, length ) 	I2C_read( INA_id2busaddr(dev_id), rdAddress, data, length );
@@ -45,9 +50,12 @@ void INA_config( uint8_t ina_id, uint16_t conf_reg_value );
 #define INA_config_avg128(ina_id)	INA_config(ina_id, CONF_INAS_AVG128 )
 #define INA_config_sleep(ina_id)	INA_config(ina_id, CONF_INAS_SLEEP )
 //
+int8_t INA_test_write ( char *ina_id_str, char *rconf_val_str );
+int8_t INA_test_read ( char *ina_id_str, char *regs );
+//
 // API END
 //------------------------------------------------------------------------------------
-i2c_bus_addr INA_id2busaddr( uint8_t id );
+i2c_bus_addr INA_id2busaddr( uint8_t ina_id );
 
 //------------------------------------------------------------------------------------
 

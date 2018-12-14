@@ -11,6 +11,14 @@
  *
  * Agregar a las librerias las funciones de diagnostico de CMD
  *
+ * Problemas con los printf al controlar TERMINAL_PIN en cmd task
+ *
+ * Como determinar el tipo de arquitectura IO ?
+ *
+ * autocalibrar / span / offset
+ * analog spx_8CH
+ *
+ *
  */
 
 #include "spx.h"
@@ -50,6 +58,7 @@ int main( void )
 	xTaskCreate(tkCtl, "CTL", tkCtl_STACK_SIZE, NULL, tkCtl_TASK_PRIORITY,  &xHandle_tkCtl );
 	xTaskCreate(tkCmd, "CMD", tkCmd_STACK_SIZE, NULL, tkCmd_TASK_PRIORITY,  &xHandle_tkCmd);
 	xTaskCreate(tkCounter, "COUNT", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter);
+	xTaskCreate(tkData, "DATA", tkData_STACK_SIZE, NULL, tkData_TASK_PRIORITY,  &xHandle_tkData);
 
 	/* Arranco el RTOS. */
 	vTaskStartScheduler();
@@ -58,7 +67,6 @@ int main( void )
 	exit (1);
 
 }
-//-----------------------------------------------------------
 //------------------------------------------------------------------------------------
 void vApplicationIdleHook( void )
 {

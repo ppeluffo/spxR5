@@ -8,17 +8,25 @@
 #include "l_ainputs.h"
 
 //------------------------------------------------------------------------------------
-void AINPUTS_init( void )
+void AINPUTS_init( uint8_t io_board )
 {
+	// SPX_IO5CH = 0
+	// SPX_IO8CH = 1
+
+	INA_init(io_board);
 
 }
 //------------------------------------------------------------------------------------
-uint16_t AINPUTS_read_channel( uint8_t dlg_type, uint8_t channel_id )
+uint16_t AINPUTS_read_ina( uint8_t io_board, uint8_t channel_id )
 {
 	// Como tenemos 2 arquitecturas de dataloggers, SPX_5CH y SPX_8CH,
 	// los canales estan mapeados en INA con diferentes id, por eso
 	// tomo como parametro el dlg_type que me indica cual arquitectura usar
 	// 0 - SPX_5CH, 1 - SPX_8CH
+
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// Aqui convierto de io_channel a (ina_id, ina_channel )
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 	// ina_id es el parametro que se pasa a la funcion INA_id2busaddr para
 	// que me devuelva la direccion en el bus I2C del dispositivo.
@@ -32,7 +40,7 @@ char res[3];
 int8_t xBytes;
 //float vshunt;
 
-	switch(dlg_type) {
+	switch(io_board) {
 
 	case 0:	// Datalogger SPX_5CH
 		switch ( channel_id ) {
@@ -47,13 +55,13 @@ int8_t xBytes;
 			break;
 		case 3:
 			ina_id = 1; ina_reg = INA3221_CH2_SHV;
-			break;	// Battery
+			break;
 		case 4:
 			ina_id = 1; ina_reg = INA3221_CH3_SHV;
 			break;
-		case 5:
+		case 99:
 			ina_id = 1; ina_reg = INA3221_CH1_BUSV;
-			break;
+			break;	// Battery
 		default:
 			return(-1);
 			break;

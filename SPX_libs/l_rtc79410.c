@@ -139,7 +139,7 @@ void RTC_rtc2str(char *str, RtcTimeType_t *rtc)
 {
 	// Convierte los datos del RTC a un string con formato DD/MM/YYYY hh:mm:ss
 
-	snprintf( str, 32 ,"%02d/%02d/%04d %02d:%02d:%02d\r\n",rtc->day, rtc->month, rtc->year, rtc->hour,rtc->min, rtc->sec );
+	snprintf( str, 32 ,"%02d/%02d/%04d %02d:%02d:%02d",rtc->day, rtc->month, rtc->year, rtc->hour,rtc->min, rtc->sec );
 
 }
 //------------------------------------------------------------------------------------
@@ -210,7 +210,68 @@ bool retS;
 	}
 }
 //------------------------------------------------------------------------------------
+// TEST
+//------------------------------------------------------------------------------------
+int8_t RTCSRAM_test_write( char *addr, char *str )
+{
+	// Funcion de testing de la RAM del RTC.( Esta ram es donde se guarda la FAT )
+	// Escribe en una direccion de memoria un string
+	// parametros: *addr > puntero char a la posicion de inicio de escritura
+	//             *str >  puntero char al texto a escribir
+	// retorna: -1 error
+	//			nro.de bytes escritos
 
+	// Calculamos el largo del texto a escribir en la eeprom.
+
+int8_t xBytes = 0;
+uint8_t length = 0;
+char *p;
+
+
+	p = str;
+	while (*p != 0) {
+		p++;
+		length++;
+	}
+
+	xBytes = RTC_write( ( RTC79410_SRAM_INIT + (uint32_t)(atol(addr))), str, length );
+	if ( xBytes == -1 )
+		xprintf_P(PSTR("ERROR: I2C:RTCSRAM_test_write\r\n\0"));
+
+	return(xBytes);
+
+}
+//------------------------------------------------------------------------------------
+int8_t RTCSRAM_test_read( char *addr, char *size )
+{
+	// Funcion de testing de la RAM del RTC. ( Esta ram es donde se guarda la FAT )
+	// Lee de una direccion de la memoria una cantiad de bytes y los imprime
+	// parametros: *addr > puntero char a la posicion de inicio de lectura
+	//             *size >  puntero char al largo de bytes a leer
+	// retorna: -1 error
+	//			nro.de bytes escritos
+
+int8_t xBytes = 0;
+char buffer[32];
+int8_t i;
+
+	xBytes = RTC_read( ( RTC79410_SRAM_INIT + (uint8_t)(atoi(addr))), (char *)&buffer, (uint8_t)(atoi(size)) );
+	if ( xBytes == -1 )
+		xprintf_P(PSTR("ERROR: I2C:RTCSRAM_test_read\r\n\0"));
+
+	if ( xBytes > 0 ) {
+		// El string leido lo devuelve en cmd_printfBuff por lo que le agrego el CR.
+		xprintf_P ( PSTR( "\r\n\0 ") );
+		for (i=0; i < atoi(size); i++ ) {
+			xprintf_P (PSTR("[0x%02x]"),buffer[i]);
+		}
+		xprintf_P ( PSTR( "\r\n\0 ") );
+	}
+
+	return (xBytes );
+
+}
+//------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
 static char pv_dec2bcd(char num)

@@ -7,8 +7,11 @@
 
 #include "spx.h"
 
+static void pv_load_defaults_ainputs(void);
+static void pv_load_defaults_counters(void);
+
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
-void RTC32_ToscEnable( bool use1khz );
+
 //------------------------------------------------------------------------------------
 void initMCU(void)
 {
@@ -46,6 +49,8 @@ void initMCU(void)
 //	IO_set_PWR_SLEEP();
 
 }
+//------------------------------------------------------------------------------------
+void RTC32_ToscEnable( bool use1khz );
 //------------------------------------------------------------------------------------
 void u_configure_systemMainClock(void)
 {
@@ -197,7 +202,7 @@ void RTC32_ToscEnable( bool use1khz )
 //	do { } while ( RTC32_ToscBusy() );
 }
 //------------------------------------------------------------------------------------
-void pub_control_string( char *s_name )
+void u_control_string( char *s_name )
 {
 	// Controlo que el string terminado en \0 tenga solo letras o digitos.
 	// Es porque si en un nombre de canal se cuela un caracter extranio, me
@@ -221,16 +226,20 @@ uint8_t cChar;
 
 }
 //------------------------------------------------------------------------------------
-void pub_load_defaults( void )
+void u_load_defaults( void )
 {
 	// Carga la configuracion por defecto.
 
 	systemVars.debug = DEBUG_NONE;
-	pub_counters_load_defaults();
+	systemVars.timerPoll = 300;
+	systemVars.pwr_settle_time = 1;
+
+	pv_load_defaults_counters();
+	pv_load_defaults_ainputs();
 
 }
 //------------------------------------------------------------------------------------
-uint8_t pub_save_params_in_NVMEE(void)
+uint8_t u_save_params_in_NVMEE(void)
 {
 	// Calculo el checksum del systemVars.
 	// Considero el systemVars como un array de chars.
@@ -260,7 +269,7 @@ uint16_t i;
 
 }
 //------------------------------------------------------------------------------------
-bool pub_load_params_from_NVMEE(void)
+bool u_load_params_from_NVMEE(void)
 {
 	// Leo el systemVars desde la EE.
 	// Calculo el checksum. Si no coincide es que hubo algun
@@ -293,6 +302,159 @@ uint16_t i;
 	}
 
 	return(true);
+}
+//------------------------------------------------------------------------------------
+void u_config_timerpoll ( char *s_timerpoll )
+{
+	// Configura el tiempo de poleo.
+	// Se utiliza desde el modo comando como desde el modo online
+	// El tiempo de poleo debe estar entre 15s y 3600s
+
+	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
+	systemVars.timerPoll = atoi(s_timerpoll);
+
+	if ( systemVars.timerPoll < 15 )
+		systemVars.timerPoll = 15;
+
+	if ( systemVars.timerPoll > 3600 )
+		systemVars.timerPoll = 300;
+
+	xSemaphoreGive( sem_SYSVars );
+	return;
+}
+//------------------------------------------------------------------------------------
+bool u_config_counter_channel( uint8_t channel,char *s_param0, char *s_param1 )
+{
+	// Configuro un canal contador.
+	// channel: id del canal
+	// s_param0: string del nombre del canal
+	// s_param1: string con el valor del factor magpp.
+	//
+	// {0..1} dname magPP
+
+bool retS = false;
+
+	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
+	if ( ( channel >=  0) && ( channel < NRO_COUNTERS ) ) {
+
+		// NOMBRE
+		u_control_string(s_param0);
+		snprintf_P( systemVars.counters_name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_param0 );
+
+		// MAGPP
+		if ( s_param1 != NULL ) { systemVars.counters_magpp[channel] = atof(s_param1); }
+
+		retS = true;
+	}
+
+	xSemaphoreGive( sem_SYSVars );
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+bool u_config_analog_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax )
+{
+
+	// Configura los canales analogicos. Es usada tanto desde el modo comando como desde el modo online por gprs.
+
+bool retS = false;
+
+	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
+	u_control_string(s_aname);
+
+	if ( ( channel >=  0) && ( channel < NRO_ANINPUTS ) ) {
+		snprintf_P( systemVars.ain_name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
+		if ( s_imin != NULL ) { systemVars.ain_imin[channel] = atoi(s_imin); }
+		if ( s_imax != NULL ) { systemVars.ain_imax[channel] = atoi(s_imax); }
+		if ( s_mmin != NULL ) { systemVars.ain_mmin[channel] = atoi(s_mmin); }
+		if ( s_mmax != NULL ) { systemVars.ain_mmax[channel] = atof(s_mmax); }
+		retS = true;
+	}
+
+	xSemaphoreGive( sem_SYSVars );
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+void u_read_analog_channel ( uint8_t io_board, uint8_t io_channel, uint16_t *raw_val, float *mag_val )
+{
+	// Lee un canal analogico y devuelve el valor convertido a la magnitud configurada.
+	// Es publico porque se utiliza tanto desde el modo comando como desde el modulo de poleo de las entradas.
+	// Hay que corregir la correspondencia entre el canal leido del INA y el canal fisico del datalogger
+	// io_channel. Esto lo hacemos en AINPUTS_read_ina.
+
+uint16_t an_raw_val;
+float an_mag_val;
+float I,M,P;
+uint16_t D;
+
+
+	an_raw_val = AINPUTS_read_ina(io_board, io_channel );
+	*raw_val = an_raw_val;
+
+	// Convierto el raw_value a la magnitud
+	// Calculo la corriente medida en el canal
+	I = (float)( an_raw_val) * 20 / ( systemVars.ain_mag_span[io_channel] + 1);
+
+	// Calculo la magnitud
+	P = 0;
+	D = systemVars.ain_imax[io_channel] - systemVars.ain_imin[io_channel];
+
+	an_mag_val = 0.0;
+	if ( D != 0 ) {
+		// Pendiente
+		P = (float) ( systemVars.ain_mmax[io_channel]  -  systemVars.ain_mmin[io_channel] ) / D;
+		// Magnitud
+		M = (float) (systemVars.ain_mmin[io_channel] + ( I - systemVars.ain_imin[io_channel] ) * P);
+
+		// Al calcular la magnitud utilizo el offset.
+		an_mag_val = M + systemVars.ain_mag_offset[io_channel];
+	} else {
+		// Error: denominador = 0.
+		an_mag_val = -999.0;
+	}
+
+	*mag_val = an_mag_val;
+
+}
+//------------------------------------------------------------------------------------
+// FUNCIONES PRIVADAS
+//------------------------------------------------------------------------------------
+static void pv_load_defaults_ainputs(void)
+{
+
+uint8_t channel;
+
+	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
+		systemVars.ain_imin[channel] = 0;
+		systemVars.ain_imax[channel] = 20;
+		systemVars.ain_mmin[channel] = 0;
+		systemVars.ain_mmax[channel] = 6.0;
+		systemVars.ain_mag_offset[channel] = 0.0;
+		systemVars.ain_mag_span[channel] = 3646;
+		snprintf_P( systemVars.ain_name[channel], PARAMNAME_LENGTH, PSTR("A%d\0"),channel );
+	}
+}
+//------------------------------------------------------------------------------------
+static void pv_load_defaults_counters(void)
+{
+
+	// Realiza la configuracion por defecto de los canales digitales.
+uint8_t i;
+
+	for ( i = 0; i < NRO_COUNTERS; i++ ) {
+		snprintf_P( systemVars.counters_name[i], PARAMNAME_LENGTH, PSTR("C%d\0"), i );
+		systemVars.counters_magpp[i] = 0.1;
+	}
+
+	// Debounce Time
+	systemVars.counter_debounce_time = 50;
+
 }
 //------------------------------------------------------------------------------------
 

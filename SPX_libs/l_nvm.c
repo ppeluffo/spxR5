@@ -218,5 +218,59 @@ uint8_t nvm_fuses_read(uint8_t fuse)
 	return NVM.DATA0;
 }
 //----------------------------------------------------------------------------------------
+// TEST
+//------------------------------------------------------------------------------------
+int8_t NVMEE_test_write( char *addr, char *str )
+{
+	// Funcion de testing de la EEPROM interna del micro xmega
+	// Escribe en una direccion de memoria un string
+	// parametros: *addr > puntero char a la posicion de inicio de escritura
+	//             *str >  puntero char al texto a escribir
+	// retorna: -1 error
+	//			nro.de bytes escritos
+
+	// Calculamos el largo del texto a escribir en la eeprom.
+
+int8_t xBytes = 0;
+uint8_t length = 0;
+char *p;
+
+
+	p = str;
+	while (*p != 0) {
+		p++;
+		length++;
+	}
+
+	xBytes = NVMEE_write( (uint16_t)(atoi(addr)), str, length );
+	if ( xBytes == -1 )
+		xprintf_P(PSTR("ERROR: NVMEE_test_write\r\n\0"));
+
+	return(xBytes);
+}
+//------------------------------------------------------------------------------------
+int8_t NVMEE_test_read( char *addr, char *size )
+{
+	// Funcion de testing de la EEPROM interna del micro xmega
+	// Lee de una direccion de la memoria una cantiad de bytes y los imprime
+	// parametros: *addr > puntero char a la posicion de inicio de lectura
+	//             *size >  puntero char al largo de bytes a leer
+	// retorna: -1 error
+	//			nro.de bytes escritos
+
+int8_t xBytes = 0;
+char buffer[32];
+
+	xBytes = NVMEE_read( (uint16_t)(atoi(addr)), buffer, (uint8_t)(atoi( size) ) );
+	if ( xBytes == -1 )
+		xprintf_P(PSTR("ERROR: NVMEE_test_read\r\n\0"));
+
+	if ( xBytes > 0 )
+		xprintf_P( PSTR( "%s\r\n\0"),buffer);
+
+	return (xBytes );
+
+}
+//------------------------------------------------------------------------------------
 
 
