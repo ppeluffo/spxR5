@@ -75,6 +75,8 @@ static void pv_ctl_init_system(void)
 	//
 
 uint8_t wdg;
+FAT_t l_fat;
+uint16_t recSize;
 
 	// Configuro los pines del micro que no se configuran en funciones particulares
 	// LEDS:
@@ -99,6 +101,23 @@ uint8_t wdg;
 		xprintf_P( PSTR("\r\nLoading defaults !!\r\n\0"));
 	}
 
+	time_to_next_poll = systemVars.timerPoll;
+
+	// Inicializo la memoria EE ( fileSysyem)
+	if ( FF_open() ) {
+		xprintf_P( PSTR("FSInit OK\r\n\0"));
+	} else {
+		FF_format(false );	// Reformateo soft.( solo la FAT )
+		xprintf_P( PSTR("FSInit FAIL !!.Reformatted...\r\n\0"));
+	}
+
+	FAT_read(&l_fat);
+	xprintf_P( PSTR("MEMsize=%d,wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"),FF_MAX_RCDS, l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
+
+	// Imprimo el tamanio de registro de memoria
+	recSize = sizeof(st_dataRecord_t);
+	xprintf_P( PSTR("RCD size %d bytes.\r\n\0"),recSize);
+
 	// Arranco el RTC. Si hay un problema lo inicializo.
 	RTC_init();
 
@@ -113,14 +132,17 @@ uint8_t wdg;
 
 	// Inicializo los parametros operativos segun la spx_io_board
 	if ( spx_io_board == SPX_IO5CH ) {
-		NRO_COUNTERS = 2;
-		NRO_ANINPUTS = 5;
+		NRO_COUNTERS = IO5_COUNTER_CHANNELS;
+		NRO_ANINPUTS = IO5_ANALOG_CHANNELS;
+		NRO_DINPUTS = IO5_DINPUTS_CHANNELS;
 	} else if ( spx_io_board == SPX_IO8CH ) {
-		NRO_COUNTERS = 2;
-		NRO_ANINPUTS = 8;
+		NRO_COUNTERS = IO8_COUNTER_CHANNELS;
+		NRO_ANINPUTS = IO8_ANALOG_CHANNELS;
+		NRO_DINPUTS = IO5_DINPUTS_CHANNELS;
 	}
 
-	xprintf_P( PSTR("ioboard=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), spx_io_board, NRO_COUNTERS, NRO_ANINPUTS );
+	xprintf_P( PSTR("ioboard=%d, DINPUTS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), spx_io_board, NRO_DINPUTS, NRO_COUNTERS, NRO_ANINPUTS );
+	xprintf_P( PSTR("------------------------------------------------\r\n\0"));
 
 	// Habilito a arrancar al resto de las tareas
 	startTask = true;

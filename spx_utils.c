@@ -9,6 +9,7 @@
 
 static void pv_load_defaults_ainputs(void);
 static void pv_load_defaults_counters(void);
+static void pv_load_defaults_dinputs(void);
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -233,9 +234,11 @@ void u_load_defaults( void )
 	systemVars.debug = DEBUG_NONE;
 	systemVars.timerPoll = 300;
 	systemVars.pwr_settle_time = 1;
+	systemVars.rangeMeter_enabled = false;
 
 	pv_load_defaults_counters();
 	pv_load_defaults_ainputs();
+	pv_load_defaults_dinputs();
 
 }
 //------------------------------------------------------------------------------------
@@ -399,7 +402,7 @@ uint16_t D;
 
 	// Convierto el raw_value a la magnitud
 	// Calculo la corriente medida en el canal
-	I = (float)( an_raw_val) * 20 / ( systemVars.ain_mag_span[io_channel] + 1);
+	I = (float)( an_raw_val) * 20 / ( systemVars.ain_inaspan[io_channel] + 1);
 
 	// Calculo la magnitud
 	P = 0;
@@ -412,8 +415,8 @@ uint16_t D;
 		// Magnitud
 		M = (float) (systemVars.ain_mmin[io_channel] + ( I - systemVars.ain_imin[io_channel] ) * P);
 
-		// Al calcular la magnitud utilizo el offset.
-		an_mag_val = M + systemVars.ain_mag_offset[io_channel];
+		// Al calcular la magnitud, al final le sumo el offset.
+		an_mag_val = M + systemVars.ain_offset[io_channel];
 	} else {
 		// Error: denominador = 0.
 		an_mag_val = -999.0;
@@ -423,6 +426,28 @@ uint16_t D;
 
 }
 //------------------------------------------------------------------------------------
+bool u_config_digital_channel( uint8_t channel,char *s_aname )
+{
+
+	// Configura los canales analogicos. Es usada tanto desde el modo comando como desde el modo online por gprs.
+
+bool retS = false;
+
+	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
+	u_control_string(s_aname);
+
+	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
+		snprintf_P( systemVars.din_name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
+		retS = true;
+	}
+
+	xSemaphoreGive( sem_SYSVars );
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
 static void pv_load_defaults_ainputs(void)
@@ -435,8 +460,8 @@ uint8_t channel;
 		systemVars.ain_imax[channel] = 20;
 		systemVars.ain_mmin[channel] = 0;
 		systemVars.ain_mmax[channel] = 6.0;
-		systemVars.ain_mag_offset[channel] = 0.0;
-		systemVars.ain_mag_span[channel] = 3646;
+		systemVars.ain_offset[channel] = 0.0;
+		systemVars.ain_inaspan[channel] = 3646;
 		snprintf_P( systemVars.ain_name[channel], PARAMNAME_LENGTH, PSTR("A%d\0"),channel );
 	}
 }
@@ -444,7 +469,7 @@ uint8_t channel;
 static void pv_load_defaults_counters(void)
 {
 
-	// Realiza la configuracion por defecto de los canales digitales.
+	// Realiza la configuracion por defecto de los canales contadores.
 uint8_t i;
 
 	for ( i = 0; i < NRO_COUNTERS; i++ ) {
@@ -454,6 +479,18 @@ uint8_t i;
 
 	// Debounce Time
 	systemVars.counter_debounce_time = 50;
+
+}
+//------------------------------------------------------------------------------------
+static void pv_load_defaults_dinputs(void)
+{
+
+	// Realiza la configuracion por defecto de los canales digitales.
+uint8_t i;
+
+	for ( i = 0; i < NRO_DINPUTS; i++ ) {
+		snprintf_P( systemVars.din_name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );
+	}
 
 }
 //------------------------------------------------------------------------------------

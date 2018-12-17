@@ -99,6 +99,9 @@ uint8_t IO_read_BAUD_PIN(void);
 uint8_t IO_read_PA0(void);
 uint8_t IO_read_PB7(void);
 
+#define DIN_read_DIN0()	IO_read_PA0()
+#define DIN_read_DIN1()	IO_read_PB7()
+
 //------------------------------------------------------------------------------------
 // ENTRADAS DIGITALES DE LOS CONTADORES
 

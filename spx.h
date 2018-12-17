@@ -63,8 +63,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "0.0.1.R4"
-#define SPX_FW_DATE "@ 20181212"
+#define SPX_FW_REV "0.0.2.R4"
+#define SPX_FW_DATE "@ 20181217"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -82,6 +82,14 @@
 #define MAX_DINPUTS_CHANNELS	8
 #define MAX_DOUTPUTS_CHANNELS	8
 #define MAX_COUNTER_CHANNELS	2
+
+#define IO5_ANALOG_CHANNELS		5
+#define IO5_DINPUTS_CHANNELS	2
+#define IO5_COUNTER_CHANNELS	2
+
+#define IO8_ANALOG_CHANNELS		8
+#define IO8_DINPUTS_CHANNELS	8
+#define IO8_COUNTER_CHANNELS	2
 
 #define CHAR32	32
 #define CHAR64	64
@@ -125,18 +133,36 @@ void tkData(void * pvParameters);
 #define PASSWD_LENGTH		15
 #define PARAMNAME_LENGTH	5
 
-
-typedef struct {
-	float counters[MAX_COUNTER_CHANNELS];
-} st_counters_t;
-
-typedef struct {
-	float ainputs[MAX_ANALOG_CHANNELS];
-} st_analog_inputs_t;
-
-
 uint8_t NRO_COUNTERS;
 uint8_t NRO_ANINPUTS;
+uint8_t NRO_DINPUTS;
+
+// Estructura de un registro de IO5CH
+typedef struct {
+	float ainputs[IO5_ANALOG_CHANNELS];
+	uint8_t dinputs[IO5_DINPUTS_CHANNELS];
+	float counters[IO5_COUNTER_CHANNELS];
+	int16_t range;
+	float battery;
+} st_io5_t;
+
+// Estructura de un registro de IO8CH
+typedef struct {
+	float ainputs[IO8_ANALOG_CHANNELS];
+	uint8_t dinputs[IO8_DINPUTS_CHANNELS];
+	float counters[IO8_COUNTER_CHANNELS];
+} st_io8_t;
+
+// Estructura de datos comun independiente de la arquitectura de IO
+typedef union u_dataframe {
+	st_io5_t io5;
+	st_io8_t io8;
+} u_dataframe_t;
+
+typedef struct {
+	RtcTimeType_t rtc;
+	u_dataframe_t df;
+} st_dataRecord_t;
 
 typedef struct {
 	// Variables de trabajo.
@@ -152,14 +178,16 @@ typedef struct {
 	float ain_mmin[MAX_ANALOG_CHANNELS];
 	float ain_mmax[MAX_ANALOG_CHANNELS];
 	char ain_name[MAX_ANALOG_CHANNELS][PARAMNAME_LENGTH];
-	float ain_mag_offset[MAX_ANALOG_CHANNELS];
-	float ain_mag_span[MAX_ANALOG_CHANNELS];
+	float ain_offset[MAX_ANALOG_CHANNELS];
+	float ain_inaspan[MAX_ANALOG_CHANNELS];
+
+	// Configuracion de canales digitales
+	char din_name[MAX_DINPUTS_CHANNELS][PARAMNAME_LENGTH];
 
 	t_debug debug;
 	bool rangeMeter_enabled;
 	uint16_t timerPoll;
 	uint8_t pwr_settle_time;
-
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -180,6 +208,7 @@ void u_config_timerpoll ( char *s_timerpoll );
 bool u_config_counter_channel( uint8_t channel,char *s_param0, char *s_param1 );
 bool u_config_analog_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax );
 void u_read_analog_channel ( uint8_t io_board, uint8_t io_channel, uint16_t *raw_val, float *mag_val );
+bool u_config_digital_channel( uint8_t channel,char *s_aname );
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -188,11 +217,13 @@ uint16_t ctl_readTimeToNextPoll(void);
 void ctl_reload_timerPoll(void);
 
 // TKCOUNTER
-void counters_read_frame( st_counters_t dst_frame[], bool reset_counters );
+void counters_read_frame( st_dataRecord_t *drcd, bool reset_counters );
 
 // TKDATA
-void data_read_frame(void);
-void data_print_frame(void);
+void data_show_frame( bool polling );
+
+// TKDINPUTS
+void dinputs_read_frame( st_dataRecord_t *drcd );
 
 // WATCHDOG
 uint8_t wdg_resetCause;

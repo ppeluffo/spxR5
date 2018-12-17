@@ -6,7 +6,7 @@
 
 #include "spx.h"
 
-static st_counters_t cframe;
+static float counters[MAX_COUNTER_CHANNELS];
 static void pv_tkCounter_init(void);
 
 // La tarea puede estar hasta 10s en standby
@@ -44,17 +44,17 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 10000 );
 			// Fui notificado: llego algun flanco que determino.
 
 			if ( cTask_wakeup_for_C0() ) {
-				cframe.counters[0]++;
+				counters[0]++;
 				reset_wakeup_for_C0();
 			}
 
 			if ( cTask_wakeup_for_C1() ) {
-				cframe.counters[1]++;
+				counters[1]++;
 				reset_wakeup_for_C1();
 			}
 
 			if ( systemVars.debug == DEBUG_COUNTER) {
-				xprintf_P( PSTR("COUNTERS: C0=%d,C1=%d\r\n\0"),(uint16_t) cframe.counters[0], (uint16_t) cframe.counters[1]);
+				xprintf_P( PSTR("COUNTERS: C0=%d,C1=%d\r\n\0"),(uint16_t) counters[0], (uint16_t) counters[1]);
 			}
 
 			// Espero el tiempo de debounced
@@ -73,19 +73,19 @@ static void pv_tkCounter_init(void)
 {
 	// Configuracion inicial de la tarea
 
-uint8_t counter;
+uint8_t i;
 
 	COUNTERS_init( xHandle_tkCounter );
 
-	for ( counter = 0; counter < NRO_COUNTERS; counter++) {
-		cframe.counters[ counter ] = 0;
+	for ( i = 0; i < NRO_COUNTERS; i++) {
+		counters[ i ] = 0;
 	}
 
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PUBLICAS
 //------------------------------------------------------------------------------------
-void counters_read_frame( st_counters_t dst_frame[], bool reset_counters )
+void counters_read_frame( st_dataRecord_t *drcd, bool reset_counters )
 {
 
 	// Esta funcion la invoca tkData al completar un frame para agregar los datos
@@ -98,20 +98,21 @@ uint8_t i;
 
 	// Convierto los contadores a las magnitudes (todos, por ahora no importa cuales son contadores )
 	// Siempre multiplico por magPP. Si quiero que sea en mt3/h, en el server debo hacerlo (  * 3600 / systemVars.timerPoll )
+
 	for (i = 0; i < NRO_COUNTERS; i++) {
-		cframe.counters[i] = cframe.counters[i] * systemVars.counters_magpp[i];
-	}
-
-	// Copio el resultado
-	memcpy( dst_frame , &cframe, sizeof(st_counters_t) );
-
-	// Borro los contadores para iniciar un nuevo ciclo.
-	if ( reset_counters ) {
-		for (i = 0; i < NRO_COUNTERS; i++) {
-			cframe.counters[i] = 0.0;
+		switch (spx_io_board ) {
+		case SPX_IO5CH:
+			drcd->df.io5.counters[i] = counters[i] * systemVars.counters_magpp[i];
+			if ( reset_counters )
+				counters[i] = 0.0;
+			break;
+		case SPX_IO8CH:
+			drcd->df.io8.counters[i] = counters[i] * systemVars.counters_magpp[i];
+			if ( reset_counters )
+				counters[i] = 0.0;
+			break;
 		}
 	}
-
 }
 //------------------------------------------------------------------------------------
 

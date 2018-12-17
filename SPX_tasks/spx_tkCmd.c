@@ -16,11 +16,13 @@ static void pv_cmd_read_fuses(void);
 static bool pv_cmd_config_offset( char *s_channel, char *s_offset );
 static bool pv_cmd_autocalibrar( char *s_channel, char *s_mag_val );
 static void pv_cmd_config_sensortime ( char *s_sensortime );
-static void pv_cmd_config_span ( uint8_t channel, char *s_span );
+static void pv_cmd_config_inaspan ( uint8_t channel, char *s_span );
 static void pv_cmd_config_counter_debounce_time( char *s_counter_debounce_time );
 static void pv_cmd_print_stack_watermarks(void);
 static void pv_cmd_read_battery(void);
 static void pv_cmd_read_analog_channel(void);
+static void pv_cmd_read_digital_channels(void);
+static void pv_cmd_read_memory(void);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -51,6 +53,8 @@ uint8_t ticks;
 	// Espero la notificacion para arrancar
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+
+	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 
 	FRTOS_CMD_init();
 
@@ -120,7 +124,7 @@ uint8_t channel;
 
 	// Memoria
 	FAT_read(&l_fat);
-	xprintf_P( PSTR("memory: wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
+	xprintf_P( PSTR("memory: rcdSize=%d, wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), sizeof(st_dataRecord_t), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
 
 	// CONFIG
 	xprintf_P( PSTR(">Config:\r\n\0"));
@@ -144,18 +148,34 @@ uint8_t channel;
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"),systemVars.pwr_settle_time );
 
+	// Counters debounce time
+	xprintf_P( PSTR("  timerDebounceCnt: [%d s]\r\n\0"),systemVars.counter_debounce_time );
+
+	// RangeMeter: PULSE WIDTH
+	if ( spx_io_board == SPX_IO5CH ) {
+		if ( systemVars.rangeMeter_enabled ) {
+			xprintf_P( PSTR("  rangeMeter: on\r\n"));
+		} else {
+			xprintf_P( PSTR("  rangeMeter: off\r\n"));
+		}
+	}
+
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %.02f | %.02f | %s]\r\n\0"),channel, systemVars.ain_imin[channel],systemVars.ain_imax[channel],systemVars.ain_mmin[channel],systemVars.ain_mmax[channel], systemVars.ain_mag_span[channel], systemVars.ain_mag_offset[channel], systemVars.ain_name[channel] );
+		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %.02f | %.02f | %s]\r\n\0"),channel, systemVars.ain_imin[channel],systemVars.ain_imax[channel],systemVars.ain_mmin[channel],systemVars.ain_mmax[channel], systemVars.ain_inaspan[channel], systemVars.ain_offset[channel], systemVars.ain_name[channel] );
+	}
+
+	// dinputs
+	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
+		xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.din_name[channel] );
 	}
 
 	// contadores
-	xprintf_P( PSTR("  cdtime: [%d s]\r\n\0"),systemVars.counter_debounce_time );
 	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
 		xprintf_P( PSTR("  c%d [ %s | %.02f ]\r\n\0"),channel, systemVars.counters_name[channel],systemVars.counters_magpp[channel] );
 	}
 
-	data_print_frame();
+	data_show_frame( false );
 }
 //-----------------------------------------------------------------------------------
 static void cmdResetFunction(void)
@@ -169,6 +189,12 @@ static void cmdResetFunction(void)
 
 		// Nadie debe usar la memoria !!!
 		ctl_watchdog_kick(WDG_CMD, 0xFFFF);
+
+		vTaskSuspend( xHandle_tkData );
+		ctl_watchdog_kick(WDG_DAT, 0xFFFF);
+
+		vTaskSuspend( xHandle_tkCounter );
+		ctl_watchdog_kick(WDG_COUNT, 0xFFFF);
 
 		if (!strcmp_P( strupr(argv[2]), PSTR("SOFT\0"))) {
 			FF_format(false );
@@ -315,8 +341,7 @@ static void cmdReadFunction(void)
 	// FRAME
 	// read frame
 	if (!strcmp_P( strupr(argv[1]), PSTR("FRAME\0")) ) {
-		data_read_frame();
-		data_print_frame();
+		data_show_frame( true );
 		return;
 	}
 
@@ -333,6 +358,22 @@ static void cmdReadFunction(void)
 		pv_cmd_read_analog_channel();
 		return;
 	}
+
+	// DIN
+	// read din
+	if (!strcmp_P( strupr(argv[1]), PSTR("DIN\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_read_digital_channels();
+		return;
+	}
+
+	// MEMORY
+	// read memory
+	if (!strcmp_P( strupr(argv[1]), PSTR("MEMORY\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_read_memory();
+		return;
+	}
+
+
 	// CMD NOT FOUND
 	xprintf_P( PSTR("ERROR\r\nCMD NOT DEFINED\r\n\0"));
 	return;
@@ -433,10 +474,10 @@ bool retS = false;
 		return;
 	}
 
-	// SPAN
-	// config span
-	if (!strcmp_P( strupr(argv[1]), PSTR("SPAN\0"))) {
-		pv_cmd_config_span( atoi(argv[2]), argv[3] );
+	// INASPAN
+	// config inaspan
+	if (!strcmp_P( strupr(argv[1]), PSTR("INASPAN\0"))) {
+		pv_cmd_config_inaspan( atoi(argv[2]), argv[3] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -448,9 +489,31 @@ bool retS = false;
 		return;
 	}
 
+	// DIGITAL
+	// config digital {0..1} dname
+	if (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) ) {
+		u_config_digital_channel( atoi(argv[2]), argv[3]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
+	// RANGEMETER
+	// rangemeter {on|off}
+	if (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) {
+
+		if ( !strcmp_P( strupr(argv[2]), PSTR("ON\0"))) {
+			systemVars.rangeMeter_enabled = true;
+			pv_snprintfP_OK();
+		} else if ( !strcmp_P( strupr(argv[2]), PSTR("OFF\0"))) {
+			systemVars.rangeMeter_enabled = false;
+			pv_snprintfP_OK();
+		} else {
+			pv_snprintfP_ERR();
+		}
+		return;
+	}
+
 	pv_snprintfP_ERR();
 	return;
-
 }
 //------------------------------------------------------------------------------------
 static void cmdHelpFunction(void)
@@ -480,6 +543,8 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  (ee,nvmee,rtcram) {pos} {lenght}\r\n\0"));
 			xprintf_P( PSTR("  ina (id) {conf|chXshv|chXbusv|mfid|dieid}\r\n\0"));
 			xprintf_P( PSTR("  ach {0..4}, battery\r\n\0"));
+			xprintf_P( PSTR("  din\r\n\0"));
+			xprintf_P( PSTR("  memory\r\n\0"));
 		}
 		return;
 
@@ -502,16 +567,19 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  cdtime {val}\r\n\0"));
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
-		xprintf_P( PSTR("  offset {ch} {mag}, span {ch} {mag}\r\n\0"));
+		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
-
+		xprintf_P( PSTR("  digital {0..%d} dname\r\n\0"), ( NRO_DINPUTS - 1 ) );
+		if ( spx_io_board == SPX_IO5CH ) {
+			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
+		}
 		xprintf_P( PSTR("  default\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
 	}
 
 	// HELP KILL
 	else if (!strcmp_P( strupr(argv[1]), PSTR("KILL\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		xprintf_P( PSTR("-kill {counter}\r\n\0"));
+		xprintf_P( PSTR("-kill {counter, data }\r\n\0"));
 		return;
 
 	} else {
@@ -544,6 +612,13 @@ static void cmdKillFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0"))) {
 		vTaskSuspend( xHandle_tkCounter );
 		ctl_watchdog_kick(WDG_COUNT, 0xFFFF);
+		return;
+	}
+
+	// KILL DATA
+	if (!strcmp_P( strupr(argv[1]), PSTR("DATA\0"))) {
+		vTaskSuspend( xHandle_tkData );
+		ctl_watchdog_kick(WDG_DAT, 0xFFFF);
 		return;
 	}
 
@@ -603,7 +678,7 @@ float offset;
 	channel = atoi(s_channel);
 	if ( ( channel >=  0) && ( channel < NRO_ANINPUTS ) ) {
 		offset = atof(s_offset);
-		systemVars.ain_mag_offset[channel] = offset;
+		systemVars.ain_offset[channel] = offset;
 		return(true);
 	}
 
@@ -636,7 +711,7 @@ float offset;
 //	xprintf_P( PSTR("ANRAW=%d\r\n\0"), an_raw_val );
 
 	// Convierto el raw_value a la magnitud
-	I = (float)( an_raw_val) * 20 / ( systemVars.ain_mag_span[channel] + 1);
+	I = (float)( an_raw_val) * 20 / ( systemVars.ain_inaspan[channel] + 1);
 	P = 0;
 	D = systemVars.ain_imax[channel] - systemVars.ain_imin[channel];
 
@@ -662,9 +737,9 @@ float offset;
 	offset = an_mag_val_real - an_mag_val;
 //	xprintf_P( PSTR("AUTOCAL offset=%.02f\r\n\0"), offset );
 
-	systemVars.ain_mag_offset[channel] = offset;
+	systemVars.ain_offset[channel] = offset;
 
-	xprintf_P( PSTR("COEF_CAL=%.02f\r\n\0"), systemVars.ain_mag_offset[channel] );
+	xprintf_P( PSTR("OFFSET=%.02f\r\n\0"), systemVars.ain_offset[channel] );
 
 	return(true);
 
@@ -691,7 +766,7 @@ static void pv_cmd_config_sensortime ( char *s_sensortime )
 	return;
 }
 //------------------------------------------------------------------------------------
-static void pv_cmd_config_span ( uint8_t channel, char *s_span )
+static void pv_cmd_config_inaspan ( uint8_t channel, char *s_span )
 {
 	// Configura el factor de correccion del span de canales delos INA.
 	// Esto es debido a que las resistencias presentan una tolerancia entonces con
@@ -704,7 +779,7 @@ uint16_t span;
 		taskYIELD();
 
 	span = atoi(s_span);
-	systemVars.ain_mag_span[channel] = span;
+	systemVars.ain_inaspan[channel] = span;
 
 	xSemaphoreGive( sem_SYSVars );
 	return;
@@ -775,3 +850,58 @@ float mag_val;
 		pv_snprintfP_ERR();
 	}
 }
+//------------------------------------------------------------------------------------
+static void pv_cmd_read_digital_channels(void)
+{
+
+	// Leo e imprimo todos los canales digitales a la vez.
+
+uint8_t din0, din1;
+
+	if ( spx_io_board == SPX_IO5CH ) {
+		// Leo los canales digitales.
+		din0 = DIN_read_DIN0();
+		din1 = DIN_read_DIN1();
+		xprintf_P( PSTR("Din0: %d, Din1: %d\r\n\0"), din0, din1 );
+		return;
+
+	}
+}
+//------------------------------------------------------------------------------------
+static void pv_cmd_read_memory(void)
+{
+	// Si hay datos en memoria los lee todos y los muestra en pantalla
+	// Leemos la memoria e imprimo los datos.
+	// El problema es que si hay muchos datos puede excederse el tiempo de watchdog y
+	// resetearse el dlg.
+	// Para esto, cada 32 registros pateo el watchdog.
+/*
+StatBuffer_t pxFFStatBuffer;
+frameData_t Aframe;
+size_t bRead;
+uint16_t rcds = 0;
+
+	FF_seek();
+	while(1) {
+		bRead = FF_fread( &Aframe, sizeof(Aframe));
+
+		if ( bRead == 0) {
+			break;
+		}
+
+		if ( ( rcds++ % 32) == 0 ) {
+			pub_control_watchdog_kick(WDG_CMD, WDG_CMD_TIMEOUT);
+		}
+
+		// imprimo
+		FF_stat(&pxFFStatBuffer);
+		FRTOS_snprintf_P( cmd_printfBuff, sizeof(cmd_printfBuff),  PSTR("RD:[%d/%d/%d][%d/%d] "), pxFFStatBuffer.HEAD,pxFFStatBuffer.RD, pxFFStatBuffer.TAIL,pxFFStatBuffer.rcdsFree,pxFFStatBuffer.rcds4del);
+		FreeRTOS_write( &pdUART1, cmd_printfBuff, sizeof(cmd_printfBuff) );
+
+		pub_analog_print_frame(&Aframe);
+
+	}
+*/
+}
+//------------------------------------------------------------------------------------
+
