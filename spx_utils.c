@@ -24,8 +24,6 @@ void initMCU(void)
 //	IO_config_SENS_12V_CTL();
 
 
-	// BAUD RATE PIN
-//	IO_config_BAUD_PIN();
 
 //	AINPUTS_init();
 //	DINPUTS_init();
@@ -487,6 +485,8 @@ static void pv_load_defaults_dinputs(void)
 
 	// Realiza la configuracion por defecto de los canales digitales.
 uint8_t i;
+
+	systemVars.dinputs_timers = false;
 
 	for ( i = 0; i < NRO_DINPUTS; i++ ) {
 		snprintf_P( systemVars.din_name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );

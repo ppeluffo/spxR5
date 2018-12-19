@@ -109,4 +109,53 @@ uint8_t i2c_error_code;
 
 }
 //------------------------------------------------------------------------------------
+bool I2C_test_device( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, uint8_t length )
+{
+	// Es lo mismo que I2C_read pero como se usa para ver cual dispositivo esta en el bus
+	// y asi determinar cual placa IO tenemos, no muestra errores.
+
+
+size_t xReturn = 0U;
+uint8_t bus_address;
+uint8_t	dev_address_length = 1;
+uint16_t device_address;
+int8_t xBytes = 0;
+uint8_t i2c_error_code;
+bool retS = true;
+
+	frtos_ioctl( fdI2C,ioctl_OBTAIN_BUS_SEMPH, NULL);
+
+	// 1) Indicamos el periferico i2c en el cual queremos leer ( variable de 8 bits !!! )
+	bus_address = i2c_bus_address;
+	frtos_ioctl(fdI2C,ioctl_I2C_SET_DEVADDRESS, &bus_address);
+
+	// 2) Luego indicamos la direccion desde donde leer:
+	//    Largo: 1 byte indica el largo. El FRTOS espera 1 byte.
+	if ( i2c_bus_address == BUSADDR_EEPROM_M2402 ) {
+		dev_address_length = 2;	// Las direccione de la EEprom son de 16 bits
+	} else {
+		dev_address_length = 1;
+	}
+	frtos_ioctl(fdI2C,ioctl_I2C_SET_BYTEADDRESSLENGTH, &dev_address_length);
+	// 	Direccion: El FRTOS espera siempre 2 bytes.
+	//  Hago un cast para dejarla en 16 bits.
+	device_address = (uint16_t)(rdAddress);
+	frtos_ioctl(fdI2C,ioctl_I2C_SET_BYTEADDRESS,&device_address);
+
+	//  3) Por ultimo leemos. No controlo fronteras.
+	xBytes = length;
+	xReturn = frtos_read(fdI2C, data, xBytes);
+
+	i2c_error_code = frtos_ioctl(fdI2C, ioctl_I2C_GET_LAST_ERROR, NULL );
+
+	if (xReturn != xBytes ) {
+		xReturn = -1;
+		retS = false;
+	}
+
+	frtos_ioctl( fdI2C,ioctl_RELEASE_BUS_SEMPH, NULL);
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
 

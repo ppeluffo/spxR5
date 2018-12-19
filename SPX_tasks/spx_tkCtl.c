@@ -13,9 +13,11 @@ static void pv_ctl_wink_led(void);
 static void pv_ctl_check_wdg(void);
 static void pv_ctl_ajust_timerPoll(void);
 static void pv_ctl_daily_reset(void);
+static void pv_ctl_check_terminal(void);
 
 static uint16_t time_to_next_poll;
 static uint16_t watchdog_timers[NRO_WDGS];
+static bool f_terminal_connected;
 
 // Timpo que espera la tkControl entre round-a-robin
 #define TKCTL_DELAY_S	5
@@ -59,6 +61,7 @@ void tkCtl(void * pvParameters)
 		// entre que activo el switch de la terminal y que esta efectivamente responde.
 		vTaskDelay( ( TickType_t)( TKCTL_DELAY_S * 1000 / portTICK_RATE_MS ) );
 
+		pv_ctl_check_terminal();
 		pv_ctl_wink_led();
 		pv_ctl_check_wdg();
 		pv_ctl_ajust_timerPoll();
@@ -77,6 +80,7 @@ static void pv_ctl_init_system(void)
 uint8_t wdg;
 FAT_t l_fat;
 uint16_t recSize;
+char data[3];
 
 	// Configuro los pines del micro que no se configuran en funciones particulares
 	// LEDS:
@@ -86,6 +90,14 @@ uint16_t recSize;
 	// TERMINAL CTL PIN
 	IO_config_TERMCTL_PIN();
 
+	f_terminal_connected = false;
+	if (  IO_read_TERMCTL_PIN() == 1 ) {
+		f_terminal_connected = true;
+	}
+
+	// BAUD RATE PIN
+	IO_config_BAUD_PIN();
+
 	// Al comienzo leo este handle para asi usarlo para leer el estado de los stacks.
 	// En la medida que no estoy usando la taskIdle podria deshabilitarla. !!!
 	xHandle_idle = xTaskGetIdleTaskHandle();
@@ -94,6 +106,25 @@ uint16_t recSize;
 	for ( wdg = 0; wdg < NRO_WDGS; wdg++ ) {
 		watchdog_timers[wdg] = (uint16_t)( 15 / TKCTL_DELAY_S );
 	}
+
+	// Determino la io_board attached
+	spx_io_board = SPX_IO5CH;
+	if ( I2C_test_device( BUSADDR_INA_C ,INA3231_CONF, data, 2 ) ) {
+		spx_io_board = SPX_IO8CH;
+	}
+
+	// Luego del posible error del bus I2C espero para que se reponga !!!
+	vTaskDelay( ( TickType_t)( 100 ) );
+
+/*
+#ifdef SPX_5CH
+	spx_io_board = SPX_IO5CH;
+#endif
+
+#ifdef SPX_8CH
+	spx_io_board = SPX_IO8CH;
+#endif
+*/
 
 	// Leo los parametros del la EE y si tengo error, cargo por defecto
 	if ( ! u_load_params_from_NVMEE() ) {
@@ -121,27 +152,26 @@ uint16_t recSize;
 	// Arranco el RTC. Si hay un problema lo inicializo.
 	RTC_init();
 
-	// Determino la io_board attached
-#ifdef SPX_5CH
-	spx_io_board = SPX_IO5CH;
-#endif
-
-#ifdef SPX_8CH
-	spx_io_board = SPX_IO8CH;
-#endif
-
 	// Inicializo los parametros operativos segun la spx_io_board
 	if ( spx_io_board == SPX_IO5CH ) {
+
+		systemVars.dinputs_timers = false;
+
 		NRO_COUNTERS = IO5_COUNTER_CHANNELS;
 		NRO_ANINPUTS = IO5_ANALOG_CHANNELS;
 		NRO_DINPUTS = IO5_DINPUTS_CHANNELS;
+		xprintf_P( PSTR("SPX_IO5CH: DINPUTS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS, NRO_COUNTERS, NRO_ANINPUTS );
+
 	} else if ( spx_io_board == SPX_IO8CH ) {
+
+		systemVars.rangeMeter_enabled = false;
+
 		NRO_COUNTERS = IO8_COUNTER_CHANNELS;
 		NRO_ANINPUTS = IO8_ANALOG_CHANNELS;
-		NRO_DINPUTS = IO5_DINPUTS_CHANNELS;
-	}
+		NRO_DINPUTS = IO8_DINPUTS_CHANNELS;
+		xprintf_P( PSTR("SPX_IO8CH: DINPUTS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS, NRO_COUNTERS, NRO_ANINPUTS );
 
-	xprintf_P( PSTR("ioboard=%d, DINPUTS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), spx_io_board, NRO_DINPUTS, NRO_COUNTERS, NRO_ANINPUTS );
+	}
 	xprintf_P( PSTR("------------------------------------------------\r\n\0"));
 
 	// Habilito a arrancar al resto de las tareas
@@ -149,11 +179,32 @@ uint16_t recSize;
 
 }
 //------------------------------------------------------------------------------------
+static void pv_ctl_check_terminal(void)
+{
+	// Lee el pin de la terminal para ver si hay o no una conectada.
+
+	// En la arq. IO8 siempre tengo activa la terminal porque va con corriente.
+	if ( spx_io_board == SPX_IO8CH ) {
+		f_terminal_connected = true;
+		return;
+	}
+
+	// En la arq. IO5 depende del pin de la terminal.
+	if ( spx_io_board == SPX_IO5CH ) {
+		if ( IO_read_TERMCTL_PIN() == 1) {
+			f_terminal_connected = true;
+		} else {
+			f_terminal_connected = false;
+		}
+		return;
+	}
+}
+//------------------------------------------------------------------------------------
 static void pv_ctl_wink_led(void)
 {
 	// SI la terminal esta desconectada salgo.
-//	if ( IO_read_TERMCTL_PIN() == 0 )
-//		return;
+	if ( ! terminal_connected() )
+		return;
 
 	// Prendo los leds
 	IO_set_LED_KA();
@@ -182,7 +233,7 @@ static void pv_ctl_check_wdg(void)
 		// Cada ciclo reseteo el wdg para que no expire.
 		WDT_Reset();
 		//pub_ctl_print_wdg_timers();
-		return;
+		//return;
 
 		// Si algun WDG no se borro, me reseteo
 		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
@@ -290,4 +341,8 @@ void ctl_reload_timerPoll(void)
 	time_to_next_poll = systemVars.timerPoll;
 }
 //------------------------------------------------------------------------------------
-
+bool terminal_connected(void)
+{
+	return(f_terminal_connected);
+}
+//------------------------------------------------------------------------------------

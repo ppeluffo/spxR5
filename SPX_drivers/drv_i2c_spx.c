@@ -178,7 +178,9 @@ uint8_t	reintentos = I2C_MAXTRIES;
 
 	while ( reintentos-- > 0 ) {
 
-		bus_status = TWIE.MASTER.STATUS; //& TWI_MASTER_BUSSTATE_gm;
+		// Los bits CLKHOLD y RXACK son solo de read por eso la mascara !!!
+
+		bus_status = TWIE.MASTER.STATUS & 0xCF; 	//& TWI_MASTER_BUSSTATE_gm;
 
 #ifdef DEBUG_I2C
 		//	xprintf_P( PSTR("drv_i2c: I2C_BUSIDLE(%d): 0x%02x\r\n\0"),reintentos,TWIE.MASTER.STATUS );
@@ -186,6 +188,7 @@ uint8_t	reintentos = I2C_MAXTRIES;
 
 		if (  ( bus_status == TWI_MASTER_BUSSTATE_IDLE_gc ) || ( bus_status == TWI_MASTER_BUSSTATE_OWNER_gc ) ) {
 			return(true);
+
 		} else {
 			// El status esta indicando errores. Debo limpiarlos antes de usar la interface.
 			if ( (bus_status & TWI_MASTER_ARBLOST_bm) != 0 ) {
@@ -201,8 +204,8 @@ uint8_t	reintentos = I2C_MAXTRIES;
 				TWIE.MASTER.STATUS = bus_status | TWI_MASTER_RIF_bm;
 			}
 
-			TWIE.MASTER.STATUS = TWI_MASTER_BUSSTATE_IDLE_gc;	// Pongo el status en 01 ( idle )
-			vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+			TWIE.MASTER.STATUS = bus_status | TWI_MASTER_BUSSTATE_IDLE_gc;	// Pongo el status en 01 ( idle )
+			vTaskDelay( ( TickType_t)( 10 / portTICK_RATE_MS ) );
 		}
 	}
 

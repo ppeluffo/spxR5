@@ -26,13 +26,13 @@ int8_t xBytes;
 
 	// Control de entrada valida
 	if ( pin > 7 ) {
-		xprintf_P(PSTR("ERROR: IO_read_DIN (pin<7)!!!\r\n\0"));
+		xprintf_P(PSTR("ERROR: IO_read_DOUT (pin<7)!!!\r\n\0"));
 		return;
 	}
 
 	xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
 	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: IO_read_DIN\r\n\0"));
+		xprintf_P(PSTR("ERROR: IO_read_DOUT\r\n\0"));
 		return;
 	}
 
@@ -53,13 +53,13 @@ int8_t xBytes;
 
 	// Control de entrada valida
 	if ( pin > 7 ) {
-		xprintf_P(PSTR("ERROR: IO_read_DIN (pin<7)!!!\r\n\0"));
+		xprintf_P(PSTR("ERROR: IO_read_DOUT (pin<7)!!!\r\n\0"));
 		return;
 	}
 
 	xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
 	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: IO_read_DIN\r\n\0"));
+		xprintf_P(PSTR("ERROR: IO_read_DOUT\r\n\0"));
 		return;
 	}
 

@@ -18,8 +18,8 @@ void INA_init(uint8_t io_board )
 
 	} else if ( io_board == 1 ) {
 		// SPX_8CH
-		INA_config_avg128( INA_B );
 		INA_config_avg128( INA_A );
+		INA_config_avg128( INA_B );
 		INA_config_avg128( INA_C );
 	}
 
@@ -130,6 +130,26 @@ int8_t xBytes;
 	}
 
 	return(xBytes);
+
+}
+//------------------------------------------------------------------------------------
+bool INA_test_presence( uint8_t ina_id )
+{
+	// Funcion que testea si un ina esta o no en el bus.
+	// Con las nuevas modificaciones del driver, ya no se se bloquea el bus
+	// en caso que un dispositivo I2C no exista.
+	// Trata de leer el byte de configuracion del INA.
+
+int8_t xBytes;
+char data[3];
+
+	xBytes = INA_read(  ina_id, INA3231_CONF, data, 2 );
+
+	if ( xBytes >= 0 ) {
+		return(true);
+	} else {
+		return(false);
+	}
 
 }
 //------------------------------------------------------------------------------------

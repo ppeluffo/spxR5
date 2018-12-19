@@ -74,6 +74,7 @@ void PORT_ConfigureInterrupt1( PORT_t * port,PORT_INT1LVL_t intLevel, uint8_t pi
 
 #define IO_config_TERMCTL_PIN()		PORT_SetPinAsInput( &TERMCTL_PIN_PORT, TERMCTL_PIN_BITPOS)
 uint8_t IO_read_TERMCTL_PIN(void);
+
 //------------------------------------------------------------------------------------
 // BAUD RATE SELECTOR
 
@@ -82,6 +83,8 @@ uint8_t IO_read_TERMCTL_PIN(void);
 
 #define IO_config_BAUD_PIN()		PORT_SetPinAsInput( &BAUD_PIN_PORT, BAUD_PIN_BITPOS)
 uint8_t IO_read_BAUD_PIN(void);
+
+#define BAUD_PIN_115200() ( (IO_read_BAUD_PIN() == 1) ? true : false )
 
 //------------------------------------------------------------------------------------
 // ENTRADAS DIGITALES ( SOLO EN SPX_5CH ya que el otro usa el MCP )
@@ -98,9 +101,6 @@ uint8_t IO_read_BAUD_PIN(void);
 
 uint8_t IO_read_PA0(void);
 uint8_t IO_read_PB7(void);
-
-#define DIN_read_DIN0()	IO_read_PA0()
-#define DIN_read_DIN1()	IO_read_PB7()
 
 //------------------------------------------------------------------------------------
 // ENTRADAS DIGITALES DE LOS CONTADORES

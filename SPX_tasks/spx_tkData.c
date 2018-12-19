@@ -47,6 +47,9 @@ TickType_t xLastWakeTime;
 	// loop
 	for( ;; )
 	{
+
+		ctl_watchdog_kick(WDG_DAT , WDG_DAT_TIMEOUT);
+
 		// Espero. Da el tiempo necesario para entrar en tickless.
 		vTaskDelayUntil( &xLastWakeTime, waiting_ticks );
 
@@ -76,16 +79,24 @@ TickType_t xLastWakeTime;
 //------------------------------------------------------------------------------------
 // FUNCIONES PUBLICAS
 //------------------------------------------------------------------------------------
-void data_show_frame( bool polling  )
+void data_show_frame( st_dataRecord_t *drcd, bool polling  )
 {
+	// Esta funcion puede polear y mostrar el resultado.
+	// Si la flag polling es false, no poleo. ( requerido en cmd::status )
+	// Si el puntero a la estructura el NULL, uso la estructura estatica local
+	// Si no es null, imprimo esta ( cmd::read_memory )
+
 	if ( polling ) {
 		// Leo analog,digital,rtc,salvo en BD e imprimo.
 		pv_data_read_frame(  &dataRecord );
 	}
 
 	// Muestro en pantalla.
-	pv_data_print_frame( &dataRecord );
-
+	if ( drcd == NULL ) {
+		pv_data_print_frame( &dataRecord );
+	} else {
+		pv_data_print_frame( drcd );
+	}
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
@@ -137,6 +148,17 @@ uint16_t raw_val;
 		// Leo la bateria
 		// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
 		drcd->df.io5.battery = 0.008 * AINPUTS_read_battery();
+
+	} if ( spx_io_board == SPX_IO8CH ) {
+		u_read_analog_channel (spx_io_board, 0, &raw_val, &drcd->df.io8.ainputs[0] );
+		u_read_analog_channel (spx_io_board, 1, &raw_val, &drcd->df.io8.ainputs[1] );
+		u_read_analog_channel (spx_io_board, 2, &raw_val, &drcd->df.io8.ainputs[2] );
+		u_read_analog_channel (spx_io_board, 3, &raw_val, &drcd->df.io8.ainputs[3] );
+		u_read_analog_channel (spx_io_board, 4, &raw_val, &drcd->df.io8.ainputs[4] );
+		u_read_analog_channel (spx_io_board, 5, &raw_val, &drcd->df.io8.ainputs[5] );
+		u_read_analog_channel (spx_io_board, 6, &raw_val, &drcd->df.io8.ainputs[6] );
+		u_read_analog_channel (spx_io_board, 7, &raw_val, &drcd->df.io8.ainputs[7] );
+
 	}
 
 	// Pongo a los INA a dormir.
@@ -234,7 +256,8 @@ uint8_t channel;
 
 		if ( spx_io_board == SPX_IO5CH ) {
 			xprintf_P(PSTR(",%s=%.02f"),systemVars.ain_name[channel],drcd->df.io5.ainputs[channel] );
-		} else {
+
+		} else if ( spx_io_board == SPX_IO8CH ) {
 			xprintf_P(PSTR(",%s=%.02f"),systemVars.ain_name[channel],drcd->df.io8.ainputs[channel] );
 		}
 	}
@@ -246,7 +269,8 @@ uint8_t channel;
 
 		if ( spx_io_board == SPX_IO5CH ) {
 			xprintf_P(PSTR(",%s=%d"),systemVars.din_name[channel], drcd->df.io5.dinputs[channel] );
-		} else {
+
+		} else if ( spx_io_board == SPX_IO8CH ) {
 			xprintf_P(PSTR(",%s=%d"),systemVars.din_name[channel], drcd->df.io8.dinputs[channel] );
 		}
 	}
@@ -259,7 +283,8 @@ uint8_t channel;
 
 		if ( spx_io_board == SPX_IO5CH ) {
 			xprintf_P(PSTR(",%s=%.02f"),systemVars.counters_name[channel], drcd->df.io5.counters[channel] );
-		} else {
+
+		} else if ( spx_io_board == SPX_IO8CH ) {
 			xprintf_P(PSTR(",%s=%.02f"),systemVars.counters_name[channel], drcd->df.io8.counters[channel] );
 		}
 	}

@@ -23,6 +23,7 @@ static void pv_cmd_read_battery(void);
 static void pv_cmd_read_analog_channel(void);
 static void pv_cmd_read_digital_channels(void);
 static void pv_cmd_read_memory(void);
+static void pv_cmd_read_debug(void);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -85,17 +86,17 @@ uint8_t ticks;
 		ctl_watchdog_kick(WDG_CMD, WDG_CMD_TIMEOUT);
 
 		// Si no tengo terminal conectada, duermo 5s lo que me permite entrar en tickless.
-//		if ( IO_read_TERMCTL_PIN() == 0 ) {
-//			vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
+		if ( ! terminal_connected() ) {
+			vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
 
-//		} else {
+		} else {
 
 			c = '\0';	// Lo borro para que luego del un CR no resetee siempre el timer.
 			// el read se bloquea 50ms. lo que genera la espera.
 			//while ( CMD_read( (char *)&c, 1 ) == 1 ) {
 			while ( frtos_read( fdTERM, (char *)&c, 1 ) == 1 ) {
 				FRTOS_CMD_process(c);
-//			}
+			}
 		}
 	}
 }
@@ -142,6 +143,15 @@ uint8_t channel;
 		break;
 	}
 
+	// Digital inputs timers. Solo en SPX_8CH ( para UTE )
+	if ( spx_io_board == SPX_IO8CH ) {
+		if ( systemVars.dinputs_timers ) {
+			xprintf_P( PSTR("  dinputs_timers: ON\r\n\0"));
+		} else {
+			xprintf_P( PSTR("  dinputs_timers: OFF\r\n\0"));
+		}
+	}
+
 	// Timerpoll
 	xprintf_P( PSTR("  timerPoll: [%d s]/%d\r\n\0"),systemVars.timerPoll, ctl_readTimeToNextPoll() );
 
@@ -167,7 +177,11 @@ uint8_t channel;
 
 	// dinputs
 	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
-		xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.din_name[channel] );
+		if (  ( spx_io_board == SPX_IO8CH  ) && systemVars.dinputs_timers && channel > 3 ) {
+			xprintf_P( PSTR("  d%d( ) [ %s ] (T)\r\n\0"),channel, systemVars.din_name[channel] );
+		} else {
+			xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.din_name[channel] );
+		}
 	}
 
 	// contadores
@@ -175,7 +189,7 @@ uint8_t channel;
 		xprintf_P( PSTR("  c%d [ %s | %.02f ]\r\n\0"),channel, systemVars.counters_name[channel],systemVars.counters_magpp[channel] );
 	}
 
-	data_show_frame( false );
+	data_show_frame( NULL, false );
 }
 //-----------------------------------------------------------------------------------
 static void cmdResetFunction(void)
@@ -285,6 +299,12 @@ static void cmdReadFunction(void)
 
 	FRTOS_CMD_makeArgv();
 
+	// DEBUG
+ 	if (!strcmp_P( strupr(argv[1]), PSTR("DEBUG\0"))) {
+ 		pv_cmd_read_debug();
+ 		return;
+ 	}
+
 	// FUSES
  	if (!strcmp_P( strupr(argv[1]), PSTR("FUSES\0"))) {
  		pv_cmd_read_fuses();
@@ -341,7 +361,7 @@ static void cmdReadFunction(void)
 	// FRAME
 	// read frame
 	if (!strcmp_P( strupr(argv[1]), PSTR("FRAME\0")) ) {
-		data_show_frame( true );
+		data_show_frame( NULL, true );
 		return;
 	}
 
@@ -498,17 +518,41 @@ bool retS = false;
 
 	// RANGEMETER
 	// rangemeter {on|off}
-	if (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) {
+	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) ) {
 
 		if ( !strcmp_P( strupr(argv[2]), PSTR("ON\0"))) {
 			systemVars.rangeMeter_enabled = true;
 			pv_snprintfP_OK();
+			return;
 		} else if ( !strcmp_P( strupr(argv[2]), PSTR("OFF\0"))) {
 			systemVars.rangeMeter_enabled = false;
 			pv_snprintfP_OK();
+			return;
 		} else {
 			pv_snprintfP_ERR();
+			return;
 		}
+		pv_snprintfP_ERR();
+		return;
+	}
+
+	// DINPUTS TIMERS
+	// dinputs timers  {on|off}
+	if ( ( spx_io_board == SPX_IO8CH ) && ( !strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0"))) && (!strcmp_P( strupr(argv[2]), PSTR("TIMERS\0"))) ) {
+
+		if ( !strcmp_P( strupr(argv[3]), PSTR("ON\0"))) {
+			systemVars.dinputs_timers = true;
+			pv_snprintfP_OK();
+			return;
+		} else if ( !strcmp_P( strupr(argv[2]), PSTR("OFF\0"))) {
+			systemVars.dinputs_timers = false;
+			pv_snprintfP_OK();
+			return;
+		} else {
+			pv_snprintfP_ERR();
+			return;
+		}
+		pv_snprintfP_ERR();
 		return;
 	}
 
@@ -544,7 +588,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  ina (id) {conf|chXshv|chXbusv|mfid|dieid}\r\n\0"));
 			xprintf_P( PSTR("  ach {0..4}, battery\r\n\0"));
 			xprintf_P( PSTR("  din\r\n\0"));
-			xprintf_P( PSTR("  memory\r\n\0"));
+			xprintf_P( PSTR("  memory {full}\r\n\0"));
 		}
 		return;
 
@@ -573,6 +617,10 @@ static void cmdHelpFunction(void)
 		if ( spx_io_board == SPX_IO5CH ) {
 			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
 		}
+		if ( spx_io_board == SPX_IO8CH ) {
+			xprintf_P( PSTR("  dinputs timers {on|off}\r\n\0"));
+		}
+
 		xprintf_P( PSTR("  default\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
 	}
@@ -860,8 +908,8 @@ uint8_t din0, din1;
 
 	if ( spx_io_board == SPX_IO5CH ) {
 		// Leo los canales digitales.
-		din0 = DIN_read_DIN0();
-		din1 = DIN_read_DIN1();
+		din0 = DIN_read_pin(0, spx_io_board );
+		din1 = DIN_read_pin(1, spx_io_board );
 		xprintf_P( PSTR("Din0: %d, Din1: %d\r\n\0"), din0, din1 );
 		return;
 
@@ -875,33 +923,164 @@ static void pv_cmd_read_memory(void)
 	// El problema es que si hay muchos datos puede excederse el tiempo de watchdog y
 	// resetearse el dlg.
 	// Para esto, cada 32 registros pateo el watchdog.
-/*
-StatBuffer_t pxFFStatBuffer;
-frameData_t Aframe;
+
+FAT_t l_fat;
+st_dataRecord_t dataRecord;
 size_t bRead;
 uint16_t rcds = 0;
+bool detail = false;
 
-	FF_seek();
+	if (!strcmp_P( strupr(argv[2]), PSTR("FULL\0"))) {
+		detail = true;
+	}
+
+	FF_rewind();
 	while(1) {
-		bRead = FF_fread( &Aframe, sizeof(Aframe));
+
+		bRead = FF_readRcd( &dataRecord, sizeof(st_dataRecord_t));
 
 		if ( bRead == 0) {
 			break;
 		}
 
 		if ( ( rcds++ % 32) == 0 ) {
-			pub_control_watchdog_kick(WDG_CMD, WDG_CMD_TIMEOUT);
+			ctl_watchdog_kick(WDG_CMD, WDG_CMD_TIMEOUT);
 		}
 
 		// imprimo
-		FF_stat(&pxFFStatBuffer);
-		FRTOS_snprintf_P( cmd_printfBuff, sizeof(cmd_printfBuff),  PSTR("RD:[%d/%d/%d][%d/%d] "), pxFFStatBuffer.HEAD,pxFFStatBuffer.RD, pxFFStatBuffer.TAIL,pxFFStatBuffer.rcdsFree,pxFFStatBuffer.rcds4del);
-		FreeRTOS_write( &pdUART1, cmd_printfBuff, sizeof(cmd_printfBuff) );
+		if ( detail ) {
+			FAT_read(&l_fat);
+			xprintf_P( PSTR("memory: wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
+		}
 
-		pub_analog_print_frame(&Aframe);
+		data_show_frame(&dataRecord, false );
 
 	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_cmd_read_debug(void)
+{
+	// Funcion privada para testing de funcionalidades particulares
+
+	// Caso 1: Leo el nivel logico de los pines de control de comunicaciones
+
+uint8_t ina_id;
+uint8_t i2c_bus_address = 0;
+char data[3];
+
+
+	if (!strcmp_P( strupr(argv[2]), PSTR("INAPRES\0"))) {
+		ina_id = atoi( argv[3] );
+		switch ( ina_id ) {
+		case 0:
+			i2c_bus_address = BUSADDR_INA_A;
+			break;
+		case 1:
+			i2c_bus_address = BUSADDR_INA_B;
+			break;
+		case 2:
+			i2c_bus_address = BUSADDR_INA_C;
+			break;
+
+		}
+
+		if ( I2C_test_device( i2c_bus_address ,INA3231_CONF, data, 2 ) ) {
+			xprintf_P( PSTR("INA%02d present\r\n\0"), ina_id);
+		} else {
+			xprintf_P( PSTR("INA%02d NO present\r\n\0"), ina_id);
+
+		}
+
+	}
+
+
+/*
+  	if (!strcmp_P( strupr(argv[2]), PSTR("INAPRES\0"))) {
+		ina_id = atoi( argv[3] );
+		if ( INA_test_presence ( ina_id ) ) {
+			xprintf_P( PSTR("INA%02d present\r\n\0"), ina_id);
+		} else {
+			xprintf_P( PSTR("INA%02d NO present\r\n\0"), ina_id);
+
+		}
+	}
+
 */
+
+/*
+uint8_t baud, term;
+uint8_t bus_status;
+uint8_t i;
+
+
+	baud = IO_read_BAUD_PIN();
+	term = IO_read_TERMCTL_PIN();
+
+	xprintf_P( PSTR("TERM=%d\r\n\0"),term );
+	xprintf_P( PSTR("BAUD=%d\r\n\0"),baud );
+
+
+	bus_status = TWIE.MASTER.STATUS; //& TWI_MASTER_BUSSTATE_gm;
+	xprintf_P( PSTR("I2C_STATUS: 0x%02x\r\n\0"),TWIE.MASTER.STATUS );
+
+	if (  ( bus_status == TWI_MASTER_BUSSTATE_IDLE_gc ) || ( bus_status == TWI_MASTER_BUSSTATE_OWNER_gc ) ) {
+		return;
+	}
+
+	// El status esta indicando errores. Debo limpiarlos antes de usar la interface.
+	if ( (bus_status & TWI_MASTER_ARBLOST_bm) != 0 ) {
+		xprintf_P( PSTR("ARBLOST\r\n\0"));
+		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_ARBLOST_bm;
+	}
+
+	if ( (bus_status & TWI_MASTER_BUSERR_bm) != 0 ) {
+		xprintf_P( PSTR("BUSERR\r\n\0"));
+		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_BUSERR_bm;
+	}
+
+	if ( (bus_status & TWI_MASTER_WIF_bm) != 0 ) {
+		xprintf_P( PSTR("WIF\r\n\0"));
+		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_WIF_bm;
+	}
+
+	if ( (bus_status & TWI_MASTER_RIF_bm) != 0 ) {
+		xprintf_P( PSTR("RIF\r\n\0"));
+		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_RIF_bm;
+	}
+
+	if ( (bus_status & TWI_MASTER_CLKHOLD_bm) != 0 ) {
+		xprintf_P( PSTR("CLKHOLD\r\n\0"));
+//		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_CLKHOLD_bm;
+	}
+
+	if ( (bus_status & TWI_MASTER_RXACK_bm) != 0 ) {
+		xprintf_P( PSTR("RXACK\r\n\0"));
+//		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_RXACK_bm;
+
+		TWIE.MASTER.CTRLA = 0x00;
+
+		vTaskDelay( ( TickType_t)( 10 / portTICK_RATE_MS ) );
+
+
+		for ( i = 0; i < 10; i++ ) {
+			IO_set_SCL();
+			vTaskDelay( ( TickType_t)( 1 / portTICK_RATE_MS ) );
+			IO_clr_SCL();
+			vTaskDelay( ( TickType_t)( 1 / portTICK_RATE_MS ) );
+		}
+
+
+		TWIE.MASTER.CTRLA |= ( 1<<TWI_MASTER_ENABLE_bp);	// Enable TWI
+
+
+	}
+
+//	TWIE.MASTER.STATUS = bus_status | TWI_MASTER_BUSSTATE_IDLE_gc;	// Pongo el status en 01 ( idle )
+//	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+*/
+
+
 }
 //------------------------------------------------------------------------------------
 

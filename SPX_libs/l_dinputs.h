@@ -16,11 +16,10 @@
 //------------------------------------------------------------------------------------
 // API publica
 void DINPUTS_init( void );
-#define DIN_read_D0()	IO_read_PA0()
-#define DIN_read_D1()	IO_read_PB7()
+int8_t DIN_read_pin( uint8_t pin , uint8_t io_board );
 
 // SPX_8CH:
-uint8_t DIN_read_port( uint8_t pin);
+uint8_t DIN_read_port( void );
 
 // API END
 //------------------------------------------------------------------------------------

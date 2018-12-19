@@ -63,8 +63,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "0.0.2.R4"
-#define SPX_FW_DATE "@ 20181217"
+#define SPX_FW_REV "0.0.4.R4"
+#define SPX_FW_DATE "@ 20181220"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -74,9 +74,6 @@
 //#define SYSMAINCLK 2
 //#define SYSMAINCLK 8
 #define SYSMAINCLK 32
-
-//#define SPX_8CH
-#define SPX_5CH
 //
 #define MAX_ANALOG_CHANNELS		8
 #define MAX_DINPUTS_CHANNELS	8
@@ -100,17 +97,19 @@
 #define tkCmd_STACK_SIZE		512
 #define tkCounter_STACK_SIZE	512
 #define tkData_STACK_SIZE		512
+#define tkDinputs_STACK_SIZE	512
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCounter_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkData_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
+#define tkDinputs_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 
 typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter, xHandle_tkData;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter, xHandle_tkData, xHandle_tkDinputs;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -123,6 +122,7 @@ void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
 void tkCounter(void * pvParameters);
 void tkData(void * pvParameters);
+void tkDinputs(void * pvParameters);
 
 #define DLGID_LENGTH		10
 #define PARAMNAME_LENGTH	5
@@ -140,7 +140,7 @@ uint8_t NRO_DINPUTS;
 // Estructura de un registro de IO5CH
 typedef struct {
 	float ainputs[IO5_ANALOG_CHANNELS];
-	uint8_t dinputs[IO5_DINPUTS_CHANNELS];
+	uint16_t dinputs[IO5_DINPUTS_CHANNELS];
 	float counters[IO5_COUNTER_CHANNELS];
 	int16_t range;
 	float battery;
@@ -149,7 +149,7 @@ typedef struct {
 // Estructura de un registro de IO8CH
 typedef struct {
 	float ainputs[IO8_ANALOG_CHANNELS];
-	uint8_t dinputs[IO8_DINPUTS_CHANNELS];
+	uint16_t dinputs[IO8_DINPUTS_CHANNELS];
 	float counters[IO8_COUNTER_CHANNELS];
 } st_io8_t;
 
@@ -188,6 +188,7 @@ typedef struct {
 	bool rangeMeter_enabled;
 	uint16_t timerPoll;
 	uint8_t pwr_settle_time;
+	bool dinputs_timers;
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -215,12 +216,13 @@ void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
 void ctl_print_wdg_timers(void);
 uint16_t ctl_readTimeToNextPoll(void);
 void ctl_reload_timerPoll(void);
+bool terminal_connected(void);
 
 // TKCOUNTER
 void counters_read_frame( st_dataRecord_t *drcd, bool reset_counters );
 
 // TKDATA
-void data_show_frame( bool polling );
+void data_show_frame( st_dataRecord_t *drcd, bool polling );
 
 // TKDINPUTS
 void dinputs_read_frame( st_dataRecord_t *drcd );
@@ -232,8 +234,9 @@ uint8_t wdg_resetCause;
 #define WDG_CMD			1
 #define WDG_COUNT		2
 #define WDG_DAT			3
+#define WDG_DIN			4
 
-#define NRO_WDGS		4
+#define NRO_WDGS		5
 
 
 #endif /* SRC_SPX_H_ */

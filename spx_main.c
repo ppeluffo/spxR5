@@ -43,9 +43,14 @@ int main( void )
 	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
 
 	// Inicializacion de los devices del frtos-io
+	if ( BAUD_PIN_115200() ) {
+		frtos_open(fdTERM, 115200 );
+	} else {
+		frtos_open(fdTERM, 9600 );
+	}
+
 	frtos_open(fdGPRS, 115200);
 	frtos_open(fdI2C, 100 );
-	frtos_open(fdTERM, 115200 );
 
 	// Creo los semaforos
 	sem_SYSVars = xSemaphoreCreateMutexStatic( &SYSVARS_xMutexBuffer );
@@ -59,6 +64,7 @@ int main( void )
 	xTaskCreate(tkCmd, "CMD", tkCmd_STACK_SIZE, NULL, tkCmd_TASK_PRIORITY,  &xHandle_tkCmd);
 	xTaskCreate(tkCounter, "COUNT", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter);
 	xTaskCreate(tkData, "DATA", tkData_STACK_SIZE, NULL, tkData_TASK_PRIORITY,  &xHandle_tkData);
+	xTaskCreate(tkDinputs, "DIGI", tkDinputs_STACK_SIZE, NULL, tkDinputs_TASK_PRIORITY,  &xHandle_tkDinputs);
 
 	/* Arranco el RTOS. */
 	vTaskStartScheduler();
