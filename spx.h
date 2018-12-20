@@ -63,8 +63,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "0.0.4.R4"
-#define SPX_FW_DATE "@ 20181220"
+#define SPX_FW_REV "0.0.6.R4"
+#define SPX_FW_DATE "@ 20181221"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -98,18 +98,21 @@
 #define tkCounter_STACK_SIZE	512
 #define tkData_STACK_SIZE		512
 #define tkDinputs_STACK_SIZE	512
+#define tkDoutputs_STACK_SIZE	512
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCounter_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkData_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkDinputs_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
+#define tkDoutputs_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
 
 typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
+typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter, xHandle_tkData, xHandle_tkDinputs;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter, xHandle_tkData, xHandle_tkDinputs, xHandle_tkDoutputs;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -123,6 +126,7 @@ void tkCmd(void * pvParameters);
 void tkCounter(void * pvParameters);
 void tkData(void * pvParameters);
 void tkDinputs(void * pvParameters);
+void tkDoutputs(void * pvParameters);
 
 #define DLGID_LENGTH		10
 #define PARAMNAME_LENGTH	5
@@ -164,6 +168,19 @@ typedef struct {
 	u_dataframe_t df;
 } st_dataRecord_t;
 
+// Estructuras para las consignas
+typedef struct {
+	uint8_t hour;
+	uint8_t min;
+} st_time_t;
+
+typedef struct {
+	st_time_t hhmm_c_diurna;
+	st_time_t hhmm_c_nocturna;
+	consigna_t c_aplicada;
+	bool c_enabled;
+} st_consigna_t;
+
 typedef struct {
 	// Variables de trabajo.
 
@@ -190,6 +207,10 @@ typedef struct {
 	uint8_t pwr_settle_time;
 	bool dinputs_timers;
 
+	uint8_t d_outputs;
+
+	st_consigna_t consigna;
+
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
 
@@ -202,6 +223,8 @@ void initMCU(void);
 void u_configure_systemMainClock(void);
 void u_configure_RTC32(void);
 void u_control_string( char *s_name );
+void u_convert_str_to_time_t ( char *time_str, st_time_t *time_struct );
+void u_convert_int_to_time_t ( int int16time, st_time_t *time_struct );
 void u_load_defaults( void );
 uint8_t u_save_params_in_NVMEE(void);
 bool u_load_params_from_NVMEE(void);
@@ -210,6 +233,7 @@ bool u_config_counter_channel( uint8_t channel,char *s_param0, char *s_param1 );
 bool u_config_analog_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax );
 void u_read_analog_channel ( uint8_t io_board, uint8_t io_channel, uint16_t *raw_val, float *mag_val );
 bool u_config_digital_channel( uint8_t channel,char *s_aname );
+bool u_config_consignas( char *_cmodo, char *hhmm_dia, char *hhmm_noche);
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -227,6 +251,8 @@ void data_show_frame( st_dataRecord_t *drcd, bool polling );
 // TKDINPUTS
 void dinputs_read_frame( st_dataRecord_t *drcd );
 
+// TKDOUTPUTS
+
 // WATCHDOG
 uint8_t wdg_resetCause;
 
@@ -235,8 +261,9 @@ uint8_t wdg_resetCause;
 #define WDG_COUNT		2
 #define WDG_DAT			3
 #define WDG_DIN			4
+#define WDG_DOUT		5
 
-#define NRO_WDGS		5
+#define NRO_WDGS		6
 
 
 #endif /* SRC_SPX_H_ */

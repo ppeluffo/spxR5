@@ -25,12 +25,12 @@ static bool f_terminal_connected;
 // La tarea pasa por el mismo lugar c/5s.
 #define WDG_CTL_TIMEOUT	30
 
-const char string_0[] PROGMEM = "CMD";
-const char string_1[] PROGMEM = "CTL";
+const char string_0[] PROGMEM = "CTL";
+const char string_1[] PROGMEM = "CMD";
 const char string_2[] PROGMEM = "CNT";
 const char string_3[] PROGMEM = "DAT";
-const char string_4[] PROGMEM = "OUT";
-const char string_5[] PROGMEM = "GRX";
+const char string_4[] PROGMEM = "DIN";
+const char string_5[] PROGMEM = "DOUT";
 const char string_6[] PROGMEM = "GTX";
 
 const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6 };

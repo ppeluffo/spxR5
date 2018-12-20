@@ -9,6 +9,7 @@
 #define SRC_SPX_LIBS_L_DOUTPUTS_H_
 
 #include <avr/io.h>
+#include "stdbool.h"
 
 #define CHECK_BIT_IS_SET(var,pos) ((var) & (1<<(pos)))
 
@@ -18,9 +19,9 @@
 // API publica
 
 void DOUTPUTS_init(void);
-void IO_set_DOUT(uint8_t pin);
-void IO_clr_DOUT(uint8_t pin);
-void IO_reflect_DOUTPUTS(uint8_t output_value );
+bool DOUTPUTS_set_pin(uint8_t pin);
+bool DOUTPUTS_clr_pin(uint8_t pin);
+void DOUTPUTS_reflect_byte(uint8_t output_value );
 //
 // API END
 //------------------------------------------------------------------------------------

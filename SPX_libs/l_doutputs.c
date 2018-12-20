@@ -17,7 +17,7 @@ void DOUTPUTS_init(void)
 //------------------------------------------------------------------------------------
 // SALIDAS DIGITALES ( Solo en SPX_8CH )
 //------------------------------------------------------------------------------------
-void IO_set_DOUT(uint8_t pin)
+bool DOUTPUTS_set_pin(uint8_t pin)
 {
 	// Leo el MCP, aplico la mascara y lo escribo de nuevo
 
@@ -26,25 +26,25 @@ int8_t xBytes;
 
 	// Control de entrada valida
 	if ( pin > 7 ) {
-		xprintf_P(PSTR("ERROR: IO_read_DOUT (pin<7)!!!\r\n\0"));
-		return;
+		xprintf_P(PSTR("ERROR: DOUTPUT_set_pin (pin<7)!!!\r\n\0"));
+		return(false);
 	}
 
 	xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
 	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: IO_read_DOUT\r\n\0"));
-		return;
+		xprintf_P(PSTR("ERROR: DOUTPUT_set_pin\r\n\0"));
+		return(false);
 	}
 
 	// Aplico la mascara para setear el pin dado
 	// En el MCP estan en orden inverso
 	data |= ( 1 << ( 7 - pin )  );
-
 	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+	return(true);
 
 }
 //------------------------------------------------------------------------------------
-void IO_clr_DOUT(uint8_t pin)
+bool DOUTPUTS_clr_pin(uint8_t pin)
 {
 	// Leo el MCP, aplico la mascara y lo escribo de nuevo
 
@@ -53,24 +53,24 @@ int8_t xBytes;
 
 	// Control de entrada valida
 	if ( pin > 7 ) {
-		xprintf_P(PSTR("ERROR: IO_read_DOUT (pin<7)!!!\r\n\0"));
-		return;
+		xprintf_P(PSTR("ERROR: DOUTPUT_clr_pin (pin<7)!!!\r\n\0"));
+		return(false);
 	}
 
 	xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
 	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: IO_read_DOUT\r\n\0"));
-		return;
+		xprintf_P(PSTR("ERROR: DOUTPUT_clr_pin\r\n\0"));
+		return(false);
 	}
 
 	// Aplico la mascara para setear el pin dado
 	data &= ~( 1 << ( 7 - pin ) );
-
 	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+	return(true);
 
 }
 //------------------------------------------------------------------------------------
-void IO_reflect_DOUTPUTS(uint8_t output_value )
+void DOUTPUTS_reflect_byte(uint8_t output_value )
 {
 uint8_t data;
 

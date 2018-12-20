@@ -24,6 +24,7 @@ static void pv_cmd_read_analog_channel(void);
 static void pv_cmd_read_digital_channels(void);
 static void pv_cmd_read_memory(void);
 static void pv_cmd_read_debug(void);
+static void pv_cmd_write_valve(void);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -170,6 +171,24 @@ uint8_t channel;
 		}
 	}
 
+	// Consignas
+	if ( spx_io_board == SPX_IO5CH ) {
+		if ( systemVars.consigna.c_enabled ) {
+			if ( systemVars.consigna.c_aplicada == CONSIGNA_DIURNA ) {
+				xprintf_P( PSTR("  consignas: (DIURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.consigna.hhmm_c_diurna.hour, systemVars.consigna.hhmm_c_diurna.min, systemVars.consigna.hhmm_c_nocturna.hour, systemVars.consigna.hhmm_c_nocturna.min );
+			} else {
+				xprintf_P( PSTR("  consignas: (NOCTURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.consigna.hhmm_c_diurna.hour, systemVars.consigna.hhmm_c_diurna.min, systemVars.consigna.hhmm_c_nocturna.hour, systemVars.consigna.hhmm_c_nocturna.min );
+			}
+		} else {
+			xprintf_P( PSTR("  consignas: OFF\r\n"));
+		}
+	}
+
+	// Salidas digitales
+	if ( spx_io_board == SPX_IO8CH ) {
+		xprintf_P( PSTR("  outputs: 0x%02x [BYTE_TO_BINARY_PATTERN]\r\n\0"),systemVars.d_outputs ,  BYTE_TO_BINARY(systemVars.d_outputs) );
+	}
+
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
 		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %.02f | %.02f | %s]\r\n\0"),channel, systemVars.ain_imin[channel],systemVars.ain_imax[channel],systemVars.ain_mmin[channel],systemVars.ain_mmax[channel], systemVars.ain_inaspan[channel], systemVars.ain_offset[channel], systemVars.ain_name[channel] );
@@ -233,6 +252,8 @@ static void cmdResetFunction(void)
 static void cmdWriteFunction(void)
 {
 
+uint8_t pin;
+
 	FRTOS_CMD_makeArgv();
 
 	// RTC
@@ -288,6 +309,75 @@ static void cmdWriteFunction(void)
 		return;
 	}
 
+	// OUTPUTS
+	// write output {0..7} {set | clear}
+	if (!strcmp_P( strupr(argv[1]), PSTR("OUTPUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
+
+		pin = atoi(argv[2]);
+
+		if (!strcmp_P( strupr(argv[3]), PSTR("SET\0"))) {
+			if ( DOUTPUTS_set_pin(pin) ) {
+				systemVars.d_outputs |= ( 1 << ( 7 - pin )  );
+				pv_snprintfP_OK();
+			} else {
+				pv_snprintfP_ERR();
+			}
+
+		} else if (!strcmp_P( strupr(argv[3]), PSTR("CLEAR\0"))) {
+			if ( DOUTPUTS_clr_pin(pin) ) {
+				systemVars.d_outputs &= ~( 1 << ( 7 - pin ) );
+				pv_snprintfP_OK();
+			} else {
+				pv_snprintfP_ERR();
+			}
+
+		} else {
+			pv_snprintfP_ERR();
+		}
+		return;
+	}
+
+	// RANGE
+	// write range {run | stop}
+	if (!strcmp_P( strupr(argv[1]), PSTR("RANGE\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		if (!strcmp_P( strupr(argv[2]), PSTR("RUN\0")) ) {
+			RMETER_set_UPULSE_RUN(); pv_snprintfP_OK(); return;
+		}
+
+		if (!strcmp_P( strupr(argv[2]), PSTR("STOP\0")) ) {
+			RMETER_clr_UPULSE_RUN(); pv_snprintfP_OK();	return;
+		}
+
+		xprintf_P( PSTR("cmd ERROR: ( write range {run|stop} )\r\n\0"));
+		return;
+	}
+
+	// CONSIGNA
+	// write consigna (diurna|nocturna)
+	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) && ( tipo_usuario == USER_TECNICO) ) {
+
+		if (!strcmp_P( strupr(argv[2]), PSTR("DIURNA\0")) ) {
+			systemVars.consigna.c_aplicada = CONSIGNA_DIURNA;
+			DRV8814_set_consigna_diurna(); pv_snprintfP_OK(); return;
+		}
+
+		if (!strcmp_P( strupr(argv[2]), PSTR("NOCTURNA\0")) ) {
+			systemVars.consigna.c_aplicada = CONSIGNA_NOCTURNA;
+			DRV8814_set_consigna_nocturna(); pv_snprintfP_OK(); return;
+		}
+
+		xprintf_P( PSTR("cmd ERROR: ( write consigna (diurna|nocturna) )\r\n\0"));
+		return;
+	}
+
+	// VALVE
+	// write valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}
+	//             (open|close) (A|B) (ms)
+	//              power {on|off}
+	if (!strcmp_P( strupr(argv[1]), PSTR("VALVE\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_write_valve();
+		return;
+	}
 
 	// CMD NOT FOUND
 	xprintf_P( PSTR("ERROR\r\nCMD NOT DEFINED\r\n\0"));
@@ -296,6 +386,8 @@ static void cmdWriteFunction(void)
 //------------------------------------------------------------------------------------
 static void cmdReadFunction(void)
 {
+
+int16_t range;
 
 	FRTOS_CMD_makeArgv();
 
@@ -393,6 +485,14 @@ static void cmdReadFunction(void)
 		return;
 	}
 
+	// RANGE
+	// read range
+	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("RANGE\0"))) && ( tipo_usuario == USER_TECNICO) ) {
+		RMETER_ping( &range, false );
+		xprintf_P( PSTR("RANGE=%d\r\n\0"),range);
+		pv_snprintfP_OK();
+		return;
+	}
 
 	// CMD NOT FOUND
 	xprintf_P( PSTR("ERROR\r\nCMD NOT DEFINED\r\n\0"));
@@ -517,7 +617,7 @@ bool retS = false;
 	}
 
 	// RANGEMETER
-	// rangemeter {on|off}
+	// config rangemeter {on|off}
 	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) ) {
 
 		if ( !strcmp_P( strupr(argv[2]), PSTR("ON\0"))) {
@@ -537,7 +637,7 @@ bool retS = false;
 	}
 
 	// DINPUTS TIMERS
-	// dinputs timers  {on|off}
+	// config dinputs timers  {on|off}
 	if ( ( spx_io_board == SPX_IO8CH ) && ( !strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0"))) && (!strcmp_P( strupr(argv[2]), PSTR("TIMERS\0"))) ) {
 
 		if ( !strcmp_P( strupr(argv[3]), PSTR("ON\0"))) {
@@ -553,6 +653,13 @@ bool retS = false;
 			return;
 		}
 		pv_snprintfP_ERR();
+		return;
+	}
+
+	// CONSIGNAS
+	// config consigna {on|off) {hhmm_dia hhmm_noche}
+	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0"))) ) {
+		u_config_consignas( argv[2], argv[3], argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
@@ -572,9 +679,20 @@ static void cmdHelpFunction(void)
 		if ( tipo_usuario == USER_TECNICO ) {
 			xprintf_P( PSTR("  (ee,nvmee,rtcram) {pos} {string}\r\n\0"));
 			xprintf_P( PSTR("  ina {id} {rconfValue}, sens12V {on|off}\r\n\0"));
-		}
-		return;
 
+			if ( spx_io_board == SPX_IO8CH ) {
+				xprintf_P( PSTR("  output {0..7} {set | clear}\r\n\0"));
+			}
+
+			if ( spx_io_board == SPX_IO5CH ) {
+				xprintf_P( PSTR("  range {run | stop}\r\n\0"));
+				xprintf_P( PSTR("  consigna (diurna|nocturna)\r\n\0"));
+				xprintf_P( PSTR("  valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}\r\n\0"));
+				xprintf_P( PSTR("        (open|close) (A|B) (ms)\r\n\0"));
+				xprintf_P( PSTR("        power {on|off}\r\n\0"));
+			}
+
+		}
 		return;
 	}
 
@@ -589,6 +707,11 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  ach {0..4}, battery\r\n\0"));
 			xprintf_P( PSTR("  din\r\n\0"));
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
+
+			if ( spx_io_board == SPX_IO5CH ) {
+				xprintf_P( PSTR("  range\r\n\0"));
+			}
+
 		}
 		return;
 
@@ -614,11 +737,17 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  digital {0..%d} dname\r\n\0"), ( NRO_DINPUTS - 1 ) );
+
 		if ( spx_io_board == SPX_IO5CH ) {
 			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
 		}
+
 		if ( spx_io_board == SPX_IO8CH ) {
 			xprintf_P( PSTR("  dinputs timers {on|off}\r\n\0"));
+		}
+
+		if ( spx_io_board == SPX_IO5CH ) {
+			xprintf_P( PSTR("  consigna {on|off) {hhmm_dia hhmm_noche}\r\n\0"));
 		}
 
 		xprintf_P( PSTR("  default\r\n\0"));
@@ -627,7 +756,7 @@ static void cmdHelpFunction(void)
 
 	// HELP KILL
 	else if (!strcmp_P( strupr(argv[1]), PSTR("KILL\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		xprintf_P( PSTR("-kill {counter, data }\r\n\0"));
+		xprintf_P( PSTR("-kill {counter, data, dinputs, doutputs }\r\n\0"));
 		return;
 
 	} else {
@@ -667,6 +796,20 @@ static void cmdKillFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("DATA\0"))) {
 		vTaskSuspend( xHandle_tkData );
 		ctl_watchdog_kick(WDG_DAT, 0xFFFF);
+		return;
+	}
+
+	// KILL DINPUTS
+	if (!strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0"))) {
+		vTaskSuspend( xHandle_tkDinputs );
+		ctl_watchdog_kick(WDG_DIN, 0xFFFF);
+		return;
+	}
+
+	// KILL DOUTPUTS
+	if (!strcmp_P( strupr(argv[1]), PSTR("DOUTPUTS\0"))) {
+		vTaskSuspend( xHandle_tkDoutputs );
+		ctl_watchdog_kick(WDG_DOUT, 0xFFFF);
 		return;
 	}
 
@@ -959,6 +1102,103 @@ bool detail = false;
 
 }
 //------------------------------------------------------------------------------------
+static void pv_cmd_write_valve(void)
+{
+	// write valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}
+	//             (open|close) (A|B) (ms)
+	//              power {on|off}
+
+	// write valve enable (A|B)
+	if (!strcmp_P( strupr(argv[2]), PSTR("ENABLE\0")) ) {
+		DRV8814_enable_pin( toupper(argv[3][0]), 1); pv_snprintfP_OK();
+		return;
+	}
+
+	// write valve disable (A|B)
+	if (!strcmp_P( strupr(argv[2]), PSTR("DISABLE\0")) ) {
+		DRV8814_enable_pin( toupper(argv[3][0]), 0); pv_snprintfP_OK();
+		return;
+	}
+
+	// write valve set
+	if (!strcmp_P( strupr(argv[2]), PSTR("SET\0")) ) {
+		DRV8814_reset_pin(1); pv_snprintfP_OK();
+		return;
+	}
+
+	// write valve reset
+	if (!strcmp_P( strupr(argv[2]), PSTR("RESET\0")) ) {
+		DRV8814_reset_pin(0); pv_snprintfP_OK();
+		return;
+	}
+
+	// write valve sleep
+	if (!strcmp_P( strupr(argv[2]), PSTR("SLEEP\0")) ) {
+		DRV8814_sleep_pin(1);  pv_snprintfP_OK();
+		return;
+	}
+
+	// write valve awake
+	if (!strcmp_P( strupr(argv[2]), PSTR("AWAKE\0")) ) {
+		DRV8814_sleep_pin(0);  pv_snprintfP_OK();
+		return;
+	}
+
+	// write valve ph01 (A|B)
+	if (!strcmp_P( strupr(argv[2]), PSTR("PH01\0")) ) {
+		DRV8814_phase_pin( toupper(argv[3][0]), 1);  pv_snprintfP_OK();
+		return;
+	}
+
+	// write valve ph10 (A|B)
+	if (!strcmp_P( strupr(argv[2]), PSTR("PH10\0")) ) {
+		DRV8814_phase_pin( toupper(argv[3][0]), 0);  pv_snprintfP_OK();
+		return;
+	}
+
+	// write valve power on|off
+	if (!strcmp_P( strupr(argv[2]), PSTR("POWER\0")) ) {
+
+		if (!strcmp_P( strupr(argv[3]), PSTR("ON\0")) ) {
+			DRV8814_power_on();
+			pv_snprintfP_OK();
+			return;
+		}
+		if (!strcmp_P( strupr(argv[3]), PSTR("OFF\0")) ) {
+			DRV8814_power_off();
+			pv_snprintfP_OK();
+			return;
+		}
+		pv_snprintfP_ERR();
+		return;
+	}
+
+	//  write valve (open|close) (A|B) (ms)
+	if (!strcmp_P( strupr(argv[2]), PSTR("VALVE\0")) ) {
+
+		// Proporciono corriente.
+		DRV8814_power_on();
+		// Espero 10s que se carguen los condensasores
+		vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
+
+		if (!strcmp_P( strupr(argv[3]), PSTR("OPEN\0")) ) {
+			DRV8814_vopen( toupper(argv[4][0]), 100);
+			return;
+		}
+		if (!strcmp_P( strupr(argv[3]), PSTR("CLOSE\0")) ) {
+			DRV8814_vclose( toupper(argv[4][0]), 100);
+			return;
+		}
+
+		DRV8814_power_off();
+		return;
+	}
+
+	pv_snprintfP_ERR();
+	return;
+
+}
+//------------------------------------------------------------------------------------
 static void pv_cmd_read_debug(void)
 {
 	// Funcion privada para testing de funcionalidades particulares
@@ -1083,4 +1323,3 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-

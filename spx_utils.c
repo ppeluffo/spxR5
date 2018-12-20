@@ -10,6 +10,8 @@
 static void pv_load_defaults_ainputs(void);
 static void pv_load_defaults_counters(void);
 static void pv_load_defaults_dinputs(void);
+static void pv_load_defaults_doutputs(void);
+static void pv_load_defaults_consignas(void);
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -18,17 +20,8 @@ void initMCU(void)
 {
 	// Inicializa los pines del micro
 
-
-
 	// ANALOG: SENSOR VCC CONTROL
 //	IO_config_SENS_12V_CTL();
-
-
-
-//	AINPUTS_init();
-//	DINPUTS_init();
-//	DRV8814_init();
-//	RMETER_init( SYSMAINCLK );
 
 	// GPRS
 //	IO_config_GPRS_SW();
@@ -225,6 +218,35 @@ uint8_t cChar;
 
 }
 //------------------------------------------------------------------------------------
+void u_convert_str_to_time_t ( char *time_str, st_time_t *time_struct )
+{
+
+	// Convierte un string hhmm en una estructura time_type que tiene
+	// un campo hora y otro minuto
+
+uint16_t time_num;
+
+	time_num = atol(time_str);
+	time_struct->hour = (uint8_t) (time_num / 100);
+	time_struct->min = (uint8_t)(time_num % 100);
+
+//	xprintf_P( PSTR("DEBUG: u_convert_str_to_time_t (hh=%d,mm=%d)\r\n\0"), time_struct->hour,time_struct->min );
+
+}
+//------------------------------------------------------------------------------------
+void u_convert_int_to_time_t ( int int16time, st_time_t *time_struct )
+{
+
+	// Convierte un int16  hhmm en una estructura time_type que tiene
+	// un campo hora y otro minuto
+
+	time_struct->hour = (uint8_t) (int16time / 100);
+	time_struct->min = (uint8_t)(int16time % 100);
+
+//	xprintf_P( PSTR("DEBUG: u_convert_str_to_time_t (hh=%d,mm=%d)\r\n\0"), time_struct->hour,time_struct->min );
+
+}
+//------------------------------------------------------------------------------------
 void u_load_defaults( void )
 {
 	// Carga la configuracion por defecto.
@@ -237,6 +259,8 @@ void u_load_defaults( void )
 	pv_load_defaults_counters();
 	pv_load_defaults_ainputs();
 	pv_load_defaults_dinputs();
+	pv_load_defaults_doutputs();
+	pv_load_defaults_consignas();
 
 }
 //------------------------------------------------------------------------------------
@@ -445,7 +469,29 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
+bool u_config_consignas( char *modo, char *hhmm_dia, char *hhmm_noche)
+{
 
+	if ( !strcmp_P( strupr(modo), PSTR("ON\0")) ) {
+			systemVars.consigna.c_enabled = true;
+		} else if (!strcmp_P( strupr(modo), PSTR("OFF\0")) ) {
+			systemVars.consigna.c_enabled = false;
+		} else {
+			return(false);
+		}
+
+	if ( hhmm_dia != NULL ) {
+		u_convert_int_to_time_t( atoi(hhmm_dia), &systemVars.consigna.hhmm_c_diurna );
+	}
+
+	if ( hhmm_noche != NULL ) {
+		u_convert_int_to_time_t( atoi(hhmm_noche), &systemVars.consigna.hhmm_c_nocturna );
+	}
+
+	return(true);
+
+}
+//----------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
 static void pv_load_defaults_ainputs(void)
@@ -491,6 +537,23 @@ uint8_t i;
 	for ( i = 0; i < NRO_DINPUTS; i++ ) {
 		snprintf_P( systemVars.din_name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );
 	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_load_defaults_doutputs(void)
+{
+	// En el caso de SPX_IO8, configura la salida a que inicialmente este todo en off.
+	systemVars.d_outputs = 0x00;
+}
+//------------------------------------------------------------------------------------
+static void pv_load_defaults_consignas(void)
+{
+
+	systemVars.consigna.c_enabled = CONSIGNA_OFF;
+	systemVars.consigna.hhmm_c_diurna.hour = 05;
+	systemVars.consigna.hhmm_c_diurna.min = 30;
+	systemVars.consigna.hhmm_c_nocturna.hour = 23;
+	systemVars.consigna.hhmm_c_nocturna.min = 30;
 
 }
 //------------------------------------------------------------------------------------

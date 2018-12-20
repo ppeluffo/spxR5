@@ -23,6 +23,11 @@ void DRV8814_vclose( char valve_id, uint8_t duracion );
 void DRV8814_set_consigna_diurna(void);
 void DRV8814_set_consigna_nocturna(void);
 //
+void DRV8814_enable_pin( char driver_id, uint8_t val );
+void DRV8814_sleep_pin( uint8_t val );
+void DRV8814_reset_pin( uint8_t val );
+void DRV8814_phase_pin( char driver_id, uint8_t val );
+
 // API END
 //------------------------------------------------------------------------------------
 

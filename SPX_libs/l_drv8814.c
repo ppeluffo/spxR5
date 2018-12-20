@@ -132,3 +132,89 @@ void DRV8814_set_consigna_nocturna(void)
 
 }
 //----------------------------------------------------------------------------------------
+void DRV8814_enable_pin( char driver_id, uint8_t val )
+{
+
+	switch (driver_id) {
+
+	case 'A':
+		switch(val) {
+		case 0:
+			IO_clr_ENA();
+			break;
+		case 1:
+			IO_set_ENA();
+			break;
+		default:
+			break;
+		}
+		break;
+
+	case 'B':
+		switch(val) {
+		case 0:
+			IO_clr_ENB();
+			break;
+		case 1:
+			IO_set_ENB();
+			break;
+		default:
+			break;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+}
+//------------------------------------------------------------------------------------
+void DRV8814_sleep_pin( uint8_t val )
+{
+	( val == 0 ) ? IO_clr_SLP() : IO_set_SLP();
+}
+//------------------------------------------------------------------------------------
+void DRV8814_reset_pin( uint8_t val )
+{
+	( val == 0 ) ? IO_clr_RES() : IO_set_RES();
+
+}
+//------------------------------------------------------------------------------------
+void DRV8814_phase_pin( char driver_id, uint8_t val )
+{
+
+	switch (driver_id) {
+
+	case 'A':
+		switch(val) {
+		case 0:
+			IO_clr_PHA();
+			break;
+		case 1:
+			IO_set_PHA();
+			break;
+		default:
+			break;
+		}
+		break;
+
+	case 'B':
+		switch(val) {
+		case 0:
+			IO_clr_PHB();
+			break;
+		case 1:
+			IO_set_PHB();
+			break;
+		default:
+			break;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+}
+//------------------------------------------------------------------------------------
+
