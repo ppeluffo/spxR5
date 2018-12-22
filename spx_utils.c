@@ -6,6 +6,7 @@
  */
 
 #include "spx.h"
+#include "gprs.h"
 
 static void pv_load_defaults_ainputs(void);
 static void pv_load_defaults_counters(void);
@@ -261,6 +262,8 @@ void u_load_defaults( void )
 	pv_load_defaults_dinputs();
 	pv_load_defaults_doutputs();
 	pv_load_defaults_consignas();
+
+	u_gprs_load_defaults();
 
 }
 //------------------------------------------------------------------------------------

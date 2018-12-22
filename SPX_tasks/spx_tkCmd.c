@@ -6,6 +6,7 @@
  */
 
 #include "spx.h"
+#include "gprs.h"
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE USO PRIVADO
@@ -124,9 +125,52 @@ uint8_t channel;
 
 	RTC_read_time();
 
+	// DlgId
+	xprintf_P( PSTR("dlgid: %s\r\n\0"), systemVars.dlgId );
+
 	// Memoria
 	FAT_read(&l_fat);
 	xprintf_P( PSTR("memory: rcdSize=%d, wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), sizeof(st_dataRecord_t), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
+
+	// SERVER
+	xprintf_P( PSTR(">Server:\r\n\0"));
+	xprintf_P( PSTR("  apn: %s\r\n\0"), systemVars.apn );
+	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), systemVars.server_ip_address,systemVars.server_tcp_port );
+	xprintf_P( PSTR("  server script: %s\r\n\0"), systemVars.serverScript );
+	xprintf_P( PSTR("  simapwd: %s\r\n\0"), systemVars.simpwd );
+
+	// MODEM
+	xprintf_P( PSTR(">Modem:\r\n\0"));
+	xprintf_P( PSTR("  signalQ: csq=%d, dBm=%d\r\n\0"), GPRS_stateVars.csq, GPRS_stateVars.dbm );
+	xprintf_P( PSTR("  ip address: %s\r\n\0"), GPRS_stateVars.dlg_ip_address);
+
+	// GPRS STATE
+	switch (GPRS_stateVars.state) {
+	case G_ESPERA_APAGADO:
+		xprintf_P( PSTR("  state: await_off\r\n"));
+		break;
+	case G_PRENDER:
+		xprintf_P( PSTR("  state: prendiendo\r\n"));
+		break;
+	case G_CONFIGURAR:
+		xprintf_P( PSTR("  state: configurando\r\n"));
+		break;
+	case G_MON_SQE:
+		xprintf_P( PSTR("  state: mon_sqe\r\n"));
+		break;
+	case G_GET_IP:
+		xprintf_P( PSTR("  state: ip\r\n"));
+		break;
+	case G_INIT_FRAME:
+		xprintf_P( PSTR("  state: init frame\r\n"));
+		break;
+	case G_DATA:
+		xprintf_P( PSTR("  state: data\r\n"));
+		break;
+	default:
+		xprintf_P( PSTR("  state: ERROR\r\n"));
+		break;
+	}
 
 	// CONFIG
 	xprintf_P( PSTR(">Config:\r\n\0"));
@@ -139,6 +183,12 @@ uint8_t channel;
 	case DEBUG_COUNTER:
 		xprintf_P( PSTR("  debug: counter\r\n\0") );
 		break;
+	case DEBUG_DATA:
+		xprintf_P( PSTR("  debug: data\r\n\0") );
+		break;
+	case DEBUG_GPRS:
+		xprintf_P( PSTR("  debug: gprs\r\n\0") );
+		break;
 	default:
 		xprintf_P( PSTR("  debug: ???\r\n\0") );
 		break;
@@ -147,14 +197,17 @@ uint8_t channel;
 	// Digital inputs timers. Solo en SPX_8CH ( para UTE )
 	if ( spx_io_board == SPX_IO8CH ) {
 		if ( systemVars.dinputs_timers ) {
-			xprintf_P( PSTR("  dinputs_timers: ON\r\n\0"));
+			xprintf_P( PSTR("  dinputsAsTimers: ON\r\n\0"));
 		} else {
-			xprintf_P( PSTR("  dinputs_timers: OFF\r\n\0"));
+			xprintf_P( PSTR("  dinputsAsTimers: OFF\r\n\0"));
 		}
 	}
 
 	// Timerpoll
 	xprintf_P( PSTR("  timerPoll: [%d s]/%d\r\n\0"),systemVars.timerPoll, ctl_readTimeToNextPoll() );
+
+	// Timerdial
+	xprintf_P( PSTR("  timerDial: [%d s]/%d\r\n\0"),systemVars.timerDial, u_gprs_readTimeToNextDial() );
 
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"),systemVars.pwr_settle_time );
@@ -162,17 +215,23 @@ uint8_t channel;
 	// Counters debounce time
 	xprintf_P( PSTR("  timerDebounceCnt: [%d s]\r\n\0"),systemVars.counter_debounce_time );
 
-	// RangeMeter: PULSE WIDTH
 	if ( spx_io_board == SPX_IO5CH ) {
+
+		// PWR SAVE:
+		if ( systemVars.pwrSave.modo ==  modoPWRSAVE_OFF ) {
+			xprintf_P(  PSTR("  pwrsave: off\r\n\0"));
+		} else if ( systemVars.pwrSave.modo ==  modoPWRSAVE_ON ) {
+			xprintf_P(  PSTR("  pwrsave: on, start[%02d:%02d], end[%02d:%02d]\r\n\0"), systemVars.pwrSave.hora_start.hour, systemVars.pwrSave.hora_start.min, systemVars.pwrSave.hora_fin.hour, systemVars.pwrSave.hora_fin.min);
+		}
+
+		// RangeMeter: PULSE WIDTH
 		if ( systemVars.rangeMeter_enabled ) {
 			xprintf_P( PSTR("  rangeMeter: on\r\n"));
 		} else {
 			xprintf_P( PSTR("  rangeMeter: off\r\n"));
 		}
-	}
 
-	// Consignas
-	if ( spx_io_board == SPX_IO5CH ) {
+		// Consignas
 		if ( systemVars.consigna.c_enabled ) {
 			if ( systemVars.consigna.c_aplicada == CONSIGNA_DIURNA ) {
 				xprintf_P( PSTR("  consignas: (DIURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.consigna.hhmm_c_diurna.hour, systemVars.consigna.hhmm_c_diurna.min, systemVars.consigna.hhmm_c_nocturna.hour, systemVars.consigna.hhmm_c_nocturna.min );
@@ -182,11 +241,12 @@ uint8_t channel;
 		} else {
 			xprintf_P( PSTR("  consignas: OFF\r\n"));
 		}
+
 	}
 
 	// Salidas digitales
 	if ( spx_io_board == SPX_IO8CH ) {
-		xprintf_P( PSTR("  outputs: 0x%02x [BYTE_TO_BINARY_PATTERN]\r\n\0"),systemVars.d_outputs ,  BYTE_TO_BINARY(systemVars.d_outputs) );
+		xprintf_P( PSTR("  outputs: 0x%02x [%c%c%c%c%c%c%c%c]\r\n\0"),systemVars.d_outputs ,  BYTE_TO_BINARY(systemVars.d_outputs) );
 	}
 
 	// aninputs
@@ -221,13 +281,25 @@ static void cmdResetFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("MEMORY\0"))) {
 
 		// Nadie debe usar la memoria !!!
-		ctl_watchdog_kick(WDG_CMD, 0xFFFF);
+		ctl_watchdog_kick(WDG_CMD, 0x8000 );
 
 		vTaskSuspend( xHandle_tkData );
-		ctl_watchdog_kick(WDG_DAT, 0xFFFF);
+		ctl_watchdog_kick(WDG_DAT, 0x8000 );
 
 		vTaskSuspend( xHandle_tkCounter );
-		ctl_watchdog_kick(WDG_COUNT, 0xFFFF);
+		ctl_watchdog_kick(WDG_COUNT, 0x8000 );
+
+		vTaskSuspend( xHandle_tkData );
+		ctl_watchdog_kick(WDG_DAT, 0x8000 );
+
+		vTaskSuspend( xHandle_tkDinputs );
+		ctl_watchdog_kick(WDG_DIN, 0x8000 );
+
+		vTaskSuspend( xHandle_tkDoutputs );
+		ctl_watchdog_kick(WDG_DOUT, 0x8000 );
+
+		vTaskSuspend( xHandle_tkGprsTx );
+		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
 
 		if (!strcmp_P( strupr(argv[2]), PSTR("SOFT\0"))) {
 			FF_format(false );
@@ -541,6 +613,9 @@ bool retS = false;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("DATA\0"))) {
 			systemVars.debug = DEBUG_DATA;
 			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("GPRS\0"))) {
+			systemVars.debug = DEBUG_GPRS;
+			retS = true;
 		} else {
 			retS = false;
 		}
@@ -663,6 +738,104 @@ bool retS = false;
 		return;
 	}
 
+	// TIMERDIAL
+	// config timerdial
+	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0"))) ) {
+		u_gprs_config_timerdial( argv[2] );
+		pv_snprintfP_OK();
+		return;
+	}
+
+	// PWRSAVE
+	if (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0"))) {
+		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
+		pv_snprintfP_OK();
+		return;
+	}
+
+	// APN
+	if (!strcmp_P( strupr(argv[1]), PSTR("APN\0"))) {
+		if ( argv[2] == NULL ) {
+			retS = false;
+		} else {
+			memset(systemVars.apn, '\0', sizeof(systemVars.apn));
+			memcpy(systemVars.apn, argv[2], sizeof(systemVars.apn));
+			systemVars.apn[APN_LENGTH - 1] = '\0';
+			retS = true;
+		}
+		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
+	// PORT ( SERVER IP PORT)
+	if (!strcmp_P( strupr(argv[1]), PSTR("PORT\0"))) {
+		if ( argv[2] == NULL ) {
+			retS = false;
+		} else {
+			memset(systemVars.server_tcp_port, '\0', sizeof(systemVars.server_tcp_port));
+			memcpy(systemVars.server_tcp_port, argv[2], sizeof(systemVars.server_tcp_port));
+			systemVars.server_tcp_port[PORT_LENGTH - 1] = '\0';
+			retS = true;
+		}
+		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
+	// IP (SERVER IP ADDRESS)
+	if (!strcmp_P( strupr(argv[1]), PSTR("IP\0"))) {
+		if ( argv[2] == NULL ) {
+			retS = false;
+		} else {
+			memset(systemVars.server_ip_address, '\0', sizeof(systemVars.server_ip_address));
+			memcpy(systemVars.server_ip_address, argv[2], sizeof(systemVars.server_ip_address));
+			systemVars.server_ip_address[IP_LENGTH - 1] = '\0';
+			retS = true;
+		}
+		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
+	// SCRIPT ( SERVER SCRIPT SERVICE )
+	if (!strcmp_P( strupr(argv[1]), PSTR("SCRIPT\0"))) {
+		if ( argv[2] == NULL ) {
+			retS = false;
+		} else {
+			memset(systemVars.serverScript, '\0', sizeof(systemVars.serverScript));
+			memcpy(systemVars.serverScript, argv[2], sizeof(systemVars.serverScript));
+			systemVars.serverScript[SCRIPT_LENGTH - 1] = '\0';
+			retS = true;
+		}
+		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
+	// SIMPWD
+	if (!strcmp_P( strupr(argv[1]), PSTR("SIMPWD\0"))) {
+		if ( argv[2] == NULL ) {
+			retS = false;
+		} else {
+			memset(systemVars.simpwd, '\0', sizeof(systemVars.simpwd));
+			memcpy(systemVars.simpwd, argv[2], sizeof(systemVars.simpwd));
+			systemVars.simpwd[PASSWD_LENGTH - 1] = '\0';
+			retS = true;
+		}
+		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
+	// DLGID
+	if (!strcmp_P( strupr(argv[1]), PSTR("DLGID\0"))) {
+		if ( argv[2] == NULL ) {
+			retS = false;
+			} else {
+				memcpy(systemVars.dlgId, argv[2], sizeof(systemVars.dlgId));
+				systemVars.dlgId[DLGID_LENGTH - 1] = '\0';
+				retS = true;
+			}
+		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
 	pv_snprintfP_ERR();
 	return;
 }
@@ -704,7 +877,13 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  id\r\n\0"));
 			xprintf_P( PSTR("  (ee,nvmee,rtcram) {pos} {lenght}\r\n\0"));
 			xprintf_P( PSTR("  ina (id) {conf|chXshv|chXbusv|mfid|dieid}\r\n\0"));
-			xprintf_P( PSTR("  ach {0..4}, battery\r\n\0"));
+
+			if ( spx_io_board == SPX_IO5CH ) {
+				xprintf_P( PSTR("  ach {0..%d}, battery\r\n\0"), ( NRO_ANINPUTS - 1 ) );
+			} else if ( spx_io_board == SPX_IO8CH ) {
+				xprintf_P( PSTR("  ach {0..%d}\r\n\0"), ( NRO_ANINPUTS - 1 ) );
+			}
+
 			xprintf_P( PSTR("  din\r\n\0"));
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
 
@@ -729,25 +908,25 @@ static void cmdHelpFunction(void)
 	else if (!strcmp_P( strupr(argv[1]), PSTR("CONFIG\0"))) {
 		xprintf_P( PSTR("-config\r\n\0"));
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
+		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
 		xprintf_P( PSTR("  debug {none,counter,data}\r\n\0"));
 		xprintf_P( PSTR("  counter {0..%d} cname magPP\r\n\0"), ( NRO_COUNTERS - 1 ) );
 		xprintf_P( PSTR("  cdtime {val}\r\n\0"));
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
-		xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
 		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  digital {0..%d} dname\r\n\0"), ( NRO_DINPUTS - 1 ) );
 
 		if ( spx_io_board == SPX_IO5CH ) {
 			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
+			xprintf_P( PSTR("  consigna {on|off) {hhmm_dia hhmm_noche}\r\n\0"));
+			xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
+			xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, sensortime {val}\r\n\0"));
 		}
 
 		if ( spx_io_board == SPX_IO8CH ) {
 			xprintf_P( PSTR("  dinputs timers {on|off}\r\n\0"));
-		}
-
-		if ( spx_io_board == SPX_IO5CH ) {
-			xprintf_P( PSTR("  consigna {on|off) {hhmm_dia hhmm_noche}\r\n\0"));
+			xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
 		}
 
 		xprintf_P( PSTR("  default\r\n\0"));
@@ -756,7 +935,7 @@ static void cmdHelpFunction(void)
 
 	// HELP KILL
 	else if (!strcmp_P( strupr(argv[1]), PSTR("KILL\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		xprintf_P( PSTR("-kill {counter, data, dinputs, doutputs }\r\n\0"));
+		xprintf_P( PSTR("-kill {counter, data, dinputs, doutputs, gprstx, gprsrx }\r\n\0"));
 		return;
 
 	} else {
@@ -788,28 +967,44 @@ static void cmdKillFunction(void)
 	// KILL COUNTER
 	if (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0"))) {
 		vTaskSuspend( xHandle_tkCounter );
-		ctl_watchdog_kick(WDG_COUNT, 0xFFFF);
+		ctl_watchdog_kick(WDG_COUNT, 0x8000 );
 		return;
 	}
 
 	// KILL DATA
 	if (!strcmp_P( strupr(argv[1]), PSTR("DATA\0"))) {
 		vTaskSuspend( xHandle_tkData );
-		ctl_watchdog_kick(WDG_DAT, 0xFFFF);
+		ctl_watchdog_kick(WDG_DAT, 0x8000 );
 		return;
 	}
 
 	// KILL DINPUTS
 	if (!strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0"))) {
 		vTaskSuspend( xHandle_tkDinputs );
-		ctl_watchdog_kick(WDG_DIN, 0xFFFF);
+		ctl_watchdog_kick(WDG_DIN, 0x8000 );
 		return;
 	}
 
 	// KILL DOUTPUTS
 	if (!strcmp_P( strupr(argv[1]), PSTR("DOUTPUTS\0"))) {
 		vTaskSuspend( xHandle_tkDoutputs );
-		ctl_watchdog_kick(WDG_DOUT, 0xFFFF);
+		ctl_watchdog_kick(WDG_DOUT, 0x8000 );
+		return;
+	}
+
+	// KILL GPRSTX
+	if (!strcmp_P( strupr(argv[1]), PSTR("GPRSTX\0"))) {
+		vTaskSuspend( xHandle_tkGprsTx );
+		ctl_watchdog_kick(WDG_GPRSTX, 0x8000 );
+		// Dejo la flag de modem prendido para poder leer comandos
+		GPRS_stateVars.modem_prendido = true;
+		return;
+	}
+
+	// KILL GPRSRX
+	if (!strcmp_P( strupr(argv[1]), PSTR("GPRSRX\0"))) {
+		vTaskSuspend( xHandle_tkGprsRx );
+		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
 		return;
 	}
 
@@ -1002,13 +1197,38 @@ UBaseType_t uxHighWaterMark;
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_idle );
 	xprintf_P( PSTR("IDLE:%03d,%03d,[%03d]\r\n\0"),configMINIMAL_STACK_SIZE,uxHighWaterMark,(configMINIMAL_STACK_SIZE - uxHighWaterMark)) ;
 
+	// tkControl
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkCtl );
+	xprintf_P( PSTR("CTL: %03d,%03d,[%03d]\r\n\0"),tkCtl_STACK_SIZE,uxHighWaterMark, (tkCtl_STACK_SIZE - uxHighWaterMark));
+
 	// tkCmd
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkCmd );
 	xprintf_P( PSTR("CMD: %03d,%03d,[%03d]\r\n\0"),tkCmd_STACK_SIZE,uxHighWaterMark,(tkCmd_STACK_SIZE - uxHighWaterMark)) ;
 
-	// tkControl
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkCtl );
-	xprintf_P( PSTR("CTL: %03d,%03d,[%03d]\r\n\0"),tkCtl_STACK_SIZE,uxHighWaterMark, (tkCtl_STACK_SIZE - uxHighWaterMark));
+	// tkCounters
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkCounter );
+	xprintf_P( PSTR("CNT: %03d,%03d,[%03d]\r\n\0"),tkCounter_STACK_SIZE,uxHighWaterMark, (tkCounter_STACK_SIZE - uxHighWaterMark));
+
+	// tkData
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkData );
+	xprintf_P( PSTR("DAT: %03d,%03d,[%03d]\r\n\0"),tkData_STACK_SIZE,uxHighWaterMark, (tkData_STACK_SIZE - uxHighWaterMark));
+
+	// tkDin
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkDinputs );
+	xprintf_P( PSTR("DIN: %03d,%03d,[%03d]\r\n\0"),tkDinputs_STACK_SIZE,uxHighWaterMark, (tkDinputs_STACK_SIZE - uxHighWaterMark));
+
+	// tkDout
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkDoutputs );
+	xprintf_P( PSTR("DOUT: %03d,%03d,[%03d]\r\n\0"), tkDoutputs_STACK_SIZE,uxHighWaterMark, ( tkDoutputs_STACK_SIZE - uxHighWaterMark));
+
+	// tkGprsTX
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkGprsTx );
+	xprintf_P( PSTR("DOUT: %03d,%03d,[%03d]\r\n\0"), tkGprs_tx_STACK_SIZE ,uxHighWaterMark, ( tkGprs_tx_STACK_SIZE - uxHighWaterMark));
+
+	// tkGprsRX
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkGprsRx );
+	xprintf_P( PSTR("DOUT: %03d,%03d,[%03d]\r\n\0"), tkGprs_rx_STACK_SIZE ,uxHighWaterMark, ( tkGprs_rx_STACK_SIZE - uxHighWaterMark));
+
 
 }
 //------------------------------------------------------------------------------------
@@ -1048,6 +1268,8 @@ static void pv_cmd_read_digital_channels(void)
 	// Leo e imprimo todos los canales digitales a la vez.
 
 uint8_t din0, din1;
+st_dataRecord_t drcd;
+uint8_t din_byte = 0x00;
 
 	if ( spx_io_board == SPX_IO5CH ) {
 		// Leo los canales digitales.
@@ -1055,7 +1277,20 @@ uint8_t din0, din1;
 		din1 = DIN_read_pin(1, spx_io_board );
 		xprintf_P( PSTR("Din0: %d, Din1: %d\r\n\0"), din0, din1 );
 		return;
+	} else 	if ( spx_io_board == SPX_IO8CH ) {
 
+		dinputs_read_frame( &drcd );
+		if ( drcd.df.io8.dinputs[0] == 1 ) din_byte |= ( 1 << 0);
+		if ( drcd.df.io8.dinputs[1] == 1 ) din_byte |= ( 1 << 1);
+		if ( drcd.df.io8.dinputs[2] == 1 ) din_byte |= ( 1 << 2);
+		if ( drcd.df.io8.dinputs[3] == 1 ) din_byte |= ( 1 << 3);
+		if ( drcd.df.io8.dinputs[4] == 1 ) din_byte |= ( 1 << 4);
+		if ( drcd.df.io8.dinputs[5] == 1 ) din_byte |= ( 1 << 5);
+		if ( drcd.df.io8.dinputs[6] == 1 ) din_byte |= ( 1 << 6);
+		if ( drcd.df.io8.dinputs[7] == 1 ) din_byte |= ( 1 << 7);
+
+		xprintf_P( PSTR("DINPUTS: 0x%02x [%c%c%c%c%c%c%c%c]\r\n\0"),din_byte ,  BYTE_TO_BINARY(din_byte) );
+		return;
 	}
 }
 //------------------------------------------------------------------------------------

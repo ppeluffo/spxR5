@@ -3,21 +3,21 @@
  *
  *  Created on: 8 dic. 2018
  *      Author: pablo
- */
-
-/*
- * Pendiente:
- * cOUNTERS: Pasar el handle al INIT para usarlo en las ISR
  *
- * Agregar a las librerias las funciones de diagnostico de CMD
+ *  avrdude -v -Pusb -c avrispmkII -p x256a3 -F -e -U flash:w:spxR4.hex
+ *  avrdude -v -Pusb -c avrispmkII -p x256a3 -F -e
  *
- * Problemas con los printf al controlar TERMINAL_PIN en cmd task
+ *  REFERENCIA: /usr/lib/avr/include/avr/iox256a3b.h
  *
- * Como determinar el tipo de arquitectura IO ?
+ *  El watchdog debe estar siempre prendido por fuses.
+ *  FF 0A FD __ F5 D4
  *
- * autocalibrar / span / offset
- * analog spx_8CH
+ *  PROGRAMACION FUSES:
+ *  /usr/bin/avrdude -px256a3b -cavrispmkII -Pusb -u -Uflash:w:spx.hex:a -Ufuse0:w:0xff:m -Ufuse1:w:0x0:m -Ufuse2:w:0xff:m -Ufuse4:w:0xff:m -Ufuse5:w:0xff:m
+ *  /usr/bin/avrdude -px256a3b -cavrispmkII -Pusb -u -Ufuse0:w:0xff:m -Ufuse1:w:0x0:m -Ufuse2:w:0xff:m -Ufuse4:w:0xff:m -Ufuse5:w:0xff:m
  *
+ *  Para ver el uso de memoria usamos
+ *  avr-nm -n spxR4.elf | more
  *
  */
 
@@ -66,6 +66,8 @@ int main( void )
 	xTaskCreate(tkData, "DATA", tkData_STACK_SIZE, NULL, tkData_TASK_PRIORITY,  &xHandle_tkData);
 	xTaskCreate(tkDinputs, "DIGI", tkDinputs_STACK_SIZE, NULL, tkDinputs_TASK_PRIORITY,  &xHandle_tkDinputs);
 	xTaskCreate(tkDoutputs, "DOUT", tkDoutputs_STACK_SIZE, NULL, tkDoutputs_TASK_PRIORITY,  &xHandle_tkDoutputs);
+	xTaskCreate(tkGprsRx, "RX", tkGprs_rx_STACK_SIZE, NULL, tkGprs_rx_TASK_PRIORITY,  &xHandle_tkGprsRx );
+	xTaskCreate(tkGprsTx, "TX", tkGprs_tx_STACK_SIZE, NULL, tkGprs_tx_TASK_PRIORITY,  &xHandle_tkGprsTx );
 
 	/* Arranco el RTOS. */
 	vTaskStartScheduler();

@@ -31,9 +31,10 @@ const char string_2[] PROGMEM = "CNT";
 const char string_3[] PROGMEM = "DAT";
 const char string_4[] PROGMEM = "DIN";
 const char string_5[] PROGMEM = "DOUT";
-const char string_6[] PROGMEM = "GTX";
+const char string_6[] PROGMEM = "GRX";
+const char string_7[] PROGMEM = "GTX";
 
-const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6 };
+const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7 };
 
 //------------------------------------------------------------------------------------
 void tkCtl(void * pvParameters)

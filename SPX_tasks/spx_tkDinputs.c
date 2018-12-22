@@ -102,7 +102,10 @@ uint8_t i = 0;
 		drcd->df.io5.dinputs[1] = DIN_read_pin(1, spx_io_board );
 		break;
 	case SPX_IO8CH:
+
 		port = DIN_read_port();
+		xprintf_P( PSTR("DEBUG DIN: 0x%02x [%c%c%c%c%c%c%c%c]\r\n\0"), port , BYTE_TO_BINARY( port ));
+
 		drcd->df.io8.dinputs[0] = ( port & ( 1 << 0 )) >> 0;
 		drcd->df.io8.dinputs[1] = ( port & ( 1 << 1 )) >> 1;
 		drcd->df.io8.dinputs[2] = ( port & ( 1 << 2 )) >> 2;

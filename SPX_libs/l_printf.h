@@ -31,7 +31,7 @@ int xnprint( const char *pvBuffer, const uint16_t xBytes );
 int xCom_nprint( file_descriptor_t fd, const char *pvBuffer, const uint16_t xBytes );
 void xCom_putChar(file_descriptor_t fd, unsigned char c);
 
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY_PATTERN %c%c%c%c%c%c%c%c
 #define BYTE_TO_BINARY(byte)  \
   (byte & 0x80 ? '1' : '0'), \
   (byte & 0x40 ? '1' : '0'), \

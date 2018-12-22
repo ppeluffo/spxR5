@@ -289,15 +289,13 @@ uint8_t channel;
 		}
 	}
 
-	// Range
 	if ( spx_io_board == SPX_IO5CH ) {
+		// Range
 		if ( systemVars.rangeMeter_enabled ) {
 			xprintf_P(PSTR(",RANGE=%d"), drcd->df.io5.range );
 		}
-	}
 
-	// bateria
-	if ( spx_io_board == SPX_IO5CH ) {
+		// bateria
 		xprintf_P(PSTR(",BAT=%.02f"), drcd->df.io5.battery );
 	}
 

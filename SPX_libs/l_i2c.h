@@ -11,6 +11,8 @@
 #include "frtos-io.h"
 
 #include "l_printf.h"
+#include "avr/pgmspace.h"
+
 
 #define BUSADDR_EEPROM_M2402	0xA0
 #define BUSADDR_RTC_M79410		0xDE

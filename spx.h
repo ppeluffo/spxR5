@@ -63,8 +63,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "0.0.6.R4"
-#define SPX_FW_DATE "@ 20181221"
+#define SPX_FW_REV "R4 0.0.1"
+#define SPX_FW_DATE "@ 20181222"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -99,6 +99,8 @@
 #define tkData_STACK_SIZE		512
 #define tkDinputs_STACK_SIZE	512
 #define tkDoutputs_STACK_SIZE	512
+#define tkGprs_rx_STACK_SIZE	1024
+#define tkGprs_tx_STACK_SIZE	1024
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
@@ -106,13 +108,22 @@
 #define tkData_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkDinputs_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkDoutputs_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
+#define tkGprs_rx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define tkGprs_tx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA } t_debug;
+#define MODO_DISCRETO ( (systemVars.timerDial > 0 ) ? true : false )
+
+// Mensajes entre tareas
+#define TK_FRAME_READY			0x01	//
+#define TK_REDIAL				0x04	//
+
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
+typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter, xHandle_tkData, xHandle_tkDinputs, xHandle_tkDoutputs;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter, xHandle_tkData, xHandle_tkDinputs, xHandle_tkDoutputs,  xHandle_tkGprsRx, xHandle_tkGprsTx;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -127,6 +138,8 @@ void tkCounter(void * pvParameters);
 void tkData(void * pvParameters);
 void tkDinputs(void * pvParameters);
 void tkDoutputs(void * pvParameters);
+void tkGprsRx(void * pvParameters);
+void tkGprsTx(void * pvParameters);
 
 #define DLGID_LENGTH		10
 #define PARAMNAME_LENGTH	5
@@ -182,7 +195,19 @@ typedef struct {
 } st_consigna_t;
 
 typedef struct {
+	uint8_t modo;
+	st_time_t hora_start;
+	st_time_t hora_fin;
+} st_pwrsave_t;
+
+typedef struct {
 	// Variables de trabajo.
+	char dlgId[DLGID_LENGTH];
+	char apn[APN_LENGTH];
+	char server_tcp_port[PORT_LENGTH];
+	char server_ip_address[IP_LENGTH];
+	char serverScript[SCRIPT_LENGTH];
+	char simpwd[PASSWD_LENGTH];
 
 	// Configuracion de canales contadores
 	char counters_name[MAX_COUNTER_CHANNELS][PARAMNAME_LENGTH];
@@ -204,12 +229,14 @@ typedef struct {
 	t_debug debug;
 	bool rangeMeter_enabled;
 	uint16_t timerPoll;
+	uint32_t timerDial;
 	uint8_t pwr_settle_time;
 	bool dinputs_timers;
 
 	uint8_t d_outputs;
 
 	st_consigna_t consigna;
+	st_pwrsave_t pwrSave;
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -262,8 +289,10 @@ uint8_t wdg_resetCause;
 #define WDG_DAT			3
 #define WDG_DIN			4
 #define WDG_DOUT		5
+#define WDG_GPRSRX		6
+#define WDG_GPRSTX		7
 
-#define NRO_WDGS		6
+#define NRO_WDGS		8
 
 
 #endif /* SRC_SPX_H_ */
