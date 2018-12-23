@@ -26,6 +26,7 @@ static void pv_cmd_read_digital_channels(void);
 static void pv_cmd_read_memory(void);
 static void pv_cmd_read_debug(void);
 static void pv_cmd_write_valve(void);
+static void pv_cmd_rwGPRS(uint8_t cmd_mode );
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -38,6 +39,9 @@ static void cmdReadFunction(void);
 static void cmdStatusFunction(void);
 static void cmdConfigFunction(void);
 static void cmdKillFunction(void);
+
+#define WR_CMD 0
+#define RD_CMD 1
 
 #define WDG_CMD_TIMEOUT	30
 
@@ -219,16 +223,16 @@ uint8_t channel;
 
 		// PWR SAVE:
 		if ( systemVars.pwrSave.modo ==  modoPWRSAVE_OFF ) {
-			xprintf_P(  PSTR("  pwrsave: off\r\n\0"));
+			xprintf_P(  PSTR("  pwrsave: OFF\r\n\0"));
 		} else if ( systemVars.pwrSave.modo ==  modoPWRSAVE_ON ) {
-			xprintf_P(  PSTR("  pwrsave: on, start[%02d:%02d], end[%02d:%02d]\r\n\0"), systemVars.pwrSave.hora_start.hour, systemVars.pwrSave.hora_start.min, systemVars.pwrSave.hora_fin.hour, systemVars.pwrSave.hora_fin.min);
+			xprintf_P(  PSTR("  pwrsave: ON, start[%02d:%02d], end[%02d:%02d]\r\n\0"), systemVars.pwrSave.hora_start.hour, systemVars.pwrSave.hora_start.min, systemVars.pwrSave.hora_fin.hour, systemVars.pwrSave.hora_fin.min);
 		}
 
 		// RangeMeter: PULSE WIDTH
 		if ( systemVars.rangeMeter_enabled ) {
-			xprintf_P( PSTR("  rangeMeter: on\r\n"));
+			xprintf_P( PSTR("  rangeMeter: ON\r\n"));
 		} else {
-			xprintf_P( PSTR("  rangeMeter: off\r\n"));
+			xprintf_P( PSTR("  rangeMeter: OFF\r\n"));
 		}
 
 		// Consignas
@@ -451,6 +455,14 @@ uint8_t pin;
 		return;
 	}
 
+	// GPRS
+	// write gprs pwr|sw|rts {on|off}
+	// write gprs cmd {atcmd}
+	if (!strcmp_P( strupr(argv[1]), PSTR("GPRS\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_rwGPRS(WR_CMD);
+		return;
+	}
+
 	// CMD NOT FOUND
 	xprintf_P( PSTR("ERROR\r\nCMD NOT DEFINED\r\n\0"));
 	return;
@@ -563,6 +575,13 @@ int16_t range;
 		RMETER_ping( &range, false );
 		xprintf_P( PSTR("RANGE=%d\r\n\0"),range);
 		pv_snprintfP_OK();
+		return;
+	}
+
+	// GPRS
+	// read gprs (rsp,cts,dcd,ri)
+	if (!strcmp_P( strupr(argv[1]), PSTR("GPRS\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_rwGPRS(RD_CMD);
 		return;
 	}
 
@@ -865,6 +884,9 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("        power {on|off}\r\n\0"));
 			}
 
+			xprintf_P( PSTR("  gprs (pwr|sw|cts|dtr) {on|off}\r\n\0"));
+			xprintf_P( PSTR("       cmd {atcmd}, redial\r\n\0"));
+
 		}
 		return;
 	}
@@ -891,6 +913,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  range\r\n\0"));
 			}
 
+			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri)\r\n\0"));
 		}
 		return;
 
@@ -1223,11 +1246,11 @@ UBaseType_t uxHighWaterMark;
 
 	// tkGprsTX
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkGprsTx );
-	xprintf_P( PSTR("DOUT: %03d,%03d,[%03d]\r\n\0"), tkGprs_tx_STACK_SIZE ,uxHighWaterMark, ( tkGprs_tx_STACK_SIZE - uxHighWaterMark));
+	xprintf_P( PSTR("TX: %03d,%03d,[%03d]\r\n\0"), tkGprs_tx_STACK_SIZE ,uxHighWaterMark, ( tkGprs_tx_STACK_SIZE - uxHighWaterMark));
 
 	// tkGprsRX
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkGprsRx );
-	xprintf_P( PSTR("DOUT: %03d,%03d,[%03d]\r\n\0"), tkGprs_rx_STACK_SIZE ,uxHighWaterMark, ( tkGprs_rx_STACK_SIZE - uxHighWaterMark));
+	xprintf_P( PSTR("RX: %03d,%03d,[%03d]\r\n\0"), tkGprs_rx_STACK_SIZE ,uxHighWaterMark, ( tkGprs_rx_STACK_SIZE - uxHighWaterMark));
 
 
 }
@@ -1555,6 +1578,126 @@ uint8_t i;
 //	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 */
 
+
+}
+//------------------------------------------------------------------------------------
+static void pv_cmd_rwGPRS(uint8_t cmd_mode )
+{
+
+uint8_t pin;
+//char *p;
+
+	if ( cmd_mode == WR_CMD ) {
+
+		// write gprs (pwr|sw|rts|dtr) {on|off}
+
+		if (!strcmp_P( strupr(argv[2]), PSTR("PWR\0")) ) {
+			if (!strcmp_P( strupr(argv[3]), PSTR("ON\0")) ) {
+				IO_set_GPRS_PWR(); pv_snprintfP_OK(); return;
+			}
+			if (!strcmp_P( strupr(argv[3]), PSTR("OFF\0")) ) {
+				IO_clr_GPRS_PWR(); pv_snprintfP_OK(); return;
+			}
+			pv_snprintfP_ERR();
+			return;
+		}
+
+		if (!strcmp_P( strupr(argv[2]), PSTR("SW\0")) ) {
+			if (!strcmp_P( strupr(argv[3]), PSTR("ON\0")) ) {
+				IO_set_GPRS_SW();
+				pv_snprintfP_OK(); return;
+			}
+			if (!strcmp_P( strupr(argv[3]), PSTR("OFF\0")) ) {
+				IO_clr_GPRS_SW(); pv_snprintfP_OK(); return;
+			}
+			pv_snprintfP_ERR();
+			return;
+		}
+
+		if (!strcmp_P( strupr(argv[2]), PSTR("CTS\0")) ) {
+			if (!strcmp_P( strupr(argv[3]), PSTR("ON\0")) ) {
+				IO_set_GPRS_CTS(); pv_snprintfP_OK(); return;
+			}
+			if (!strcmp_P( strupr(argv[3]), PSTR("OFF\0")) ) {
+				IO_clr_GPRS_CTS(); pv_snprintfP_OK(); return;
+			}
+			pv_snprintfP_ERR();
+			return;
+		}
+
+		// Por ahora cableo DTR a CTS.
+
+		if (!strcmp_P( strupr(argv[2]), PSTR("DTR\0")) ) {
+			if (!strcmp_P( strupr(argv[3]), PSTR("ON\0")) ) {
+				IO_set_GPRS_CTS(); pv_snprintfP_OK(); return;
+			}
+			if (!strcmp_P( strupr(argv[3]), PSTR("OFF\0")) ) {
+				IO_clr_GPRS_CTS(); pv_snprintfP_OK(); return;
+			}
+			pv_snprintfP_ERR();
+			return;
+		}
+
+		// write gprs redial
+		if (!strcmp_P( strupr(argv[2]), PSTR("REDIAL\0")) ) {
+			u_gprs_redial();
+			return;
+		}
+		// ATCMD
+		// // write gprs cmd {atcmd}
+		if (!strcmp_P(strupr(argv[2]), PSTR("CMD\0"))) {
+			xprintf_P( PSTR("%s\r\0"),argv[3] );
+
+			u_gprs_flush_RX_buffer();
+			xCom_printf_P( fdGPRS,PSTR("%s\r\0"),argv[3] );
+
+			xprintf_P( PSTR("sent->%s\r\n\0"),argv[3] );
+			return;
+		}
+
+		return;
+	}
+
+	if ( cmd_mode == RD_CMD ) {
+		// read gprs (rsp,cts,dcd,ri)
+
+			// ATCMD
+			// read gprs rsp
+			if (!strcmp_P(strupr(argv[2]), PSTR("RSP\0"))) {
+				u_gprs_print_RX_Buffer();
+				//p = pub_gprs_rxbuffer_getPtr();
+				//xprintf_P( PSTR("rx->%s\r\n\0"),p );
+				return;
+			}
+
+			// DCD
+			if (!strcmp_P( strupr(argv[2]), PSTR("DCD\0")) ) {
+				pin = IO_read_DCD();
+				xprintf_P( PSTR("DCD=%d\r\n\0"),pin);
+				pv_snprintfP_OK();
+				return;
+			}
+
+			// RI
+			if (!strcmp_P( strupr(argv[2]), PSTR("RI\0")) ) {
+				pin = IO_read_RI();
+				xprintf_P( PSTR("RI=%d\r\n\0"),pin);
+				pv_snprintfP_OK();
+				return;
+			}
+
+			// RTS
+			if (!strcmp_P( strupr(argv[2]), PSTR("RTS\0")) ) {
+				pin = IO_read_RTS();
+				xprintf_P( PSTR("RTS=%d\r\n\0"),pin);
+				pv_snprintfP_OK();
+				return;
+			}
+
+
+			pv_snprintfP_ERR();
+			return;
+	}
 
 }
 //------------------------------------------------------------------------------------

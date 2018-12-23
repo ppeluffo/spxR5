@@ -13,6 +13,7 @@ static void pv_load_defaults_counters(void);
 static void pv_load_defaults_dinputs(void);
 static void pv_load_defaults_doutputs(void);
 static void pv_load_defaults_consignas(void);
+static void pv_load_default_rangeMeter(void);
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -24,15 +25,6 @@ void initMCU(void)
 	// ANALOG: SENSOR VCC CONTROL
 //	IO_config_SENS_12V_CTL();
 
-	// GPRS
-//	IO_config_GPRS_SW();
-//	IO_config_GPRS_PWR();
-//	IO_config_GPRS_RTS();
-//	IO_config_GPRS_CTS();
-//	IO_config_GPRS_DCD();
-//	IO_config_GPRS_RI();
-//	IO_config_GPRS_RX();
-//	IO_config_GPRS_TX();
 
 	// TICK:
 	//IO_config_TICK();
@@ -255,12 +247,12 @@ void u_load_defaults( void )
 	systemVars.debug = DEBUG_NONE;
 	systemVars.timerPoll = 300;
 	systemVars.pwr_settle_time = 1;
-	systemVars.rangeMeter_enabled = false;
 
 	pv_load_defaults_counters();
 	pv_load_defaults_ainputs();
 	pv_load_defaults_dinputs();
 	pv_load_defaults_doutputs();
+	pv_load_default_rangeMeter();
 	pv_load_defaults_consignas();
 
 	u_gprs_load_defaults();
@@ -558,6 +550,11 @@ static void pv_load_defaults_consignas(void)
 	systemVars.consigna.hhmm_c_nocturna.hour = 23;
 	systemVars.consigna.hhmm_c_nocturna.min = 30;
 
+}
+//------------------------------------------------------------------------------------
+static void pv_load_default_rangeMeter(void)
+{
+	systemVars.rangeMeter_enabled = false;
 }
 //------------------------------------------------------------------------------------
 

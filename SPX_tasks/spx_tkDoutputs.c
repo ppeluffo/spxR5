@@ -72,11 +72,13 @@ static void pv_tkDoutputs_init(void)
 {
 
 	if ( spx_io_board == SPX_IO5CH ) {
+		DRV8814_init();
 		pv_dout_init_consignas();
 		return;
 	}
 
 	if ( spx_io_board == SPX_IO8CH ) {
+		// El MCP ya se configuro para el puerto de salidas en los dinputs
 		outputs = systemVars.d_outputs;
 		DOUTPUTS_reflect_byte(outputs);
 		return;

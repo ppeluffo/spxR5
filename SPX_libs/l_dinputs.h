@@ -15,7 +15,7 @@
 
 //------------------------------------------------------------------------------------
 // API publica
-void DINPUTS_init( void );
+void DINPUTS_init( uint8_t io_board );
 int8_t DIN_read_pin( uint8_t pin , uint8_t io_board );
 
 // SPX_8CH:

@@ -181,6 +181,8 @@ static void pv_gprs_init_system(void)
 {
 	// Aca hago toda la inicializacion que requiere el sistema del gprs.
 
+	u_gprs_init_pines();
+
 	memset(buff_gprs_imei,'\0',IMEIBUFFSIZE);
 	strncpy_P(GPRS_stateVars.dlg_ip_address, PSTR("000.000.000.000\0"),16);
 

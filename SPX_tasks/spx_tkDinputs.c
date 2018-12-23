@@ -78,6 +78,8 @@ static void pv_tkDinputs_init(void)
 
 uint8_t i;
 
+	DINPUTS_init( spx_io_board );
+
 	for ( i = 0; i < MAX_DINPUTS_CHANNELS; i++ ) {
 		digital_inputs[i] = 0;
 	}

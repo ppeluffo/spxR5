@@ -64,7 +64,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "R4 0.0.1"
-#define SPX_FW_DATE "@ 20181222"
+#define SPX_FW_DATE "@ 20181223"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"

@@ -13,6 +13,7 @@ void DOUTPUTS_init(void)
 {
 	// En los SPX_8CH la inicializacion la hace el MCP pero ya se hace en DINPUTS_init()
 	// MCP_init();
+
 }
 //------------------------------------------------------------------------------------
 // SALIDAS DIGITALES ( Solo en SPX_8CH )

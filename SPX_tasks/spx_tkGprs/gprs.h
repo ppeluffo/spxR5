@@ -85,7 +85,7 @@ void u_gprs_modem_pwr_sw(void);
 void u_gprs_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime);
 bool u_gprs_modem_prendido(void);
 void u_gprs_load_defaults(void);
-
+void u_gprs_init_pines(void);
 
 
 #endif /* SRC_SPXR3_TKGPRS_SPXR3_TKGPRS_H_ */

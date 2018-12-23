@@ -79,9 +79,21 @@ void u_gprs_load_defaults(void)
 
 	snprintf_P( systemVars.apn, APN_LENGTH, PSTR("SPYMOVIL.VPNANTEL\0") );
 	strncpy_P(systemVars.server_ip_address, PSTR("192.168.0.9\0"),16);
-	strncpy_P(systemVars.serverScript, PSTR("/cgi-bin/sp5K/spxR3.pl\0"),SCRIPT_LENGTH);
+	strncpy_P(systemVars.serverScript, PSTR("/cgi-bin/spx/spxR3.pl\0"),SCRIPT_LENGTH);
 	strncpy_P(systemVars.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
 	strncpy_P(systemVars.simpwd, PSTR("spymovil123\0"),PASSWD_LENGTH);
+
+	// PWRSAVE
+	if ( spx_io_board == SPX_IO5CH ) {
+		systemVars.pwrSave.modo = modoPWRSAVE_ON;
+	} else if ( spx_io_board == SPX_IO8CH ) {
+		systemVars.pwrSave.modo = modoPWRSAVE_OFF;
+	}
+
+	systemVars.pwrSave.hora_start.hour = 23;
+	systemVars.pwrSave.hora_start.min = 30;
+	systemVars.pwrSave.hora_fin.hour = 5;
+	systemVars.pwrSave.hora_fin.min = 30;
 
 /*
 #ifdef APP_SP5K_SPYMOVIL
@@ -297,4 +309,17 @@ quit:
 
 }
 //------------------------------------------------------------------------------------
+void u_gprs_init_pines(void)
+{
+	// GPRS
+	IO_config_GPRS_SW();
+	IO_config_GPRS_PWR();
+	IO_config_GPRS_RTS();
+	IO_config_GPRS_CTS();
+	IO_config_GPRS_DCD();
+	IO_config_GPRS_RI();
+	IO_config_GPRS_RX();
+	IO_config_GPRS_TX();
 
+}
+//------------------------------------------------------------------------------------

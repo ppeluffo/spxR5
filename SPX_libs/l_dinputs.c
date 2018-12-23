@@ -8,18 +8,21 @@
 #include "l_dinputs.h"
 
 //------------------------------------------------------------------------------------
-void DINPUTS_init( void )
+void DINPUTS_init( uint8_t io_board )
 {
 	// En el caso del SPX_8CH se deberia inicializar el port de salidas del MCP
 	// pero esto se hace en la funcion MCP_init(). Esta tambien inicializa el port
 	// de entradas digitales.
 
 	// SPX_5CH
-	DIN_config_D0();
-	DIN_config_D1();
+	if ( io_board == 0 ) {
+		DIN_config_D0();
+		DIN_config_D1();
+	} else if ( io_board == 1 ) {
+		// SPX_8CH
+		MCP_init();
+	}
 
-	// SPX_8CH
-	MCP_init();
 }
 //------------------------------------------------------------------------------------
 uint8_t DIN_read_port( void )

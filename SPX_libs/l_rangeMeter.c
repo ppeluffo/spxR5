@@ -239,7 +239,6 @@ ISR( PORTC_INT0_vect )
 		TCC1.CNT = 0;
 		TCC1.CTRLA = PULSE_TIMER_PRESCALER;
 		midiendo = true;
-		//IO_set_GPRS_PWR();
 
 	} else {
 		// Flanco de subida: Termino el pulso. Paro el timer
@@ -249,7 +248,6 @@ ISR( PORTC_INT0_vect )
 			rmeter_push_stack (TCC1.CNT);
 		}
 
-		//IO_clr_GPRS_PWR();
 	}
 
 	// Borro la interrupcion
