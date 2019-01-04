@@ -85,6 +85,10 @@ void tkGprsTx(void * pvParameters)
 
 RESTART:
 
+		if ( spx_io_board == SPX_IO8CH ) {
+			systemVars.d_outputs = 0x00;
+		}
+
 		if ( st_gprs_esperar_apagado() != bool_CONTINUAR ) {	// Espero con el modem apagado
 			goto RESTART;
 		}

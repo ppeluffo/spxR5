@@ -56,6 +56,13 @@ t_socket_status socket_status = SOCK_CLOSED;
 			xprintf_P( PSTR("GPRS: sckt ERROR\r\n\0"));
 		}
 
+	} else if ( u_gprs_check_response("+CIPEVENT:")) {
+		// El socket no se va a recuperar. Hay que cerrar el net y volver a abrirlo.
+		socket_status = SOCK_FAIL;
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: sckt FAIL +CIPEVENT:\r\n\0"));
+		}
+
 	} else {
 		socket_status = SOCK_CLOSED;
 		if ( systemVars.debug == DEBUG_GPRS ) {

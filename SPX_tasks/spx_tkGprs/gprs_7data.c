@@ -228,9 +228,9 @@ static void pv_trasmitir_dataHeader( void )
 
 	// Armo el header en el buffer
 
-	xCom_printf_P( fdGPRS, PSTR("GET %s?DLGID=%s&SIMPWD=%s&VER=%s\0"), systemVars.serverScript, systemVars.dlgId, systemVars.simpwd, SPX_FW_REV);
+	xCom_printf_P( fdGPRS, PSTR("GET %s?DLGID=%s\0"), systemVars.serverScript, systemVars.dlgId );
 	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: sent>GET %s?DLGID=%s&SIMPWD=%s&VER=%s\r\n\0"), systemVars.serverScript, systemVars.dlgId, systemVars.simpwd, SPX_FW_REV);
+		xprintf_P( PSTR("GPRS: sent>GET %s?DLGID=%s\r\n\0"), systemVars.serverScript, systemVars.dlgId );
 	}
 
 	// Para darle tiempo a vaciar el buffer y que no se corten los datos que se estan trasmitiendo
@@ -368,6 +368,10 @@ size_t bRead;
 
 	}
 
+	// DEBUG & LOG
+	if ( systemVars.debug ==  DEBUG_GPRS ) {
+		xprintf_P(PSTR( "\r\n"));
+	}
 
 	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 

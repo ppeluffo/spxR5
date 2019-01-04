@@ -6,6 +6,7 @@
  */
 
 #include "spx.h"
+#include "gprs.h"
 
 //------------------------------------------------------------------------------------
 static void pv_ctl_init_system(void);
@@ -41,7 +42,6 @@ void tkCtl(void * pvParameters)
 {
 
 ( void ) pvParameters;
-//uint8_t i = 0;
 
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 
@@ -55,18 +55,16 @@ void tkCtl(void * pvParameters)
 		// Paso c/5s plt 30s es suficiente.
 		ctl_watchdog_kick(WDG_CTL, WDG_CTL_TIMEOUT);
 
-//		xprintf_P( PSTR("Control %d\r\n\0"),i++);
-
-		// Para entrar en tickless.
-		// Cada 5s hago un chequeo de todo. En particular esto determina el tiempo
-		// entre que activo el switch de la terminal y que esta efectivamente responde.
-		vTaskDelay( ( TickType_t)( TKCTL_DELAY_S * 1000 / portTICK_RATE_MS ) );
-
 		pv_ctl_check_terminal();
 		pv_ctl_wink_led();
 		pv_ctl_check_wdg();
 		pv_ctl_ajust_timerPoll();
 		pv_ctl_daily_reset();
+
+		// Para entrar en tickless.
+		// Cada 5s hago un chequeo de todo. En particular esto determina el tiempo
+		// entre que activo el switch de la terminal y que esta efectivamente responde.
+		vTaskDelay( ( TickType_t)( TKCTL_DELAY_S * 1000 / portTICK_RATE_MS ) );
 
 	}
 }
@@ -105,7 +103,7 @@ char data[3];
 
 	// Inicializo todos los watchdogs a 15s ( 3 * 5s de loop )
 	for ( wdg = 0; wdg < NRO_WDGS; wdg++ ) {
-		watchdog_timers[wdg] = (uint16_t)( 15 / TKCTL_DELAY_S );
+		watchdog_timers[wdg] = (uint16_t)( TKCTL_DELAY_S * 6 );
 	}
 
 	// Determino la io_board attached
@@ -203,15 +201,16 @@ static void pv_ctl_check_terminal(void)
 //------------------------------------------------------------------------------------
 static void pv_ctl_wink_led(void)
 {
+
 	// SI la terminal esta desconectada salgo.
 	if ( ! terminal_connected() )
 		return;
 
 	// Prendo los leds
 	IO_set_LED_KA();
-//	if ( pub_modem_prendido() ) {
+	if ( u_gprs_modem_prendido() ) {
 		IO_set_LED_COMMS();
-//	}
+	}
 
 	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 	//taskYIELD();
@@ -233,8 +232,6 @@ static void pv_ctl_check_wdg(void)
 
 		// Cada ciclo reseteo el wdg para que no expire.
 		WDT_Reset();
-		//pub_ctl_print_wdg_timers();
-		//return;
 
 		// Si algun WDG no se borro, me reseteo
 		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
@@ -276,7 +273,7 @@ static void pv_ctl_daily_reset(void)
 	// Todos los dias debo resetearme para restaturar automaticamente posibles
 	// problemas.
 
-static uint32_t ticks_to_reset = 86400 / TKCTL_DELAY_S ; // Segundos en 1 dia.
+static uint32_t ticks_to_reset = 86400 / TKCTL_DELAY_S ; // ticks en 1 dia.
 
 
 	while ( --ticks_to_reset > 0 ) {

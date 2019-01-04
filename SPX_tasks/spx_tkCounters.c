@@ -32,6 +32,8 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 10000 );
 	for( ;; )
 	{
 
+//		PORTF.OUTTGL = 0x02;	// Toggle F1 Led Comms
+
 		// Paso c/10s plt 30s es suficiente.
 		ctl_watchdog_kick(WDG_COUNT, WDG_COUNT_TIMEOUT);
 
@@ -63,9 +65,8 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 10000 );
 			CNT_clr_CLRD();		// Borro el latch llevandolo a 0.
 			CNT_set_CLRD();		// Lo dejo en reposo en 1
 
-		} else   {
-			// Expiro el timeout de la tarea. Por ahora no hago nada.
 		}
+
 	}
 }
 //------------------------------------------------------------------------------------

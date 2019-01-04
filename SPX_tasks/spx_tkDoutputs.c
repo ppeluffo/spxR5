@@ -13,7 +13,7 @@ static void pv_tkDoutputs_init(void);
 static void pv_dout_chequear_consignas(void);
 static void pv_dout_init_consignas(void);
 
-#define WDG_DOUT_TIMEOUT	30
+#define WDG_DOUT_TIMEOUT	60
 
 //------------------------------------------------------------------------------------
 void tkDoutputs(void * pvParameters)
@@ -35,6 +35,8 @@ void tkDoutputs(void * pvParameters)
 	// loop
 	for( ;; )
 	{
+
+//		PORTF.OUTTGL = 0x02;	// Toggle F1 Led Comms
 
 		ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
 

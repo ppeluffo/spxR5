@@ -125,5 +125,3 @@ static StackType_t uxIdleTaskStack[ configMINIMAL_STACK_SIZE ];
     *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
 }
 //------------------------------------------------------------------------------------
-
-

@@ -40,6 +40,9 @@ static volatile bool	countingCompleted;
 static void prvSleepExactTime( portTickType xExpectedIdleTime );
 static void prvSetupTimerInterrupt(void);
 
+//uint32_t sysTicks;
+
+
 //void vApplicationSleep( TickType_t xExpectedIdleTime );
 //#define portSUPPRESS_TICKS_AND_SLEEP( xIdleTime ) vApplicationSleep( xIdleTime )
 /*-----------------------------------------------------------
@@ -534,8 +537,10 @@ ISR (TCC0_OVF_vect, ISR_NAKED) {
 //   portRESTORE_CONTEXT();
 //	PORTA.OUTTGL = 0x04;	// Toggle A2
 //	PORTE.OUTTGL = 0x10;	// Toggle E4
-//	PORTF.OUTTGL = 0x02;	// Toggle F1
+//	PORTF.OUTTGL = 0x02;	// Toggle F1 Led Comms
 //	PORTF.OUTTGL = 0x80;	// Toggle F7
+//	sysTicks++;
+
 	vPortYieldFromTick();
     asm volatile ( "reti" );
 }
@@ -549,7 +554,8 @@ ISR (TCC0_OVF_vect, ISR_NAKED) {
  */
 ISR (TCC0_OVF_vect, ISR_NAKED)
 {
-    vTaskIncrementTick();
+//    vTaskIncrementTick();
+    xTaskIncrementTick();
 }
 #endif
 

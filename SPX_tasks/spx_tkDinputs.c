@@ -46,6 +46,8 @@ uint8_t i;
 	for( ;; )
 	{
 
+	//	PORTF.OUTTGL = 0x02;	// Toggle F1 Led Comms
+
 		ctl_watchdog_kick( WDG_DIN,  WDG_DIN_TIMEOUT );
 
 		if ( ( spx_io_board == SPX_IO8CH ) && systemVars.dinputs_timers ) {

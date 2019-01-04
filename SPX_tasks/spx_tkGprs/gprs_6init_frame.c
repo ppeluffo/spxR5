@@ -138,6 +138,12 @@ t_socket_status socket_status;
 			if ( socket_status == SOCK_ERROR ) {
 				break;
 			}
+
+			// Si el socket dio falla, debo reiniciar la conexion.
+			if ( socket_status == SOCK_FAIL ) {
+				return(exit_flag);
+				break;
+			}
 		}
 	}
 

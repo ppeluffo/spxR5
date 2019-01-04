@@ -269,6 +269,7 @@ uint8_t checksum;
 uint16_t data_length;
 uint16_t i;
 
+
 	// Calculo el checksum del systemVars.
 	systemVars.checksum = 0;
 	data_length = sizeof(systemVars);
@@ -283,7 +284,7 @@ uint16_t i;
 	systemVars.checksum = checksum;
 
 	// Guardo systemVars en la EE
-	NVMEE_write_buffer(0x00, &systemVars, sizeof(systemVars));
+	NVMEE_write (0x00, &systemVars, sizeof(systemVars));
 
 	return(checksum);
 
@@ -486,7 +487,7 @@ bool u_config_consignas( char *modo, char *hhmm_dia, char *hhmm_noche)
 	return(true);
 
 }
-//----------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
 static void pv_load_defaults_ainputs(void)

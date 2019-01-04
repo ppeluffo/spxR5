@@ -91,6 +91,8 @@ uint8_t ticks;
 		// Con la terminal desconectada paso c/5s plt 30s es suficiente.
 		ctl_watchdog_kick(WDG_CMD, WDG_CMD_TIMEOUT);
 
+	//	PORTF.OUTTGL = 0x02;	// Toggle F1 Led Comms
+
 		// Si no tengo terminal conectada, duermo 5s lo que me permite entrar en tickless.
 		if ( ! terminal_connected() ) {
 			vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
@@ -126,6 +128,8 @@ uint8_t channel;
 
 	// Last reset cause
 	xprintf_P( PSTR("WRST=0x%02X\r\n\0") ,wdg_resetCause );
+
+	xprintf_P( PSTR("sVars Size: %d\r\n\0"), sizeof(systemVars) );
 
 	RTC_read_time();
 
@@ -1051,19 +1055,19 @@ static void pv_cmd_read_fuses(void)
 
 uint8_t fuse0,fuse1,fuse2,fuse4,fuse5;
 
-	fuse0 = nvm_fuses_read(0x00);	// FUSE0
+	fuse0 = NVMEE_fuses_read(0x00);	// FUSE0
 	xprintf_P( PSTR("FUSE0=0x%x\r\n\0"),fuse0);
 
-	fuse1 = nvm_fuses_read(0x01);	// FUSE1
+	fuse1 = NVMEE_fuses_read(0x01);	// FUSE1
 	xprintf_P( PSTR("FUSE1=0x%x\r\n\0"),fuse1);
 
-	fuse2 = nvm_fuses_read(0x02);	// FUSE2
+	fuse2 = NVMEE_fuses_read(0x02);	// FUSE2
 	xprintf_P( PSTR("FUSE2=0x%x\r\n\0"),fuse2);
 
-	fuse4 = nvm_fuses_read(0x04);	// FUSE4
+	fuse4 = NVMEE_fuses_read(0x04);	// FUSE4
 	xprintf_P( PSTR("FUSE4=0x%x\r\n\0"),fuse4);
 
-	fuse5 = nvm_fuses_read(0x05);	// FUSE5
+	fuse5 = NVMEE_fuses_read(0x05);	// FUSE5
 	xprintf_P( PSTR("FUSE5=0x%x\r\n\0"),fuse5);
 
 	if ( (fuse0 != 0xFF) || ( fuse1 != 0xAA) || (fuse2 != 0xFD) || (fuse4 != 0xF5) || ( fuse5 != 0xD6) ) {
