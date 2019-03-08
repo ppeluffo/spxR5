@@ -19,6 +19,19 @@
  *  Para ver el uso de memoria usamos
  *  avr-nm -n spxR4.elf | more
  *
+ *  Version 0.0.1.R1 @ 20190218
+ *  - Las funciones de manejo de la NVM son las tomadas del AVR1605 y usadas en spxboot.
+ *  - Mejoro las funciones de grabar el DLGID para que pongan un \0 al final del string.
+ *  - En reset default el dlgid queda en DEFAULT
+ *
+ *  Pendiente:
+ *  - sim password
+ *  - Revisar OUTPUTS ( Consignas )
+ *  - nuevo server script
+ *	- revisar watchdogs
+ *  - timerDial no corre para atras
+ *  - Al grabar un firmware detecta un default pero quedan mal los canales.
+ *
  */
 
 #include "spx.h"
@@ -45,6 +58,7 @@ int main( void )
 	// Inicializacion de los devices del frtos-io
 	if ( BAUD_PIN_115200() ) {
 		frtos_open(fdTERM, 115200 );
+//		frtos_open(fdTERM, 9600 );
 	} else {
 		frtos_open(fdTERM, 9600 );
 	}

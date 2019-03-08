@@ -84,6 +84,7 @@ void u_gprs_load_defaults(void)
 		systemVars.timerDial = 900;
 	}
 
+	snprintf_P( systemVars.dlgId, DLGID_LENGTH, PSTR("DEFAULT\0") );
 	snprintf_P( systemVars.apn, APN_LENGTH, PSTR("SPYMOVIL.VPNANTEL\0") );
 	strncpy_P(systemVars.server_ip_address, PSTR("192.168.0.9\0"),16);
 	strncpy_P(systemVars.serverScript, PSTR("/cgi-bin/spx/spxR3.pl\0"),SCRIPT_LENGTH);

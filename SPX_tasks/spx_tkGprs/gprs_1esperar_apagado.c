@@ -94,7 +94,8 @@ static bool starting_flag = true;
 
 	// Cuando arranco ( la primera vez) solo espero 10s y disco por primera vez
 	if ( starting_flag ) {
-		waiting_time = 10;
+		//waiting_time = 10;
+		waiting_time = 1000;
 		starting_flag = false;
 		goto EXIT;
 	}

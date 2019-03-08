@@ -73,6 +73,8 @@ void PORT_ConfigureInterrupt1( PORT_t * port,PORT_INT1LVL_t intLevel, uint8_t pi
 #define TERMCTL_PIN_PORT			PORTF
 
 #define IO_config_TERMCTL_PIN()		PORT_SetPinAsInput( &TERMCTL_PIN_PORT, TERMCTL_PIN_BITPOS)
+#define IO_config_TERMCTL_PULLDOWN()  PORTF.PIN4CTRL = PORT_OPC_PULLDOWN_gc
+
 uint8_t IO_read_TERMCTL_PIN(void);
 
 //------------------------------------------------------------------------------------

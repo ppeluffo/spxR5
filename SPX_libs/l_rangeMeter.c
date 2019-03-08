@@ -65,7 +65,7 @@ void RMETER_init( uint8_t sysclock_in_mhz )
 	}
 
 	// Configuro la INT0 del port C para interrumpir por flanco del PIN C0.
-	PORTC.PIN0CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;	// Sens both edge
+	PORTC.PIN0CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_BOTHEDGES_gc;	// Sens both edge
 	PORTC.INT0MASK = PIN0_bm;
 	PORTC.INTCTRL = 0x00; 	// Interrupcion deshabilitada.
 }

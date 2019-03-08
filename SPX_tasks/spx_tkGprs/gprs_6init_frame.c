@@ -266,46 +266,46 @@ uint8_t i;
 	// Configuracion de canales analogicos
 	for ( i = 0; i < NRO_ANINPUTS; i++) {
 		// No trasmito los canales que estan con X ( apagados )
-		if (!strcmp_P( systemVars.ain_name[i], PSTR("X"))) {
+		if (!strcmp_P( data_get_name(i), PSTR("X"))) {
 			continue;
 		}
-		xCom_printf_P( fdGPRS,PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i,systemVars.ain_name[i],systemVars.ain_imin[i], systemVars.ain_imax[i], systemVars.ain_mmin[i], systemVars.ain_mmax[i]);
+		xCom_printf_P( fdGPRS,PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i, data_get_name(i), data_get_imin(i), data_get_imax(i), data_get_mmin(i), data_get_mmax(i) );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i, systemVars.ain_name[i],systemVars.ain_imin[i], systemVars.ain_imax[i], systemVars.ain_mmin[i], systemVars.ain_mmax[i]);
+			xprintf_P( PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i, data_get_name(i), data_get_imin(i), data_get_imax(i), data_get_mmin(i), data_get_mmax(i) );
 		}
 	}
 
 	// Configuracion de canales digitales
 	for (i = 0; i < NRO_DINPUTS; i++) {
 		// No trasmito los canales que estan con X ( apagados )
-		if (!strcmp_P( systemVars.din_name[i], PSTR("X"))) {
+		if (!strcmp_P( dinputs_get_name(i), PSTR("X"))) {
 			continue;
 		}
-		xCom_printf_P( fdGPRS,PSTR("&D%d=%s\0"),i, systemVars.din_name[i] );
+		xCom_printf_P( fdGPRS,PSTR("&D%d=%s\0"),i, dinputs_get_name(i) );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&D%d=%s\0"),i, systemVars.din_name[i] );
+			xprintf_P( PSTR("&D%d=%s\0"),i, dinputs_get_name(i) );
 		}
 	}
 
 	// Configuracion de canales contadores
 	for (i = 0; i < NRO_COUNTERS; i++) {
 		// No trasmito los canales que estan con X ( apagados )
-		if (!strcmp_P( systemVars.counters_name[i], PSTR("X"))) {
+		if (!strcmp_P( counters_get_name(i), PSTR("X"))) {
 			continue;
 		}
-		xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.02f\0"),i, systemVars.counters_name[i], systemVars.counters_magpp[i] );
+		xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.02f\0"),i, counters_get_name(i), counters_get_magpp(i) );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&C%d=%s,%.02f\0"),i, systemVars.counters_name[i], systemVars.counters_magpp[i] );
+			xprintf_P( PSTR("&C%d=%s,%.02f\0"),i, counters_get_name(i), counters_get_magpp(i) );
 		}
 	}
 
 	if ( spx_io_board == SPX_IO5CH ) {
 
 		// Configuracion del rangeMeter
-		if ( systemVars.rangeMeter_enabled ) {
+		if ( data_get_rmeter_enabled() ) {
 			xCom_printf_P( fdGPRS,PSTR("&DIST=ON\0"));
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
 				xprintf( PSTR("&DIST=ON\0"));
@@ -489,7 +489,8 @@ char *delim = ",=:><";
 	token = strsep(&stringp,delim);	// DLGID
 	token = strsep(&stringp,delim);	// TH001
 
-	strncpy(systemVars.dlgId, token,DLGID_LENGTH);
+	memset(systemVars.dlgId,'\0', sizeof(systemVars.dlgId) );
+	strncpy(systemVars.dlgId, token, DLGID_LENGTH);
 
 	ret = 1;
 	if ( systemVars.debug == DEBUG_GPRS ) {
@@ -602,9 +603,9 @@ static uint8_t pv_gprs_config_rangeMeter(void)
 	// ?DIST=ON{OFF}
 
 	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST=ON") ) {
-		systemVars.rangeMeter_enabled = true;
+		data_config_rangemeter("ON");
 	} else 	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST=OFF") ) {
-		systemVars.rangeMeter_enabled = false;
+		data_config_rangemeter("OFF");
 	} else {
 		return(0);
 	}
@@ -673,7 +674,7 @@ char *tk_name,*tk_iMin,*tk_iMax,*tk_mMin,*tk_mMax;
 	tk_mMin = strsep(&stringp,delim);		//mMin
 	tk_mMax = strsep(&stringp,delim);		//mMax
 
-	u_config_analog_channel( channel, tk_name ,tk_iMin, tk_iMax, tk_mMin, tk_mMax );
+	ainputs_config_channel( channel, tk_name ,tk_iMin, tk_iMax, tk_mMin, tk_mMax );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig A%d\r\n\0"), channel);
 	}
@@ -735,7 +736,7 @@ char *tk_name;
 	stringp = localStr;
 	tk_name = strsep(&stringp,delim);	//D0
 	tk_name = strsep(&stringp,delim);	//name
-	u_config_digital_channel( channel, tk_name );
+	dinputs_config_channel( channel, tk_name );
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig D%d\r\n\0"), channel);
@@ -781,7 +782,7 @@ char *tk_name, *tk_magPP;
 	tk_name = strsep(&stringp,delim);	// C0
 	tk_name = strsep(&stringp,delim);	//name
 	tk_magPP = strsep(&stringp,delim);	//magPP
-	u_config_counter_channel ( channel, tk_name, tk_magPP );
+	counters_config_channel ( channel, tk_name, tk_magPP );
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig C%d\r\n\0"), channel);

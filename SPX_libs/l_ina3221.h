@@ -21,6 +21,8 @@ typedef int8_t i2c_bus_addr;
 // WORDS de configuracion de los INAs
 #define CONF_INAS_SLEEP			0x7920
 #define CONF_INAS_AVG128		0x7927
+#define CONF_INAS_PWRDOWN		0x0000
+
 
 // Direcciones de los registros de los INA
 #define INA3231_CONF			0x00

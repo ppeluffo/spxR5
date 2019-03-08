@@ -63,7 +63,7 @@ void tkDoutputs(void * pvParameters)
 
 		} else {
 
-			vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
+			vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 		}
 
 	}

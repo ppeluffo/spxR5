@@ -8,12 +8,8 @@
 #include "spx.h"
 #include "gprs.h"
 
-static void pv_load_defaults_ainputs(void);
-static void pv_load_defaults_counters(void);
-static void pv_load_defaults_dinputs(void);
 static void pv_load_defaults_doutputs(void);
 static void pv_load_defaults_consignas(void);
-static void pv_load_default_rangeMeter(void);
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -246,13 +242,13 @@ void u_load_defaults( void )
 
 	systemVars.debug = DEBUG_NONE;
 	systemVars.timerPoll = 300;
-	systemVars.pwr_settle_time = 1;
 
-	pv_load_defaults_counters();
-	pv_load_defaults_ainputs();
-	pv_load_defaults_dinputs();
+	counters_config_defaults();
+	dinputs_config_defaults();
+	ainputs_config_defaults();
+	range_config_defaults();
+
 	pv_load_defaults_doutputs();
-	pv_load_default_rangeMeter();
 	pv_load_defaults_consignas();
 
 	u_gprs_load_defaults();
@@ -284,7 +280,8 @@ uint16_t i;
 	systemVars.checksum = checksum;
 
 	// Guardo systemVars en la EE
-	NVMEE_write (0x00, &systemVars, sizeof(systemVars));
+//DNVM	NVMEE_write (0x00, &systemVars, sizeof(systemVars));
+	nvm_eeprom_erase_and_write_buffer(0x00, &systemVars, sizeof(systemVars));
 
 	return(checksum);
 
@@ -303,7 +300,8 @@ uint16_t data_length;
 uint16_t i;
 
 	// Leo de la EE es systemVars.
-	NVMEE_read_buffer(0x00, (char *)&systemVars, sizeof(systemVars));
+	//NVMEE_read_buffer(0x00, (char *)&systemVars, sizeof(systemVars));
+	nvm_eeprom_read_buffer(0x00, (char *)&systemVars, sizeof(systemVars));
 
 	// Guardo el checksum que lei.
 	stored_checksum = systemVars.checksum;
@@ -346,125 +344,6 @@ void u_config_timerpoll ( char *s_timerpoll )
 	return;
 }
 //------------------------------------------------------------------------------------
-bool u_config_counter_channel( uint8_t channel,char *s_param0, char *s_param1 )
-{
-	// Configuro un canal contador.
-	// channel: id del canal
-	// s_param0: string del nombre del canal
-	// s_param1: string con el valor del factor magpp.
-	//
-	// {0..1} dname magPP
-
-bool retS = false;
-
-	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
-		taskYIELD();
-
-	if ( ( channel >=  0) && ( channel < NRO_COUNTERS ) ) {
-
-		// NOMBRE
-		u_control_string(s_param0);
-		snprintf_P( systemVars.counters_name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_param0 );
-
-		// MAGPP
-		if ( s_param1 != NULL ) { systemVars.counters_magpp[channel] = atof(s_param1); }
-
-		retS = true;
-	}
-
-	xSemaphoreGive( sem_SYSVars );
-	return(retS);
-
-}
-//------------------------------------------------------------------------------------
-bool u_config_analog_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax )
-{
-
-	// Configura los canales analogicos. Es usada tanto desde el modo comando como desde el modo online por gprs.
-
-bool retS = false;
-
-	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
-		taskYIELD();
-
-	u_control_string(s_aname);
-
-	if ( ( channel >=  0) && ( channel < NRO_ANINPUTS ) ) {
-		snprintf_P( systemVars.ain_name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
-		if ( s_imin != NULL ) { systemVars.ain_imin[channel] = atoi(s_imin); }
-		if ( s_imax != NULL ) { systemVars.ain_imax[channel] = atoi(s_imax); }
-		if ( s_mmin != NULL ) { systemVars.ain_mmin[channel] = atoi(s_mmin); }
-		if ( s_mmax != NULL ) { systemVars.ain_mmax[channel] = atof(s_mmax); }
-		retS = true;
-	}
-
-	xSemaphoreGive( sem_SYSVars );
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-void u_read_analog_channel ( uint8_t io_board, uint8_t io_channel, uint16_t *raw_val, float *mag_val )
-{
-	// Lee un canal analogico y devuelve el valor convertido a la magnitud configurada.
-	// Es publico porque se utiliza tanto desde el modo comando como desde el modulo de poleo de las entradas.
-	// Hay que corregir la correspondencia entre el canal leido del INA y el canal fisico del datalogger
-	// io_channel. Esto lo hacemos en AINPUTS_read_ina.
-
-uint16_t an_raw_val;
-float an_mag_val;
-float I,M,P;
-uint16_t D;
-
-
-	an_raw_val = AINPUTS_read_ina(io_board, io_channel );
-	*raw_val = an_raw_val;
-
-	// Convierto el raw_value a la magnitud
-	// Calculo la corriente medida en el canal
-	I = (float)( an_raw_val) * 20 / ( systemVars.ain_inaspan[io_channel] + 1);
-
-	// Calculo la magnitud
-	P = 0;
-	D = systemVars.ain_imax[io_channel] - systemVars.ain_imin[io_channel];
-
-	an_mag_val = 0.0;
-	if ( D != 0 ) {
-		// Pendiente
-		P = (float) ( systemVars.ain_mmax[io_channel]  -  systemVars.ain_mmin[io_channel] ) / D;
-		// Magnitud
-		M = (float) (systemVars.ain_mmin[io_channel] + ( I - systemVars.ain_imin[io_channel] ) * P);
-
-		// Al calcular la magnitud, al final le sumo el offset.
-		an_mag_val = M + systemVars.ain_offset[io_channel];
-	} else {
-		// Error: denominador = 0.
-		an_mag_val = -999.0;
-	}
-
-	*mag_val = an_mag_val;
-
-}
-//------------------------------------------------------------------------------------
-bool u_config_digital_channel( uint8_t channel,char *s_aname )
-{
-
-	// Configura los canales analogicos. Es usada tanto desde el modo comando como desde el modo online por gprs.
-
-bool retS = false;
-
-	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
-		taskYIELD();
-
-	u_control_string(s_aname);
-
-	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
-		snprintf_P( systemVars.din_name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
-		retS = true;
-	}
-
-	xSemaphoreGive( sem_SYSVars );
-	return(retS);
-}
-//------------------------------------------------------------------------------------
 bool u_config_consignas( char *modo, char *hhmm_dia, char *hhmm_noche)
 {
 
@@ -490,52 +369,6 @@ bool u_config_consignas( char *modo, char *hhmm_dia, char *hhmm_noche)
 //------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
-static void pv_load_defaults_ainputs(void)
-{
-
-uint8_t channel;
-
-	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		systemVars.ain_imin[channel] = 0;
-		systemVars.ain_imax[channel] = 20;
-		systemVars.ain_mmin[channel] = 0;
-		systemVars.ain_mmax[channel] = 6.0;
-		systemVars.ain_offset[channel] = 0.0;
-		systemVars.ain_inaspan[channel] = 3646;
-		snprintf_P( systemVars.ain_name[channel], PARAMNAME_LENGTH, PSTR("A%d\0"),channel );
-	}
-}
-//------------------------------------------------------------------------------------
-static void pv_load_defaults_counters(void)
-{
-
-	// Realiza la configuracion por defecto de los canales contadores.
-uint8_t i;
-
-	for ( i = 0; i < NRO_COUNTERS; i++ ) {
-		snprintf_P( systemVars.counters_name[i], PARAMNAME_LENGTH, PSTR("C%d\0"), i );
-		systemVars.counters_magpp[i] = 0.1;
-	}
-
-	// Debounce Time
-	systemVars.counter_debounce_time = 50;
-
-}
-//------------------------------------------------------------------------------------
-static void pv_load_defaults_dinputs(void)
-{
-
-	// Realiza la configuracion por defecto de los canales digitales.
-uint8_t i;
-
-	systemVars.dinputs_timers = false;
-
-	for ( i = 0; i < NRO_DINPUTS; i++ ) {
-		snprintf_P( systemVars.din_name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );
-	}
-
-}
-//------------------------------------------------------------------------------------
 static void pv_load_defaults_doutputs(void)
 {
 	// En el caso de SPX_IO8, configura la salida a que inicialmente este todo en off.
@@ -553,9 +386,3 @@ static void pv_load_defaults_consignas(void)
 
 }
 //------------------------------------------------------------------------------------
-static void pv_load_default_rangeMeter(void)
-{
-	systemVars.rangeMeter_enabled = false;
-}
-//------------------------------------------------------------------------------------
-

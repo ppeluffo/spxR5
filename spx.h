@@ -63,8 +63,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "0.0.1.R4"
-#define SPX_FW_DATE "@ 20190104"
+#define SPX_FW_REV "0.0.1.R1"
+#define SPX_FW_DATE "@ 20190308"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -209,29 +209,9 @@ typedef struct {
 	char serverScript[SCRIPT_LENGTH];
 	char simpwd[PASSWD_LENGTH];
 
-	// Configuracion de canales contadores
-	char counters_name[MAX_COUNTER_CHANNELS][PARAMNAME_LENGTH];
-	float counters_magpp[MAX_COUNTER_CHANNELS];
-	uint8_t counter_debounce_time;
-
-	// Configuracion de Canales analogicos
-	uint8_t ain_imin[MAX_ANALOG_CHANNELS];	// Coeficientes de conversion de I->magnitud (presion)
-	uint8_t ain_imax[MAX_ANALOG_CHANNELS];
-	float ain_mmin[MAX_ANALOG_CHANNELS];
-	float ain_mmax[MAX_ANALOG_CHANNELS];
-	char ain_name[MAX_ANALOG_CHANNELS][PARAMNAME_LENGTH];
-	float ain_offset[MAX_ANALOG_CHANNELS];
-	float ain_inaspan[MAX_ANALOG_CHANNELS];
-
-	// Configuracion de canales digitales
-	char din_name[MAX_DINPUTS_CHANNELS][PARAMNAME_LENGTH];
-
 	t_debug debug;
-	bool rangeMeter_enabled;
 	uint16_t timerPoll;
 	uint32_t timerDial;
-	uint8_t pwr_settle_time;
-	bool dinputs_timers;
 
 	uint8_t d_outputs;
 
@@ -258,27 +238,58 @@ void u_load_defaults( void );
 uint8_t u_save_params_in_NVMEE(void);
 bool u_load_params_from_NVMEE(void);
 void u_config_timerpoll ( char *s_timerpoll );
-bool u_config_counter_channel( uint8_t channel,char *s_param0, char *s_param1 );
-bool u_config_analog_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax );
-void u_read_analog_channel ( uint8_t io_board, uint8_t io_channel, uint16_t *raw_val, float *mag_val );
-bool u_config_digital_channel( uint8_t channel,char *s_aname );
 bool u_config_consignas( char *_cmodo, char *hhmm_dia, char *hhmm_noche);
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
 void ctl_print_wdg_timers(void);
 uint16_t ctl_readTimeToNextPoll(void);
-void ctl_reload_timerPoll(void);
-bool terminal_connected(void);
+void ctl_reload_timerPoll( uint16_t new_time );
+bool ctl_terminal_connected(void);
+uint32_t ctl_readTimeToNextDial(void);
+void ctl_reload_timerDial( uint32_t new_time );
 
 // TKCOUNTER
-void counters_read_frame( st_dataRecord_t *drcd, bool reset_counters );
+float counters_read( uint8_t cnt, bool reset_counter );
+void counters_config_defaults(void);
+bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1 );
+void counters_config_debounce_time( char *s_counter_debounce_time );
+uint8_t counters_get_debounce_time(void);
+char * counters_get_name(uint8_t cnt );
+float counters_get_magpp( uint8_t cnt );
 
 // TKDATA
-void data_show_frame( st_dataRecord_t *drcd, bool polling );
+bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax );
+void ainputs_config_defaults(void);
+bool data_config_rangemeter ( char *s_mode );
+bool data_config_offset( char *s_channel, char *s_offset );
+void data_config_sensortime ( char *s_sensortime );
+void data_config_span ( char *s_channel, char *s_span );
+bool data_config_autocalibrar( char *s_channel, char *s_mag_val );
+
+void ainputs_read ( uint8_t io_channel, uint16_t *raw_val, float *mag_val );
+void data_read_frame( bool polling  );
+
+bool data_get_rmeter_enabled(void);
+uint8_t data_get_pwr_settle_time(void);
+uint8_t data_get_imin( uint8_t ain );
+uint8_t data_get_imax( uint8_t ain );
+float data_get_mmin( uint8_t ain );
+float data_get_mmax( uint8_t ain );
+float data_get_offset( uint8_t ain );
+float data_get_span( uint8_t ain );
+char * data_get_name(uint8_t ain );
+
+void range_config_defaults(void);
 
 // TKDINPUTS
 void dinputs_read_frame( st_dataRecord_t *drcd );
+void dinputs_config_defaults(void);
+bool dinputs_config_channel( uint8_t channel,char *s_aname );
+bool dinputs_config_timermode ( char *s_mode );
+bool dinputs_get_mode(void);
+char * dinputs_get_name(uint8_t din );
+int16_t dinputs_read ( uint8_t din );
 
 // TKDOUTPUTS
 
@@ -294,7 +305,7 @@ uint8_t wdg_resetCause;
 #define WDG_GPRSRX		6
 #define WDG_GPRSTX		7
 
-#define NRO_WDGS		8
+#define NRO_WDGS		2
 
 
 #endif /* SRC_SPX_H_ */

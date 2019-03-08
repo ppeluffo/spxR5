@@ -271,7 +271,7 @@ size_t bRead;
 	}
 
 	FAT_read(&l_fat);
-
+/*
 	// Paso2: Armo el frame
 	// Siempre trasmito los datos aunque vengan papasfritas.
 	//pub_gprs_flush_RX_buffer();
@@ -285,7 +285,7 @@ size_t bRead;
 
 	// Canales analogicos: Solo muestro los que tengo configurados.
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		if ( ! strcmp ( systemVars.ain_name[channel], "X" ) )
+		if ( ! strcmp ( data_get_name(channel), "X" ) )
 			continue;
 
 		if ( spx_io_board == SPX_IO5CH ) {
@@ -306,21 +306,21 @@ size_t bRead;
 
 	// Calanes digitales.
 	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
-		if ( ! strcmp ( systemVars.din_name[channel], "X" ) )
+		if ( ! strcmp ( dinputs_get_name(channel), "X" ) )
 			continue;
 
 		if ( spx_io_board == SPX_IO5CH ) {
-			xCom_printf_P( fdGPRS, PSTR(",%s=%d"),systemVars.din_name[channel], dataRecord.df.io5.dinputs[channel] );
+			xCom_printf_P( fdGPRS, PSTR(",%s=%d"), dinputs_get_name(channel), dataRecord.df.io5.dinputs[channel] );
 			// DEBUG & LOG
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf_P( PSTR(",%s=%d\0"),systemVars.din_name[channel], dataRecord.df.io5.dinputs[channel] );
+				xprintf_P( PSTR(",%s=%d\0"), dinputs_get_name(channel), dataRecord.df.io5.dinputs[channel] );
 			}
 
 		} else if ( spx_io_board == SPX_IO8CH ) {
-			xCom_printf_P( fdGPRS, PSTR(",%s=%d"),systemVars.din_name[channel], dataRecord.df.io8.dinputs[channel] );
+			xCom_printf_P( fdGPRS, PSTR(",%s=%d"), dinputs_get_name(channel), dataRecord.df.io8.dinputs[channel] );
 			// DEBUG & LOG
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf_P( PSTR(",%s=%d\0"),systemVars.din_name[channel], dataRecord.df.io8.dinputs[channel] );
+				xprintf_P( PSTR(",%s=%d\0"), dinputs_get_name(channel), dataRecord.df.io8.dinputs[channel] );
 			}
 		}
 	}
@@ -328,22 +328,22 @@ size_t bRead;
 	// Contadores
 	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
 		// Si el canal no esta configurado no lo muestro.
-		if ( ! strcmp ( systemVars.counters_name[channel], "X" ) )
+		if ( ! strcmp ( counters_get_name(channel), "X" ) )
 			continue;
 
 		if ( spx_io_board == SPX_IO5CH ) {
-			xCom_printf_P( fdGPRS, PSTR(",%s=%.02f"),systemVars.counters_name[channel], dataRecord.df.io5.counters[channel] );
+			xCom_printf_P( fdGPRS, PSTR(",%s=%.02f"),counters_get_name(channel), dataRecord.df.io5.counters[channel] );
 			// DEBUG & LOG
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf_P( PSTR(",%s=%.02f\0"),systemVars.counters_name[channel], dataRecord.df.io5.counters[channel] );
+				xprintf_P( PSTR(",%s=%.02f\0"),counters_get_name(channel), dataRecord.df.io5.counters[channel] );
 			}
 
 
 		} else if ( spx_io_board == SPX_IO8CH ) {
-			xCom_printf_P(fdGPRS,  PSTR(",%s=%.02f"),systemVars.counters_name[channel], dataRecord.df.io8.counters[channel] );
+			xCom_printf_P(fdGPRS,  PSTR(",%s=%.02f"),counters_get_name(channel), dataRecord.df.io8.counters[channel] );
 			// DEBUG & LOG
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf_P( PSTR(",%s=%.02f\0"),systemVars.counters_name[channel], dataRecord.df.io8.counters[channel] );
+				xprintf_P( PSTR(",%s=%.02f\0"),counters_get_name(channel), dataRecord.df.io8.counters[channel] );
 			}
 
 		}
@@ -372,7 +372,7 @@ size_t bRead;
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P(PSTR( "\r\n"));
 	}
-
+*/
 	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 
 }

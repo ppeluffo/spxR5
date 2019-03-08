@@ -14,11 +14,7 @@
 static void pv_snprintfP_OK(void );
 static void pv_snprintfP_ERR(void);
 static void pv_cmd_read_fuses(void);
-static bool pv_cmd_config_offset( char *s_channel, char *s_offset );
-static bool pv_cmd_autocalibrar( char *s_channel, char *s_mag_val );
-static void pv_cmd_config_sensortime ( char *s_sensortime );
-static void pv_cmd_config_inaspan ( uint8_t channel, char *s_span );
-static void pv_cmd_config_counter_debounce_time( char *s_counter_debounce_time );
+
 static void pv_cmd_print_stack_watermarks(void);
 static void pv_cmd_read_battery(void);
 static void pv_cmd_read_analog_channel(void);
@@ -94,8 +90,8 @@ uint8_t ticks;
 	//	PORTF.OUTTGL = 0x02;	// Toggle F1 Led Comms
 
 		// Si no tengo terminal conectada, duermo 5s lo que me permite entrar en tickless.
-		if ( ! terminal_connected() ) {
-			vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
+		if ( ! ctl_terminal_connected() ) {
+			vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 
 		} else {
 
@@ -145,7 +141,7 @@ uint8_t channel;
 	xprintf_P( PSTR("  apn: %s\r\n\0"), systemVars.apn );
 	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), systemVars.server_ip_address,systemVars.server_tcp_port );
 	xprintf_P( PSTR("  server script: %s\r\n\0"), systemVars.serverScript );
-	xprintf_P( PSTR("  simapwd: %s\r\n\0"), systemVars.simpwd );
+	xprintf_P( PSTR("  simpwd: %s\r\n\0"), systemVars.simpwd );
 
 	// MODEM
 	xprintf_P( PSTR(">Modem:\r\n\0"));
@@ -204,7 +200,7 @@ uint8_t channel;
 
 	// Digital inputs timers. Solo en SPX_8CH ( para UTE )
 	if ( spx_io_board == SPX_IO8CH ) {
-		if ( systemVars.dinputs_timers ) {
+		if ( dinputs_get_mode() == true ) {
 			xprintf_P( PSTR("  dinputsAsTimers: ON\r\n\0"));
 		} else {
 			xprintf_P( PSTR("  dinputsAsTimers: OFF\r\n\0"));
@@ -218,10 +214,10 @@ uint8_t channel;
 	xprintf_P( PSTR("  timerDial: [%d s]/%d\r\n\0"),systemVars.timerDial, u_gprs_readTimeToNextDial() );
 
 	// Sensor Pwr Time
-	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"),systemVars.pwr_settle_time );
+	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), data_get_rmeter_enabled() );
 
 	// Counters debounce time
-	xprintf_P( PSTR("  timerDebounceCnt: [%d s]\r\n\0"),systemVars.counter_debounce_time );
+	xprintf_P( PSTR("  timerDebounceCnt: [%d s]\r\n\0"), counters_get_debounce_time() );
 
 	if ( spx_io_board == SPX_IO5CH ) {
 
@@ -233,7 +229,7 @@ uint8_t channel;
 		}
 
 		// RangeMeter: PULSE WIDTH
-		if ( systemVars.rangeMeter_enabled ) {
+		if ( data_get_rmeter_enabled() ) {
 			xprintf_P( PSTR("  rangeMeter: ON\r\n"));
 		} else {
 			xprintf_P( PSTR("  rangeMeter: OFF\r\n"));
@@ -259,24 +255,24 @@ uint8_t channel;
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %.02f | %.02f | %s]\r\n\0"),channel, systemVars.ain_imin[channel],systemVars.ain_imax[channel],systemVars.ain_mmin[channel],systemVars.ain_mmax[channel], systemVars.ain_inaspan[channel], systemVars.ain_offset[channel], systemVars.ain_name[channel] );
+		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %.02f | %.02f | %s]\r\n\0"),channel, data_get_imin(channel), data_get_imax(channel), data_get_mmin(channel), data_get_mmax(channel), data_get_span(channel), data_get_offset(channel), data_get_name(channel) );
 	}
 
 	// dinputs
 	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
-		if (  ( spx_io_board == SPX_IO8CH  ) && systemVars.dinputs_timers && channel > 3 ) {
-			xprintf_P( PSTR("  d%d( ) [ %s ] (T)\r\n\0"),channel, systemVars.din_name[channel] );
+		if (  ( spx_io_board == SPX_IO8CH  ) &&  dinputs_get_mode()  && channel > 3 ) {
+			xprintf_P( PSTR("  d%d( ) [ %s ] (T)\r\n\0"),channel,  dinputs_get_name(channel) );
 		} else {
-			xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.din_name[channel] );
+			xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, dinputs_get_name(channel) );
 		}
 	}
 
 	// contadores
 	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
-		xprintf_P( PSTR("  c%d [ %s | %.02f ]\r\n\0"),channel, systemVars.counters_name[channel],systemVars.counters_magpp[channel] );
+		xprintf_P( PSTR("  c%d [ %s | %.02f ]\r\n\0"),channel, counters_get_name(channel), counters_get_magpp(channel) );
 	}
 
-	data_show_frame( NULL, false );
+	data_get_name ( false );
 }
 //-----------------------------------------------------------------------------------
 static void cmdResetFunction(void)
@@ -353,7 +349,8 @@ uint8_t pin;
 	// NVMEE
 	// write nvmee pos string
 	if (!strcmp_P( strupr(argv[1]), PSTR("NVMEE\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		( NVMEE_test_write ( argv[2], argv[3] ) > 0)?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		NVMEE_test_write ( argv[2], argv[3] );
+		pv_snprintfP_OK();
 		return;
 	}
 
@@ -541,7 +538,7 @@ int16_t range;
 	// FRAME
 	// read frame
 	if (!strcmp_P( strupr(argv[1]), PSTR("FRAME\0")) ) {
-		data_show_frame( NULL, true );
+		data_read_frame ( true );
 		return;
 	}
 
@@ -611,7 +608,7 @@ bool retS = false;
 	// COUNTERS
 	// config counter {0..1} cname magPP
 	if (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
-		retS = u_config_counter_channel( atoi(argv[2]), argv[3], argv[4] );
+		retS = counters_config_channel( atoi(argv[2]), argv[3], argv[4] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -619,7 +616,7 @@ bool retS = false;
 	// CDTIME ( counter_debounce_time )
 	// config cdtime { val }
 	if (!strcmp_P( strupr(argv[1]), PSTR("CDTIME\0")) ) {
-		pv_cmd_config_counter_debounce_time( argv[2] );
+		counters_config_debounce_time( argv[2] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -673,21 +670,21 @@ bool retS = false;
 	// OFFSET
 	// config offset {ch} {mag}
 	if (!strcmp_P( strupr(argv[1]), PSTR("OFFSET\0")) ) {
-		pv_cmd_config_offset( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		data_config_offset( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
 	// AUTOCAL
 	// config autocal {ch} {mag}
 	if (!strcmp_P( strupr(argv[1]), PSTR("AUTOCAL\0")) ) {
-		pv_cmd_autocalibrar( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		data_config_autocalibrar( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
 	// SENSORTIME
 	// config sensortime
 	if (!strcmp_P( strupr(argv[1]), PSTR("SENSORTIME\0")) ) {
-		pv_cmd_config_sensortime( argv[2] );
+		data_config_sensortime( argv[2] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -695,7 +692,7 @@ bool retS = false;
 	// INASPAN
 	// config inaspan
 	if (!strcmp_P( strupr(argv[1]), PSTR("INASPAN\0"))) {
-		pv_cmd_config_inaspan( atoi(argv[2]), argv[3] );
+		data_config_span( argv[2], argv[3] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -703,53 +700,45 @@ bool retS = false;
 	// ANALOG
 	// config analog {0..n} aname imin imax mmin mmax
 	if (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) ) {
-		u_config_analog_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		ainputs_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
 	// DIGITAL
-	// config digital {0..1} dname
+	// config digital {0..N} dname
 	if (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) ) {
-		u_config_digital_channel( atoi(argv[2]), argv[3]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-
-	// RANGEMETER
-	// config rangemeter {on|off}
-	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) ) {
-
-		if ( !strcmp_P( strupr(argv[2]), PSTR("ON\0"))) {
-			systemVars.rangeMeter_enabled = true;
-			pv_snprintfP_OK();
-			return;
-		} else if ( !strcmp_P( strupr(argv[2]), PSTR("OFF\0"))) {
-			systemVars.rangeMeter_enabled = false;
-			pv_snprintfP_OK();
-			return;
-		} else {
-			pv_snprintfP_ERR();
-			return;
-		}
-		pv_snprintfP_ERR();
+		dinputs_config_channel( atoi(argv[2]), argv[3]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
 	// DINPUTS TIMERS
 	// config dinputs timers  {on|off}
-	if ( ( spx_io_board == SPX_IO8CH ) && ( !strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0"))) && (!strcmp_P( strupr(argv[2]), PSTR("TIMERS\0"))) ) {
+	if ( ( !strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0"))) && (!strcmp_P( strupr(argv[2]), PSTR("TIMERS\0"))) ) {
 
-		if ( !strcmp_P( strupr(argv[3]), PSTR("ON\0"))) {
-			systemVars.dinputs_timers = true;
-			pv_snprintfP_OK();
-			return;
-		} else if ( !strcmp_P( strupr(argv[2]), PSTR("OFF\0"))) {
-			systemVars.dinputs_timers = false;
+		if ( dinputs_config_timermode(argv[3]) ) {
 			pv_snprintfP_OK();
 			return;
 		} else {
 			pv_snprintfP_ERR();
 			return;
 		}
+
+		pv_snprintfP_ERR();
+		return;
+	}
+
+	// RANGEMETER
+	// config rangemeter {on|off}
+	if ( !strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) {
+
+		if ( data_config_rangemeter(argv[3]) ) {
+			pv_snprintfP_OK();
+			return;
+		} else {
+			pv_snprintfP_ERR();
+			return;
+		}
+
 		pv_snprintfP_ERR();
 		return;
 	}
@@ -851,8 +840,8 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 			} else {
+				memset(systemVars.dlgId,'\0', sizeof(systemVars.dlgId) );
 				memcpy(systemVars.dlgId, argv[2], sizeof(systemVars.dlgId));
-				systemVars.dlgId[DLGID_LENGTH - 1] = '\0';
 				retS = true;
 			}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -936,7 +925,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("-config\r\n\0"));
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
-		xprintf_P( PSTR("  debug {none,counter,data}\r\n\0"));
+		xprintf_P( PSTR("  debug {none,counter,data, gprs}\r\n\0"));
 		xprintf_P( PSTR("  counter {0..%d} cname magPP\r\n\0"), ( NRO_COUNTERS - 1 ) );
 		xprintf_P( PSTR("  cdtime {val}\r\n\0"));
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
@@ -1055,19 +1044,19 @@ static void pv_cmd_read_fuses(void)
 
 uint8_t fuse0,fuse1,fuse2,fuse4,fuse5;
 
-	fuse0 = NVMEE_fuses_read(0x00);	// FUSE0
+	fuse0 = nvm_fuses_read(0x00);	// FUSE0
 	xprintf_P( PSTR("FUSE0=0x%x\r\n\0"),fuse0);
 
-	fuse1 = NVMEE_fuses_read(0x01);	// FUSE1
+	fuse1 = nvm_fuses_read(0x01);	// FUSE1
 	xprintf_P( PSTR("FUSE1=0x%x\r\n\0"),fuse1);
 
-	fuse2 = NVMEE_fuses_read(0x02);	// FUSE2
+	fuse2 = nvm_fuses_read(0x02);	// FUSE2
 	xprintf_P( PSTR("FUSE2=0x%x\r\n\0"),fuse2);
 
-	fuse4 = NVMEE_fuses_read(0x04);	// FUSE4
+	fuse4 = nvm_fuses_read(0x04);	// FUSE4
 	xprintf_P( PSTR("FUSE4=0x%x\r\n\0"),fuse4);
 
-	fuse5 = NVMEE_fuses_read(0x05);	// FUSE5
+	fuse5 = nvm_fuses_read(0x05);	// FUSE5
 	xprintf_P( PSTR("FUSE5=0x%x\r\n\0"),fuse5);
 
 	if ( (fuse0 != 0xFF) || ( fuse1 != 0xAA) || (fuse2 != 0xFD) || (fuse4 != 0xF5) || ( fuse5 != 0xD6) ) {
@@ -1078,140 +1067,6 @@ uint8_t fuse0,fuse1,fuse2,fuse4,fuse5;
 		return;
 	}
 	pv_snprintfP_OK();
-	return;
-}
-//------------------------------------------------------------------------------------
-static bool pv_cmd_config_offset( char *s_channel, char *s_offset )
-{
-	// Configuro el parametro offset de un canal analogico.
-
-uint8_t channel;
-float offset;
-
-	channel = atoi(s_channel);
-	if ( ( channel >=  0) && ( channel < NRO_ANINPUTS ) ) {
-		offset = atof(s_offset);
-		systemVars.ain_offset[channel] = offset;
-		return(true);
-	}
-
-	return(false);
-}
-//------------------------------------------------------------------------------------
-static bool pv_cmd_autocalibrar( char *s_channel, char *s_mag_val )
-{
-	// Para un canal, toma como entrada el valor de la magnitud y ajusta
-	// mag_offset para que la medida tomada coincida con la dada.
-
-
-uint16_t an_raw_val;
-float an_mag_val;
-float I,M,P;
-uint16_t D;
-uint8_t channel;
-
-float an_mag_val_real;
-float offset;
-
-	channel = atoi(s_channel);
-
-	if ( channel >= NRO_ANINPUTS ) {
-		return(false);
-	}
-
-	// Leo el canal del ina.
-	an_raw_val = AINPUTS_read_ina( spx_io_board, channel );
-//	xprintf_P( PSTR("ANRAW=%d\r\n\0"), an_raw_val );
-
-	// Convierto el raw_value a la magnitud
-	I = (float)( an_raw_val) * 20 / ( systemVars.ain_inaspan[channel] + 1);
-	P = 0;
-	D = systemVars.ain_imax[channel] - systemVars.ain_imin[channel];
-
-	an_mag_val = 0.0;
-	if ( D != 0 ) {
-		// Pendiente
-		P = (float) ( systemVars.ain_mmax[channel]  -  systemVars.ain_mmin[channel] ) / D;
-		// Magnitud
-		M = (float) (systemVars.ain_mmin[channel] + ( I - systemVars.ain_imin[channel] ) * P);
-
-		// En este caso el offset que uso es 0 !!!.
-		an_mag_val = M;
-
-	} else {
-		return(false);
-	}
-
-//	xprintf_P( PSTR("ANMAG=%.02f\r\n\0"), an_mag_val );
-
-	an_mag_val_real = atof(s_mag_val);
-//	xprintf_P( PSTR("ANMAG_T=%.02f\r\n\0"), an_mag_val_real );
-
-	offset = an_mag_val_real - an_mag_val;
-//	xprintf_P( PSTR("AUTOCAL offset=%.02f\r\n\0"), offset );
-
-	systemVars.ain_offset[channel] = offset;
-
-	xprintf_P( PSTR("OFFSET=%.02f\r\n\0"), systemVars.ain_offset[channel] );
-
-	return(true);
-
-}
-//------------------------------------------------------------------------------------
-static void pv_cmd_config_sensortime ( char *s_sensortime )
-{
-	// Configura el tiempo de espera entre que prendo  la fuente de los sensores y comienzo el poleo.
-	// Se utiliza solo desde el modo comando.
-	// El tiempo de espera debe estar entre 1s y 15s
-
-	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
-		taskYIELD();
-
-	systemVars.pwr_settle_time = atoi(s_sensortime);
-
-	if ( systemVars.pwr_settle_time < 1 )
-		systemVars.pwr_settle_time = 1;
-
-	if ( systemVars.pwr_settle_time > 15 )
-		systemVars.pwr_settle_time = 15;
-
-	xSemaphoreGive( sem_SYSVars );
-	return;
-}
-//------------------------------------------------------------------------------------
-static void pv_cmd_config_inaspan ( uint8_t channel, char *s_span )
-{
-	// Configura el factor de correccion del span de canales delos INA.
-	// Esto es debido a que las resistencias presentan una tolerancia entonces con
-	// esto ajustamos que con 20mA den la excursión correcta.
-	// Solo de configura desde modo comando.
-
-uint16_t span;
-
-	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
-		taskYIELD();
-
-	span = atoi(s_span);
-	systemVars.ain_inaspan[channel] = span;
-
-	xSemaphoreGive( sem_SYSVars );
-	return;
-
-}
-//------------------------------------------------------------------------------------
-static void pv_cmd_config_counter_debounce_time( char *s_counter_debounce_time )
-{
-	// Configura el tiempo de debounce del conteo de pulsos
-
-	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
-		taskYIELD();
-
-	systemVars.counter_debounce_time = atoi(s_counter_debounce_time);
-
-	if ( systemVars.counter_debounce_time < 1 )
-		systemVars.counter_debounce_time = 50;
-
-	xSemaphoreGive( sem_SYSVars );
 	return;
 }
 //------------------------------------------------------------------------------------
@@ -1282,7 +1137,7 @@ float mag_val;
 
 
 	if ( atoi(argv[2]) <  NRO_ANINPUTS ) {
-		u_read_analog_channel( spx_io_board, atoi(argv[2]),&raw_val, &mag_val );
+		ainputs_read( atoi(argv[2]),&raw_val, &mag_val );
 		xprintf_P( PSTR("anCH[%02d] raw=%d,mag=%.02f\r\n\0"),atoi(argv[2]),raw_val, mag_val );
 	} else {
 		pv_snprintfP_ERR();
@@ -1306,7 +1161,9 @@ uint8_t din_byte = 0x00;
 		return;
 	} else 	if ( spx_io_board == SPX_IO8CH ) {
 
-		dinputs_read_frame( &drcd );
+//		dinputs_read_frame( &drcd );
+		// REVISAR !!!
+
 		if ( drcd.df.io8.dinputs[0] == 1 ) din_byte |= ( 1 << 0);
 		if ( drcd.df.io8.dinputs[1] == 1 ) din_byte |= ( 1 << 1);
 		if ( drcd.df.io8.dinputs[2] == 1 ) din_byte |= ( 1 << 2);
@@ -1358,7 +1215,7 @@ bool detail = false;
 			xprintf_P( PSTR("memory: wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
 		}
 
-		data_show_frame(&dataRecord, false );
+		data_read_frame ( false );
 
 	}
 

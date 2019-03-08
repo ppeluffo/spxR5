@@ -18,11 +18,13 @@ void COUNTERS_init( TaskHandle_t taskHandle )
 	CNT_config_CNT0();
 	CNT_config_CNT1();
 
-	PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
+//	PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
+	PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	// Sensa rising edge. Menos consumo con pulldown.
 	PORTA.INT0MASK = PIN2_bm;
 	PORTA.INTCTRL = PORT_INT0LVL0_bm;
 
-	PORTB.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
+//	PORTB.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
+	PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
 	PORTB.INT0MASK = PIN2_bm;
 	PORTB.INTCTRL = PORT_INT0LVL0_bm;
 

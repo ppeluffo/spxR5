@@ -3,6 +3,25 @@
  *
  *  Created on: 4 de oct. de 2017
  *      Author: pablo
+ *
+ *  Se realizan una serie de controles de housekeeping.
+	 *  - Control de terminal conectada: Ve si hay una terminal conectada y activa una flag
+	 *    que se usa internamente para flashear los leds y externamente por medio de una
+	 *    funcion para avisarle a otras tareas ( tkCmd ) que hay una terminal conectada
+	 *  - Reset diario: Cuenta los ticks durante un dia y resetea al micro. Con esto tenemos un
+	 *    control mas que en caso que algo este colgado, deberia solucionarlo
+	 *  - Leds: los hace flashear cuando hay una terminal conectada. Si ademas el modem esta prendido
+	 *    hace flasear el led de comunicaciones.
+	 *    Para saber si el modem esta prendido se accede por la funcion u_gprs_modem_prendido().
+	 *  - Control de los watchdogs: c/tarea tiene un watchdog que debe apagarlo periodicamente.
+	 *    Localmente c/wdg se implementa como un timer con valores diferentes para c/tarea ya que sus
+	 *    necesidades de correr son diferentes.
+	 *    El WDG del micro se fija en 8s por lo que esta tarea debe correr c/5s para apagar a tiempo
+	 *    el wdg. En este tiempo va disminuyendo los wdg.individuales y si alguno llega a 0 resetea al micro.
+	 *  - Ticks: Implemento una lista de timers que c/ronda voy decreciendo para que me den a otras
+	 *    tareas los valores de ciertos timers que varian ( timerpoll, timerdial ).
+ *
+ *
  */
 
 #include "spx.h"
@@ -12,11 +31,15 @@
 static void pv_ctl_init_system(void);
 static void pv_ctl_wink_led(void);
 static void pv_ctl_check_wdg(void);
-static void pv_ctl_ajust_timerPoll(void);
+static void pv_ctl_ticks(void);
 static void pv_ctl_daily_reset(void);
 static void pv_ctl_check_terminal(void);
 
-static uint16_t time_to_next_poll;
+#define MAX_TIMERS	2
+#define TIME_TO_NEXT_POLL	0
+#define TIME_TO_NEXT_DIAL	1
+static uint32_t pv_timers[MAX_TIMERS];
+
 static uint16_t watchdog_timers[NRO_WDGS];
 static bool f_terminal_connected;
 
@@ -58,7 +81,7 @@ void tkCtl(void * pvParameters)
 		pv_ctl_check_terminal();
 		pv_ctl_wink_led();
 		pv_ctl_check_wdg();
-		pv_ctl_ajust_timerPoll();
+		pv_ctl_ticks();
 		pv_ctl_daily_reset();
 
 		// Para entrar en tickless.
@@ -88,7 +111,9 @@ char data[3];
 
 	// TERMINAL CTL PIN
 	IO_config_TERMCTL_PIN();
+	IO_config_TERMCTL_PULLDOWN();
 
+	// Deteccion inicial de la termial conectada o no.
 	f_terminal_connected = false;
 	if (  IO_read_TERMCTL_PIN() == 1 ) {
 		f_terminal_connected = true;
@@ -115,23 +140,13 @@ char data[3];
 	// Luego del posible error del bus I2C espero para que se reponga !!!
 	vTaskDelay( ( TickType_t)( 100 ) );
 
-/*
-#ifdef SPX_5CH
-	spx_io_board = SPX_IO5CH;
-#endif
-
-#ifdef SPX_8CH
-	spx_io_board = SPX_IO8CH;
-#endif
-*/
-
 	// Leo los parametros del la EE y si tengo error, cargo por defecto
 	if ( ! u_load_params_from_NVMEE() ) {
 		u_load_defaults();
 		xprintf_P( PSTR("\r\nLoading defaults !!\r\n\0"));
 	}
 
-	time_to_next_poll = systemVars.timerPoll;
+	pv_timers[TIME_TO_NEXT_POLL] = systemVars.timerPoll;
 
 	// Inicializo la memoria EE ( fileSysyem)
 	if ( FF_open() ) {
@@ -154,8 +169,6 @@ char data[3];
 	// Inicializo los parametros operativos segun la spx_io_board
 	if ( spx_io_board == SPX_IO5CH ) {
 
-		systemVars.dinputs_timers = false;
-
 		NRO_COUNTERS = IO5_COUNTER_CHANNELS;
 		NRO_ANINPUTS = IO5_ANALOG_CHANNELS;
 		NRO_DINPUTS = IO5_DINPUTS_CHANNELS;
@@ -163,7 +176,7 @@ char data[3];
 
 	} else if ( spx_io_board == SPX_IO8CH ) {
 
-		systemVars.rangeMeter_enabled = false;
+		data_config_rangemeter("OFF");
 
 		NRO_COUNTERS = IO8_COUNTER_CHANNELS;
 		NRO_ANINPUTS = IO8_ANALOG_CHANNELS;
@@ -181,29 +194,22 @@ char data[3];
 static void pv_ctl_check_terminal(void)
 {
 	// Lee el pin de la terminal para ver si hay o no una conectada.
+	// Si bien en la IO8 no es necesario desconectar la terminal ya que opera
+	// con corriente, por simplicidad uso un solo codigo para ambas arquitecturas.
 
-	// En la arq. IO8 siempre tengo activa la terminal porque va con corriente.
-	if ( spx_io_board == SPX_IO8CH ) {
+	if ( IO_read_TERMCTL_PIN() == 1) {
 		f_terminal_connected = true;
-		return;
+	} else {
+		f_terminal_connected = false;
 	}
-
-	// En la arq. IO5 depende del pin de la terminal.
-	if ( spx_io_board == SPX_IO5CH ) {
-		if ( IO_read_TERMCTL_PIN() == 1) {
-			f_terminal_connected = true;
-		} else {
-			f_terminal_connected = false;
-		}
-		return;
-	}
+	return;
 }
 //------------------------------------------------------------------------------------
 static void pv_ctl_wink_led(void)
 {
 
 	// SI la terminal esta desconectada salgo.
-	if ( ! terminal_connected() )
+	if ( ! ctl_terminal_connected() )
 		return;
 
 	// Prendo los leds
@@ -212,7 +218,7 @@ static void pv_ctl_wink_led(void)
 		IO_set_LED_COMMS();
 	}
 
-	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+	vTaskDelay( ( TickType_t)( 50 / portTICK_RATE_MS ) );
 	//taskYIELD();
 
 	// Apago
@@ -262,10 +268,20 @@ static void pv_ctl_check_wdg(void)
 		xSemaphoreGive( sem_SYSVars );
 }
 //------------------------------------------------------------------------------------
-static void pv_ctl_ajust_timerPoll(void)
+static void pv_ctl_ticks(void)
 {
-	if ( time_to_next_poll > TKCTL_DELAY_S )
-		time_to_next_poll -= TKCTL_DELAY_S;
+uint8_t i;
+
+	// Ajusto los timers hasta llegar a 0.
+
+	for ( i = 0; i < MAX_TIMERS; i++ ) {
+
+		if ( pv_timers[i] > TKCTL_DELAY_S ) {
+			pv_timers[i] -= TKCTL_DELAY_S;
+		} else {
+			pv_timers[i] = 0;
+		}
+	}
 }
 //------------------------------------------------------------------------------------
 static void pv_ctl_daily_reset(void)
@@ -306,6 +322,9 @@ void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs )
 void ctl_print_wdg_timers(void)
 {
 
+	// Muestra en pantalla el valor de los timers individuales de los watchdogs.
+	// Se usa solo para diagnostico.
+
 uint8_t wdg;
 char buffer[10];
 
@@ -324,23 +343,33 @@ char buffer[10];
 
 }
 //------------------------------------------------------------------------------------
-uint16_t ctl_readTimeToNextPoll(void)
+bool ctl_terminal_connected(void)
 {
-	return(time_to_next_poll);
+	return(f_terminal_connected);
 }
 //------------------------------------------------------------------------------------
-void ctl_reload_timerPoll(void)
+uint16_t ctl_readTimeToNextPoll(void)
+{
+	return( (uint16_t) pv_timers[TIME_TO_NEXT_POLL] );
+}
+//------------------------------------------------------------------------------------
+void ctl_reload_timerPoll( uint16_t new_time )
 {
 	// Como trabajo en modo tickless, no puedo estar cada 1s despertandome solo para
 	// ajustar el timerpoll.
 	// La alternativa es en tkData dormir todo lo necesario y al recargar el timerpoll,
 	// en tkCtl setear una variable con el mismo valor e irla decrementandola c/5 s solo
 	// a efectos de visualizarla.
-	time_to_next_poll = systemVars.timerPoll;
+	pv_timers[TIME_TO_NEXT_POLL] = new_time;
 }
 //------------------------------------------------------------------------------------
-bool terminal_connected(void)
+uint32_t ctl_readTimeToNextDial(void)
 {
-	return(f_terminal_connected);
+	return( pv_timers[TIME_TO_NEXT_DIAL] );
+}
+//------------------------------------------------------------------------------------
+void ctl_reload_timerDial( uint32_t new_time )
+{
+	pv_timers[TIME_TO_NEXT_DIAL] = new_time;
 }
 //------------------------------------------------------------------------------------
