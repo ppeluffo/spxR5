@@ -8,9 +8,6 @@
 #include "spx.h"
 #include "gprs.h"
 
-static void pv_load_defaults_doutputs(void);
-static void pv_load_defaults_consignas(void);
-
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
 //------------------------------------------------------------------------------------
@@ -247,9 +244,7 @@ void u_load_defaults( void )
 	dinputs_config_defaults();
 	ainputs_config_defaults();
 	range_config_defaults();
-
-	pv_load_defaults_doutputs();
-	pv_load_defaults_consignas();
+	doutputs_config_defaults();
 
 	u_gprs_load_defaults();
 
@@ -280,7 +275,6 @@ uint16_t i;
 	systemVars.checksum = checksum;
 
 	// Guardo systemVars en la EE
-//DNVM	NVMEE_write (0x00, &systemVars, sizeof(systemVars));
 	nvm_eeprom_erase_and_write_buffer(0x00, &systemVars, sizeof(systemVars));
 
 	return(checksum);
@@ -300,7 +294,6 @@ uint16_t data_length;
 uint16_t i;
 
 	// Leo de la EE es systemVars.
-	//NVMEE_read_buffer(0x00, (char *)&systemVars, sizeof(systemVars));
 	nvm_eeprom_read_buffer(0x00, (char *)&systemVars, sizeof(systemVars));
 
 	// Guardo el checksum que lei.
@@ -342,47 +335,5 @@ void u_config_timerpoll ( char *s_timerpoll )
 
 	xSemaphoreGive( sem_SYSVars );
 	return;
-}
-//------------------------------------------------------------------------------------
-bool u_config_consignas( char *modo, char *hhmm_dia, char *hhmm_noche)
-{
-
-	if ( !strcmp_P( strupr(modo), PSTR("ON\0")) ) {
-			systemVars.consigna.c_enabled = true;
-		} else if (!strcmp_P( strupr(modo), PSTR("OFF\0")) ) {
-			systemVars.consigna.c_enabled = false;
-		} else {
-			return(false);
-		}
-
-	if ( hhmm_dia != NULL ) {
-		u_convert_int_to_time_t( atoi(hhmm_dia), &systemVars.consigna.hhmm_c_diurna );
-	}
-
-	if ( hhmm_noche != NULL ) {
-		u_convert_int_to_time_t( atoi(hhmm_noche), &systemVars.consigna.hhmm_c_nocturna );
-	}
-
-	return(true);
-
-}
-//------------------------------------------------------------------------------------
-// FUNCIONES PRIVADAS
-//------------------------------------------------------------------------------------
-static void pv_load_defaults_doutputs(void)
-{
-	// En el caso de SPX_IO8, configura la salida a que inicialmente este todo en off.
-	systemVars.d_outputs = 0x00;
-}
-//------------------------------------------------------------------------------------
-static void pv_load_defaults_consignas(void)
-{
-
-	systemVars.consigna.c_enabled = CONSIGNA_OFF;
-	systemVars.consigna.hhmm_c_diurna.hour = 05;
-	systemVars.consigna.hhmm_c_diurna.min = 30;
-	systemVars.consigna.hhmm_c_nocturna.hour = 23;
-	systemVars.consigna.hhmm_c_nocturna.min = 30;
-
 }
 //------------------------------------------------------------------------------------

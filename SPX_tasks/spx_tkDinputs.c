@@ -15,15 +15,7 @@
 
 #include "spx.h"
 
-// Configuracion de canales digitales
-typedef struct {
-	char name[MAX_DINPUTS_CHANNELS][PARAMNAME_LENGTH];
-	bool timers_enabled;
-} dinputs_t;
-
-dinputs_t din_conf;	// Estructura con la configuracion de las entradas digitales
-
-uint16_t din_values[MAX_DINPUTS_CHANNELS];	// Valor de las medidas
+static uint16_t dinputs[MAX_DINPUTS_CHANNELS];	// Valor de las medidas
 
 static void pv_tkDinputs_init(void);
 
@@ -65,7 +57,7 @@ uint8_t i;
 		ctl_watchdog_kick( WDG_DIN,  WDG_DIN_TIMEOUT );
 
 		// Solo en la placa IO8 y con los timers habilitados
-		if ( ( spx_io_board == SPX_IO8CH ) &&  ( din_conf.timers_enabled ) ) {
+		if ( ( spx_io_board == SPX_IO8CH ) &&  ( systemVars.dinputs_conf.timers_enabled ) ) {
 
 			// Cada 100 ms leo las entradas digitales. fmax=10Hz
 			// vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
@@ -78,7 +70,7 @@ uint8_t i;
 			for ( i = 0 ; i < NRO_DINPUTS; i++ ) {
 				// Si esta HIGH incremento en 1 tick.
 				if ( ( (din_port & ( 1 << i )) >> i ) == 1 ) {
-					din_values[i]++;	// Si esta HIGH incremento en 1 tick.
+					dinputs[i]++;	// Si esta HIGH incremento en 1 tick.
 				}
 			}
 
@@ -101,7 +93,7 @@ uint8_t i;
 	DINPUTS_init( spx_io_board );
 
 	for ( i = 0; i < MAX_DINPUTS_CHANNELS; i++ ) {
-		din_values[i] = 0;
+		dinputs[i] = 0;
 	}
 }
 //------------------------------------------------------------------------------------
@@ -137,7 +129,7 @@ int16_t retVal = -1;
 		} else {
 
 			// Canales de NIVEL
-			if ( din_conf.timers_enabled == false ) {
+			if ( systemVars.dinputs_conf.timers_enabled == false ) {
 				retVal = ( port & ( 1 << din )) >> din;
 
 			} else {
@@ -145,12 +137,12 @@ int16_t retVal = -1;
 				// D4..D7 son contadores de tiempo High.
 				// Puede haber un drift en el timerpoll lo que generaria un falso error
 				// Para evitarlo, controlo que los ticks no puedan ser mayor que el timerpoll
-				if ( din_values[din] > systemVars.timerPoll * 10 ) {
+				if ( dinputs[din] > systemVars.timerPoll * 10 ) {
 					// Corrijo
-					din_values[din] = systemVars.timerPoll * 10;
+					dinputs[din] = systemVars.timerPoll * 10;
 				}
-				retVal = din_values[din];
-				din_values[din] = 0;
+				retVal = dinputs[din];
+				dinputs[din] = 0;
 			}
 		}
 		break;
@@ -170,7 +162,7 @@ bool retS = false;
 	u_control_string(s_aname);
 
 	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
-		snprintf_P( din_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
+		snprintf_P( systemVars.dinputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
 		retS = true;
 	}
 
@@ -185,24 +177,14 @@ bool dinputs_config_timermode ( char *s_mode )
 		return(false);
 
 	if ( !strcmp_P( strupr(s_mode), PSTR("ON\0"))) {
-		din_conf.timers_enabled = true;
+		systemVars.dinputs_conf.timers_enabled = true;
 		return(true);
 	} else if ( !strcmp_P( strupr(s_mode), PSTR("OFF\0"))) {
-		din_conf.timers_enabled = false;
+		systemVars.dinputs_conf.timers_enabled = false;
 		return(true);
 	}
 	return(false);
 
-}
-//------------------------------------------------------------------------------------
-bool dinputs_get_mode(void)
-{
-	return(din_conf.timers_enabled);
-}
-//------------------------------------------------------------------------------------
-char * dinputs_get_name(uint8_t din )
-{
-	return(din_conf.name[din]);
 }
 //------------------------------------------------------------------------------------
 void dinputs_config_defaults(void)
@@ -211,14 +193,11 @@ void dinputs_config_defaults(void)
 
 uint8_t i;
 
-	din_conf.timers_enabled = false;
+	systemVars.dinputs_conf.timers_enabled = false;
 
 	for ( i = 0; i < MAX_DINPUTS_CHANNELS; i++ ) {
-		snprintf_P( din_conf.name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );
+		snprintf_P( systemVars.dinputs_conf.name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );
 	}
 
 }
 //------------------------------------------------------------------------------------
-
-
-

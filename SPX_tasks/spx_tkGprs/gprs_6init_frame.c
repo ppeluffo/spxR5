@@ -266,46 +266,46 @@ uint8_t i;
 	// Configuracion de canales analogicos
 	for ( i = 0; i < NRO_ANINPUTS; i++) {
 		// No trasmito los canales que estan con X ( apagados )
-		if (!strcmp_P( data_get_name(i), PSTR("X"))) {
+		if (!strcmp_P( systemVars.ainputs_conf.name[i], PSTR("X"))) {
 			continue;
 		}
-		xCom_printf_P( fdGPRS,PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i, data_get_name(i), data_get_imin(i), data_get_imax(i), data_get_mmin(i), data_get_mmax(i) );
+		xCom_printf_P( fdGPRS,PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i, systemVars.ainputs_conf.name[i], systemVars.ainputs_conf.imin[i], systemVars.ainputs_conf.imax[i], systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i, data_get_name(i), data_get_imin(i), data_get_imax(i), data_get_mmin(i), data_get_mmax(i) );
+			xprintf_P( PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i, systemVars.ainputs_conf.name[i], systemVars.ainputs_conf.imin[i], systemVars.ainputs_conf.imax[i], systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
 		}
 	}
 
 	// Configuracion de canales digitales
 	for (i = 0; i < NRO_DINPUTS; i++) {
 		// No trasmito los canales que estan con X ( apagados )
-		if (!strcmp_P( dinputs_get_name(i), PSTR("X"))) {
+		if (!strcmp_P( systemVars.dinputs_conf.name[i], PSTR("X"))) {
 			continue;
 		}
-		xCom_printf_P( fdGPRS,PSTR("&D%d=%s\0"),i, dinputs_get_name(i) );
+		xCom_printf_P( fdGPRS,PSTR("&D%d=%s\0"),i, systemVars.dinputs_conf.name[i] );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&D%d=%s\0"),i, dinputs_get_name(i) );
+			xprintf_P( PSTR("&D%d=%s\0"),i, systemVars.dinputs_conf.name[i] );
 		}
 	}
 
 	// Configuracion de canales contadores
 	for (i = 0; i < NRO_COUNTERS; i++) {
 		// No trasmito los canales que estan con X ( apagados )
-		if (!strcmp_P( counters_get_name(i), PSTR("X"))) {
+		if (!strcmp_P( systemVars.counters_conf.name[i], PSTR("X"))) {
 			continue;
 		}
-		xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.02f\0"),i, counters_get_name(i), counters_get_magpp(i) );
+		xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.02f\0"),i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i] );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&C%d=%s,%.02f\0"),i, counters_get_name(i), counters_get_magpp(i) );
+			xprintf_P( PSTR("&C%d=%s,%.02f\0"),i, systemVars.counters_conf.name[i], systemVars.counters_conf.magpp[i] );
 		}
 	}
 
 	if ( spx_io_board == SPX_IO5CH ) {
 
 		// Configuracion del rangeMeter
-		if ( data_get_rmeter_enabled() ) {
+		if ( systemVars.rangeMeter_enabled ) {
 			xCom_printf_P( fdGPRS,PSTR("&DIST=ON\0"));
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
 				xprintf( PSTR("&DIST=ON\0"));
@@ -603,9 +603,9 @@ static uint8_t pv_gprs_config_rangeMeter(void)
 	// ?DIST=ON{OFF}
 
 	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST=ON") ) {
-		data_config_rangemeter("ON");
+		range_config("ON");
 	} else 	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST=OFF") ) {
-		data_config_rangemeter("OFF");
+		range_config("OFF");
 	} else {
 		return(0);
 	}
@@ -820,7 +820,7 @@ char *p;
 	tk_hhmm1 = strsep(&stringp,delim);	// shhmm consigna_diurna
 	tk_hhmm2 = strsep(&stringp,delim); 	// shhmm consigna_nocturna
 
-	u_config_consignas( tk_modo, tk_hhmm1, tk_hhmm2);
+	doutputs_config_consignas( tk_modo, tk_hhmm1, tk_hhmm2);
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig OUTPUTS\r\n\0"));

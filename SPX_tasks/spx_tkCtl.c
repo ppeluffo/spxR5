@@ -176,7 +176,7 @@ char data[3];
 
 	} else if ( spx_io_board == SPX_IO8CH ) {
 
-		data_config_rangemeter("OFF");
+		range_config("OFF");
 
 		NRO_COUNTERS = IO8_COUNTER_CHANNELS;
 		NRO_ANINPUTS = IO8_ANALOG_CHANNELS;

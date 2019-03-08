@@ -36,8 +36,6 @@ void tkDoutputs(void * pvParameters)
 	for( ;; )
 	{
 
-//		PORTF.OUTTGL = 0x02;	// Toggle F1 Led Comms
-
 		ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
 
 		if ( spx_io_board == SPX_IO8CH ) {
@@ -209,4 +207,43 @@ uint8_t consigna_a_aplicar = 99;
 
 }
 //------------------------------------------------------------------------------------
+// FUNCIONES PUBLICAS
+//------------------------------------------------------------------------------------
+void doutputs_config_defaults(void)
+{
+	// En el caso de SPX_IO8, configura la salida a que inicialmente este todo en off.
+	systemVars.d_outputs = 0x00;
+
+	systemVars.consigna.c_enabled = CONSIGNA_OFF;
+	systemVars.consigna.hhmm_c_diurna.hour = 05;
+	systemVars.consigna.hhmm_c_diurna.min = 30;
+	systemVars.consigna.hhmm_c_nocturna.hour = 23;
+	systemVars.consigna.hhmm_c_nocturna.min = 30;
+
+}
+//------------------------------------------------------------------------------------
+bool doutputs_config_consignas( char *modo, char *hhmm_dia, char *hhmm_noche)
+{
+
+	if ( !strcmp_P( strupr(modo), PSTR("ON\0")) ) {
+			systemVars.consigna.c_enabled = true;
+		} else if (!strcmp_P( strupr(modo), PSTR("OFF\0")) ) {
+			systemVars.consigna.c_enabled = false;
+		} else {
+			return(false);
+		}
+
+	if ( hhmm_dia != NULL ) {
+		u_convert_int_to_time_t( atoi(hhmm_dia), &systemVars.consigna.hhmm_c_diurna );
+	}
+
+	if ( hhmm_noche != NULL ) {
+		u_convert_int_to_time_t( atoi(hhmm_noche), &systemVars.consigna.hhmm_c_nocturna );
+	}
+
+	return(true);
+
+}
+//------------------------------------------------------------------------------------
+
 

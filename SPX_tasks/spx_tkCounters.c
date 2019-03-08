@@ -18,18 +18,7 @@
 
 #include "spx.h"
 
-// Estructura que define todos las variables necesarias para el manejo de los contadores.
-
-typedef struct {
-	// Configuracion de canales contadores
-	char name[MAX_COUNTER_CHANNELS][PARAMNAME_LENGTH];
-	float magpp[MAX_COUNTER_CHANNELS];
-	uint8_t debounce_time;
-} counters_conf_t;
-
-counters_conf_t counters_conf;	// Estructura con la configuracion de los contadores
-
-float cvalues[MAX_COUNTER_CHANNELS];	// Valores medidos de los contadores
+static float counters[MAX_COUNTER_CHANNELS];	// Valores medidos de los contadores
 
 static void pv_tkCounter_init(void);
 
@@ -68,21 +57,21 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 10000 );
 			// Fui notificado: llego algun flanco que determino.
 
 			if ( cTask_wakeup_for_C0() ) {
-				cvalues[0]++;
+				counters[0]++;
 				reset_wakeup_for_C0();
 			}
 
 			if ( cTask_wakeup_for_C1() ) {
-				cvalues[1]++;
+				counters[1]++;
 				reset_wakeup_for_C1();
 			}
 
 			if ( systemVars.debug == DEBUG_COUNTER) {
-				xprintf_P( PSTR("COUNTERS: C0=%d,C1=%d\r\n\0"),(uint16_t) cvalues[0], (uint16_t) cvalues[1]);
+				xprintf_P( PSTR("COUNTERS: C0=%d,C1=%d\r\n\0"),(uint16_t) counters[0], (uint16_t) counters[1]);
 			}
 
 			// Espero el tiempo de debounced
-			vTaskDelay( ( TickType_t)( counters_conf.debounce_time / portTICK_RATE_MS ) );
+			vTaskDelay( ( TickType_t)( systemVars.counters_conf.debounce_time / portTICK_RATE_MS ) );
 
 			CNT_clr_CLRD();		// Borro el latch llevandolo a 0.
 			CNT_set_CLRD();		// Lo dejo en reposo en 1
@@ -101,7 +90,7 @@ uint8_t i;
 	COUNTERS_init( xHandle_tkCounter );
 
 	for ( i = 0; i < MAX_COUNTER_CHANNELS; i++) {
-		cvalues[ i ] = 0;
+		counters[ i ] = 0;
 	}
 
 }
@@ -118,9 +107,9 @@ float counters_read( uint8_t cnt, bool reset_counter )
 
 float val;
 
-	val = cvalues[cnt] * counters_conf.magpp[cnt];
+	val = counters[cnt] * systemVars.counters_conf.magpp[cnt];
 	if ( reset_counter )
-		cvalues[cnt] = 0.0;
+		counters[cnt] = 0.0;
 
 	return(val);
 }
@@ -133,12 +122,12 @@ void counters_config_defaults(void)
 uint8_t i;
 
 	for ( i = 0; i < MAX_COUNTER_CHANNELS; i++ ) {
-		snprintf_P( counters_conf.name[i], PARAMNAME_LENGTH, PSTR("C%d\0"), i );
-		counters_conf.magpp[i] = 0.1;
+		snprintf_P( systemVars.counters_conf.name[i], PARAMNAME_LENGTH, PSTR("C%d\0"), i );
+		systemVars.counters_conf.magpp[i] = 0.1;
 	}
 
 	// Debounce Time
-	counters_conf.debounce_time = 50;
+	systemVars.counters_conf.debounce_time = 50;
 
 }
 //------------------------------------------------------------------------------------
@@ -147,10 +136,10 @@ void counters_config_debounce_time( char *s_counter_debounce_time )
 	// Configura el tiempo de debounce del conteo de pulsos.
 	// Se utiliza desde cmd_mode.
 
-	counters_conf.debounce_time = atoi(s_counter_debounce_time);
+	systemVars.counters_conf.debounce_time = atoi(s_counter_debounce_time);
 
-	if ( counters_conf.debounce_time < 1 )
-		counters_conf.debounce_time = 50;
+	if ( systemVars.counters_conf.debounce_time < 1 )
+		systemVars.counters_conf.debounce_time = 50;
 
 	return;
 }
@@ -170,10 +159,10 @@ bool retS = false;
 
 		// NOMBRE
 		u_control_string(s_param0);
-		snprintf_P( counters_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_param0 );
+		snprintf_P( systemVars.counters_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_param0 );
 
 		// MAGPP
-		if ( s_param1 != NULL ) { counters_conf.magpp[channel] = atof(s_param1); }
+		if ( s_param1 != NULL ) { systemVars.counters_conf.magpp[channel] = atof(s_param1); }
 
 		retS = true;
 	}
@@ -182,20 +171,3 @@ bool retS = false;
 
 }
 //------------------------------------------------------------------------------------
-uint8_t counters_get_debounce_time(void)
-{
-	return(counters_conf.debounce_time);
-}
-//------------------------------------------------------------------------------------
-char * counters_get_name(uint8_t cnt )
-{
-	return(counters_conf.name[cnt]);
-}
-//------------------------------------------------------------------------------------
-float counters_get_magpp( uint8_t cnt )
-{
-	return(counters_conf.magpp[cnt]);
-}
-//------------------------------------------------------------------------------------
-
-

@@ -63,7 +63,7 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "0.0.1.R1"
+#define SPX_FW_REV "0.0.4.R1"
 #define SPX_FW_DATE "@ 20190308"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
@@ -177,8 +177,8 @@ typedef union u_dataframe {
 } u_dataframe_t;
 
 typedef struct {
-	RtcTimeType_t rtc;
 	u_dataframe_t df;
+	RtcTimeType_t rtc;
 } st_dataRecord_t;
 
 // Estructuras para las consignas
@@ -200,6 +200,32 @@ typedef struct {
 	st_time_t hora_fin;
 } st_pwrsave_t;
 
+// Configuracion de canales de contadores
+typedef struct {
+	char name[MAX_COUNTER_CHANNELS][PARAMNAME_LENGTH];
+	float magpp[MAX_COUNTER_CHANNELS];
+	uint8_t debounce_time;
+} counters_conf_t;
+
+// Configuracion de canales digitales
+typedef struct {
+	char name[MAX_DINPUTS_CHANNELS][PARAMNAME_LENGTH];
+	bool timers_enabled;
+	uint8_t checksum;
+} dinputs_conf_t;
+
+// Configuracion de canales analogicos
+typedef struct {
+	uint8_t imin[MAX_ANALOG_CHANNELS];	// Coeficientes de conversion de I->magnitud (presion)
+	uint8_t imax[MAX_ANALOG_CHANNELS];
+	float mmin[MAX_ANALOG_CHANNELS];
+	float mmax[MAX_ANALOG_CHANNELS];
+	char name[MAX_ANALOG_CHANNELS][PARAMNAME_LENGTH];
+	float offset[MAX_ANALOG_CHANNELS];
+	float inaspan[MAX_ANALOG_CHANNELS];
+	uint8_t pwr_settle_time;
+} ainputs_conf_t;
+
 typedef struct {
 	// Variables de trabajo.
 	char dlgId[DLGID_LENGTH];
@@ -208,15 +234,19 @@ typedef struct {
 	char server_ip_address[IP_LENGTH];
 	char serverScript[SCRIPT_LENGTH];
 	char simpwd[PASSWD_LENGTH];
+	uint32_t timerDial;
+	st_pwrsave_t pwrSave;
 
 	t_debug debug;
 	uint16_t timerPoll;
-	uint32_t timerDial;
+	bool rangeMeter_enabled;
 
 	uint8_t d_outputs;
-
 	st_consigna_t consigna;
-	st_pwrsave_t pwrSave;
+
+	counters_conf_t counters_conf;	// Estructura con la configuracion de los contadores
+	dinputs_conf_t dinputs_conf;	// Estructura con la configuracion de las entradas digitales
+	ainputs_conf_t ainputs_conf;	// Estructura con la configuracion de las entradas analogicas
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -226,6 +256,8 @@ typedef struct {
 systemVarsType systemVars;
 
 uint32_t u_getSystemTicks(void);
+
+//extern struct counters_s  counters;
 
 // UTILS
 void initMCU(void);
@@ -238,7 +270,6 @@ void u_load_defaults( void );
 uint8_t u_save_params_in_NVMEE(void);
 bool u_load_params_from_NVMEE(void);
 void u_config_timerpoll ( char *s_timerpoll );
-bool u_config_consignas( char *_cmodo, char *hhmm_dia, char *hhmm_noche);
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -254,44 +285,33 @@ float counters_read( uint8_t cnt, bool reset_counter );
 void counters_config_defaults(void);
 bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1 );
 void counters_config_debounce_time( char *s_counter_debounce_time );
-uint8_t counters_get_debounce_time(void);
-char * counters_get_name(uint8_t cnt );
-float counters_get_magpp( uint8_t cnt );
-
-// TKDATA
-bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax );
-void ainputs_config_defaults(void);
-bool data_config_rangemeter ( char *s_mode );
-bool data_config_offset( char *s_channel, char *s_offset );
-void data_config_sensortime ( char *s_sensortime );
-void data_config_span ( char *s_channel, char *s_span );
-bool data_config_autocalibrar( char *s_channel, char *s_mag_val );
-
-void ainputs_read ( uint8_t io_channel, uint16_t *raw_val, float *mag_val );
-void data_read_frame( bool polling  );
-
-bool data_get_rmeter_enabled(void);
-uint8_t data_get_pwr_settle_time(void);
-uint8_t data_get_imin( uint8_t ain );
-uint8_t data_get_imax( uint8_t ain );
-float data_get_mmin( uint8_t ain );
-float data_get_mmax( uint8_t ain );
-float data_get_offset( uint8_t ain );
-float data_get_span( uint8_t ain );
-char * data_get_name(uint8_t ain );
-
-void range_config_defaults(void);
 
 // TKDINPUTS
-void dinputs_read_frame( st_dataRecord_t *drcd );
+int16_t dinputs_read ( uint8_t din );
 void dinputs_config_defaults(void);
 bool dinputs_config_channel( uint8_t channel,char *s_aname );
 bool dinputs_config_timermode ( char *s_mode );
-bool dinputs_get_mode(void);
-char * dinputs_get_name(uint8_t din );
-int16_t dinputs_read ( uint8_t din );
+
+// RANGE
+int16_t range_read(void);
+bool range_config ( char *s_mode );
+void range_config_defaults(void);
+
+// AINPUTS
+void ainputs_read ( uint8_t io_channel, uint16_t *raw_val, float *mag_val );
+bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax );
+void ainputs_config_defaults(void);
+bool ainputs_config_offset( char *s_channel, char *s_offset );
+void ainputs_config_sensortime ( char *s_sensortime );
+void ainputs_config_span ( char *s_channel, char *s_span );
+bool ainputs_config_autocalibrar( char *s_channel, char *s_mag_val );
+
+// TKDATA
+void data_read_frame( bool polling );
 
 // TKDOUTPUTS
+void doutputs_config_defaults(void);
+bool doutputs_config_consignas( char *_cmodo, char *hhmm_dia, char *hhmm_noche);
 
 // WATCHDOG
 uint8_t wdg_resetCause;
@@ -305,7 +325,7 @@ uint8_t wdg_resetCause;
 #define WDG_GPRSRX		6
 #define WDG_GPRSTX		7
 
-#define NRO_WDGS		2
+#define NRO_WDGS		8
 
 
 #endif /* SRC_SPX_H_ */

@@ -200,7 +200,7 @@ uint8_t channel;
 
 	// Digital inputs timers. Solo en SPX_8CH ( para UTE )
 	if ( spx_io_board == SPX_IO8CH ) {
-		if ( dinputs_get_mode() == true ) {
+		if ( systemVars.dinputs_conf.timers_enabled == true ) {
 			xprintf_P( PSTR("  dinputsAsTimers: ON\r\n\0"));
 		} else {
 			xprintf_P( PSTR("  dinputsAsTimers: OFF\r\n\0"));
@@ -214,10 +214,10 @@ uint8_t channel;
 	xprintf_P( PSTR("  timerDial: [%d s]/%d\r\n\0"),systemVars.timerDial, u_gprs_readTimeToNextDial() );
 
 	// Sensor Pwr Time
-	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), data_get_rmeter_enabled() );
+	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.rangeMeter_enabled );
 
 	// Counters debounce time
-	xprintf_P( PSTR("  timerDebounceCnt: [%d s]\r\n\0"), counters_get_debounce_time() );
+	xprintf_P( PSTR("  timerDebounceCnt: [%d s]\r\n\0"), systemVars.counters_conf.debounce_time );
 
 	if ( spx_io_board == SPX_IO5CH ) {
 
@@ -229,7 +229,7 @@ uint8_t channel;
 		}
 
 		// RangeMeter: PULSE WIDTH
-		if ( data_get_rmeter_enabled() ) {
+		if ( systemVars.rangeMeter_enabled ) {
 			xprintf_P( PSTR("  rangeMeter: ON\r\n"));
 		} else {
 			xprintf_P( PSTR("  rangeMeter: OFF\r\n"));
@@ -255,24 +255,24 @@ uint8_t channel;
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %.02f | %.02f | %s]\r\n\0"),channel, data_get_imin(channel), data_get_imax(channel), data_get_mmin(channel), data_get_mmax(channel), data_get_span(channel), data_get_offset(channel), data_get_name(channel) );
+		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %.02f | %.02f | %s]\r\n\0"),channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.mmin[channel], systemVars.ainputs_conf.mmax[channel], systemVars.ainputs_conf.inaspan[channel], systemVars.ainputs_conf.offset[channel], systemVars.ainputs_conf.name[channel] );
 	}
 
 	// dinputs
 	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
-		if (  ( spx_io_board == SPX_IO8CH  ) &&  dinputs_get_mode()  && channel > 3 ) {
-			xprintf_P( PSTR("  d%d( ) [ %s ] (T)\r\n\0"),channel,  dinputs_get_name(channel) );
+		if (  ( spx_io_board == SPX_IO8CH  ) &&  ( systemVars.dinputs_conf.timers_enabled == true )  && ( channel > 3 ) ) {
+			xprintf_P( PSTR("  d%d( ) [ %s ] (T)\r\n\0"),channel,  systemVars.dinputs_conf.name[channel] );
 		} else {
-			xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, dinputs_get_name(channel) );
+			xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.dinputs_conf.name[channel] );
 		}
 	}
 
 	// contadores
 	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
-		xprintf_P( PSTR("  c%d [ %s | %.02f ]\r\n\0"),channel, counters_get_name(channel), counters_get_magpp(channel) );
+		xprintf_P( PSTR("  c%d [ %s | %.02f ]\r\n\0"),channel, systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel] );
 	}
 
-	data_get_name ( false );
+	//data_get_name ( false );
 }
 //-----------------------------------------------------------------------------------
 static void cmdResetFunction(void)
@@ -670,21 +670,21 @@ bool retS = false;
 	// OFFSET
 	// config offset {ch} {mag}
 	if (!strcmp_P( strupr(argv[1]), PSTR("OFFSET\0")) ) {
-		data_config_offset( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		ainputs_config_offset( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
 	// AUTOCAL
 	// config autocal {ch} {mag}
 	if (!strcmp_P( strupr(argv[1]), PSTR("AUTOCAL\0")) ) {
-		data_config_autocalibrar( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		ainputs_config_autocalibrar( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
 	// SENSORTIME
 	// config sensortime
 	if (!strcmp_P( strupr(argv[1]), PSTR("SENSORTIME\0")) ) {
-		data_config_sensortime( argv[2] );
+		ainputs_config_sensortime( argv[2] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -692,7 +692,7 @@ bool retS = false;
 	// INASPAN
 	// config inaspan
 	if (!strcmp_P( strupr(argv[1]), PSTR("INASPAN\0"))) {
-		data_config_span( argv[2], argv[3] );
+		ainputs_config_span( argv[2], argv[3] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -731,7 +731,7 @@ bool retS = false;
 	// config rangemeter {on|off}
 	if ( !strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) {
 
-		if ( data_config_rangemeter(argv[3]) ) {
+		if ( range_config(argv[3]) ) {
 			pv_snprintfP_OK();
 			return;
 		} else {
@@ -746,7 +746,7 @@ bool retS = false;
 	// CONSIGNAS
 	// config consigna {on|off) {hhmm_dia hhmm_noche}
 	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0"))) ) {
-		u_config_consignas( argv[2], argv[3], argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		doutputs_config_consignas( argv[2], argv[3], argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
