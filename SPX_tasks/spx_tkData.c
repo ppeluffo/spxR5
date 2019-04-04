@@ -18,16 +18,6 @@
 
 #include "spx.h"
 
-// Estructura de datos de un dataframe ( considera todos los canales que se pueden medir )
-typedef struct {
-	float ainputs[MAX_ANALOG_CHANNELS];
-	uint16_t dinputs[MAX_DINPUTS_CHANNELS];
-	float counters[MAX_COUNTER_CHANNELS];
-	int16_t range;
-	float battery;
-	RtcTimeType_t rtc;
-} dataframe_s;
-
 dataframe_s dataframe;
 
 bool sensores_prendidos;
@@ -36,9 +26,16 @@ bool sensores_prendidos;
 // PROTOTIPOS
 
 static void pv_data_init(void);
+
 static void pv_data_read_frame( void );
+static void pv_data_read_analogico( void );
+static void pv_data_read_contadores( void );
+static void pv_data_read_rangemeter( void );
+static void pv_data_read_dinputs( void );
+
 static void pv_data_print_frame( void );
 static void pv_data_guardar_en_BD(void);
+static void pv_data_signal_to_tkgprs(void);;
 
 // La tarea pasa por el mismo lugar c/timerPoll secs.
 #define WDG_DAT_TIMEOUT	 ( systemVars.timerPoll + 60 )
@@ -83,6 +80,8 @@ TickType_t xLastWakeTime;
 
 		// Guardo en la BD
 		pv_data_guardar_en_BD();
+
+		pv_data_signal_to_tkgprs();
 
 		// Calculo el tiempo para una nueva espera
 		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
@@ -133,17 +132,14 @@ static void pv_data_init(void)
 
 }
 //------------------------------------------------------------------------------------
-static void pv_data_read_frame( void )
+static void pv_data_read_analogico( void )
 {
-	// Leo todos los canales de a 1 que forman un frame de datos analogicos
-
-uint16_t raw_val;
-uint8_t i;
-int8_t xBytes;
-
 	// Prendo los sensores, espero un settle time de 1s, los leo y apago los sensores.
 	// En las placas SPX_IO8 no prendo los sensores porque no los alimento.
 	// Los prendo si estoy con una placa IO5 y los sensores estan apagados.
+
+uint16_t raw_val;
+
 	if ( ( spx_io_board == SPX_IO5CH ) && ( ! sensores_prendidos ) ) {
 
 		AINPUTS_prender_12V();
@@ -174,7 +170,6 @@ int8_t xBytes;
 		ainputs_read ( 7, &raw_val, &dataframe.ainputs[7] );
 	}
 
-	// Bateria
 	if ( spx_io_board == SPX_IO5CH ) {
 		// Leo la bateria
 		// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
@@ -192,18 +187,75 @@ int8_t xBytes;
 		sensores_prendidos = false;
 	}
 
+}
+//------------------------------------------------------------------------------------
+static void pv_data_read_contadores( void )
+{
 	// Leo los contadores
+
+uint8_t i;
+
 	for ( i = 0; i < NRO_COUNTERS; i++ ) {
 		dataframe.counters[i] = counters_read(i, true);
 	}
+}
+//------------------------------------------------------------------------------------
+static void pv_data_read_rangemeter( void )
+{
 
+	if ( ( spx_io_board == SPX_IO5CH ) && ( systemVars.rangeMeter_enabled == true ) ) {
+		// Leo el ancho de pulso ( rangeMeter ). Demora 5s si esta habilitado
+		dataframe.range = range_read();
+	}
+}
+//------------------------------------------------------------------------------------
+static void pv_data_read_dinputs( void )
+{
 	// Leo las entradas digitales
-	for ( i = 0; i < NRO_DINPUTS; i++ ) {
-		dataframe.dinputs[i] = dinputs_read(i);
+
+uint8_t i;
+
+	// IO5CH solo tiene entradas digitales tipo A.
+	if ( spx_io_board == SPX_IO5CH ) {
+		for ( i = 0; i < IO5_DINPUTS_CHANNELS; i++ ) {
+			dataframe.dinputsA[i] = dinputs_read(i);
+		}
+		return;
 	}
 
-	// Leo el ancho de pulso ( rangeMeter ). Demora 5s si esta habilitado
-	dataframe.range = range_read();
+	// IO8 tiene entradas tipo A y tipo B ( dtimers )
+
+	if ( spx_io_board == SPX_IO8CH ) {
+		// En la placa de 8 canales, tengo  entradas que siempre son entradas digitales.( tipo A )
+		for ( i = 0; i < IO8_DINPUTS_CHANNELS; i++ ) {
+			dataframe.dinputsA[i] = dinputs_read(i);
+		}
+
+		// Si tengo los dtimers habilitados los leo como dtimers.
+		// sino los leo como entradas digitales
+		for ( i = 0; i < IO8_DTIMERS_CHANNELS; i++ ) {
+			if ( systemVars.dtimers_enabled ) {
+				dataframe.dinputsB[i] = dtimers_read(i);
+			} else {
+				dataframe.dinputsB[i] = dinputs_read(i);
+			}
+		}
+
+		return;
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_data_read_frame( void )
+{
+	// Leo todos los canales de a 1 que forman un frame de datos analogicos
+
+int8_t xBytes;
+
+	pv_data_read_analogico();
+	pv_data_read_contadores();
+    pv_data_read_dinputs();
+    pv_data_read_rangemeter();
 
 	// Agrego el timestamp
 	xBytes = RTC_read_dtime( &dataframe.rtc );
@@ -216,8 +268,6 @@ static void pv_data_print_frame( void )
 {
 	// Imprime el frame actual en consola
 
-uint8_t channel;
-
 	// HEADER
 	xprintf_P(PSTR("frame: " ) );
 
@@ -225,40 +275,11 @@ uint8_t channel;
 	xprintf_P(PSTR("%04d%02d%02d,"),dataframe.rtc.year, dataframe.rtc.month, dataframe.rtc.day );
 	xprintf_P(PSTR("%02d%02d%02d"), dataframe.rtc.hour, dataframe.rtc.min, dataframe.rtc.sec );
 
-	// Canales analogicos: Solo muestro los que tengo configurados.
-	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		if ( ! strcmp ( systemVars.ainputs_conf.name[channel], "X" ) )
-			continue;
-
-		xprintf_P(PSTR(",%s=%.02f"),systemVars.ainputs_conf.name[channel], dataframe.ainputs[channel] );
-	}
-
-	// Calanes digitales.
-	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
-		if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
-			continue;
-
-		xprintf_P(PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], dataframe.dinputs[channel] );
-	}
-
-	// Contadores
-	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
-		// Si el canal no esta configurado no lo muestro.
-		if ( ! strcmp ( systemVars.counters_conf.name[channel], "X" ) )
-			continue;
-
-		xprintf_P(PSTR(",%s=%.02f"),systemVars.counters_conf.name[channel], dataframe.counters[channel] );
-	}
-
-	// Range
-	if ( ( spx_io_board == SPX_IO5CH ) && ( systemVars.rangeMeter_enabled ) ) {
-		xprintf_P(PSTR(",RANGE=%d"), dataframe.range );
-	}
-
-	// bateria
-	if ( spx_io_board == SPX_IO5CH ) {
-		xprintf_P(PSTR(",BAT=%.02f"), dataframe.battery );
-	}
+	u_df_print_analogicos( &dataframe );
+    u_df_print_digitales( &dataframe );
+	u_df_print_contadores( &dataframe );
+	u_df_print_range( &dataframe );
+	u_df_print_battery( &dataframe );
 
 	// TAIL
 	xprintf_P(PSTR("\r\n\0") );
@@ -286,7 +307,7 @@ st_dataRecord_t dr;
 	switch ( spx_io_board ) {
 	case SPX_IO5CH:
 		memcpy( &dr.df.io5.ainputs, &dataframe.ainputs, ( NRO_ANINPUTS * sizeof(float)));
-		memcpy( &dr.df.io5.dinputs, &dataframe.dinputs, ( NRO_DINPUTS * sizeof(uint16_t)));
+		memcpy( &dr.df.io5.dinputsA, &dataframe.dinputsA, ( NRO_DINPUTS * sizeof(uint16_t)));
 		memcpy( &dr.df.io5.counters, &dataframe.counters, ( NRO_COUNTERS * sizeof(float)));
 		dr.df.io5.range = dataframe.range;
 		dr.df.io5.battery = dataframe.battery;
@@ -294,7 +315,8 @@ st_dataRecord_t dr;
 		break;
 	case SPX_IO8CH:
 		memcpy( &dr.df.io8.ainputs, &dataframe.ainputs, ( NRO_ANINPUTS * sizeof(float)));
-		memcpy( &dr.df.io8.dinputs, &dataframe.dinputs, ( NRO_DINPUTS * sizeof(uint16_t)));
+		memcpy( &dr.df.io8.dinputsA, &dataframe.dinputsA, ( NRO_DINPUTS * sizeof(uint8_t)));
+		memcpy( &dr.df.io8.dinputsB, &dataframe.dinputsB, ( NRO_DINPUTS * sizeof(uint16_t)));
 		memcpy( &dr.df.io8.counters, &dataframe.counters, ( NRO_COUNTERS * sizeof(float)));
 		memcpy( &dr.rtc, &dataframe.rtc, sizeof(RtcTimeType_t) );
 		break;
@@ -313,6 +335,18 @@ st_dataRecord_t dr;
 		xprintf_P( PSTR("DATA: MEM [wr=%d,rd=%d,del=%d]\0"), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR );
 	}
 
+
+
+}
+//------------------------------------------------------------------------------------
+static void pv_data_signal_to_tkgprs(void)
+{
+	// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
+	if ( ! MODO_DISCRETO ) {
+		while ( xTaskNotify(xHandle_tkGprsRx, TK_FRAME_READY , eSetBits ) != pdPASS ) {
+			vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+		}
+	}
 }
 //------------------------------------------------------------------------------------
 

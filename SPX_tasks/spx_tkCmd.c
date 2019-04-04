@@ -44,6 +44,9 @@ static void cmdKillFunction(void);
 static usuario_t tipo_usuario;
 RtcTimeType_t rtc;
 
+st_dataRecord_t dr;
+dataframe_s df;
+
 //------------------------------------------------------------------------------------
 void tkCmd(void * pvParameters)
 {
@@ -125,12 +128,13 @@ uint8_t channel;
 	// Last reset cause
 	xprintf_P( PSTR("WRST=0x%02X\r\n\0") ,wdg_resetCause );
 
-	xprintf_P( PSTR("sVars Size: %d\r\n\0"), sizeof(systemVars) );
+//	xprintf_P( PSTR("sVars Size: %d\r\n\0"), sizeof(systemVars) );
+//	xprintf_P( PSTR("dr Size: %d\r\n\0"), sizeof(st_dataRecord_t) );
 
 	RTC_read_time();
 
 	// DlgId
-	xprintf_P( PSTR("dlgid: %s\r\n\0"), systemVars.dlgId );
+	xprintf_P( PSTR("dlgid: %s\r\n\0"), systemVars.gprs_conf.dlgId );
 
 	// Memoria
 	FAT_read(&l_fat);
@@ -138,10 +142,10 @@ uint8_t channel;
 
 	// SERVER
 	xprintf_P( PSTR(">Server:\r\n\0"));
-	xprintf_P( PSTR("  apn: %s\r\n\0"), systemVars.apn );
-	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), systemVars.server_ip_address,systemVars.server_tcp_port );
-	xprintf_P( PSTR("  server script: %s\r\n\0"), systemVars.serverScript );
-	xprintf_P( PSTR("  simpwd: %s\r\n\0"), systemVars.simpwd );
+	xprintf_P( PSTR("  apn: %s\r\n\0"), systemVars.gprs_conf.apn );
+	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), systemVars.gprs_conf.server_ip_address, systemVars.gprs_conf.server_tcp_port );
+	xprintf_P( PSTR("  server script: %s\r\n\0"), systemVars.gprs_conf.serverScript );
+	xprintf_P( PSTR("  simpwd: %s\r\n\0"), systemVars.gprs_conf.simpwd );
 
 	// MODEM
 	xprintf_P( PSTR(">Modem:\r\n\0"));
@@ -161,6 +165,9 @@ uint8_t channel;
 		break;
 	case G_MON_SQE:
 		xprintf_P( PSTR("  state: mon_sqe\r\n"));
+		break;
+	case G_SCAN_APN:
+		xprintf_P( PSTR("  state: scan apn\r\n"));
 		break;
 	case G_GET_IP:
 		xprintf_P( PSTR("  state: ip\r\n"));
@@ -200,7 +207,7 @@ uint8_t channel;
 
 	// Digital inputs timers. Solo en SPX_8CH ( para UTE )
 	if ( spx_io_board == SPX_IO8CH ) {
-		if ( systemVars.dinputs_conf.timers_enabled == true ) {
+		if ( systemVars.dtimers_enabled == true ) {
 			xprintf_P( PSTR("  dinputsAsTimers: ON\r\n\0"));
 		} else {
 			xprintf_P( PSTR("  dinputsAsTimers: OFF\r\n\0"));
@@ -208,10 +215,11 @@ uint8_t channel;
 	}
 
 	// Timerpoll
-	xprintf_P( PSTR("  timerPoll: [%d s]/%d\r\n\0"),systemVars.timerPoll, ctl_readTimeToNextPoll() );
+	xprintf_P( PSTR("  timerPoll: [%d s]/ %d\r\n\0"),systemVars.timerPoll, ctl_readTimeToNextPoll() );
 
 	// Timerdial
-	xprintf_P( PSTR("  timerDial: [%d s]/%d\r\n\0"),systemVars.timerDial, u_gprs_readTimeToNextDial() );
+	xprintf_P( PSTR("  timerDial: [%d s]/\0"), systemVars.gprs_conf.timerDial );
+	xprintf_P( PSTR(" %lu\r\n\0"), u_gprs_readTimeToNextDial() );
 
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.rangeMeter_enabled );
@@ -222,10 +230,10 @@ uint8_t channel;
 	if ( spx_io_board == SPX_IO5CH ) {
 
 		// PWR SAVE:
-		if ( systemVars.pwrSave.modo ==  modoPWRSAVE_OFF ) {
+		if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ==  false ) {
 			xprintf_P(  PSTR("  pwrsave: OFF\r\n\0"));
-		} else if ( systemVars.pwrSave.modo ==  modoPWRSAVE_ON ) {
-			xprintf_P(  PSTR("  pwrsave: ON, start[%02d:%02d], end[%02d:%02d]\r\n\0"), systemVars.pwrSave.hora_start.hour, systemVars.pwrSave.hora_start.min, systemVars.pwrSave.hora_fin.hour, systemVars.pwrSave.hora_fin.min);
+		} else {
+			xprintf_P(  PSTR("  pwrsave: ON, start[%02d:%02d], end[%02d:%02d]\r\n\0"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
 		}
 
 		// RangeMeter: PULSE WIDTH
@@ -236,11 +244,11 @@ uint8_t channel;
 		}
 
 		// Consignas
-		if ( systemVars.consigna.c_enabled ) {
-			if ( systemVars.consigna.c_aplicada == CONSIGNA_DIURNA ) {
-				xprintf_P( PSTR("  consignas: (DIURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.consigna.hhmm_c_diurna.hour, systemVars.consigna.hhmm_c_diurna.min, systemVars.consigna.hhmm_c_nocturna.hour, systemVars.consigna.hhmm_c_nocturna.min );
+		if ( systemVars.doutputs_conf.consigna.c_enabled ) {
+			if ( systemVars.doutputs_conf.consigna.c_aplicada == CONSIGNA_DIURNA ) {
+				xprintf_P( PSTR("  consignas: (DIURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
 			} else {
-				xprintf_P( PSTR("  consignas: (NOCTURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.consigna.hhmm_c_diurna.hour, systemVars.consigna.hhmm_c_diurna.min, systemVars.consigna.hhmm_c_nocturna.hour, systemVars.consigna.hhmm_c_nocturna.min );
+				xprintf_P( PSTR("  consignas: (NOCTURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
 			}
 		} else {
 			xprintf_P( PSTR("  consignas: OFF\r\n"));
@@ -250,7 +258,7 @@ uint8_t channel;
 
 	// Salidas digitales
 	if ( spx_io_board == SPX_IO8CH ) {
-		xprintf_P( PSTR("  outputs: 0x%02x [%c%c%c%c%c%c%c%c]\r\n\0"),systemVars.d_outputs ,  BYTE_TO_BINARY(systemVars.d_outputs) );
+		xprintf_P( PSTR("  outputs: 0x%02x [%c%c%c%c%c%c%c%c]\r\n\0"), systemVars.doutputs_conf.d_outputs ,  BYTE_TO_BINARY( systemVars.doutputs_conf.d_outputs ) );
 	}
 
 	// aninputs
@@ -260,7 +268,7 @@ uint8_t channel;
 
 	// dinputs
 	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
-		if (  ( spx_io_board == SPX_IO8CH  ) &&  ( systemVars.dinputs_conf.timers_enabled == true )  && ( channel > 3 ) ) {
+		if (  ( spx_io_board == SPX_IO8CH  ) &&  ( systemVars.dtimers_enabled == true )  && ( channel > 3 ) ) {
 			xprintf_P( PSTR("  d%d( ) [ %s ] (T)\r\n\0"),channel,  systemVars.dinputs_conf.name[channel] );
 		} else {
 			xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.dinputs_conf.name[channel] );
@@ -296,8 +304,8 @@ static void cmdResetFunction(void)
 		vTaskSuspend( xHandle_tkData );
 		ctl_watchdog_kick(WDG_DAT, 0x8000 );
 
-		vTaskSuspend( xHandle_tkDinputs );
-		ctl_watchdog_kick(WDG_DIN, 0x8000 );
+		vTaskSuspend( xHandle_tkDtimers );
+		ctl_watchdog_kick(WDG_DTIM, 0x8000 );
 
 		vTaskSuspend( xHandle_tkDoutputs );
 		ctl_watchdog_kick(WDG_DOUT, 0x8000 );
@@ -394,7 +402,7 @@ uint8_t pin;
 
 		if (!strcmp_P( strupr(argv[3]), PSTR("SET\0"))) {
 			if ( DOUTPUTS_set_pin(pin) ) {
-				systemVars.d_outputs |= ( 1 << ( 7 - pin )  );
+				systemVars.doutputs_conf.d_outputs |= ( 1 << ( 7 - pin )  );
 				pv_snprintfP_OK();
 			} else {
 				pv_snprintfP_ERR();
@@ -402,7 +410,7 @@ uint8_t pin;
 
 		} else if (!strcmp_P( strupr(argv[3]), PSTR("CLEAR\0"))) {
 			if ( DOUTPUTS_clr_pin(pin) ) {
-				systemVars.d_outputs &= ~( 1 << ( 7 - pin ) );
+				systemVars.doutputs_conf.d_outputs &= ~( 1 << ( 7 - pin ) );
 				pv_snprintfP_OK();
 			} else {
 				pv_snprintfP_ERR();
@@ -434,12 +442,12 @@ uint8_t pin;
 	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) && ( tipo_usuario == USER_TECNICO) ) {
 
 		if (!strcmp_P( strupr(argv[2]), PSTR("DIURNA\0")) ) {
-			systemVars.consigna.c_aplicada = CONSIGNA_DIURNA;
+			systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
 			DRV8814_set_consigna_diurna(); pv_snprintfP_OK(); return;
 		}
 
 		if (!strcmp_P( strupr(argv[2]), PSTR("NOCTURNA\0")) ) {
-			systemVars.consigna.c_aplicada = CONSIGNA_NOCTURNA;
+			systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
 			DRV8814_set_consigna_nocturna(); pv_snprintfP_OK(); return;
 		}
 
@@ -646,7 +654,7 @@ bool retS = false;
 	// DEFAULT
 	// config default
 	if (!strcmp_P( strupr(argv[1]), PSTR("DEFAULT\0"))) {
-		u_load_defaults();
+		u_load_defaults( argv[2] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -711,11 +719,11 @@ bool retS = false;
 		return;
 	}
 
-	// DINPUTS TIMERS
-	// config dinputs timers  {on|off}
-	if ( ( !strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0"))) && (!strcmp_P( strupr(argv[2]), PSTR("TIMERS\0"))) ) {
+	// DTIMERS
+	// config dtimers  {on|off}
+	if ( ( !strcmp_P( strupr(argv[1]), PSTR("DTIMERS\0"))) ) {
 
-		if ( dinputs_config_timermode(argv[3]) ) {
+		if ( dtimers_config_timermode(argv[3]) ) {
 			pv_snprintfP_OK();
 			return;
 		} else {
@@ -770,9 +778,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.apn, '\0', sizeof(systemVars.apn));
-			memcpy(systemVars.apn, argv[2], sizeof(systemVars.apn));
-			systemVars.apn[APN_LENGTH - 1] = '\0';
+			memset(systemVars.gprs_conf.apn, '\0', sizeof(systemVars.gprs_conf.apn));
+			memcpy(systemVars.gprs_conf.apn, argv[2], sizeof(systemVars.gprs_conf.apn));
+			systemVars.gprs_conf.apn[APN_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -784,9 +792,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.server_tcp_port, '\0', sizeof(systemVars.server_tcp_port));
-			memcpy(systemVars.server_tcp_port, argv[2], sizeof(systemVars.server_tcp_port));
-			systemVars.server_tcp_port[PORT_LENGTH - 1] = '\0';
+			memset(systemVars.gprs_conf.server_tcp_port, '\0', sizeof(systemVars.gprs_conf.server_tcp_port));
+			memcpy(systemVars.gprs_conf.server_tcp_port, argv[2], sizeof(systemVars.gprs_conf.server_tcp_port));
+			systemVars.gprs_conf.server_tcp_port[PORT_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -798,9 +806,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.server_ip_address, '\0', sizeof(systemVars.server_ip_address));
-			memcpy(systemVars.server_ip_address, argv[2], sizeof(systemVars.server_ip_address));
-			systemVars.server_ip_address[IP_LENGTH - 1] = '\0';
+			memset(systemVars.gprs_conf.server_ip_address, '\0', sizeof(systemVars.gprs_conf.server_ip_address));
+			memcpy(systemVars.gprs_conf.server_ip_address, argv[2], sizeof(systemVars.gprs_conf.server_ip_address));
+			systemVars.gprs_conf.server_ip_address[IP_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -812,9 +820,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.serverScript, '\0', sizeof(systemVars.serverScript));
-			memcpy(systemVars.serverScript, argv[2], sizeof(systemVars.serverScript));
-			systemVars.serverScript[SCRIPT_LENGTH - 1] = '\0';
+			memset(systemVars.gprs_conf.serverScript, '\0', sizeof(systemVars.gprs_conf.serverScript));
+			memcpy(systemVars.gprs_conf.serverScript, argv[2], sizeof(systemVars.gprs_conf.serverScript));
+			systemVars.gprs_conf.serverScript[SCRIPT_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -826,9 +834,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.simpwd, '\0', sizeof(systemVars.simpwd));
-			memcpy(systemVars.simpwd, argv[2], sizeof(systemVars.simpwd));
-			systemVars.simpwd[PASSWD_LENGTH - 1] = '\0';
+			memset(systemVars.gprs_conf.simpwd, '\0', sizeof(systemVars.gprs_conf.simpwd));
+			memcpy(systemVars.gprs_conf.simpwd, argv[2], sizeof(systemVars.gprs_conf.simpwd));
+			systemVars.gprs_conf.simpwd[PASSWD_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -840,8 +848,8 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 			} else {
-				memset(systemVars.dlgId,'\0', sizeof(systemVars.dlgId) );
-				memcpy(systemVars.dlgId, argv[2], sizeof(systemVars.dlgId));
+				memset(systemVars.gprs_conf.dlgId,'\0', sizeof(systemVars.gprs_conf.dlgId) );
+				memcpy(systemVars.gprs_conf.dlgId, argv[2], sizeof(systemVars.gprs_conf.dlgId));
 				retS = true;
 			}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -941,11 +949,11 @@ static void cmdHelpFunction(void)
 		}
 
 		if ( spx_io_board == SPX_IO8CH ) {
-			xprintf_P( PSTR("  dinputs timers {on|off}\r\n\0"));
+			xprintf_P( PSTR("  dtimers {on|off}\r\n\0"));
 			xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
 		}
 
-		xprintf_P( PSTR("  default\r\n\0"));
+		xprintf_P( PSTR("  default {SPY|OSE|UTE}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
 	}
 
@@ -994,10 +1002,10 @@ static void cmdKillFunction(void)
 		return;
 	}
 
-	// KILL DINPUTS
-	if (!strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0"))) {
-		vTaskSuspend( xHandle_tkDinputs );
-		ctl_watchdog_kick(WDG_DIN, 0x8000 );
+	// KILL DTIMERS
+	if (!strcmp_P( strupr(argv[1]), PSTR("DTIMERS\0"))) {
+		vTaskSuspend( xHandle_tkDtimers );
+		ctl_watchdog_kick(WDG_DTIM, 0x8000 );
 		return;
 	}
 
@@ -1095,9 +1103,9 @@ UBaseType_t uxHighWaterMark;
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkData );
 	xprintf_P( PSTR("DAT: %03d,%03d,[%03d]\r\n\0"),tkData_STACK_SIZE,uxHighWaterMark, (tkData_STACK_SIZE - uxHighWaterMark));
 
-	// tkDin
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkDinputs );
-	xprintf_P( PSTR("DIN: %03d,%03d,[%03d]\r\n\0"),tkDinputs_STACK_SIZE,uxHighWaterMark, (tkDinputs_STACK_SIZE - uxHighWaterMark));
+	// tkDtimers
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkDtimers );
+	xprintf_P( PSTR("DTIM: %03d,%03d,[%03d]\r\n\0"),tkDtimers_STACK_SIZE,uxHighWaterMark, (tkDtimers_STACK_SIZE - uxHighWaterMark));
 
 	// tkDout
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkDoutputs );
@@ -1150,8 +1158,8 @@ static void pv_cmd_read_digital_channels(void)
 	// Leo e imprimo todos los canales digitales a la vez.
 
 uint8_t din0, din1;
-st_dataRecord_t drcd;
-uint8_t din_byte = 0x00;
+uint16_t dinputs[8];
+uint8_t i;
 
 	if ( spx_io_board == SPX_IO5CH ) {
 		// Leo los canales digitales.
@@ -1159,21 +1167,26 @@ uint8_t din_byte = 0x00;
 		din1 = DIN_read_pin(1, spx_io_board );
 		xprintf_P( PSTR("Din0: %d, Din1: %d\r\n\0"), din0, din1 );
 		return;
+
 	} else 	if ( spx_io_board == SPX_IO8CH ) {
 
-//		dinputs_read_frame( &drcd );
-		// REVISAR !!!
+		for ( i = 0; i < 4; i++ ) {
+			dinputs[i] = dinputs_read(i);
+		}
 
-		if ( drcd.df.io8.dinputs[0] == 1 ) din_byte |= ( 1 << 0);
-		if ( drcd.df.io8.dinputs[1] == 1 ) din_byte |= ( 1 << 1);
-		if ( drcd.df.io8.dinputs[2] == 1 ) din_byte |= ( 1 << 2);
-		if ( drcd.df.io8.dinputs[3] == 1 ) din_byte |= ( 1 << 3);
-		if ( drcd.df.io8.dinputs[4] == 1 ) din_byte |= ( 1 << 4);
-		if ( drcd.df.io8.dinputs[5] == 1 ) din_byte |= ( 1 << 5);
-		if ( drcd.df.io8.dinputs[6] == 1 ) din_byte |= ( 1 << 6);
-		if ( drcd.df.io8.dinputs[7] == 1 ) din_byte |= ( 1 << 7);
+		for ( i = 4; i < 8; i++ ) {
+			if ( systemVars.dtimers_enabled ) {
+			//	dinputs[i] = dtimers_read(i-4);
+			} else {
+				dinputs[i] = dinputs_read(i);
+			}
+		}
 
-		xprintf_P( PSTR("DINPUTS: 0x%02x [%c%c%c%c%c%c%c%c]\r\n\0"),din_byte ,  BYTE_TO_BINARY(din_byte) );
+		xprintf_P( PSTR("DINPUTS: "));
+		for ( i=0; i < 8; i++ ) {
+			xprintf_P( PSTR("%d"), dinputs[i] );
+		}
+		xprintf_P( PSTR("\r\n"));
 		return;
 	}
 }
@@ -1185,9 +1198,10 @@ static void pv_cmd_read_memory(void)
 	// El problema es que si hay muchos datos puede excederse el tiempo de watchdog y
 	// resetearse el dlg.
 	// Para esto, cada 32 registros pateo el watchdog.
+	// El proceso es similar a tkGprs.transmitir_dataframe
+
 
 FAT_t l_fat;
-st_dataRecord_t dataRecord;
 size_t bRead;
 uint16_t rcds = 0;
 bool detail = false;
@@ -1199,9 +1213,11 @@ bool detail = false;
 	FF_rewind();
 	while(1) {
 
-		bRead = FF_readRcd( &dataRecord, sizeof(st_dataRecord_t));
+		bRead = FF_readRcd( &dr, sizeof(st_dataRecord_t));
+		FAT_read(&l_fat);
 
 		if ( bRead == 0) {
+			xprintf_P(PSTR( "MEM Empty\r\n"));
 			break;
 		}
 
@@ -1209,14 +1225,43 @@ bool detail = false;
 			ctl_watchdog_kick(WDG_CMD, WDG_CMD_TIMEOUT);
 		}
 
+		// Inversamente a cuando en tkData guarde en memoria, convierto el datarecord a dataframe
+		// Copio al dr solo los campos que correspondan
+		switch ( spx_io_board ) {
+		case SPX_IO5CH:
+			memcpy( &df.ainputs, &dr.df.io5.ainputs, ( NRO_ANINPUTS * sizeof(float)));
+			memcpy( &df.dinputsA, &dr.df.io5.dinputsA, ( NRO_DINPUTS * sizeof(uint16_t)));
+			memcpy( &df.counters, &dr.df.io5.counters, ( NRO_COUNTERS * sizeof(float)));
+			df.range = dr.df.io5.range;
+			df.battery = dr.df.io5.battery;
+			memcpy( &df.rtc, &dr.rtc, sizeof(RtcTimeType_t) );
+			break;
+		case SPX_IO8CH:
+			memcpy( &df.ainputs, &dr.df.io8.ainputs, ( NRO_ANINPUTS * sizeof(float)));
+			memcpy( &df.dinputsA, &dr.df.io8.dinputsA, ( NRO_DINPUTS * sizeof(uint8_t)));
+			memcpy( &df.dinputsB, &dr.df.io8.dinputsB, ( NRO_DINPUTS * sizeof(uint16_t)));
+			memcpy( &df.counters, &dr.df.io8.counters, ( NRO_COUNTERS * sizeof(float)));
+			memcpy( &df.rtc, &dr.rtc, sizeof(RtcTimeType_t) );
+			break;
+		default:
+			return;
+		}
+
 		// imprimo
 		if ( detail ) {
-			FAT_read(&l_fat);
 			xprintf_P( PSTR("memory: wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
 		}
 
-		data_read_frame ( false );
+		// Imprimo el registro
+		xprintf_P( PSTR("CTL=%d LINE=%04d%02d%02d,%02d%02d%02d\0"), l_fat.rdPTR, df.rtc.year, df.rtc.month, df.rtc.day, df.rtc.hour, df.rtc.min, df.rtc.sec );
 
+		u_df_print_analogicos( &df );
+	    u_df_print_digitales( &df );
+		u_df_print_contadores( &df );
+		u_df_print_range( &df );
+		u_df_print_battery( &df );
+
+		xprintf_P(PSTR( "\r\n"));
 	}
 
 }

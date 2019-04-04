@@ -19,6 +19,22 @@
  *  Para ver el uso de memoria usamos
  *  avr-nm -n spxR4.elf | more
  *
+ *  Version 0.0.3.R1 @ 20190404
+ *  El tamanio del io5 es de 58 bytes y el del io8 es de 56 bytes.
+ *  Al formar una union en un dataframe, el tamanio usado es de 58 bytes que con los 7 bytes del rtc
+ *  quedan en 65 bytes que excede el tamanio del registro.
+ *  El maximo deben ser 62 bytes para usar el 63 de checksum y el 64 de write tag.
+ *  Esto hace que para los datos queden: 64 - 1(wirteTag) -1(checksum) - 7(rtc) = 55 bytes
+ *  1) Las entradas digitales en io5 las hago int8_t o sea que quedan 36 bytes. OK
+ *  2) Las entradas digitales de io8 hago 4 de uint8_t y 4 de uint16_t ( digital timers ) con lo que queda en 52 bytes. OK
+ *
+ *  Version 0.0.2.R1 @ 20190311
+ *  - Modifico la tarea de GPRS para poder hacer un scan de los APN.
+ *    Saco de gprs_configurar el paso de configurar el APN en gprs_ask_ip.
+ *  # Considerar que el dlgId no es DEFAULT pero no esta en la BD ( mal configurado por operador )
+ *  # Ver respuesta a IPSCAN donde el server no tiene el UID en la BD ( NOT_ALLOWED ? )
+ *  - Cambio en pwrsave el modo por un bool pwrs_enabled.
+ *
  *  Version 0.0.1.R1 @ 20190218
  *  - Las funciones de manejo de la NVM son las tomadas del AVR1605 y usadas en spxboot.
  *  - Mejoro las funciones de grabar el DLGID para que pongan un \0 al final del string.
@@ -31,7 +47,7 @@
  *	- revisar watchdogs
  *  - timerDial no corre para atras
  *  - Al grabar un firmware detecta un default pero quedan mal los canales.
- *
+ *  - TimerDial 0/50 ??
  */
 
 #include "spx.h"
@@ -78,7 +94,7 @@ int main( void )
 	xTaskCreate(tkCmd, "CMD", tkCmd_STACK_SIZE, NULL, tkCmd_TASK_PRIORITY,  &xHandle_tkCmd);
 	xTaskCreate(tkCounter, "COUNT", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter);
 	xTaskCreate(tkData, "DATA", tkData_STACK_SIZE, NULL, tkData_TASK_PRIORITY,  &xHandle_tkData);
-	xTaskCreate(tkDinputs, "DIGI", tkDinputs_STACK_SIZE, NULL, tkDinputs_TASK_PRIORITY,  &xHandle_tkDinputs);
+	xTaskCreate(tkDtimers, "DTIM", tkDtimers_STACK_SIZE, NULL, tkDtimers_TASK_PRIORITY,  &xHandle_tkDtimers);
 	xTaskCreate(tkDoutputs, "DOUT", tkDoutputs_STACK_SIZE, NULL, tkDoutputs_TASK_PRIORITY,  &xHandle_tkDoutputs);
 	xTaskCreate(tkGprsRx, "RX", tkGprs_rx_STACK_SIZE, NULL, tkGprs_rx_TASK_PRIORITY,  &xHandle_tkGprsRx );
 	xTaskCreate(tkGprsTx, "TX", tkGprs_tx_STACK_SIZE, NULL, tkGprs_tx_TASK_PRIORITY,  &xHandle_tkGprsTx );

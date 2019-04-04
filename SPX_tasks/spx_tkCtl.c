@@ -142,7 +142,7 @@ char data[3];
 
 	// Leo los parametros del la EE y si tengo error, cargo por defecto
 	if ( ! u_load_params_from_NVMEE() ) {
-		u_load_defaults();
+		u_load_defaults( NULL );
 		xprintf_P( PSTR("\r\nLoading defaults !!\r\n\0"));
 	}
 
@@ -169,19 +169,23 @@ char data[3];
 	// Inicializo los parametros operativos segun la spx_io_board
 	if ( spx_io_board == SPX_IO5CH ) {
 
-		NRO_COUNTERS = IO5_COUNTER_CHANNELS;
 		NRO_ANINPUTS = IO5_ANALOG_CHANNELS;
 		NRO_DINPUTS = IO5_DINPUTS_CHANNELS;
-		xprintf_P( PSTR("SPX_IO5CH: DINPUTS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS, NRO_COUNTERS, NRO_ANINPUTS );
+		NRO_DTIMERS = IO5_DTIMERS_CHANNELS;
+		NRO_COUNTERS = IO5_COUNTER_CHANNELS;
+
+		xprintf_P( PSTR("SPX_IO5CH: DINPUTS=%d, DTIMERS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS , NRO_DTIMERS, NRO_COUNTERS, NRO_ANINPUTS );
 
 	} else if ( spx_io_board == SPX_IO8CH ) {
 
 		range_config("OFF");
 
-		NRO_COUNTERS = IO8_COUNTER_CHANNELS;
 		NRO_ANINPUTS = IO8_ANALOG_CHANNELS;
 		NRO_DINPUTS = IO8_DINPUTS_CHANNELS;
-		xprintf_P( PSTR("SPX_IO8CH: DINPUTS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS, NRO_COUNTERS, NRO_ANINPUTS );
+		NRO_DTIMERS = IO8_DTIMERS_CHANNELS;
+		NRO_COUNTERS = IO8_COUNTER_CHANNELS;
+
+		xprintf_P( PSTR("SPX_IO8CH: DINPUTS=%d,  DTIMERS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS, NRO_DTIMERS, NRO_COUNTERS, NRO_ANINPUTS );
 
 	}
 	xprintf_P( PSTR("------------------------------------------------\r\n\0"));

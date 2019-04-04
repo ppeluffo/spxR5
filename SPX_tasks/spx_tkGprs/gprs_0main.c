@@ -85,8 +85,10 @@ void tkGprsTx(void * pvParameters)
 
 RESTART:
 
+		// Cuando pierdo las comunicaciones en los IO8, reseteo las salidas
+		// ya que al no tener enlace pierdo el control.
 		if ( spx_io_board == SPX_IO8CH ) {
-			systemVars.d_outputs = 0x00;
+			systemVars.doutputs_conf.d_outputs = 0x00;
 		}
 
 		if ( st_gprs_esperar_apagado() != bool_CONTINUAR ) {	// Espero con el modem apagado
@@ -106,10 +108,14 @@ RESTART:
 		}
 
 		if ( st_gprs_get_ip() != bool_CONTINUAR  ) {	// Si no logro una IP debo reiniciarme. Salgo en este caso
-			goto RESTART;								// con false
+			goto RESTART;								// con false. Aqui si no tengo el APN hago un SCAN
 		}
 
-		if ( ! st_gprs_init_frame() ) {	// Si no pude enviar exitosamente el INIT vuelvo a APAGAR.
+		if ( st_gprs_scan_frame() != bool_CONTINUAR ) {	// Si la IP esta en DEFAULT hago un scan de varios servidores para
+			goto RESTART;								// descubrir la server IP correcta.
+		}
+
+		if ( st_gprs_init_frame() != bool_CONTINUAR ) { // Si no pude enviar exitosamente el INIT vuelvo a APAGAR.
 			goto RESTART;
 		}
 
@@ -191,7 +197,7 @@ static void pv_gprs_init_system(void)
 	strncpy_P(GPRS_stateVars.dlg_ip_address, PSTR("000.000.000.000\0"),16);
 
 	if ( spx_io_board == SPX_IO8CH ) {
-		systemVars.timerDial = 0;
+		systemVars.gprs_conf.timerDial = 0;
 	}
 
 	// Configuracion inicial de la tarea

@@ -55,7 +55,7 @@ bool exit_flag = false;
 
 		// Espero de a 5s para poder entrar en tickless.
 		vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
-		waiting_time -= 5;
+		GPRS_stateVars.waiting_time -= 5;
 
 		// Proceso las señales
 		if ( pv_tkGprs_procesar_signals_espera( &exit_flag )) {
@@ -65,9 +65,10 @@ bool exit_flag = false;
 
 		// Expiro el tiempo de espera. Veo si estoy dentro del intervalo de
 		// pwrSave y entonces espero de a 10 minutos mas.
-		if ( waiting_time <= 0 ) {
+		if ( GPRS_stateVars.waiting_time <= 0 ) {
+
 			if ( pv_tkGprs_check_inside_pwrSave() ) {
-				waiting_time = 600;
+				GPRS_stateVars.waiting_time = 600;
 			} else {
 				// Salgo con true.
 				exit_flag = bool_CONTINUAR;
@@ -81,7 +82,7 @@ EXIT:
 
 	// No espero mas y salgo del estado prender.
 	GPRS_stateVars.signal_redial = false;
-	waiting_time = -1;
+	GPRS_stateVars.waiting_time = -1;
 //	IO_set_PWR_SLEEP();
 	return(exit_flag);
 
@@ -94,38 +95,38 @@ static bool starting_flag = true;
 
 	// Cuando arranco ( la primera vez) solo espero 10s y disco por primera vez
 	if ( starting_flag ) {
-		//waiting_time = 10;
-		waiting_time = 1000;
-		starting_flag = false;
+		GPRS_stateVars.waiting_time = 10;
+		//GPRS_stateVars.waiting_time = 1000;
+		starting_flag = false;	// Ya no vuelvo a esperar 10s.
 		goto EXIT;
 	}
 
 	// En modo MONITOR_SQE espero solo 60s
 	if ( GPRS_stateVars.monitor_sqe ) {
-		waiting_time = 60;
+		GPRS_stateVars.waiting_time = 60;
 		goto EXIT;
 	}
 
 	// En modo CONTINUO ( timerDial = 0 ) espero solo 60s.
 	if ( ! MODO_DISCRETO ) {
-		waiting_time = 60;
+		GPRS_stateVars.waiting_time = 60;
 		goto EXIT;
 	}
 
 	// En modo DISCRETO ( timerDial > 900 )
 	if ( MODO_DISCRETO ) {
-		waiting_time = systemVars.timerDial;
+		GPRS_stateVars.waiting_time = systemVars.gprs_conf.timerDial;
 		goto EXIT;
 	}
 
 	// En cualquier otro caso no considerado, espero 60s
-	waiting_time = 60;
+	GPRS_stateVars.waiting_time = 60;
 	goto EXIT;
 
 EXIT:
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: await %lu s\r\n\0"), waiting_time );
+		xprintf_P( PSTR("GPRS: await %lu s\r\n\0"), GPRS_stateVars.waiting_time );
 	}
 
 }
@@ -144,7 +145,7 @@ uint16_t now, pwr_save_start, pwr_save_end ;
 int8_t xBytes;;
 
 	// Estoy en modo PWR_DISCRETO con PWR SAVE ACTIVADO
-	if ( ( MODO_DISCRETO ) && ( systemVars.pwrSave.modo == modoPWRSAVE_ON )) {
+	if ( ( MODO_DISCRETO ) && ( systemVars.gprs_conf.pwrSave.pwrs_enabled == true )) {
 
 		// Cuando arranco siempre me conecto sin importat si estoy o no en pwr save !!
 		if ( starting_flag_pws ) {
@@ -157,8 +158,8 @@ int8_t xBytes;;
 			xprintf_P(PSTR("ERROR: I2C:RTC:pv_tkGprs_check_inside_pwrSave\r\n\0"));
 
 		now = rtc.hour * 60 + rtc.min;
-		pwr_save_start = systemVars.pwrSave.hora_start.hour * 60 + systemVars.pwrSave.hora_start.min;
-		pwr_save_end = systemVars.pwrSave.hora_fin.hour * 60 + systemVars.pwrSave.hora_fin.min;
+		pwr_save_start = systemVars.gprs_conf.pwrSave.hora_start.hour * 60 + systemVars.gprs_conf.pwrSave.hora_start.min;
+		pwr_save_end = systemVars.gprs_conf.pwrSave.hora_fin.hour * 60 + systemVars.gprs_conf.pwrSave.hora_fin.min;
 
 		if ( pwr_save_start < pwr_save_end ) {
 			// Caso A:

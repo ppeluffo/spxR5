@@ -10,7 +10,7 @@
 static bool pv_gprs_CPIN(void);
 static bool pv_gprs_CGREG(void);
 static bool pv_gprs_CGATT(void);
-static void pg_gprs_APN(void);
+//static void pg_gprs_APN(void);
 static void pg_gprs_CIPMODE(void);
 static void pg_gprs_DCDMODE(void);
 
@@ -64,7 +64,9 @@ bool exit_flag = bool_RESTART;
 	//pv_gprs_CNTI();
 	pg_gprs_CIPMODE();	// modo transparente.
 	pg_gprs_DCDMODE();	// UART para utilizar las 7 lineas
-	pg_gprs_APN();		// Configuro el APN.
+
+//	pg_gprs_APN();		// Configuro el APN.
+// !! Lo paso al modulo de scan_apn
 
 	exit_flag = bool_CONTINUAR;
 
@@ -229,32 +231,6 @@ static void pg_gprs_DCDMODE(void)
 */
 	u_gprs_flush_RX_buffer();
 	xCom_printf_P( fdGPRS,PSTR("AT&C1\r\0"));
-	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		u_gprs_print_RX_Buffer();
-	}
-
-
-}
-//------------------------------------------------------------------------------------
-static void pg_gprs_APN(void)
-{
-	//Defino el PDP indicando cual es el APN.
-
-	xprintf_P( PSTR("GPRS: Set APN\r\n\0") );
-
-	// AT+CGDCONT
-	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"),systemVars.apn);
-	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		u_gprs_print_RX_Buffer();
-	}
-
-	// Como puedo tener varios PDP definidos, indico cual va a ser el que se deba activar
-	// al usar el comando NETOPEN.
-	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();

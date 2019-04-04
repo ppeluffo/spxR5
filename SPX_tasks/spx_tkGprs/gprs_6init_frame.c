@@ -7,21 +7,18 @@
 
 #include "gprs.h"
 
-static bool pv_send_init_frame(void);
-static t_init_responses pv_process_init_response(void);
-static void pv_TX_init_frame(void);
-static void pv_process_server_clock(void);
-static void pv_reconfigure_params(void);
-
-static uint8_t pv_gprs_config_dlg_id(void);
-static uint8_t pv_gprs_config_pwrSave(void);
-static uint8_t pv_gprs_config_timerPoll(void);
-static uint8_t pv_gprs_config_timerDial(void);
-static uint8_t pv_gprs_config_digitalCh(uint8_t channel);
-static uint8_t pv_gprs_config_analogCh(uint8_t channel);
-static uint8_t pv_gprs_config_counterCh(uint8_t channel);
-static uint8_t pv_gprs_config_consignas(void);
-static uint8_t pv_gprs_config_rangeMeter(void);
+static t_frame_responses pv_init_process_response(void);
+static void pv_init_process_server_clock(void);
+static void pv_init_reconfigure_params(void);
+static uint8_t pv_init_config_dlg_id(void);
+static uint8_t pv_init_config_pwrSave(void);
+static uint8_t pv_init_config_timerPoll(void);
+static uint8_t pv_init_config_timerDial(void);
+static uint8_t pv_init_config_digitalCh(uint8_t channel);
+static uint8_t pv_init_config_analogCh(uint8_t channel);
+static uint8_t pv_init_config_counterCh(uint8_t channel);
+static uint8_t pv_init_config_consignas(void);
+static uint8_t pv_init_config_rangeMeter(void);
 
 // La tarea no puede demorar mas de 180s.
 #define WDG_GPRS_TO_INIT	180
@@ -37,11 +34,14 @@ bool st_gprs_init_frame(void)
 	// Mientras espero la respuesta debo monitorear que el socket no se cierre
 
 uint8_t intentos;
-bool exit_flag = false;
+bool exit_flag = bool_RESTART;
 
 // Entry:
 
 	GPRS_stateVars.state = G_INIT_FRAME;
+
+	// En open_socket uso la IP del GPRS_stateVars asi que antes debo copiarla.
+	strcpy( GPRS_stateVars.server_ip_address, systemVars.gprs_conf.server_ip_address );
 
 	ctl_watchdog_kick(WDG_GPRSTX, WDG_GPRS_TO_INIT );
 
@@ -50,26 +50,35 @@ bool exit_flag = false;
 	// Intenteo MAX_INIT_TRYES procesar correctamente el INIT
 	for ( intentos = 0; intentos < MAX_INIT_TRYES; intentos++ ) {
 
-		if ( pv_send_init_frame() ) {
+		if ( u_gprs_send_frame( INIT_FRAME ) ) {
 
-			switch( pv_process_init_response() ) {
-			case INIT_ERROR:
+			switch( pv_init_process_response() ) {
+
+			case FRAME_ERROR:
 				// Reintento
 				break;
-			case INIT_SOCK_CLOSE:
+			case FRAME_SOCK_CLOSE:
 				// Reintento
 				break;
-			case INIT_OK:
+			case FRAME_RETRY:
+				// Reintento
+				break;
+			case FRAME_OK:
 				// Aqui es que anduvo todo bien y debo salir para pasar al modo DATA
 				if ( systemVars.debug == DEBUG_GPRS ) {
 					xprintf_P( PSTR("\r\nGPRS: Init frame OK.\r\n\0" ));
 				}
-				exit_flag = true;
+				exit_flag = bool_CONTINUAR;
 				goto EXIT;
 				break;
-			case INIT_NOT_ALLOWED:
+			case FRAME_NOT_ALLOWED:
 				// Respondio bien pero debo salir a apagarme
-				exit_flag = false;
+				exit_flag = bool_RESTART;
+				goto EXIT;
+				break;
+			case FRAME_ERR404:
+				// No existe el recurso en el server
+				exit_flag = bool_RESTART;
 				goto EXIT;
 				break;
 			}
@@ -99,58 +108,7 @@ EXIT:
 //------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
-static bool pv_send_init_frame(void)
-{
-	// Intento enviar 1 SOLO frame de init.
-	// El socket puede estar cerrado por lo que reintento abrirlo hasta 3 veces.
-	// Una vez que envie el INIT, salgo.
-	// Al entrar, veo que el socket este cerrado.
-
-uint8_t intentos;
-bool exit_flag = false;
-uint8_t timeout, await_loops;
-t_socket_status socket_status;
-
-	for ( intentos = 0; intentos < MAX_TRYES_OPEN_SOCKET; intentos++ ) {
-
-		socket_status = u_gprs_check_socket_status();
-
-		if (  socket_status == SOCK_OPEN ) {
-			pv_TX_init_frame();		// Escribo en el socket el frame de INIT
-			return(true);
-		}
-
-		// Doy el comando para abrirlo y espero
-		u_gprs_open_socket();
-
-		await_loops = ( 10 * 1000 / 3000 ) + 1;
-		// Y espero hasta 30s que abra.
-		for ( timeout = 0; timeout < await_loops; timeout++) {
-			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			socket_status = u_gprs_check_socket_status();
-
-			// Si el socket abrio, salgo para trasmitir el frame de init.
-			if ( socket_status == SOCK_OPEN ) {
-				break;
-			}
-
-			// Si el socket dio error, salgo para enviar de nuevo el comando.
-			if ( socket_status == SOCK_ERROR ) {
-				break;
-			}
-
-			// Si el socket dio falla, debo reiniciar la conexion.
-			if ( socket_status == SOCK_FAIL ) {
-				return(exit_flag);
-				break;
-			}
-		}
-	}
-
-	return(exit_flag);
-}
-//------------------------------------------------------------------------------------
-static t_init_responses pv_process_init_response(void)
+static t_frame_responses pv_init_process_response(void)
 {
 
 	// Espero la respuesta al frame de INIT.
@@ -158,20 +116,20 @@ static t_init_responses pv_process_init_response(void)
 	// Salgo por timeout 10s o por socket closed.
 
 uint8_t timeout;
-uint8_t exit_code = INIT_ERROR;
+uint8_t exit_code = FRAME_ERROR;
 
 	for ( timeout = 0; timeout < 10; timeout++) {
 
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );	// Espero 1s
 
 		if ( u_gprs_check_socket_status() != SOCK_OPEN ) {		// El socket se cerro
-			exit_code = INIT_SOCK_CLOSE;
+			exit_code = FRAME_SOCK_CLOSE;
 			goto EXIT;
 		}
 
 		if ( u_gprs_check_response("ERROR") ) {	// Recibi un ERROR de respuesta
 			u_gprs_print_RX_Buffer();
-			exit_code = INIT_ERROR;
+			exit_code = FRAME_ERROR;
 			goto EXIT;
 		}
 
@@ -186,14 +144,21 @@ uint8_t exit_code = INIT_ERROR;
 			if ( u_gprs_check_response("INIT_OK") ) {	// Respuesta correcta
 				// Borro la causa del reset
 				wdg_resetCause = 0x00;
-				pv_reconfigure_params();
-				exit_code = INIT_OK;
+				pv_init_reconfigure_params();
+				exit_code = FRAME_OK;
 				goto EXIT;
 			}
 
 			if ( u_gprs_check_response("NOT_ALLOWED") ) {	// Datalogger esta usando un script incorrecto
 				xprintf_P( PSTR("GPRS: SCRIPT ERROR !!.\r\n\0" ));
-				exit_code = INIT_NOT_ALLOWED;
+				exit_code = FRAME_NOT_ALLOWED;
+				goto EXIT;
+			}
+
+			if ( u_gprs_check_response("DLGID") ) {	// Reconfiguro el DLGID.
+				pv_init_config_dlg_id();
+				u_save_params_in_NVMEE();
+				exit_code = FRAME_RETRY;
 				goto EXIT;
 			}
 		}
@@ -207,196 +172,56 @@ EXIT:
 
 }
 //------------------------------------------------------------------------------------
-static void pv_TX_init_frame(void)
-{
-	// SP5KV5_3CH
-	// Send Init Frame
-	// GET /cgi-bin/sp5K/sp5K.pl?DLGID=SPY001&PASSWD=spymovil123&&INIT&ALARM&PWRM=CONT&TPOLL=23&TDIAL=234&PWRS=1,1230,2045&A0=pZ,1,20,3,10&D0=qE,3.24&CONS=1,1234,927,1,3 HTTP/1.1
-	// Host: www.spymovil.com
-	// Connection: close\r\r ( no mando el close )
-
-	// SP5KV5_8CH
-	// Send Init Frame
-	// GET /cgi-bin/sp5K8CH.pl?DLGID=SPY001&PASSWD=spymovil123&&INIT&CSQ=75 HTTP/1.1
-	// Host: www.spymovil.com
-	// Connection: close\r\r ( no mando el close )
-
-uint8_t i;
-
-
-	if ( systemVars.debug == DEBUG_GPRS  ) {
-		xprintf_P( PSTR("GPRS: iniframe: Sent\r\n\0"));
-	}
-
-	// Trasmision: 1r.Parte.
-	// HEADER:---------------------------------------------------------------------
-	// Envio parcial ( no CR )
-	u_gprs_flush_RX_buffer();
-	u_gprs_flush_TX_buffer();
-
-	// dlgid, simpwd,imei,uid
-	xCom_printf_P( fdGPRS,PSTR("GET %s?DLGID=%s&SIMPWD=%s&IMEI=%s&VER=%s&UID=%s&SIMID=%s\0" ), systemVars.serverScript, systemVars.dlgId, systemVars.simpwd, &buff_gprs_imei, SPX_FW_REV, NVMEE_readID(), &buff_gprs_ccid );
-	// DEBUG & LOG
-	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("GET %s?DLGID=%s&SIMPWD=%s&IMEI=%s&VER=%s&UID=%s&SIMID=%s\0" ), systemVars.serverScript, systemVars.dlgId, systemVars.simpwd, &buff_gprs_imei, SPX_FW_REV, NVMEE_readID(), &buff_gprs_ccid );
-	}
-
-	// timerpoll,timerdial
-	xCom_printf_P( fdGPRS, PSTR("&INIT&TPOLL=%d&TDIAL=%d\0"), systemVars.timerPoll,systemVars.timerDial);
-	// DEBUG & LOG
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("&INIT&TPOLL=%d&TDIAL=%d\0"), systemVars.timerPoll,systemVars.timerDial );
-	}
-	// pwrSave
-	xCom_printf_P( fdGPRS, PSTR("&PWRS=%d,%02d%02d,%02d%02d\0"),systemVars.pwrSave.modo,systemVars.pwrSave.hora_start.hour, systemVars.pwrSave.hora_start.min,systemVars.pwrSave.hora_fin.hour, systemVars.pwrSave.hora_fin.min );
-	// DEBUG & LOG
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PWRS=%d,%02d%02d,%02d%02d\0"),systemVars.pwrSave.modo,systemVars.pwrSave.hora_start.hour, systemVars.pwrSave.hora_start.min,systemVars.pwrSave.hora_fin.hour, systemVars.pwrSave.hora_fin.min );
-	}
-
-	// csq, wrst
-	xCom_printf_P( fdGPRS, PSTR("&CSQ=%d&WRST=0x%02X\0"), GPRS_stateVars.csq, wdg_resetCause );
-	// DEBUG & LOG
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("&CSQ=%d&WRST=0x%02X\0"), GPRS_stateVars.csq, wdg_resetCause );
-	}
-
-	// PARAMETROS-------------------------------------------------------------------
-	// BODY ( 2a parte) : Configuracion de canales
-	// Configuracion de canales analogicos
-	for ( i = 0; i < NRO_ANINPUTS; i++) {
-		// No trasmito los canales que estan con X ( apagados )
-		if (!strcmp_P( systemVars.ainputs_conf.name[i], PSTR("X"))) {
-			continue;
-		}
-		xCom_printf_P( fdGPRS,PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i, systemVars.ainputs_conf.name[i], systemVars.ainputs_conf.imin[i], systemVars.ainputs_conf.imax[i], systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
-		// DEBUG & LOG
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&A%d=%s,%d,%d,%.02f,%.02f\0"), i, systemVars.ainputs_conf.name[i], systemVars.ainputs_conf.imin[i], systemVars.ainputs_conf.imax[i], systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
-		}
-	}
-
-	// Configuracion de canales digitales
-	for (i = 0; i < NRO_DINPUTS; i++) {
-		// No trasmito los canales que estan con X ( apagados )
-		if (!strcmp_P( systemVars.dinputs_conf.name[i], PSTR("X"))) {
-			continue;
-		}
-		xCom_printf_P( fdGPRS,PSTR("&D%d=%s\0"),i, systemVars.dinputs_conf.name[i] );
-		// DEBUG & LOG
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&D%d=%s\0"),i, systemVars.dinputs_conf.name[i] );
-		}
-	}
-
-	// Configuracion de canales contadores
-	for (i = 0; i < NRO_COUNTERS; i++) {
-		// No trasmito los canales que estan con X ( apagados )
-		if (!strcmp_P( systemVars.counters_conf.name[i], PSTR("X"))) {
-			continue;
-		}
-		xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.02f\0"),i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i] );
-		// DEBUG & LOG
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&C%d=%s,%.02f\0"),i, systemVars.counters_conf.name[i], systemVars.counters_conf.magpp[i] );
-		}
-	}
-
-	if ( spx_io_board == SPX_IO5CH ) {
-
-		// Configuracion del rangeMeter
-		if ( systemVars.rangeMeter_enabled ) {
-			xCom_printf_P( fdGPRS,PSTR("&DIST=ON\0"));
-			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf( PSTR("&DIST=ON\0"));
-			}
-
-		} else {
-			xCom_printf_P( fdGPRS,PSTR("&DIST=OFF\0"));
-			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf( PSTR("&DIST=OFF\0"));
-			}
-		}
-
-		// Consignas
-		if ( systemVars.consigna.c_enabled ) {
-			xCom_printf_P( fdGPRS, PSTR("&CONS=ON,%02d%02d,%02d%02d\0"),systemVars.consigna.hhmm_c_diurna.hour,systemVars.consigna.hhmm_c_diurna.min,systemVars.consigna.hhmm_c_nocturna.hour,systemVars.consigna.hhmm_c_nocturna.min );
-			// DEBUG & LOG
-			if ( systemVars.debug == DEBUG_GPRS ) {
-				xprintf_P( PSTR("&CONS=ON,%02d%02d,%02d%02d\0"), systemVars.consigna.hhmm_c_diurna.hour,systemVars.consigna.hhmm_c_diurna.min,systemVars.consigna.hhmm_c_nocturna.hour,systemVars.consigna.hhmm_c_nocturna.min);
-			}
-		} else {
-			xCom_printf_P( fdGPRS, PSTR("&CONS=OFF\0"));
-				// DEBUG & LOG
-			if ( systemVars.debug == DEBUG_GPRS ) {
-				xprintf_P( PSTR("&CONS=OFF\0"));
-			}
-		}
-
-	}
-
-	// TAIL ------------------------------------------------------------------------
-	// ( No mando el close ya que espero la respuesta y no quiero que el socket se cierre )
-	xCom_printf_P( fdGPRS, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
-
-	// DEBUG & LOG
-	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
-	}
-
-	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
-
-
-}
-//------------------------------------------------------------------------------------
-static void pv_reconfigure_params(void)
+static void pv_init_reconfigure_params(void)
 {
 
 uint8_t saveFlag = 0;
 
 	// Proceso la respuesta del INIT para reconfigurar los parametros
-	pv_process_server_clock();
-	saveFlag += pv_gprs_config_dlg_id();
+	pv_init_process_server_clock();
 
-	saveFlag += pv_gprs_config_timerPoll();
-	saveFlag += pv_gprs_config_timerDial();
-	saveFlag += pv_gprs_config_pwrSave();
+	// En el protocolo nuevo, el dlgid se reconfigura en SCAN
+	//saveFlag += pv_init_config_dlg_id();
+
+	saveFlag += pv_init_config_timerPoll();
+	saveFlag += pv_init_config_timerDial();
+	saveFlag += pv_init_config_pwrSave();
 
 	if ( spx_io_board == SPX_IO5CH ) {
 		// RangeMeter
-		saveFlag += pv_gprs_config_rangeMeter();
+		saveFlag += pv_init_config_rangeMeter();
 
 		// Outputs/Consignas
-		saveFlag += pv_gprs_config_consignas();
+		saveFlag += pv_init_config_consignas();
 	}
 
 	// Canales analogicos.
-	saveFlag += pv_gprs_config_analogCh(0);
-	saveFlag += pv_gprs_config_analogCh(1);
-	saveFlag += pv_gprs_config_analogCh(2);
-	saveFlag += pv_gprs_config_analogCh(3);
-	saveFlag += pv_gprs_config_analogCh(4);
+	saveFlag += pv_init_config_analogCh(0);
+	saveFlag += pv_init_config_analogCh(1);
+	saveFlag += pv_init_config_analogCh(2);
+	saveFlag += pv_init_config_analogCh(3);
+	saveFlag += pv_init_config_analogCh(4);
 	if ( spx_io_board == SPX_IO8CH ) {
-		saveFlag += pv_gprs_config_analogCh(5);
-		saveFlag += pv_gprs_config_analogCh(6);
-		saveFlag += pv_gprs_config_analogCh(7);
+		saveFlag += pv_init_config_analogCh(5);
+		saveFlag += pv_init_config_analogCh(6);
+		saveFlag += pv_init_config_analogCh(7);
 	}
 
 	// Canales digitales
-	saveFlag += pv_gprs_config_digitalCh(0);
-	saveFlag += pv_gprs_config_digitalCh(1);
+	saveFlag += pv_init_config_digitalCh(0);
+	saveFlag += pv_init_config_digitalCh(1);
 	if ( spx_io_board == SPX_IO8CH ) {
-		saveFlag += pv_gprs_config_digitalCh(2);
-		saveFlag += pv_gprs_config_digitalCh(3);
-		saveFlag += pv_gprs_config_digitalCh(4);
-		saveFlag += pv_gprs_config_digitalCh(5);
-		saveFlag += pv_gprs_config_digitalCh(6);
-		saveFlag += pv_gprs_config_digitalCh(7);
+		saveFlag += pv_init_config_digitalCh(2);
+		saveFlag += pv_init_config_digitalCh(3);
+		saveFlag += pv_init_config_digitalCh(4);
+		saveFlag += pv_init_config_digitalCh(5);
+		saveFlag += pv_init_config_digitalCh(6);
+		saveFlag += pv_init_config_digitalCh(7);
 	}
 
 	// Canales de contadores
-	saveFlag += pv_gprs_config_counterCh(0);
-	saveFlag += pv_gprs_config_counterCh(1);
+	saveFlag += pv_init_config_counterCh(0);
+	saveFlag += pv_init_config_counterCh(1);
 
 
 	if ( saveFlag > 0 ) {
@@ -411,7 +236,7 @@ uint8_t saveFlag = 0;
 
 }
 //------------------------------------------------------------------------------------
-static void pv_process_server_clock(void)
+static void pv_init_process_server_clock(void)
 {
 /* Extraigo el srv clock del string mandado por el server y si el drift con la hora loca
  * es mayor a 5 minutos, ajusto la hora local
@@ -465,7 +290,7 @@ int8_t xBytes;
 
 }
 //------------------------------------------------------------------------------------
-static uint8_t pv_gprs_config_dlg_id(void)
+static uint8_t pv_init_config_dlg_id(void)
 {
 	//	La linea recibida es del tipo: <h1>INIT_OK:CLOCK=1402251122:DLGID=TH001:PWRM=DISC:</h1>
 
@@ -489,8 +314,8 @@ char *delim = ",=:><";
 	token = strsep(&stringp,delim);	// DLGID
 	token = strsep(&stringp,delim);	// TH001
 
-	memset(systemVars.dlgId,'\0', sizeof(systemVars.dlgId) );
-	strncpy(systemVars.dlgId, token, DLGID_LENGTH);
+	memset(systemVars.gprs_conf.dlgId,'\0', sizeof(systemVars.gprs_conf.dlgId) );
+	strncpy(systemVars.gprs_conf.dlgId, token, DLGID_LENGTH);
 
 	ret = 1;
 	if ( systemVars.debug == DEBUG_GPRS ) {
@@ -502,9 +327,9 @@ quit:
 	return(ret);
 }
 //------------------------------------------------------------------------------------
-static uint8_t pv_gprs_config_timerPoll(void)
+static uint8_t pv_init_config_timerPoll(void)
 {
-//	La linea recibida es del tipo: <h1>INIT_OK:CLOCK=1402251122:TPOLL=600:PWRM=DISC:</h1>
+//	La linea recibida es del tipo: <h1>INIT_OK:CLOCK=1402251122:TPOLL=600:</h1>
 
 char *p;
 char localStr[32];
@@ -533,7 +358,7 @@ char *delim = ",=:><";
 	return(1);
 }
 //------------------------------------------------------------------------------------
-static uint8_t pv_gprs_config_timerDial(void)
+static uint8_t pv_init_config_timerDial(void)
 {
 	//	La linea recibida es del tipo: <h1>INIT_OK:CLOCK=1402251122:TPOLL=600:TDIAL=10300:PWRM=DISC:CD=1230:CN=0530</h1>
 
@@ -564,10 +389,9 @@ char *delim = ",=:><";
 	return(1);
 }
 //------------------------------------------------------------------------------------
-static uint8_t pv_gprs_config_pwrSave(void)
+static uint8_t pv_init_config_pwrSave(void)
 {
-//	La linea recibida es del tipo:
-//	<h1>INIT_OK:CLOCK=1402251122:TPOLL=600:TDIAL=10300:PWRS=1,2230,0600:D0=q0,1.00:D1=q1,1.00</h1>
+//	La linea recibida trae: PWRS=ON,2230,0600:
 //  Las horas estan en formato HHMM.
 
 char localStr[32];
@@ -587,7 +411,7 @@ char *p;
 
 	stringp = localStr;
 	tk_pws_modo = strsep(&stringp,delim);		//PWRS
-	tk_pws_modo = strsep(&stringp,delim);		// modo
+	tk_pws_modo = strsep(&stringp,delim);		// modo ( ON / OFF ).
 	tk_pws_start = strsep(&stringp,delim);		// startTime
 	tk_pws_end  = strsep(&stringp,delim); 		// endTime
 	u_gprs_configPwrSave(tk_pws_modo, tk_pws_start, tk_pws_end );
@@ -598,7 +422,7 @@ char *p;
 	return(1);
 }
 //--------------------------------------------------------------------------------------
-static uint8_t pv_gprs_config_rangeMeter(void)
+static uint8_t pv_init_config_rangeMeter(void)
 {
 	// ?DIST=ON{OFF}
 
@@ -611,14 +435,14 @@ static uint8_t pv_gprs_config_rangeMeter(void)
 	}
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig DIST\r\n\0"));
+		xprintf_P( PSTR("GPRS: Reconfig RANGEMETER\r\n\0"));
 	}
 
 	return(1);
 
 }
 //--------------------------------------------------------------------------------------
-static uint8_t pv_gprs_config_analogCh(uint8_t channel)
+static uint8_t pv_init_config_analogCh(uint8_t channel)
 {
 //	La linea recibida es del tipo:
 //	<h1>INIT_OK:CLOCK=1402251122:TPOLL=600:TDIAL=10300:PWRM=DISC:A0=pA,0,20,0,6:A1=pB,0,20,0,10:A2=pC,0,20,0,10:D0=q0,1.00:D1=q1,1.00</h1>
@@ -682,7 +506,7 @@ char *tk_name,*tk_iMin,*tk_iMax,*tk_mMin,*tk_mMax;
 	return(1);
 }
 //--------------------------------------------------------------------------------------
-static uint8_t pv_gprs_config_digitalCh(uint8_t channel)
+static uint8_t pv_init_config_digitalCh(uint8_t channel)
 {
 
 //	La linea recibida es del tipo:
@@ -745,7 +569,7 @@ char *tk_name;
 
 }
 //--------------------------------------------------------------------------------------
-static uint8_t pv_gprs_config_counterCh(uint8_t channel)
+static uint8_t pv_init_config_counterCh(uint8_t channel)
 {
 
 //	La linea recibida es del tipo:
@@ -792,10 +616,10 @@ char *tk_name, *tk_magPP;
 
 }
 //--------------------------------------------------------------------------------------
-static uint8_t pv_gprs_config_consignas(void)
+static uint8_t pv_init_config_consignas(void)
 {
 	// La linea recibida es del tipo:
-	// <h1>INIT_OK:CONS=modo,param1,param2:</h1>
+	// <h1>INIT_OK:CONS=enabled,param1,param2:</h1>
 	// OFF
 	// ON: param1, param2 son las horas de la consigna diurna y la nocturna
 	// Las horas estan en formato HHMM.
@@ -806,7 +630,7 @@ char *tk_modo, *tk_hhmm1, *tk_hhmm2;
 char *delim = ",=:><";
 char *p;
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "OUTS");
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "CONS");
 	if ( p == NULL )
 		return(0);
 
@@ -815,8 +639,8 @@ char *p;
 	memcpy(localStr,p,sizeof(localStr));
 
 	stringp = localStr;
-	tk_modo = strsep(&stringp,delim);	//OUTS
-	tk_modo = strsep(&stringp,delim);	// modo ON/OFF
+	tk_modo = strsep(&stringp,delim);	// CONS
+	tk_modo = strsep(&stringp,delim);	// enabled ON/OFF
 	tk_hhmm1 = strsep(&stringp,delim);	// shhmm consigna_diurna
 	tk_hhmm2 = strsep(&stringp,delim); 	// shhmm consigna_nocturna
 

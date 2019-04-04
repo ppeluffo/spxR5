@@ -15,14 +15,14 @@
 
 #include "spx.h"
 
-static uint16_t dinputs[MAX_DINPUTS_CHANNELS];	// Valor de las medidas
+static uint16_t dtimers[MAX_DTIMERS_CHANNELS];	// Valor de las medidas
 
-static void pv_tkDinputs_init(void);
+static void pv_tkDtimers_init(void);
 
-#define WDG_DIN_TIMEOUT	30
+#define WDG_DTIM_TIMEOUT	30
 
 //------------------------------------------------------------------------------------
-void tkDinputs(void * pvParameters)
+void tkDtimers(void * pvParameters)
 {
 	// C/100ms leo las entradas digitales.
 	// Las que estan en 1 sumo 1 al contador.
@@ -40,9 +40,9 @@ uint8_t i;
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
-	xprintf_P( PSTR("starting tkDigital..\r\n\0"));
+	xprintf_P( PSTR("starting tkDtimers..\r\n\0"));
 
-	pv_tkDinputs_init();
+	pv_tkDtimers_init();
 
 	// Initialise the xLastWakeTime variable with the current time.
 	xLastWakeTime = xTaskGetTickCount();
@@ -54,10 +54,10 @@ uint8_t i;
 	for( ;; )
 	{
 
-		ctl_watchdog_kick( WDG_DIN,  WDG_DIN_TIMEOUT );
+		ctl_watchdog_kick( WDG_DTIM,  WDG_DTIM_TIMEOUT );
 
 		// Solo en la placa IO8 y con los timers habilitados
-		if ( ( spx_io_board == SPX_IO8CH ) &&  ( systemVars.dinputs_conf.timers_enabled ) ) {
+		if ( ( spx_io_board == SPX_IO8CH ) &&  ( systemVars.dtimers_enabled ) ) {
 
 			// Cada 100 ms leo las entradas digitales. fmax=10Hz
 			// vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
@@ -67,23 +67,24 @@ uint8_t i;
 			vTaskDelayUntil( &xLastWakeTime, waiting_ticks );
 
 			din_port = DIN_read_port();
-			for ( i = 0 ; i < NRO_DINPUTS; i++ ) {
+			din_port = din_port << 4;
+			for ( i = 0 ; i < IO8_DTIMERS_CHANNELS; i++ ) {
 				// Si esta HIGH incremento en 1 tick.
 				if ( ( (din_port & ( 1 << i )) >> i ) == 1 ) {
-					dinputs[i]++;	// Si esta HIGH incremento en 1 tick.
+					dtimers[i]++;	// Si esta HIGH incremento en 1 tick.
 				}
 			}
 
 		} else {
 
-			// En modo SPX_3CH no tengo entradas digitales.
+			// En modo SPX_5CH no monitoreo las entradas digitales sino que las leo al fin del timerpoll ( niveles )
 			// Espero para entrar en tickless
 			vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 		}
 	}
 }
 //------------------------------------------------------------------------------------
-static void pv_tkDinputs_init(void)
+static void pv_tkDtimers_init(void)
 {
 
 uint8_t i;
@@ -92,14 +93,14 @@ uint8_t i;
 	// depende de la board detectada.
 	DINPUTS_init( spx_io_board );
 
-	for ( i = 0; i < MAX_DINPUTS_CHANNELS; i++ ) {
-		dinputs[i] = 0;
+	for ( i = 0; i < MAX_DTIMERS_CHANNELS; i++ ) {
+		dtimers[i] = 0;
 	}
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PUBLICAS
 //------------------------------------------------------------------------------------
-int16_t dinputs_read ( uint8_t din )
+int16_t dtimers_read ( uint8_t din )
 {
 
 uint8_t port;
@@ -109,67 +110,20 @@ int16_t retVal = -1;
 	// digitales.
 	// Leo los niveles de las entradas digitales y copio a dframe.
 
-	switch (spx_io_board ) {
-	case SPX_IO5CH:
-		// Leo los canales digitales.
-		if ( din < 2 ) {
-			retVal = DIN_read_pin( din, SPX_IO5CH );
+	if ( spx_io_board == SPX_IO8CH ) {
+		if ( dtimers[din] > systemVars.timerPoll * 10 ) {
+			// Corrijo
+			dtimers[din] = systemVars.timerPoll * 10;
 		}
-		break;
-
-	case SPX_IO8CH:
-
-		port = DIN_read_port();	// Leo el puerto para tener los niveles logicos.
-		//xprintf_P( PSTR("DEBUG DIN: 0x%02x [%c%c%c%c%c%c%c%c]\r\n\0"), port , BYTE_TO_BINARY( port ));
-
-		if ( din < 4 ) {
-			// Los 4 canales inferiores son solo entradas de nivel.
-			retVal = ( port & ( 1 << din )) >> din;
-
-		} else {
-
-			// Canales de NIVEL
-			if ( systemVars.dinputs_conf.timers_enabled == false ) {
-				retVal = ( port & ( 1 << din )) >> din;
-
-			} else {
-				// Canales timers
-				// D4..D7 son contadores de tiempo High.
-				// Puede haber un drift en el timerpoll lo que generaria un falso error
-				// Para evitarlo, controlo que los ticks no puedan ser mayor que el timerpoll
-				if ( dinputs[din] > systemVars.timerPoll * 10 ) {
-					// Corrijo
-					dinputs[din] = systemVars.timerPoll * 10;
-				}
-				retVal = dinputs[din];
-				dinputs[din] = 0;
-			}
-		}
-		break;
+		retVal = dtimers[din];
+		dtimers[din] = 0;
 	}
 
 	return(retVal);
 
 }
 //------------------------------------------------------------------------------------
-bool dinputs_config_channel( uint8_t channel,char *s_aname )
-{
-
-	// Configura los canales digitales. Es usada tanto desde el modo comando como desde el modo online por gprs.
-
-bool retS = false;
-
-	u_control_string(s_aname);
-
-	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
-		snprintf_P( systemVars.dinputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
-		retS = true;
-	}
-
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-bool dinputs_config_timermode ( char *s_mode )
+bool dtimers_config_timermode ( char *s_mode )
 {
 
 	// Esta opcion es solo valida para IO8
@@ -177,27 +131,20 @@ bool dinputs_config_timermode ( char *s_mode )
 		return(false);
 
 	if ( !strcmp_P( strupr(s_mode), PSTR("ON\0"))) {
-		systemVars.dinputs_conf.timers_enabled = true;
+		systemVars.dtimers_enabled = true;
 		return(true);
 	} else if ( !strcmp_P( strupr(s_mode), PSTR("OFF\0"))) {
-		systemVars.dinputs_conf.timers_enabled = false;
+		systemVars.dtimers_enabled = false;
 		return(true);
 	}
 	return(false);
 
 }
 //------------------------------------------------------------------------------------
-void dinputs_config_defaults(void)
+void dtimers_config_defaults(void)
 {
-	// Realiza la configuracion por defecto de los canales digitales.
 
-uint8_t i;
-
-	systemVars.dinputs_conf.timers_enabled = false;
-
-	for ( i = 0; i < MAX_DINPUTS_CHANNELS; i++ ) {
-		snprintf_P( systemVars.dinputs_conf.name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );
-	}
+	systemVars.dtimers_enabled = false;
 
 }
 //------------------------------------------------------------------------------------
