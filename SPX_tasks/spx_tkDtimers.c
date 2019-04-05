@@ -103,7 +103,6 @@ uint8_t i;
 int16_t dtimers_read ( uint8_t din )
 {
 
-uint8_t port;
 int16_t retVal = -1;
 
 	// Esta funcion la invoca tkData al completar un frame para agregar los datos

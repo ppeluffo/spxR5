@@ -234,7 +234,7 @@ char apn[APN_LENGTH];
 	// Ya probe con todos los APN y ninguno funciono.
 	xprintf_P( PSTR("GPRS:APN SCAN Failed !!.\r\n\0") );
 	// No tengo un APN que me sirva.
-	// Espero 1 hora.
+	// Espero 1 hora para lo que reconfiguro el timerDial
 	systemVars.gprs_conf.timerDial = 3600;
 
 	return( bool_RESTART);

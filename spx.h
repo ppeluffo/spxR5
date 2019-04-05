@@ -64,7 +64,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "0.0.6.R2"
-#define SPX_FW_DATE "@ 20190404"
+#define SPX_FW_DATE "@ 20190405"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -303,8 +303,9 @@ void ctl_print_wdg_timers(void);
 uint16_t ctl_readTimeToNextPoll(void);
 void ctl_reload_timerPoll( uint16_t new_time );
 bool ctl_terminal_connected(void);
-uint32_t ctl_readTimeToNextDial(void);
-void ctl_reload_timerDial( uint32_t new_time );
+
+uint32_t ctl_read_timeToNextDial(void);
+void ctl_set_timeToNextDial( uint32_t new_time );
 
 // TKCOUNTER
 float counters_read( uint8_t cnt, bool reset_counter );

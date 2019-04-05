@@ -19,7 +19,7 @@
  *  Para ver el uso de memoria usamos
  *  avr-nm -n spxR4.elf | more
  *
- *  Version 0.0.3.R1 @ 20190404
+ *  Version 0.0.6.R2 @ 20190405
  *  El tamanio del io5 es de 58 bytes y el del io8 es de 56 bytes.
  *  Al formar una union en un dataframe, el tamanio usado es de 58 bytes que con los 7 bytes del rtc
  *  quedan en 65 bytes que excede el tamanio del registro.
@@ -27,6 +27,7 @@
  *  Esto hace que para los datos queden: 64 - 1(wirteTag) -1(checksum) - 7(rtc) = 55 bytes
  *  1) Las entradas digitales en io5 las hago int8_t o sea que quedan 36 bytes. OK
  *  2) Las entradas digitales de io8 hago 4 de uint8_t y 4 de uint16_t ( digital timers ) con lo que queda en 52 bytes. OK
+ *  Cambio el manejo del timerDial.
  *
  *  Version 0.0.2.R1 @ 20190311
  *  - Modifico la tarea de GPRS para poder hacer un scan de los APN.
@@ -40,14 +41,6 @@
  *  - Mejoro las funciones de grabar el DLGID para que pongan un \0 al final del string.
  *  - En reset default el dlgid queda en DEFAULT
  *
- *  Pendiente:
- *  - sim password
- *  - Revisar OUTPUTS ( Consignas )
- *  - nuevo server script
- *	- revisar watchdogs
- *  - timerDial no corre para atras
- *  - Al grabar un firmware detecta un default pero quedan mal los canales.
- *  - TimerDial 0/50 ??
  */
 
 #include "spx.h"

@@ -244,11 +244,6 @@ bool u_gprs_modem_prendido(void)
 	return(GPRS_stateVars.modem_prendido);
 }
 //------------------------------------------------------------------------------------
-int32_t u_gprs_readTimeToNextDial(void)
-{
-	return(GPRS_stateVars.waiting_time);
-}
-//----------------------------------------------------------------------------------------
 void u_gprs_redial(void)
 {
 	GPRS_stateVars.signal_redial = true;
@@ -579,4 +574,15 @@ void u_gprs_send_SCAN_frame(void)
 
 }
 //------------------------------------------------------------------------------------
+uint32_t u_gprs_read_timeToNextDial(void)
+{
+	return( ctl_read_timeToNextDial() );
+}
+//------------------------------------------------------------------------------------
+void u_gprs_set_timeToNextDial( uint32_t time_to_dial )
+{
+	ctl_set_timeToNextDial( time_to_dial );
+}
+//------------------------------------------------------------------------------------
+
 

@@ -367,12 +367,12 @@ void ctl_reload_timerPoll( uint16_t new_time )
 	pv_timers[TIME_TO_NEXT_POLL] = new_time;
 }
 //------------------------------------------------------------------------------------
-uint32_t ctl_readTimeToNextDial(void)
+uint32_t ctl_read_timeToNextDial(void)
 {
 	return( pv_timers[TIME_TO_NEXT_DIAL] );
 }
 //------------------------------------------------------------------------------------
-void ctl_reload_timerDial( uint32_t new_time )
+void ctl_set_timeToNextDial( uint32_t new_time )
 {
 	pv_timers[TIME_TO_NEXT_DIAL] = new_time;
 }

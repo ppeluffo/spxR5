@@ -81,7 +81,6 @@ t_socket_status u_gprs_check_socket_status(void);
 void u_gprs_print_RX_response(void);
 void u_gprs_print_RX_Buffer(void);
 void u_gprs_ask_sqe(void);
-int32_t u_gprs_readTimeToNextDial(void);
 void u_gprs_redial(void);
 void u_gprs_config_timerdial ( char *s_timerdial );
 void u_gprs_modem_pwr_off(void);
@@ -96,5 +95,8 @@ bool u_gprs_modem_prendido(void);
 bool u_gprs_send_frame( t_frames frame_type );
 void u_gprs_send_INIT_frame(void);
 void u_gprs_send_SCAN_frame(void);
+
+uint32_t u_gprs_read_timeToNextDial(void);
+void u_gprs_set_timeToNextDial( uint32_t time_to_dial );
 
 #endif /* SRC_SPXR3_TKGPRS_SPXR3_TKGPRS_H_ */

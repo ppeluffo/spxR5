@@ -55,7 +55,6 @@ bool exit_flag = false;
 
 		// Espero de a 5s para poder entrar en tickless.
 		vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
-		GPRS_stateVars.waiting_time -= 5;
 
 		// Proceso las señales
 		if ( pv_tkGprs_procesar_signals_espera( &exit_flag )) {
@@ -65,10 +64,10 @@ bool exit_flag = false;
 
 		// Expiro el tiempo de espera. Veo si estoy dentro del intervalo de
 		// pwrSave y entonces espero de a 10 minutos mas.
-		if ( GPRS_stateVars.waiting_time <= 0 ) {
+		if ( u_gprs_read_timeToNextDial() == 0 ) {
 
 			if ( pv_tkGprs_check_inside_pwrSave() ) {
-				GPRS_stateVars.waiting_time = 600;
+				u_gprs_set_timeToNextDial(600);
 			} else {
 				// Salgo con true.
 				exit_flag = bool_CONTINUAR;
@@ -82,8 +81,8 @@ EXIT:
 
 	// No espero mas y salgo del estado prender.
 	GPRS_stateVars.signal_redial = false;
-	GPRS_stateVars.waiting_time = -1;
-//	IO_set_PWR_SLEEP();
+	u_gprs_set_timeToNextDial(0);
+
 	return(exit_flag);
 
 }
@@ -95,38 +94,37 @@ static bool starting_flag = true;
 
 	// Cuando arranco ( la primera vez) solo espero 10s y disco por primera vez
 	if ( starting_flag ) {
-		GPRS_stateVars.waiting_time = 10;
-		//GPRS_stateVars.waiting_time = 1000;
+		u_gprs_set_timeToNextDial(10);
 		starting_flag = false;	// Ya no vuelvo a esperar 10s.
 		goto EXIT;
 	}
 
 	// En modo MONITOR_SQE espero solo 60s
 	if ( GPRS_stateVars.monitor_sqe ) {
-		GPRS_stateVars.waiting_time = 60;
+		u_gprs_set_timeToNextDial(60);
 		goto EXIT;
 	}
 
 	// En modo CONTINUO ( timerDial = 0 ) espero solo 60s.
 	if ( ! MODO_DISCRETO ) {
-		GPRS_stateVars.waiting_time = 60;
+		u_gprs_set_timeToNextDial(60);
 		goto EXIT;
 	}
 
 	// En modo DISCRETO ( timerDial > 900 )
 	if ( MODO_DISCRETO ) {
-		GPRS_stateVars.waiting_time = systemVars.gprs_conf.timerDial;
+		u_gprs_set_timeToNextDial( systemVars.gprs_conf.timerDial );
 		goto EXIT;
 	}
 
 	// En cualquier otro caso no considerado, espero 60s
-	GPRS_stateVars.waiting_time = 60;
+	u_gprs_set_timeToNextDial(60);
 	goto EXIT;
 
 EXIT:
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: await %lu s\r\n\0"), GPRS_stateVars.waiting_time );
+		xprintf_P( PSTR("GPRS: await %lu s\r\n\0"), u_gprs_read_timeToNextDial() );
 	}
 
 }

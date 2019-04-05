@@ -219,7 +219,7 @@ uint8_t channel;
 
 	// Timerdial
 	xprintf_P( PSTR("  timerDial: [%d s]/\0"), systemVars.gprs_conf.timerDial );
-	xprintf_P( PSTR(" %lu\r\n\0"), u_gprs_readTimeToNextDial() );
+	xprintf_P( PSTR(" %d\r\n\0"), u_gprs_read_timeToNextDial() );
 
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.rangeMeter_enabled );

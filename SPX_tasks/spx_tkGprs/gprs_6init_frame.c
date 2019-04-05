@@ -378,7 +378,7 @@ char *delim = ",=:><";
 	memcpy(localStr,p,sizeof(localStr));
 
 	stringp = localStr;
-	tk_timerDial = strsep(&stringp,delim);	// TDIAL
+	strsep(&stringp,delim);	// TDIAL
 	tk_timerDial = strsep(&stringp,delim);	// timerDial
 	u_gprs_config_timerdial(tk_timerDial);
 
