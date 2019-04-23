@@ -408,7 +408,7 @@ void u_df_print_battery( dataframe_s *df )
 {
 	// bateria
 	if ( spx_io_board == SPX_IO5CH ) {
-		xprintf_P(PSTR(",BAT=%.02f"), df->battery );
+		xprintf_P(PSTR(",bt=%.02f"), df->battery );
 	}
 }
 //------------------------------------------------------------------------------------

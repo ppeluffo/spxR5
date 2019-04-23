@@ -434,10 +434,10 @@ static void pv_transmitir_df_bateria( void )
 {
 	// bateria
 	if ( spx_io_board == SPX_IO5CH ) {
-		xCom_printf_P( fdGPRS, PSTR(",BAT=%.02f"),df.battery );
+		xCom_printf_P( fdGPRS, PSTR(",bt=%.02f"),df.battery );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P(PSTR( ",BAT=%.02f"), df.battery );
+			xprintf_P(PSTR( ",bt=%.02f"), df.battery );
 		}
 	}
 }

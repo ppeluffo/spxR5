@@ -280,7 +280,7 @@ uint8_t channel;
 		xprintf_P( PSTR("  c%d [ %s | %.02f ]\r\n\0"),channel, systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel] );
 	}
 
-	//data_get_name ( false );
+	data_read_frame ( false );
 }
 //-----------------------------------------------------------------------------------
 static void cmdResetFunction(void)
