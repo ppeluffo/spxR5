@@ -60,11 +60,13 @@ const char string_7[] PROGMEM = "GTX";
 
 const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7 };
 
+#define TIMER_COUNTDOWN 12
 //------------------------------------------------------------------------------------
 void tkCtl(void * pvParameters)
 {
 
 ( void ) pvParameters;
+int8_t timer = 1;
 
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 
@@ -78,16 +80,22 @@ void tkCtl(void * pvParameters)
 		// Paso c/5s plt 30s es suficiente.
 		ctl_watchdog_kick(WDG_CTL, WDG_CTL_TIMEOUT);
 
-		pv_ctl_check_terminal();
-		pv_ctl_wink_led();
+		// Cada 5s controlo el watchdog y los timers.
 		pv_ctl_check_wdg();
 		pv_ctl_ticks();
-		pv_ctl_daily_reset();
 
 		// Para entrar en tickless.
 		// Cada 5s hago un chequeo de todo. En particular esto determina el tiempo
 		// entre que activo el switch de la terminal y que esta efectivamente responde.
 		vTaskDelay( ( TickType_t)( TKCTL_DELAY_S * 1000 / portTICK_RATE_MS ) );
+
+		// Cada 60s reviso el resto de las tareas.
+		if ( timer-- <= 0 ) {
+			timer = TIMER_COUNTDOWN;
+			pv_ctl_check_terminal();
+			pv_ctl_wink_led();
+			pv_ctl_daily_reset();
+		}
 
 	}
 }
@@ -292,8 +300,9 @@ static void pv_ctl_daily_reset(void)
 {
 	// Todos los dias debo resetearme para restaturar automaticamente posibles
 	// problemas.
+	// Se invoca 1 vez por minuto ( 60s ).
 
-static uint32_t ticks_to_reset = 86400 / TKCTL_DELAY_S ; // ticks en 1 dia.
+static uint32_t ticks_to_reset = 1440 ; // ticks en 1 dia.
 
 
 	while ( --ticks_to_reset > 0 ) {

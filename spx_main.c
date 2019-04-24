@@ -19,6 +19,11 @@
  *  Para ver el uso de memoria usamos
  *  avr-nm -n spxR4.elf | more
  *
+ *  Version 1.0.1 @ 20190424
+ *  Cambio el nombre del parametro de la bateria de BAT a bt para ser coherente con el server
+ *  En tCtl, cada 5s solo reviso el watchdog y los timers y luego c/60s el resto.
+ *
+ *
  *  Version 0.0.6.R2 @ 20190405
  *  El tamanio del io5 es de 58 bytes y el del io8 es de 56 bytes.
  *  Al formar una union en un dataframe, el tamanio usado es de 58 bytes que con los 7 bytes del rtc
