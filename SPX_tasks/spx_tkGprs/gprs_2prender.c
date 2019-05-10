@@ -29,7 +29,6 @@ bool st_gprs_prender(void)
 uint8_t hw_tries, sw_tries;
 bool exit_flag = bool_RESTART;
 
-
 	ctl_watchdog_kick(WDG_GPRSTX, WDG_GPRS_TO_PRENDER);
 
 	GPRS_stateVars.state = G_PRENDER;
@@ -37,6 +36,13 @@ bool exit_flag = bool_RESTART;
 	// Debo poner esta flag en true para que el micro no entre en sleep y pueda funcionar el puerto
 	// serial y leer la respuesta del AT del modem.
 	GPRS_stateVars.modem_prendido = true;
+
+	// Aviso a la tarea de RX que se despierte!!!
+	//xTaskNotifyGive( xHandle_tkGprsRx );
+	while ( xTaskNotify( xHandle_tkGprsRx, TK_FRAME_READY , eSetBits ) != pdPASS ) {
+		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+	}
+
 	vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
 
 	xprintf_P( PSTR("GPRS: prendo modem...\r\n\0"));

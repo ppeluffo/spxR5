@@ -98,9 +98,9 @@ void DRV8814_vclose( char valve_id, uint8_t duracion )
 
 }
 //------------------------------------------------------------------------------------
-void DRV8814_set_consigna_diurna(void)
+void DRV8814_set_consigna_nocturna(void)
 {
-	// En consigna diurna la valvula A (JP28) queda abierta y la valvula B (JP2) cerrada.
+	// En consigna nocturna la valvula A (JP28) queda abierta y la valvula B (JP2) cerrada.
 	//
 
 	// Proporciono corriente.
@@ -108,15 +108,17 @@ void DRV8814_set_consigna_diurna(void)
 	// Espero 10s que se carguen los condensasores
 	vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
 
-	DRV8814_vopen( 'A', 100 );
-	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+	// EL orden importa para que las valvulas no queden a contrapresion
 	DRV8814_vclose( 'B', 100 );
+	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+	DRV8814_vopen( 'A', 100 );
+
 
 	DRV8814_power_off();
 
 }
 //----------------------------------------------------------------------------------------
-void DRV8814_set_consigna_nocturna(void)
+void DRV8814_set_consigna_diurna(void)
 {
 
 	// Proporciono corriente.
@@ -124,9 +126,10 @@ void DRV8814_set_consigna_nocturna(void)
 	// Espero 10s que se carguen los condensasores
 	vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
 
-	DRV8814_vclose( 'A', 100 );
-	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+	// EL orden importa para que las valvulas no queden a contrapresion
 	DRV8814_vopen( 'B', 100 );
+	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+	DRV8814_vclose( 'A', 100 );
 
 	DRV8814_power_off();
 

@@ -13,7 +13,6 @@
 
 static uint8_t outputs;
 
-static void pv_tkDoutputs_init(void);
 static void pv_doutputs_chequear_consignas(void);
 static void pv_doutputs_init_consignas(void);
 
@@ -34,7 +33,7 @@ void tkDoutputs(void * pvParameters)
 	// El setear una consigna toma 10s de carga de condensadores por lo que debemos
 	// evitar que se resetee por timeout del wdg.
 	ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
-	pv_tkDoutputs_init();
+	//pv_tkDoutputs_init(); // Lo paso a tkCTL
 
 	// loop
 	for( ;; )
@@ -68,24 +67,6 @@ void tkDoutputs(void * pvParameters)
 			vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 		}
 
-	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_tkDoutputs_init(void)
-{
-
-	if ( spx_io_board == SPX_IO5CH ) {
-		DRV8814_init();
-		pv_doutputs_init_consignas();
-		return;
-	}
-
-	if ( spx_io_board == SPX_IO8CH ) {
-		// El MCP ya se configuro para el puerto de salidas en los dinputs
-		outputs = systemVars.doutputs_conf.d_outputs;
-		DOUTPUTS_reflect_byte(outputs);
-		return;
 	}
 
 }
@@ -249,5 +230,22 @@ bool doutputs_config_consignas( char *modo, char *hhmm_dia, char *hhmm_noche)
 
 }
 //------------------------------------------------------------------------------------
+void tkDoutputs_init(void)
+{
 
+	if ( spx_io_board == SPX_IO5CH ) {
+		DRV8814_init();
+		pv_doutputs_init_consignas();
+		return;
+	}
+
+	if ( spx_io_board == SPX_IO8CH ) {
+		// El MCP ya se configuro para el puerto de salidas en los dinputs
+		outputs = systemVars.doutputs_conf.d_outputs;
+		DOUTPUTS_reflect_byte(outputs);
+		return;
+	}
+
+}
+//------------------------------------------------------------------------------------
 

@@ -499,10 +499,10 @@ uint8_t i;
 		if (!strcmp_P( systemVars.counters_conf.name[i], PSTR("X"))) {
 			continue;
 		}
-		xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.02f\0"),i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i] );
+		xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.03f\0"),i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i] );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&C%d=%s,%.02f\0"),i, systemVars.counters_conf.name[i], systemVars.counters_conf.magpp[i] );
+			xprintf_P( PSTR("&C%d=%s,%.03f\0"),i, systemVars.counters_conf.name[i], systemVars.counters_conf.magpp[i] );
 		}
 	}
 
@@ -564,10 +564,10 @@ void u_gprs_send_SCAN_frame(void)
 	u_gprs_flush_RX_buffer();
 	u_gprs_flush_TX_buffer();
 	//
-	xCom_printf_P( fdGPRS, PSTR("GET %s?SCAN&UID=%s HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0" ), systemVars.gprs_conf.serverScript, NVMEE_readID() );
+	xCom_printf_P( fdGPRS, PSTR("GET %s?SCAN&DLGID=%s&UID=%s HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0" ), systemVars.gprs_conf.serverScript, systemVars.gprs_conf.dlgId, NVMEE_readID() );
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P(  PSTR("GET %s?SCAN&UID=%s HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0" ), systemVars.gprs_conf.serverScript, NVMEE_readID() );
+		xprintf_P(  PSTR("GET %s?SCAN&DLGID=%s&UID=%s HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0" ), systemVars.gprs_conf.serverScript,systemVars.gprs_conf.dlgId, NVMEE_readID() );
 	}
 
 	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );

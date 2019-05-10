@@ -25,8 +25,6 @@ bool sensores_prendidos;
 //------------------------------------------------------------------------------------
 // PROTOTIPOS
 
-static void pv_data_init(void);
-
 static void pv_data_read_frame( void );
 static void pv_data_read_analogico( void );
 static void pv_data_read_contadores( void );
@@ -55,7 +53,7 @@ TickType_t xLastWakeTime;
 
 	xprintf_P( PSTR("starting tkData..\r\n\0"));
 
-	pv_data_init();
+	//pv_data_init(); // Lo paso a tkCTL
 
    // Initialise the xLastWakeTime variable with the current time.
     xLastWakeTime = xTaskGetTickCount();
@@ -116,9 +114,7 @@ void data_read_frame( bool polling  )
 
 }
 //------------------------------------------------------------------------------------
-// FUNCIONES PRIVADAS
-//------------------------------------------------------------------------------------
-static void pv_data_init(void)
+void tkData_init(void)
 {
 	// Inicializo los INA con los que mido las entradas analogicas.
 	AINPUTS_init( spx_io_board );
@@ -128,9 +124,13 @@ static void pv_data_init(void)
     	RMETER_init( SYSMAINCLK );
    }
 
+    INA_config(0, CONF_INAS_SLEEP );
+    INA_config(1, CONF_INAS_SLEEP );
     sensores_prendidos = false;
 
 }
+//------------------------------------------------------------------------------------
+// FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
 static void pv_data_read_analogico( void )
 {
@@ -176,11 +176,10 @@ uint16_t raw_val;
 		dataframe.battery = 0.008 * AINPUTS_read_battery();
 	}
 
-	// Apago los sensores y pongo a los INA a dormir si estoy con la board IO5 y
-	// el timerPoll > 180s.
+	// Apago los sensores y pongo a los INA a dormir si estoy con la board IO5.
 	// Sino dejo todo prendido porque estoy en modo continuo
-	if ( (spx_io_board == SPX_IO5CH) && ( systemVars.timerPoll > 180 ) ) {
-
+	//if ( (spx_io_board == SPX_IO5CH) && ( systemVars.timerPoll > 180 ) ) {
+	if ( spx_io_board == SPX_IO5CH ) {
 		INA_config(0, CONF_INAS_SLEEP );
 		INA_config(1, CONF_INAS_SLEEP );
 		AINPUTS_apagar_12V();

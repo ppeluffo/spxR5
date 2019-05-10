@@ -15,16 +15,13 @@ void initMCU(void)
 {
 	// Inicializa los pines del micro
 
-	// ANALOG: SENSOR VCC CONTROL
-//	IO_config_SENS_12V_CTL();
-
-
-	// TICK:
-	//IO_config_TICK();
-
 	// PWR_SLEEP
 //	IO_config_PWR_SLEEP();
 //	IO_set_PWR_SLEEP();
+
+
+	// ANALOG: SENSOR VCC CONTROL
+	IO_config_SENS_12V_CTL();
 
 }
 //------------------------------------------------------------------------------------
@@ -180,7 +177,7 @@ void RTC32_ToscEnable( bool use1khz )
 //	do { } while ( RTC32_ToscBusy() );
 }
 //------------------------------------------------------------------------------------
-void u_control_string( char *s_name )
+uint8_t u_control_string( char *s_name )
 {
 	// Controlo que el string terminado en \0 tenga solo letras o digitos.
 	// Es porque si en un nombre de canal se cuela un caracter extranio, me
@@ -190,6 +187,7 @@ void u_control_string( char *s_name )
 uint8_t max_length = PARAMNAME_LENGTH;
 char *p;
 uint8_t cChar;
+uint8_t length = 0;
 
 	p = (char *)s_name;
 	while (*p && (max_length-- > 0) ) {
@@ -197,11 +195,13 @@ uint8_t cChar;
 		cChar = (uint8_t)*p;
 		if (  ! isalnum(cChar) )	{
 			*p = '\0';
-			return;
+			return (length);
 		}
 		p++;
+		length++;
 	}
 
+	return (length);
 }
 //------------------------------------------------------------------------------------
 void u_convert_str_to_time_t ( char *time_str, st_time_t *time_struct )

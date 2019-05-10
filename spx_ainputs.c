@@ -56,7 +56,14 @@ bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_
 
 bool retS = false;
 
-	u_control_string(s_aname);
+	if ( u_control_string(s_aname) == 0 ) {
+		xprintf_P( PSTR("DEBUG ANALOG ERROR: A%d\r\n\0"), channel );
+		return( false );
+	}
+
+	if ( s_aname == NULL ) {
+		return(retS);
+	}
 
 	if ( ( channel >=  0) && ( channel < NRO_ANINPUTS ) ) {
 		snprintf_P( systemVars.ainputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );

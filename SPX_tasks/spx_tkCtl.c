@@ -60,13 +60,11 @@ const char string_7[] PROGMEM = "GTX";
 
 const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7 };
 
-#define TIMER_COUNTDOWN 12
 //------------------------------------------------------------------------------------
 void tkCtl(void * pvParameters)
 {
 
 ( void ) pvParameters;
-int8_t timer = 1;
 
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 
@@ -83,19 +81,14 @@ int8_t timer = 1;
 		// Cada 5s controlo el watchdog y los timers.
 		pv_ctl_check_wdg();
 		pv_ctl_ticks();
+		pv_ctl_check_terminal();
+		pv_ctl_wink_led();
+		pv_ctl_daily_reset();
 
 		// Para entrar en tickless.
 		// Cada 5s hago un chequeo de todo. En particular esto determina el tiempo
 		// entre que activo el switch de la terminal y que esta efectivamente responde.
 		vTaskDelay( ( TickType_t)( TKCTL_DELAY_S * 1000 / portTICK_RATE_MS ) );
-
-		// Cada 60s reviso el resto de las tareas.
-		if ( timer-- <= 0 ) {
-			timer = TIMER_COUNTDOWN;
-			pv_ctl_check_terminal();
-			pv_ctl_wink_led();
-			pv_ctl_daily_reset();
-		}
 
 	}
 }
@@ -147,6 +140,13 @@ char data[3];
 
 	// Luego del posible error del bus I2C espero para que se reponga !!!
 	vTaskDelay( ( TickType_t)( 100 ) );
+
+	// Configuro los pines
+	u_gprs_init_pines();
+	tkDoutputs_init();
+	tkDtimers_init();
+	tkData_init();
+	tkCounter_init();
 
 	// Leo los parametros del la EE y si tengo error, cargo por defecto
 	if ( ! u_load_params_from_NVMEE() ) {
@@ -250,9 +250,9 @@ static void pv_ctl_check_wdg(void)
 
 		// Cada ciclo reseteo el wdg para que no expire.
 		WDT_Reset();
-
+		//return;
 		// Si algun WDG no se borro, me reseteo
-		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+		while ( xSemaphoreTake( sem_WDGS, ( TickType_t ) 5 ) != pdTRUE )
 			taskYIELD();
 
 		for ( wdg = 0; wdg < NRO_WDGS; wdg++ ) {
@@ -277,7 +277,7 @@ static void pv_ctl_check_wdg(void)
 			}
 		}
 
-		xSemaphoreGive( sem_SYSVars );
+		xSemaphoreGive( sem_WDGS );
 }
 //------------------------------------------------------------------------------------
 static void pv_ctl_ticks(void)
@@ -302,8 +302,7 @@ static void pv_ctl_daily_reset(void)
 	// problemas.
 	// Se invoca 1 vez por minuto ( 60s ).
 
-static uint32_t ticks_to_reset = 1440 ; // ticks en 1 dia.
-
+static uint32_t ticks_to_reset = 86400 / TKCTL_DELAY_S ; // ticks en 1 dia.
 
 	while ( --ticks_to_reset > 0 ) {
 		return;
@@ -324,12 +323,12 @@ void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs )
 	// Reinicia el watchdog de la tarea taskwdg con el valor timeout.
 	// timeout es uint16_t por lo tanto su maximo valor en segundos es de 65536 ( 18hs )
 
-	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+	while ( xSemaphoreTake( sem_WDGS, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();
 
 	watchdog_timers[taskWdg] = timeout_in_secs;
 
-	xSemaphoreGive( sem_SYSVars );
+	xSemaphoreGive( sem_WDGS );
 }
 //------------------------------------------------------------------------------------
 void ctl_print_wdg_timers(void)

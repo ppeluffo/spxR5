@@ -12,6 +12,7 @@
 // INCLUDES
 //------------------------------------------------------------------------------------
 #include <avr/io.h>
+#include <avr/wdt.h>
 #include <stdlib.h>
 #include <avr/interrupt.h>
 #include <compat/deprecated.h>
@@ -63,8 +64,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "1.0.1"
-#define SPX_FW_DATE "@ 20190424"
+#define SPX_FW_REV "1.0.4"
+#define SPX_FW_DATE "@ 20190510"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -134,6 +135,10 @@ uint8_t spx_io_board;
 xSemaphoreHandle sem_SYSVars;
 StaticSemaphore_t SYSVARS_xMutexBuffer;
 #define MSTOTAKESYSVARSSEMPH ((  TickType_t ) 10 )
+
+xSemaphoreHandle sem_WDGS;
+StaticSemaphore_t WDGS_xMutexBuffer;
+#define MSTOTAKEWDGSSEMPH ((  TickType_t ) 10 )
 
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
@@ -283,7 +288,7 @@ systemVarsType systemVars;
 void initMCU(void);
 void u_configure_systemMainClock(void);
 void u_configure_RTC32(void);
-void u_control_string( char *s_name );
+uint8_t u_control_string( char *s_name );
 void u_convert_str_to_time_t ( char *time_str, st_time_t *time_struct );
 void u_convert_int_to_time_t ( int int16time, st_time_t *time_struct );
 void u_load_defaults( char *opt );
@@ -312,6 +317,7 @@ float counters_read( uint8_t cnt, bool reset_counter );
 void counters_config_defaults(void);
 bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1 );
 void counters_config_debounce_time( char *s_counter_debounce_time );
+void tkCounter_init(void);
 
 // TKDINPUTS
 int8_t dinputs_read ( uint8_t din );
@@ -322,6 +328,7 @@ bool dinputs_config_channel( uint8_t channel,char *s_aname );
 int16_t dtimers_read ( uint8_t din );
 bool dtimers_config_timermode ( char *s_mode );
 void dtimers_config_defaults(void);
+void tkDtimers_init(void);
 
 // RANGE
 int16_t range_read(void);
@@ -339,10 +346,12 @@ bool ainputs_config_autocalibrar( char *s_channel, char *s_mag_val );
 
 // TKDATA
 void data_read_frame( bool polling );
+void tkData_init(void);
 
 // TKDOUTPUTS
 void doutputs_config_defaults(void);
 bool doutputs_config_consignas( char *_cmodo, char *hhmm_dia, char *hhmm_noche);
+void tkDoutputs_init(void);
 
 // WATCHDOG
 uint8_t wdg_resetCause;

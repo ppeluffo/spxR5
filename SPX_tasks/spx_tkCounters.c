@@ -20,8 +20,6 @@
 
 static float counters[MAX_COUNTER_CHANNELS];	// Valores medidos de los contadores
 
-static void pv_tkCounter_init(void);
-
 // La tarea puede estar hasta 10s en standby
 #define WDG_COUNT_TIMEOUT	30
 
@@ -31,13 +29,13 @@ void tkCounter(void * pvParameters)
 
 ( void ) pvParameters;
 uint32_t ulNotificationValue;
-const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 10000 );
+const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 
 	// Espero la notificacion para arrancar
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
-	pv_tkCounter_init();
+	//pv_tkCounter_init(); // Lo  paso a tkCTL
 
 	xprintf_P( PSTR("starting tkCounter..\r\n\0"));
 
@@ -49,7 +47,7 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 10000 );
 		ctl_watchdog_kick(WDG_COUNT, WDG_COUNT_TIMEOUT);
 
 		// Cuando la interrupcion detecta un flanco, solo envia una notificacion
-		// Espero que me avisen. Si no me avisaron en 10s salgo y repito el ciclo.
+		// Espero que me avisen. Si no me avisaron en 25s salgo y repito el ciclo.
 		// Esto es lo que me permite entrar en tickless.
 		ulNotificationValue = ulTaskNotifyTake( pdTRUE, xMaxBlockTime );
 
@@ -81,7 +79,9 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 10000 );
 	}
 }
 //------------------------------------------------------------------------------------
-static void pv_tkCounter_init(void)
+// FUNCIONES PUBLICAS
+//------------------------------------------------------------------------------------
+void tkCounter_init(void)
 {
 	// Configuracion inicial de la tarea
 
@@ -94,8 +94,6 @@ uint8_t i;
 	}
 
 }
-//------------------------------------------------------------------------------------
-// FUNCIONES PUBLICAS
 //------------------------------------------------------------------------------------
 float counters_read( uint8_t cnt, bool reset_counter )
 {
@@ -155,10 +153,18 @@ bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1 )
 
 bool retS = false;
 
+	if ( s_param0 == NULL ) {
+		return(retS);
+	}
+
 	if ( ( channel >=  0) && ( channel < MAX_COUNTER_CHANNELS ) ) {
 
 		// NOMBRE
-		u_control_string(s_param0);
+		if ( u_control_string(s_param0) == 0 ) {
+			xprintf_P( PSTR("DEBUG COUNTERS ERROR: C%d\r\n\0"), channel );
+			return( false );
+		}
+
 		snprintf_P( systemVars.counters_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_param0 );
 
 		// MAGPP

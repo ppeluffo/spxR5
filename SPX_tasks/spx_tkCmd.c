@@ -92,19 +92,19 @@ uint8_t ticks;
 
 	//	PORTF.OUTTGL = 0x02;	// Toggle F1 Led Comms
 
-		// Si no tengo terminal conectada, duermo 5s lo que me permite entrar en tickless.
-		if ( ! ctl_terminal_connected() ) {
+		// Si no tengo terminal conectada, duermo 25s lo que me permite entrar en tickless.
+		while ( ! ctl_terminal_connected() ) {
+			ctl_watchdog_kick(WDG_CMD, WDG_CMD_TIMEOUT);
 			vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
-
-		} else {
-
-			c = '\0';	// Lo borro para que luego del un CR no resetee siempre el timer.
-			// el read se bloquea 50ms. lo que genera la espera.
-			//while ( CMD_read( (char *)&c, 1 ) == 1 ) {
-			while ( frtos_read( fdTERM, (char *)&c, 1 ) == 1 ) {
-				FRTOS_CMD_process(c);
-			}
 		}
+
+		c = '\0';	// Lo borro para que luego del un CR no resetee siempre el timer.
+		// el read se bloquea 50ms. lo que genera la espera.
+		//while ( CMD_read( (char *)&c, 1 ) == 1 ) {
+		while ( frtos_read( fdTERM, (char *)&c, 1 ) == 1 ) {
+			FRTOS_CMD_process(c);
+		}
+
 	}
 }
 //------------------------------------------------------------------------------------
@@ -277,7 +277,7 @@ uint8_t channel;
 
 	// contadores
 	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
-		xprintf_P( PSTR("  c%d [ %s | %.02f ]\r\n\0"),channel, systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel] );
+		xprintf_P( PSTR("  c%d [ %s | %.03f ]\r\n\0"),channel, systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel] );
 	}
 
 	data_read_frame ( false );
@@ -881,7 +881,8 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  range {run | stop}\r\n\0"));
 				xprintf_P( PSTR("  consigna (diurna|nocturna)\r\n\0"));
 				xprintf_P( PSTR("  valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}\r\n\0"));
-				xprintf_P( PSTR("        (open|close) (A|B) (ms)\r\n\0"));
+				xprintf_P( PSTR("        (open|close) (A|B)\r\n\0"));
+				xprintf_P( PSTR("        pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("        power {on|off}\r\n\0"));
 			}
 
@@ -1338,25 +1339,54 @@ static void pv_cmd_write_valve(void)
 	}
 
 	//  write valve (open|close) (A|B) (ms)
-	if (!strcmp_P( strupr(argv[2]), PSTR("VALVE\0")) ) {
+	if (!strcmp_P( strupr(argv[2]), PSTR("OPEN\0")) ) {
 
 		// Proporciono corriente.
 		DRV8814_power_on();
 		// Espero 10s que se carguen los condensasores
 		vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
 
-		if (!strcmp_P( strupr(argv[3]), PSTR("OPEN\0")) ) {
-			DRV8814_vopen( toupper(argv[4][0]), 100);
-			return;
-		}
-		if (!strcmp_P( strupr(argv[3]), PSTR("CLOSE\0")) ) {
-			DRV8814_vclose( toupper(argv[4][0]), 100);
-			return;
-		}
+		xprintf_P( PSTR("VALVE OPEN %c\r\n\0"), toupper(argv[3][0] ));
+		DRV8814_vopen( toupper(argv[3][0]), 100);
 
 		DRV8814_power_off();
 		return;
 	}
+
+	if (!strcmp_P( strupr(argv[2]), PSTR("CLOSE\0")) ) {
+		// Proporciono corriente.
+		DRV8814_power_on();
+		// Espero 10s que se carguen los condensasores
+		vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
+
+		DRV8814_vclose( toupper(argv[3][0]), 100);
+		xprintf_P( PSTR("VALVE CLOSE %c\r\n\0"), toupper(argv[3][0] ));
+
+		DRV8814_power_off();
+		return;
+	}
+
+	// write valve pulse (A/B) ms
+	if (!strcmp_P( strupr(argv[2]), PSTR("PULSE\0")) ) {
+		// Proporciono corriente.
+		DRV8814_power_on();
+		// Espero 10s que se carguen los condensasores
+		vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
+		// Abro la valvula
+		xprintf_P( PSTR("VALVE OPEN...\0") );
+		DRV8814_vopen( toupper(argv[3][0]), 100);
+
+		// Espero en segundos
+		vTaskDelay( ( TickType_t)( atoi(argv[4])*1000 / portTICK_RATE_MS ) );
+
+		// Cierro
+		xprintf_P( PSTR("CLOSE\r\n\0") );
+		DRV8814_vclose( toupper(argv[3][0]), 100);
+
+		DRV8814_power_off();
+		return;
+	}
+
 
 	pv_snprintfP_ERR();
 	return;

@@ -19,9 +19,30 @@
  *  Para ver el uso de memoria usamos
  *  avr-nm -n spxR4.elf | more
  *
+ *  Version 1.0.4 @ 20190510
+ *  Correcciones del testing efectuado por Yosniel.
+ *  - No se calcula el caudal, solo se multiplica la cantidad de pulsos por el magpp:
+ *    Efectivamente es asi. El valor del contador solo se multiplica por magpp de modo que si queremos
+ *    medir pulsos, magpp = 1.
+ *    Para medir otra magnitud ( volumen o caudal ) debemos usar el magpp adecuado.
+ *  - Los 12 voltios se mantienen constantes todo el tiempo, sin embargo, si pongo un timer poll  alto (600)
+ *    Se corrige para que en las placas IO5CH se apaguen luego de c/poleo.
+ *  - En DRV8814_set_consigna cambio el orden de apertura y cierre para que las valvulas no
+ *    queden a contrapresion
+ *
+ *  Version 1.0.3 @ 20190425
+ *  Modifico el frame de scan para que envie el DLGID.
+ *  Paso los inits de las tareas a funciones publicas que las corro en tkCTL.
+ *  En tkCTL utilizo un semaforo solo para el WDG porque sino hay bloqueos que hacen
+ *  que el micro demore mas en estado activo.
+ *  Modifico el loop de tkCTL para que si no hay terminal conectada no pase por
+ *  ninguna fucion con lo que bajo el nivel activo.
+ *
  *  Version 1.0.1 @ 20190424
  *  Cambio el nombre del parametro de la bateria de BAT a bt para ser coherente con el server
  *  En tCtl, cada 5s solo reviso el watchdog y los timers y luego c/60s el resto.
+ *  En u_control_string controlo que el largo sea > 0.
+ *  No prende los sensores.!!!!. Faltaba inicializar el pin de 12V_CTL
  *
  *
  *  Version 0.0.6.R2 @ 20190405
@@ -69,6 +90,8 @@ int main( void )
 
 	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
 
+	initMCU();
+
 	// Inicializacion de los devices del frtos-io
 	if ( BAUD_PIN_115200() ) {
 		frtos_open(fdTERM, 115200 );
@@ -82,6 +105,8 @@ int main( void )
 
 	// Creo los semaforos
 	sem_SYSVars = xSemaphoreCreateMutexStatic( &SYSVARS_xMutexBuffer );
+	sem_WDGS = xSemaphoreCreateMutexStatic( &WDGS_xMutexBuffer );
+
 	xprintf_init();
 	FAT_init();
 

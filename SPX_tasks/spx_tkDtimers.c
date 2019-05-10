@@ -17,8 +17,6 @@
 
 static uint16_t dtimers[MAX_DTIMERS_CHANNELS];	// Valor de las medidas
 
-static void pv_tkDtimers_init(void);
-
 #define WDG_DTIM_TIMEOUT	30
 
 //------------------------------------------------------------------------------------
@@ -42,7 +40,7 @@ uint8_t i;
 
 	xprintf_P( PSTR("starting tkDtimers..\r\n\0"));
 
-	pv_tkDtimers_init();
+	//pv_tkDtimers_init(); // Lo paso a tkCTL
 
 	// Initialise the xLastWakeTime variable with the current time.
 	xLastWakeTime = xTaskGetTickCount();
@@ -81,20 +79,6 @@ uint8_t i;
 			// Espero para entrar en tickless
 			vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 		}
-	}
-}
-//------------------------------------------------------------------------------------
-static void pv_tkDtimers_init(void)
-{
-
-uint8_t i;
-
-	// Dado que los pines son diferentes para c/board, la inicializacion
-	// depende de la board detectada.
-	DINPUTS_init( spx_io_board );
-
-	for ( i = 0; i < MAX_DTIMERS_CHANNELS; i++ ) {
-		dtimers[i] = 0;
 	}
 }
 //------------------------------------------------------------------------------------
@@ -147,3 +131,18 @@ void dtimers_config_defaults(void)
 
 }
 //------------------------------------------------------------------------------------
+void tkDtimers_init(void)
+{
+
+uint8_t i;
+
+	// Dado que los pines son diferentes para c/board, la inicializacion
+	// depende de la board detectada.
+	DINPUTS_init( spx_io_board );// Lo paso a tkCTL
+
+	for ( i = 0; i < MAX_DTIMERS_CHANNELS; i++ ) {
+		dtimers[i] = 0;
+	}
+}
+//------------------------------------------------------------------------------------
+

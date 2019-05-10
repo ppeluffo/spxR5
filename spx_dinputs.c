@@ -15,7 +15,14 @@ bool dinputs_config_channel( uint8_t channel,char *s_aname )
 
 bool retS = false;
 
-	u_control_string(s_aname);
+	if ( u_control_string(s_aname) == 0 ) {
+		xprintf_P( PSTR("DEBUG DIGITAL ERROR: D%d\r\n\0"), channel );
+		return( false );
+	}
+
+	if ( s_aname == NULL ) {
+		return(retS);
+	}
 
 	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
 		snprintf_P( systemVars.dinputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );

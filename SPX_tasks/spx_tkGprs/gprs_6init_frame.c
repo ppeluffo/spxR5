@@ -314,6 +314,11 @@ char *delim = ",=:><";
 	token = strsep(&stringp,delim);	// DLGID
 	token = strsep(&stringp,delim);	// TH001
 
+	if ( token == NULL ) {
+		xprintf_P( PSTR("GPRS: ERROR Reconfig DLGID !!\r\n\0"));
+		goto quit;
+	}
+
 	memset(systemVars.gprs_conf.dlgId,'\0', sizeof(systemVars.gprs_conf.dlgId) );
 	strncpy(systemVars.gprs_conf.dlgId, token, DLGID_LENGTH);
 
@@ -450,7 +455,7 @@ static uint8_t pv_init_config_analogCh(uint8_t channel)
 char localStr[32];
 char *stringp;
 char *delim = ",=:><";
-char *tk_name,*tk_iMin,*tk_iMax,*tk_mMin,*tk_mMax;
+char *tk_id, *tk_name,*tk_iMin,*tk_iMax,*tk_mMin,*tk_mMax;
 
 	switch (channel) {
 	case 0:
@@ -491,7 +496,7 @@ char *tk_name,*tk_iMin,*tk_iMax,*tk_mMin,*tk_mMax;
 	memcpy(localStr,stringp,31);
 
 	stringp = localStr;
-	tk_name = strsep(&stringp,delim);		//A0
+	tk_id = strsep(&stringp,delim);			//A0
 	tk_name = strsep(&stringp,delim);		//name
 	tk_iMin = strsep(&stringp,delim);		//iMin
 	tk_iMax = strsep(&stringp,delim);		//iMax
@@ -517,7 +522,7 @@ static uint8_t pv_init_config_digitalCh(uint8_t channel)
 char localStr[32];
 char *stringp;
 char *delim = ",=:><";
-char *tk_name;
+char *tk_id, *tk_name;
 
 	switch (channel) {
 	case 0:
@@ -558,8 +563,9 @@ char *tk_name;
 	memcpy(localStr,stringp, 31);
 
 	stringp = localStr;
-	tk_name = strsep(&stringp,delim);	//D0
+	tk_id = strsep(&stringp,delim);	//D0
 	tk_name = strsep(&stringp,delim);	//name
+
 	dinputs_config_channel( channel, tk_name );
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
@@ -580,7 +586,7 @@ static uint8_t pv_init_config_counterCh(uint8_t channel)
 char localStr[32];
 char *stringp;
 char *delim = ",=:><";
-char *tk_name, *tk_magPP;
+char *tk_id, *tk_name, *tk_magPP;
 
 	switch (channel) {
 	case 0:
@@ -603,7 +609,7 @@ char *tk_name, *tk_magPP;
 	memcpy(localStr,stringp, 31);
 
 	stringp = localStr;
-	tk_name = strsep(&stringp,delim);	// C0
+	tk_id = strsep(&stringp,delim);	// C0
 	tk_name = strsep(&stringp,delim);	//name
 	tk_magPP = strsep(&stringp,delim);	//magPP
 	counters_config_channel ( channel, tk_name, tk_magPP );

@@ -172,12 +172,14 @@ BaseType_t xResult;
 		} else {
 
 			GPRS_stateVars.dcd = 1;
-			vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
+			//vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
+			xResult = xTaskNotifyWait( 0x00, ULONG_MAX, &ulNotifiedValue, ((TickType_t) 25000 / portTICK_RATE_MS ) );
 		}
 
 	}
 }
 //------------------------------------------------------------------------------------
+
 /*
 ISR(PORTD_INT0_vect)
 {
@@ -191,7 +193,7 @@ static void pv_gprs_init_system(void)
 {
 	// Aca hago toda la inicializacion que requiere el sistema del gprs.
 
-	u_gprs_init_pines();
+	//u_gprs_init_pines();	// Lo paso a tkCTL()
 
 	memset(buff_gprs_imei,'\0',IMEIBUFFSIZE);
 	strncpy_P(GPRS_stateVars.dlg_ip_address, PSTR("000.000.000.000\0"),16);

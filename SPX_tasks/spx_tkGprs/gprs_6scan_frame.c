@@ -160,6 +160,11 @@ uint8_t exit_code = FRAME_ERROR;
 
 		if ( u_gprs_check_response("</h1>") ) {	// Respuesta completa del server
 
+			if ( u_gprs_check_response("SCAN_OK") ) {	// Respuesta correcta. El dlgid esta definido en la BD
+				exit_code = FRAME_OK;
+				goto EXIT;
+			}
+
 			if ( u_gprs_check_response("DLGID") ) {	// Respuesta correcta
 				pv_scan_config_dlgid();             // Configure el DLGID correcto y la SERVER_IP usada es la correcta.
 				exit_code = FRAME_OK;
