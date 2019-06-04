@@ -19,6 +19,21 @@
  *  Para ver el uso de memoria usamos
  *  avr-nm -n spxR4.elf | more
  *
+ *  Version 1.0.6 @ 20190524
+ *  Agrego las modificaciones del driver y librerias de I2C que usamos en spxR3_IO8
+ *  Agrego las modificaciones del manejo de las salidas
+ *  Agrego la funcion u_gprs_modem_link_up() para saber cuando hay enlace en el control de las salidas
+ *  Modifico las tareas de los contadores agregado una para c/u. Al quitar los latches la polaridad
+ *  de reposo cambia ( ver consumos ).
+ *  + Revisar en los defaults el valor de las outs en decimal o hexa.
+ *  + Ver al configurar las salidas que la ioboard lo banque !!
+ *  + implementar dpoutputs_set desde modo comando.
+ * El SPX_IO8 solo implementa PERFORACIONES. El SPX_IO5 implementa todos.
+ * Ver en el servidor que cuando no tenga un canal digital, lo mande apagarse si el datalogger lo manda
+ *
+ *  Version 1.0.5 @ 20190517
+ *  - Corregimos que en el init mande el dbm en vez del csq
+ *
  *  Version 1.0.4 @ 20190510
  *  Correcciones del testing efectuado por Yosniel.
  *  - No se calcula el caudal, solo se multiplica la cantidad de pulsos por el magpp:
@@ -115,7 +130,8 @@ int main( void )
 	// Creamos las tareas
 	xTaskCreate(tkCtl, "CTL", tkCtl_STACK_SIZE, NULL, tkCtl_TASK_PRIORITY,  &xHandle_tkCtl );
 	xTaskCreate(tkCmd, "CMD", tkCmd_STACK_SIZE, NULL, tkCmd_TASK_PRIORITY,  &xHandle_tkCmd);
-	xTaskCreate(tkCounter, "COUNT", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter);
+	xTaskCreate(tkCounter0, "CNT0", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter0);
+	xTaskCreate(tkCounter1, "CNT1", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter1);
 	xTaskCreate(tkData, "DATA", tkData_STACK_SIZE, NULL, tkData_TASK_PRIORITY,  &xHandle_tkData);
 	xTaskCreate(tkDtimers, "DTIM", tkDtimers_STACK_SIZE, NULL, tkDtimers_TASK_PRIORITY,  &xHandle_tkDtimers);
 	xTaskCreate(tkDoutputs, "DOUT", tkDoutputs_STACK_SIZE, NULL, tkDoutputs_TASK_PRIORITY,  &xHandle_tkDoutputs);

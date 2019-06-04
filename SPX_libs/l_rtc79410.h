@@ -37,8 +37,11 @@ typedef struct
 
 } RtcTimeType_t;
 
-#define RTC_read( rdAddress, data, length ) I2C_read( BUSADDR_RTC_M79410, rdAddress, data, length );
-#define RTC_write( wrAddress, data, length ) I2C_write( BUSADDR_RTC_M79410, wrAddress, data, length );
+//#define RTC_read( rdAddress, data, length ) I2C_read( BUSADDR_RTC_M79410, rdAddress, data, length );
+//#define RTC_write( wrAddress, data, length ) I2C_write( BUSADDR_RTC_M79410, wrAddress, data, length );
+
+int8_t RTC_read( uint32_t rdAddress, char *data, uint8_t length );
+int8_t RTC_write( uint32_t wrAddress, char *data, uint8_t length );
 
 int8_t RTCSRAM_test_write( char *addr, char *str );
 int8_t RTCSRAM_test_read( char *addr, char *size );

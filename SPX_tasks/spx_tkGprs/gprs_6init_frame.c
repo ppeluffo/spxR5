@@ -17,8 +17,10 @@ static uint8_t pv_init_config_timerDial(void);
 static uint8_t pv_init_config_digitalCh(uint8_t channel);
 static uint8_t pv_init_config_analogCh(uint8_t channel);
 static uint8_t pv_init_config_counterCh(uint8_t channel);
-static uint8_t pv_init_config_consignas(void);
 static uint8_t pv_init_config_rangeMeter(void);
+static uint8_t pv_init_config_doutputs(void);
+static uint8_t pv_init_config_consignas(void);
+static uint8_t pv_init_config_piloto(void);
 
 // La tarea no puede demorar mas de 180s.
 #define WDG_GPRS_TO_INIT	180
@@ -187,13 +189,16 @@ uint8_t saveFlag = 0;
 	saveFlag += pv_init_config_timerDial();
 	saveFlag += pv_init_config_pwrSave();
 
-	if ( spx_io_board == SPX_IO5CH ) {
-		// RangeMeter
-		saveFlag += pv_init_config_rangeMeter();
+	// RangeMeter
+	saveFlag += pv_init_config_rangeMeter();
 
-		// Outputs/Consignas
-		saveFlag += pv_init_config_consignas();
-	}
+	// Doutputs
+	saveFlag += pv_init_config_doutputs();
+	// Consignas
+	saveFlag += pv_init_config_consignas();
+	// Perforaciones: No se configuran
+	// Piloto
+	saveFlag += pv_init_config_piloto();
 
 	// Canales analogicos.
 	saveFlag += pv_init_config_analogCh(0);
@@ -431,19 +436,31 @@ static uint8_t pv_init_config_rangeMeter(void)
 {
 	// ?DIST=ON{OFF}
 
-	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST=ON") ) {
-		range_config("ON");
-	} else 	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST=OFF") ) {
-		range_config("OFF");
-	} else {
-		return(0);
+char *p;
+uint8_t ret = 0;
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST");
+	// No vino el parametro
+	if ( p == NULL ) {
+		goto quit;
 	}
 
-	if ( systemVars.debug == DEBUG_GPRS ) {
+	// Si vino el parametro
+	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST=ON") ) {
+		range_config("ON");
+		ret = 1;
+	} else 	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST=OFF") ) {
+		range_config("OFF");
+		ret = 1;
+	}
+
+	if ( ( systemVars.debug == DEBUG_GPRS ) && ( ret == 1 ) ) {
 		xprintf_P( PSTR("GPRS: Reconfig RANGEMETER\r\n\0"));
 	}
 
-	return(1);
+quit:
+
+	return(ret);
 
 }
 //--------------------------------------------------------------------------------------
@@ -586,7 +603,7 @@ static uint8_t pv_init_config_counterCh(uint8_t channel)
 char localStr[32];
 char *stringp;
 char *delim = ",=:><";
-char *tk_id, *tk_name, *tk_magPP;
+char *tk_id, *tk_name, *tk_magPP, *tk_pwidth, *tk_period, *tk_speed;
 
 	switch (channel) {
 	case 0:
@@ -612,7 +629,11 @@ char *tk_id, *tk_name, *tk_magPP;
 	tk_id = strsep(&stringp,delim);	// C0
 	tk_name = strsep(&stringp,delim);	//name
 	tk_magPP = strsep(&stringp,delim);	//magPP
-	counters_config_channel ( channel, tk_name, tk_magPP );
+	tk_pwidth = strsep(&stringp,delim);	//pulse width
+	tk_period = strsep(&stringp,delim);	//period
+	tk_speed = strsep(&stringp,delim);	//speed
+
+	counters_config_channel ( channel, tk_name, tk_magPP, tk_pwidth, tk_period, tk_speed );
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig C%d\r\n\0"), channel);
@@ -622,41 +643,127 @@ char *tk_id, *tk_name, *tk_magPP;
 
 }
 //--------------------------------------------------------------------------------------
-static uint8_t pv_init_config_consignas(void)
+static uint8_t pv_init_config_doutputs(void)
 {
-	// La linea recibida es del tipo:
-	// <h1>INIT_OK:CONS=enabled,param1,param2:</h1>
-	// OFF
-	// ON: param1, param2 son las horas de la consigna diurna y la nocturna
-	// Las horas estan en formato HHMM.
+	//	La linea recibida es del tipo: <h1>INIT_OK:DOUTMODE=doutmode</h1>
 
+char *p;
 char localStr[32];
 char *stringp;
-char *tk_modo, *tk_hhmm1, *tk_hhmm2;
+char *tk_doutmode;
 char *delim = ",=:><";
-char *p;
+uint8_t ret = 0;
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "CONS");
-	if ( p == NULL )
-		return(0);
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DOUTMODE");
+	if ( p == NULL ) {
+		goto quit;
+	}
 
 	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 	memset(localStr,'\0',32);
 	memcpy(localStr,p,sizeof(localStr));
 
 	stringp = localStr;
-	tk_modo = strsep(&stringp,delim);	// CONS
-	tk_modo = strsep(&stringp,delim);	// enabled ON/OFF
+	strsep(&stringp,delim);					// DOUTMODE
+	tk_doutmode = strsep(&stringp,delim);	// doutmode
+	if ( doutputs_config_mode( tk_doutmode ) == true ) {
+		ret = 1;
+	}
+
+	if ( ( systemVars.debug == DEBUG_GPRS ) && ( ret == 1 ) ) {
+		xprintf_P( PSTR("GPRS: Reconfig DOUTMODE\r\n\0"));
+	}
+
+quit:
+
+	return(ret);
+}
+//--------------------------------------------------------------------------------------
+static uint8_t pv_init_config_consignas(void)
+{
+	// La linea recibida es del tipo:
+	// <h1>INIT_OK:CONS=param1,param2:</h1>
+	// param1, param2 son las horas de la consigna diurna y la nocturna
+	// Las horas estan en formato HHMM.
+
+char localStr[32];
+char *stringp;
+char *tk_hhmm1, *tk_hhmm2;
+char *delim = ",=:><";
+char *p;
+uint8_t ret = 0;
+
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "CONS");
+
+	// No vino el parametro
+	if ( p == NULL )
+		goto quit;
+
+	// Si vino el parametro
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_hhmm1 = strsep(&stringp,delim);	// CONS
 	tk_hhmm1 = strsep(&stringp,delim);	// shhmm consigna_diurna
 	tk_hhmm2 = strsep(&stringp,delim); 	// shhmm consigna_nocturna
 
-	doutputs_config_consignas( tk_modo, tk_hhmm1, tk_hhmm2);
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig OUTPUTS\r\n\0"));
+	if ( doutputs_config_consignas(tk_hhmm1, tk_hhmm2) ) {
+		ret = 1;
 	}
 
-	return(1);
+	if ( ( systemVars.debug == DEBUG_GPRS ) && ( ret == 1 ) ) {
+		xprintf_P( PSTR("GPRS: Reconfig CONSIGNAS\r\n\0"));
+	}
 
+quit:
+
+	return(ret);
+}
+//--------------------------------------------------------------------------------------
+static uint8_t pv_init_config_piloto(void)
+{
+	// La linea recibida es del tipo:
+	// <h1>INIT_OK:PILOTO=param1,param2,param3:</h1>
+	// param1, param2, param3 son: pout,pband,max_steps
+
+char localStr[32];
+char *stringp;
+char *tk_pout, *tk_pband, *tk_psteps;
+char *delim = ",=:><";
+char *p;
+uint8_t ret = 0;
+
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PILOTO");
+
+	// No vino el parametro
+	if ( p == NULL )
+		goto quit;
+
+	// Si vino el parametro
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_pout = strsep(&stringp,delim);	// PILOTO
+	tk_pout = strsep(&stringp,delim);	// pout
+	tk_pband = strsep(&stringp,delim); 	// pband
+	tk_psteps = strsep(&stringp,delim); 	// psteps
+
+	if ( doutputs_config_piloto(tk_pout, tk_pband, tk_psteps) ) {
+		ret = 1;
+	}
+
+	if ( ( systemVars.debug == DEBUG_GPRS ) && ( ret == 1 ) ) {
+		xprintf_P( PSTR("GPRS: Reconfig PILOTOS\r\n\0"));
+	}
+
+quit:
+
+	return(ret);
 }
 //--------------------------------------------------------------------------------------

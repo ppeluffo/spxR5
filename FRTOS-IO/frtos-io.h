@@ -61,7 +61,7 @@ typedef struct {
 } periferico_i2c_port_t;
 
 // Periferico real.
-periferico_serial_port_t xComGPRS, xComXBEE, xComTERM;
+periferico_serial_port_t xComGPRS, xComXBEE, xComTERM, xComBT;
 StaticSemaphore_t GPRS_xMutexBuffer,XBEE_xMutexBuffer,TERM_xMutexBuffer;
 
 periferico_i2c_port_t xBusI2C;

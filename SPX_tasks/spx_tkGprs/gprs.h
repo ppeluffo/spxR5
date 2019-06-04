@@ -91,6 +91,7 @@ bool u_gprs_modem_prendido(void);
 void u_gprs_load_defaults( char *opt );
 void u_gprs_init_pines(void);
 bool u_gprs_modem_prendido(void);
+bool u_gprs_modem_link_up(void);
 
 bool u_gprs_send_frame( t_frames frame_type );
 void u_gprs_send_INIT_frame(void);

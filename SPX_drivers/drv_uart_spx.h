@@ -59,6 +59,7 @@ void drv_set_baudrate(uint32_t baudRate, uint8_t *baudA, uint8_t *baudB, uint8_t
 void drv_uart_gprs_open( uint32_t baudrate );
 void drv_uart_xbee_open( uint32_t baudrate );
 void drv_uart_term_open( uint32_t baudrate );
+
 //-----------------------------------------------------------------------
 
 

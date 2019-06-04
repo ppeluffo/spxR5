@@ -7,6 +7,59 @@
 
 #include "l_mcp23018.h"
 
+static uint8_t pv_mcp_olatb;
+
+//------------------------------------------------------------------------------------
+int8_t MCP_read( uint32_t rdAddress, char *data, uint8_t length )
+{
+
+int8_t rcode;
+uint8_t times = 3;
+
+	while ( times-- > 0 ) {
+
+		rcode =  I2C_read( BUSADDR_MCP23018, rdAddress, data, length );
+
+		if ( rcode == -1 ) {
+			// Hubo error: trato de reparar el bus y reintentar la operacion
+			// Espero 1s que se termine la fuente de ruido.
+			vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+			// Reconfiguro los dispositivos I2C del bus que pueden haberse afectado
+			xprintf_P(PSTR("ERROR: MCP_read recovering i2c bus (%d)\r\n\0"), times );
+			I2C_reinit_devices();
+		} else {
+			// No hubo error: salgo normalmente
+			break;
+		}
+	}
+	return( rcode );
+}
+//------------------------------------------------------------------------------------
+int8_t MCP_write( uint32_t wrAddress, char *data, uint8_t length )
+{
+
+int8_t rcode;
+uint8_t times = 3;
+
+	while ( times-- > 0 ) {
+
+		rcode =  I2C_write( BUSADDR_MCP23018, wrAddress, data, length );
+
+		if ( rcode == -1 ) {
+			// Hubo error: trato de reparar el bus y reintentar la operacion
+			// Espero 1s que se termine la fuente de ruido.
+			vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+			// Reconfiguro los dispositivos I2C del bus que pueden haberse afectado
+			xprintf_P(PSTR("ERROR: MCP_write recovering i2c bus (%d)\r\n\0"), times );
+			I2C_reinit_devices();
+		} else {
+			// No hubo error: salgo normalmente
+			break;
+		}
+	}
+	return( rcode );
+
+}
 //------------------------------------------------------------------------------------
 void MCP_init( void )
 {
@@ -75,12 +128,14 @@ bool init_flag = true;
 //	if ( rdBytes == -1 )
 //		xprintf_P(PSTR("ERROR: I2C:MCP: init OLATA\r\n\0"));
 
-	data = 0x00;	// El puerto B arranca con las salidas en 0.
-	rdBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
-	if ( rdBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: I2C:MCP: init OLATB\r\n\0"));
-		init_flag = false;
-	}
+	// No inicializo el MCP
+
+//	data = 0x00;	// El puerto B arranca con las salidas en 0.
+//	rdBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+//	if ( rdBytes == -1 ) {
+//		xprintf_P(PSTR("ERROR: I2C:MCP: init OLATB\r\n\0"));
+//		init_flag = false;
+//	}
 	//
 	// GPINTEN: inputs interrupt on change.
 	// Habilito que DIN0/1 generen una interrupcion on-change.
@@ -127,5 +182,110 @@ bool init_flag = true;
 
 }
 //------------------------------------------------------------------------------------
+void MCP_update_olatb(uint8_t val)
+{
+	// Funcion necesaria para mantener siempre que escribo el systemVars.doutputs_conf.perforacion.outs
+	// poder actualizar en el driver el olatb con el mismo valor
+	// De modo que al reinicializar si hubo error en el bus I2C, pueda tener este valor para escribirlo.
 
+	pv_mcp_olatb = val;
+}
+//------------------------------------------------------------------------------------
+uint8_t MCP_get_olatb(void)
+{
+	return(pv_mcp_olatb);
+}
+//------------------------------------------------------------------------------------
+void MCP_check(void)
+{
 
+uint8_t data;
+int8_t rdBytes;
+
+	// IOCON = 0x63
+	rdBytes = MCP_read( MCP_IOCON, (char *)&data, 1 );
+	if ( rdBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: MCP_check IOCON !!\r\n\0"));
+		return;
+	}
+
+	if ( data != 0x63 ) {
+		xprintf_P(PSTR("ERROR: MCP_check -> reconfigure IOCON !!(rd=0x%02X),(ref=0x63)\r\n\0"), data);
+		data = 0x63;
+		rdBytes = MCP_write(MCP_IOCON, (char *)&data, 1 );
+		if ( rdBytes == -1 ) {
+			xprintf_P(PSTR("ERROR: I2C:MCP: reconfigure IOCON\r\n\0"));
+			return;
+		}
+	}
+	//
+	// IODIRA 0xFF
+	rdBytes = MCP_read( MCP_IODIRA, (char *)&data, 1 );
+	if ( rdBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: MCP_check IODIRA !!\r\n\0"));
+		return;
+	}
+
+	if ( data != 0xFF ) {
+		xprintf_P(PSTR("ERROR: MCP_check -> reconfigure IODIRA !!(rd=0x%02X),(ref=0xff)\r\n\0"), data);
+		data = 0xFF;
+		rdBytes = MCP_write( MCP_IODIRA, (char *)&data, 1 );
+		if ( rdBytes == -1 ) {
+			xprintf_P(PSTR("ERROR: I2C:MCP: reconfigure IODIRA\r\n\0"));
+			return;
+		}
+	}
+	//
+	// IODIRB 0x00
+	rdBytes = MCP_read( MCP_IODIRB, (char *)&data, 1 );
+	if ( rdBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: MCP_check IODIRB !!\r\n\0"));
+		return;
+	}
+
+	if ( data != 0x00 ) {
+		xprintf_P(PSTR("ERROR: MCP_check -> reconfigure IODIRB !!(rd=0x%02X),(ref=0x00)\r\n\0"), data);
+		data = 0x00;
+		rdBytes = MCP_write( MCP_IODIRB, (char *)&data, 1 );
+		if ( rdBytes == -1 ) {
+			xprintf_P(PSTR("ERROR: I2C:MCP: reconfigure IODIRB\r\n\0"));
+			return;
+		}
+	}
+	//
+	// PULL-UPS
+	// GPPUA 0xFF
+	rdBytes = MCP_read( MCP_GPPUA, (char *)&data, 1 );
+	if ( rdBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: MCP_check GPPUA !!\r\n\0"));
+		return;
+	}
+
+	if ( data != 0xFF ) {
+		xprintf_P(PSTR("ERROR: MCP_check -> reconfigure GPPUA !!(rd=0x%02X),(ref=0xff)\r\n\0"), data);
+		data = 0xFF;
+		rdBytes = MCP_write( MCP_GPPUA, (char *)&data, 1 );
+		if ( rdBytes == -1 ) {
+			xprintf_P(PSTR("ERROR: I2C:MCP: reconfigure GPPUA\r\n\0"));
+			return;
+		}
+	}
+
+	// GPPUB 0xFF
+	rdBytes = MCP_read( MCP_GPPUB, (char *)&data, 1 );
+	if ( rdBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: MCP_check GPPUB !!\r\n\0"));
+		return;
+	}
+
+	if ( data != 0xFF ) {
+		xprintf_P(PSTR("ERROR: MCP_check -> reconfigure GPPUB !!(rd=0x%02X),(ref=0xff)\r\n\0"), data);
+		data = 0xFF;
+		rdBytes = MCP_write( MCP_GPPUB, (char *)&data, 1 );
+		if ( rdBytes == -1 ) {
+			xprintf_P(PSTR("ERROR: I2C:MCP: reconfigure GPPUB\r\n\0"));
+			return;
+		}
+	}
+
+}

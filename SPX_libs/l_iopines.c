@@ -7,6 +7,7 @@
 
 #include "l_iopines.h"
 #include "l_mcp23018.h"
+#include "l_bytes.h"
 
 //------------------------------------------------------------------------------------
 // TERMINAL CONTROL PIN
@@ -117,3 +118,112 @@ void PORT_ConfigureInterrupt1( PORT_t * port, PORT_INT1LVL_t intLevel,uint8_t pi
 	port->INT1MASK = pinMask;
 }
 */
+int8_t IO_read_DIN( uint8_t pin)
+{
+
+	// Los pines pueden ser 0 o 1. Cualquier otro valor es error
+
+uint8_t data;
+int8_t rdBytes;
+
+	rdBytes = MCP_read( MCP_GPIOA, (char *)&data, 1 );
+
+	if ( rdBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: IO_read_DIN\r\n\0"));
+		return(-1);
+	}
+
+	data = (data & ( 1 << pin )) >> pin;
+
+	return(data);
+
+
+}
+//------------------------------------------------------------------------------------
+int8_t IO_set_DOUT(uint8_t pin)
+{
+	// Leo el MCP, aplico la mascara y lo escribo de nuevo
+
+uint8_t data;
+int8_t xBytes;
+
+	// Control de entrada valida
+	if ( pin > 7 ) {
+		xprintf_P(PSTR("ERROR: IO_set_DOUT (pin<7)!!!\r\n\0"));
+		return(-1);
+	}
+
+	xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: IO_set_DOUT(1)\r\n\0"));
+		return(-1);
+	}
+
+	// Aplico la mascara para setear el pin dado
+	// En el MCP estan en orden inverso
+	data |= ( 1 << ( 7 - pin )  );
+
+	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: IO_set_DOUT(2)\r\n\0"));
+		return(-1);
+	}
+
+	return(1);
+
+}
+//------------------------------------------------------------------------------------
+int8_t IO_clr_DOUT(uint8_t pin)
+{
+	// Leo el MCP, aplico la mascara y lo escribo de nuevo
+
+uint8_t data;
+int8_t xBytes;
+
+	// Control de entrada valida
+	if ( pin > 7 ) {
+		xprintf_P(PSTR("ERROR: IO_clr_DOUT (pin<7)!!!\r\n\0"));
+		return(-1);
+	}
+
+	xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: IO_clr_DOUT(1)\r\n\0"));
+		return(-1);
+	}
+
+	// Aplico la mascara para setear el pin dado
+	data &= ~( 1 << ( 7 - pin ) );
+
+	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: IO_clr_DOUT(2)\r\n\0"));
+		return(-1);
+	}
+
+	return(1);
+}
+//------------------------------------------------------------------------------------
+int8_t IO_reflect_DOUTPUTS(uint8_t output_value )
+{
+uint8_t data;
+int8_t xBytes;
+
+	// Escribe todas las salidas a la vez.
+	// En el hardware las salidas son inversas a los bits ( posiciones )
+
+	data = twiddle_bits( output_value );
+
+//	xprintf_P(PSTR("IO: %d 0x%0x, DAT=0x%0x\r\n\0"),output_value,output_value, data);
+	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: IO_reflect_DOUTPUTS\r\n\0"));
+		return(-1);
+	}
+
+	return(1);
+}
+//------------------------------------------------------------------------------------
+
+
+

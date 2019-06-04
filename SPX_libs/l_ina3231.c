@@ -153,5 +153,57 @@ char data[3];
 
 }
 //------------------------------------------------------------------------------------
+int8_t INA_read( uint8_t dev_id, uint32_t rdAddress, char *data, uint8_t length )
+{
+
+int8_t rcode;
+uint8_t times = 3;
+
+	while ( times-- > 0 ) {
+
+		rcode =  I2C_read( INA_id2busaddr(dev_id), rdAddress, data, length );
+
+		if ( rcode == -1 ) {
+			// Hubo error: trato de reparar el bus y reintentar la operacion
+			// Espero 1s que se termine la fuente de ruido.
+			vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+			// Reconfiguro los dispositivos I2C del bus que pueden haberse afectado
+			xprintf_P(PSTR("ERROR: INA(%d)_read recovering i2c bus (%d)\r\n\0"), dev_id, times );
+			I2C_reinit_devices();
+		} else {
+			// No hubo error: salgo normalmente
+			break;
+		}
+	}
+	return( rcode );
+
+}
+//------------------------------------------------------------------------------------
+int8_t INA_write( uint8_t dev_id, uint32_t wrAddress, char *data, uint8_t length )
+{
+
+int8_t rcode;
+uint8_t times = 3;
+
+	while ( times-- > 0 ) {
+
+		rcode =  I2C_write( INA_id2busaddr(dev_id), wrAddress, data, length );
+
+		if ( rcode == -1 ) {
+			// Hubo error: trato de reparar el bus y reintentar la operacion
+			// Espero 1s que se termine la fuente de ruido.
+			vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+			// Reconfiguro los dispositivos I2C del bus que pueden haberse afectado
+			xprintf_P(PSTR("ERROR: INA(%d)_write recovering i2c bus (%d)\r\n\0"), dev_id, times );
+			I2C_reinit_devices();
+		} else {
+			// No hubo error: salgo normalmente
+			break;
+		}
+	}
+	return( rcode );
+
+}
+//------------------------------------------------------------------------------------
 
 

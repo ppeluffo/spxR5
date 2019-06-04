@@ -60,12 +60,13 @@
 #include "l_nvm.h"
 #include "l_printf.h"
 #include "l_rangeMeter.h"
+#include "l_bytes.h"
 
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "1.0.4"
-#define SPX_FW_DATE "@ 20190510"
+#define SPX_FW_REV "2.0.0d"
+#define SPX_FW_DATE "@ 20190603"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -121,13 +122,16 @@
 // Mensajes entre tareas
 #define TK_FRAME_READY			0x01	//
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS } t_debug;
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_OUTPUTS } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
+typedef enum { CTL_BOYA, CTL_SISTEMA } doutputs_control_t;
+typedef enum { NONE = 0, CONSIGNA, PERFORACIONES, PILOTOS  } doutputs_modo_t;
+typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter, xHandle_tkData, xHandle_tkDtimers, xHandle_tkDoutputs,  xHandle_tkGprsRx, xHandle_tkGprsTx;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter0 ,xHandle_tkCounter1 , xHandle_tkData, xHandle_tkDtimers, xHandle_tkDoutputs,  xHandle_tkGprsRx, xHandle_tkGprsTx;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -142,7 +146,8 @@ StaticSemaphore_t WDGS_xMutexBuffer;
 
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
-void tkCounter(void * pvParameters);
+void tkCounter0(void * pvParameters);
+void tkCounter1(void * pvParameters);
 void tkData(void * pvParameters);
 void tkDtimers(void * pvParameters);
 void tkDoutputs(void * pvParameters);
@@ -212,8 +217,18 @@ typedef struct {
 	st_time_t hhmm_c_diurna;
 	st_time_t hhmm_c_nocturna;
 	consigna_t c_aplicada;
-	bool c_enabled;
 } st_consigna_t;
+
+typedef struct {
+	float pout;
+	float band;
+	uint8_t max_steps;
+} st_pilotos_t;
+
+typedef struct {
+	uint8_t outs;
+	uint8_t	control;
+} st_perforacion_t;
 
 typedef struct {
 	bool pwrs_enabled;
@@ -225,7 +240,9 @@ typedef struct {
 typedef struct {
 	char name[MAX_COUNTER_CHANNELS][PARAMNAME_LENGTH];
 	float magpp[MAX_COUNTER_CHANNELS];
-	uint8_t debounce_time;
+	uint16_t pwidth[MAX_COUNTER_CHANNELS];
+	uint16_t period[MAX_COUNTER_CHANNELS];
+//	uint8_t speed[MAX_COUNTER_CHANNELS];
 } counters_conf_t;
 
 // Configuracion de canales digitales
@@ -241,14 +258,16 @@ typedef struct {
 	float mmax[MAX_ANALOG_CHANNELS];
 	char name[MAX_ANALOG_CHANNELS][PARAMNAME_LENGTH];
 	float offset[MAX_ANALOG_CHANNELS];
-	float inaspan[MAX_ANALOG_CHANNELS];
+	uint16_t inaspan[MAX_ANALOG_CHANNELS];
 	uint8_t pwr_settle_time;
 } ainputs_conf_t;
 
 // Configuracion de salidas
 typedef struct {
-	uint8_t d_outputs;
+	uint8_t modo;
 	st_consigna_t consigna;
+	st_pilotos_t piloto;
+	st_perforacion_t perforacion;
 } doutputs_conf_t;
 
 typedef struct {
@@ -261,6 +280,7 @@ typedef struct {
 	uint32_t timerDial;
 	st_pwrsave_t pwrSave;
 } gprs_conf_t;
+
 
 typedef struct {
 
@@ -315,9 +335,8 @@ void ctl_set_timeToNextDial( uint32_t new_time );
 // TKCOUNTER
 float counters_read( uint8_t cnt, bool reset_counter );
 void counters_config_defaults(void);
-bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1 );
-void counters_config_debounce_time( char *s_counter_debounce_time );
-void tkCounter_init(void);
+bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1, char *s_param2, char *s_param3, char *s_param4 );
+void tkCounter_init(uint8_t cnt);
 
 // TKDINPUTS
 int8_t dinputs_read ( uint8_t din );
@@ -349,23 +368,35 @@ void data_read_frame( bool polling );
 void tkData_init(void);
 
 // TKDOUTPUTS
-void doutputs_config_defaults(void);
-bool doutputs_config_consignas( char *_cmodo, char *hhmm_dia, char *hhmm_noche);
 void tkDoutputs_init(void);
+void doutputs_config_defaults(void);
+bool doutputs_config_mode( char *mode );
+bool doutputs_config_consignas( char *hhmm_dia, char *hhmm_noche);
+bool doutputs_config_piloto( char *pref, char *pband, char *psteps );
+bool doutputs_cmd_write_consigna( char *tipo_consigna_str);
+bool doutputs_cmd_write_valve( char *param1, char *param2 );
+bool doutputs_cmd_write_outputs( char *param_pin, char *param_state );
+void doutput_write_perforaciones_outs( uint8_t val);
+
+void doutput_set( uint8_t dout, bool force );
+uint16_t doutput_read_datatimer(void);
+doutputs_control_t doutput_read_control(void);
+void doutput_mcp_raise_error(void);
 
 // WATCHDOG
 uint8_t wdg_resetCause;
 
 #define WDG_CTL			0
 #define WDG_CMD			1
-#define WDG_COUNT		2
-#define WDG_DAT			3
-#define WDG_DTIM		4
-#define WDG_DOUT		5
-#define WDG_GPRSRX		6
-#define WDG_GPRSTX		7
+#define WDG_COUNT0		2
+#define WDG_COUNT1		3
+#define WDG_DAT			4
+#define WDG_DTIM		5
+#define WDG_DOUT		6
+#define WDG_GPRSRX		7
+#define WDG_GPRSTX		8
 
-#define NRO_WDGS		8
+#define NRO_WDGS		9
 
 
 #endif /* SRC_SPX_H_ */

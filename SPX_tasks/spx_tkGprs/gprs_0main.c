@@ -85,12 +85,6 @@ void tkGprsTx(void * pvParameters)
 
 RESTART:
 
-		// Cuando pierdo las comunicaciones en los IO8, reseteo las salidas
-		// ya que al no tener enlace pierdo el control.
-		if ( spx_io_board == SPX_IO8CH ) {
-			systemVars.doutputs_conf.d_outputs = 0x00;
-		}
-
 		if ( st_gprs_esperar_apagado() != bool_CONTINUAR ) {	// Espero con el modem apagado
 			goto RESTART;
 		}

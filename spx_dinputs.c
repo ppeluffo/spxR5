@@ -24,7 +24,7 @@ bool retS = false;
 		return(retS);
 	}
 
-	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
+	if ( ( channel >=  0) && ( channel < ( NRO_DINPUTS + NRO_DTIMERS ) ) ) {
 		snprintf_P( systemVars.dinputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
 		retS = true;
 	}

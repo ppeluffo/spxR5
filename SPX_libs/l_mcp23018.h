@@ -13,9 +13,14 @@
 #include "stdint.h"
 #include "l_i2c.h"
 
-#define MCP_read( rdAddress, data, length ) I2C_read( BUSADDR_MCP23018, rdAddress, data, length );
-#define MCP_write( wrAddress, data, length ) I2C_write( BUSADDR_MCP23018, wrAddress, data, length );
+//#define MCP_read( rdAddress, data, length ) I2C_read( BUSADDR_MCP23018, rdAddress, data, length );
+//#define MCP_write( wrAddress, data, length ) I2C_write( BUSADDR_MCP23018, wrAddress, data, length );
 
+int8_t MCP_read( uint32_t rdAddress, char *data, uint8_t length );
+int8_t MCP_write( uint32_t wrAddress, char *data, uint8_t length );
+void MCP_update_olatb(uint8_t val);
+uint8_t MCP_get_olatb(void);
+void MCP_check(void);
 void MCP_init( void );
 
 #define MCP_IODIRA				0x00
@@ -39,6 +44,5 @@ void MCP_init( void );
 #define MCP_OLATB				0x15
 
 // Bits del MCP
-
 
 #endif /* SRC_SPXR3_IO8_LIBS_L_MCP23018_H_ */

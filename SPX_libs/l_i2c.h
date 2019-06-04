@@ -13,6 +13,9 @@
 #include "l_printf.h"
 #include "avr/pgmspace.h"
 
+#include "l_ina3221.h"
+#include "l_rtc79410.h"
+#include "l_mcp23018.h"
 
 #define BUSADDR_EEPROM_M2402	0xA0
 #define BUSADDR_RTC_M79410		0xDE
@@ -23,6 +26,8 @@
 
 int8_t I2C_read( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, uint8_t length );
 int8_t I2C_write( uint8_t i2c_bus_address, uint32_t wrAddress, char *data, uint8_t length );
+
 bool I2C_test_device( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, uint8_t length );
+void I2C_reinit_devices(void);
 
 #endif /* SPX_LIBS_L_I2C_H_ */

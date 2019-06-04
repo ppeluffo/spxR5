@@ -6,6 +6,7 @@
  */
 
 #include "l_i2c.h"
+#include "l_bytes.h"
 
 const char str_i2c_dev_0[] PROGMEM = "ERR";
 const char str_i2c_dev_1[] PROGMEM = "EE";
@@ -20,6 +21,7 @@ const char * const I2C_names[] PROGMEM = { str_i2c_dev_0, str_i2c_dev_1, str_i2c
 uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address );
 char buffer[10];
 
+static int8_t ioboard = -1;
 //------------------------------------------------------------------------------------
 int8_t I2C_read( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, uint8_t length )
 {
@@ -128,6 +130,12 @@ uint8_t i2c_error_code;
 		xReturn = -1 ;
 	}
 
+	// Si active las salidas del MCP, estas generan mucho ruido por lo que conviene esperar
+	// antes de devolver el bus de modo que nadie lo use hasta que terminen los transitorios
+	if ( i2c_bus_address == BUSADDR_MCP23018 ) {
+		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+	}
+
 	frtos_ioctl(fdI2C,ioctl_RELEASE_BUS_SEMPH, NULL);
 	return(xReturn);
 
@@ -186,6 +194,13 @@ bool retS = true;
 	}
 
 	frtos_ioctl( fdI2C,ioctl_RELEASE_BUS_SEMPH, NULL);
+
+	// 0:SPX_IO5CH, 1:SPX_IO8CH
+	// Al arrancar el programa desde tkCtl se invoca esta funcion y entonces
+	// deja en esta variable estatica la ioborad detectada.
+	// Se usa cuando es necesario resetear los devices en caso de error del bus
+	ioboard = retS;
+
 	return(retS);
 
 }
@@ -217,5 +232,42 @@ uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address )
 
 	return(0);
 
+}
+//------------------------------------------------------------------------------------
+void I2C_reinit_devices(void)
+{
+	// En caso de una falla en el bus I2C ( por lo general por ruidos al activar bombas )
+	// debo reiniciar los dispositivos.
+
+uint8_t olatb;
+
+	// Espero 100 ms que se elimine la fuente de ruido.
+	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+
+	if ( ioboard == 0 ) {			//SPX_IO5CH
+
+		INA_config_avg128( INA_A );
+		INA_config_avg128( INA_B );
+		RTC_init();
+
+	} else if ( ioboard == 1 ) {	// SPX_IO8CH
+
+		INA_config_avg128( INA_A );
+		INA_config_avg128( INA_B );
+		INA_config_avg128( INA_C );
+		MCP_init();
+		//
+		// El MCP_init no escribe el olatb. En este caso debo leerlo del systemVars
+		// y actualizarlo
+		olatb = MCP_get_olatb();
+		MCP_write( MCP_OLATB, (char *)&olatb , 1 );
+
+		RTC_init();
+
+	} else {
+		xprintf_P(PSTR("ERROR: I2C INIT DEVICES: board not detected(%d).\r\n\0"), ioboard );
+	}
+
+	xprintf_P(PSTR("ERROR: I2C_reinit_devices.\r\n\0") );
 }
 //------------------------------------------------------------------------------------

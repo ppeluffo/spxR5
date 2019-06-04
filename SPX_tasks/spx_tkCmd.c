@@ -21,8 +21,8 @@ static void pv_cmd_read_analog_channel(void);
 static void pv_cmd_read_digital_channels(void);
 static void pv_cmd_read_memory(void);
 static void pv_cmd_read_debug(void);
-static void pv_cmd_write_valve(void);
 static void pv_cmd_rwGPRS(uint8_t cmd_mode );
+static void pv_cmd_rwMCP(uint8_t cmd_mode );
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -113,6 +113,7 @@ static void cmdStatusFunction(void)
 
 FAT_t l_fat;
 uint8_t channel;
+uint8_t olatb;
 
 	xprintf_P( PSTR("\r\nSpymovil %s %s %s %s \r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE);
 	xprintf_P( PSTR("Clock %d Mhz, Tick %d Hz\r\n\0"),SYSMAINCLK, configTICK_RATE_HZ );
@@ -128,8 +129,8 @@ uint8_t channel;
 	// Last reset cause
 	xprintf_P( PSTR("WRST=0x%02X\r\n\0") ,wdg_resetCause );
 
-//	xprintf_P( PSTR("sVars Size: %d\r\n\0"), sizeof(systemVars) );
-//	xprintf_P( PSTR("dr Size: %d\r\n\0"), sizeof(st_dataRecord_t) );
+	xprintf_P( PSTR("sVars Size: %d\r\n\0"), sizeof(systemVars) );
+	xprintf_P( PSTR("dr Size: %d\r\n\0"), sizeof(st_dataRecord_t) );
 
 	RTC_read_time();
 
@@ -224,9 +225,6 @@ uint8_t channel;
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.rangeMeter_enabled );
 
-	// Counters debounce time
-	xprintf_P( PSTR("  timerDebounceCnt: [%d s]\r\n\0"), systemVars.counters_conf.debounce_time );
-
 	if ( spx_io_board == SPX_IO5CH ) {
 
 		// PWR SAVE:
@@ -242,42 +240,65 @@ uint8_t channel;
 		} else {
 			xprintf_P( PSTR("  rangeMeter: OFF\r\n"));
 		}
-
-		// Consignas
-		if ( systemVars.doutputs_conf.consigna.c_enabled ) {
-			if ( systemVars.doutputs_conf.consigna.c_aplicada == CONSIGNA_DIURNA ) {
-				xprintf_P( PSTR("  consignas: (DIURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
-			} else {
-				xprintf_P( PSTR("  consignas: (NOCTURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
-			}
-		} else {
-			xprintf_P( PSTR("  consignas: OFF\r\n"));
-		}
-
 	}
 
-	// Salidas digitales
-	if ( spx_io_board == SPX_IO8CH ) {
-		xprintf_P( PSTR("  outputs: 0x%02x [%c%c%c%c%c%c%c%c]\r\n\0"), systemVars.doutputs_conf.d_outputs ,  BYTE_TO_BINARY( systemVars.doutputs_conf.d_outputs ) );
+	// doutputs
+	switch( systemVars.doutputs_conf.modo) {
+	case NONE:
+		xprintf_P( PSTR("  doutputs modo: NONE\r\n"));
+		break;
+	case CONSIGNA:
+		// Consignas
+		xprintf_P( PSTR("  doutputs modo: CONSIGNA\r\n"));
+		if ( systemVars.doutputs_conf.consigna.c_aplicada == CONSIGNA_DIURNA ) {
+			xprintf_P( PSTR("    consignas: (DIURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
+		} else {
+			xprintf_P( PSTR("    consignas: (NOCTURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
+		}
+		break;
+	case PERFORACIONES:
+		xprintf_P( PSTR("  doutputs modo: PERFORACION\r\n"));
+		MCP_read( 0x15, (char *)&olatb, 1 );
+		xprintf_P( PSTR("    out_value=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), systemVars.doutputs_conf.perforacion.outs, systemVars.doutputs_conf.perforacion.outs, BYTE_TO_BINARY( systemVars.doutputs_conf.perforacion.outs ), olatb );
+		if ( systemVars.doutputs_conf.perforacion.control == CTL_BOYA ) {
+			xprintf_P( PSTR("    out_control=BOYA, timer=%d\r\n\0"), doutput_read_datatimer() );
+		} else {
+			xprintf_P( PSTR("    out_control=SISTEMA, timer=%d\r\n\0"), doutput_read_datatimer() );
+		}
+		break;
+	case PILOTOS:
+		xprintf_P( PSTR("  doutputs modo: PILOTO\r\n"));
+		xprintf_P( PSTR("    Pout_ref=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.pout );
+		xprintf_P( PSTR("    Pband=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.band );
+		xprintf_P( PSTR("    max_steps=%d\r\n\0"), systemVars.doutputs_conf.piloto.max_steps );
+		break;
 	}
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %.02f | %.02f | %s]\r\n\0"),channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.mmin[channel], systemVars.ainputs_conf.mmax[channel], systemVars.ainputs_conf.inaspan[channel], systemVars.ainputs_conf.offset[channel], systemVars.ainputs_conf.name[channel] );
+		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %04d | %.02f | %s]\r\n\0"),channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.mmin[channel], systemVars.ainputs_conf.mmax[channel], systemVars.ainputs_conf.inaspan[channel], systemVars.ainputs_conf.offset[channel], systemVars.ainputs_conf.name[channel] );
 	}
 
 	// dinputs
-	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
-		if (  ( spx_io_board == SPX_IO8CH  ) &&  ( systemVars.dtimers_enabled == true )  && ( channel > 3 ) ) {
-			xprintf_P( PSTR("  d%d( ) [ %s ] (T)\r\n\0"),channel,  systemVars.dinputs_conf.name[channel] );
-		} else {
+	for ( channel = 0; channel <  ( NRO_DINPUTS + NRO_DTIMERS) ; channel++) {
+		if ( channel < 4 ) {
 			xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.dinputs_conf.name[channel] );
+		} else {
+			if ( systemVars.dtimers_enabled == true ) {
+				xprintf_P( PSTR("  d%d( ) [ %s ] (T)\r\n\0"),channel,  systemVars.dinputs_conf.name[channel] );
+			} else {
+				xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.dinputs_conf.name[channel] );
+			}
 		}
 	}
 
 	// contadores
 	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
-		xprintf_P( PSTR("  c%d [ %s | %.03f ]\r\n\0"),channel, systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel] );
+//		if ( systemVars.counters_conf.speed[channel] == CNT_LOW_SPEED ) {
+			xprintf_P( PSTR("  c%d [ %s | %.03f ] pw=%d,T=%d,LS\r\n\0"),channel, systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
+//		} else {
+//			xprintf_P( PSTR("  c%d [ %s | %.03f ] pw=%d,T=%d,HS\r\n\0"),channel, systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
+//		}
 	}
 
 	data_read_frame ( false );
@@ -298,8 +319,10 @@ static void cmdResetFunction(void)
 		vTaskSuspend( xHandle_tkData );
 		ctl_watchdog_kick(WDG_DAT, 0x8000 );
 
-		vTaskSuspend( xHandle_tkCounter );
-		ctl_watchdog_kick(WDG_COUNT, 0x8000 );
+		vTaskSuspend( xHandle_tkCounter0 );
+		vTaskSuspend( xHandle_tkCounter1 );
+		ctl_watchdog_kick(WDG_COUNT0, 0x8000 );
+		ctl_watchdog_kick(WDG_COUNT1, 0x8000 );
 
 		vTaskSuspend( xHandle_tkData );
 		ctl_watchdog_kick(WDG_DAT, 0x8000 );
@@ -336,9 +359,14 @@ static void cmdResetFunction(void)
 static void cmdWriteFunction(void)
 {
 
-uint8_t pin;
-
 	FRTOS_CMD_makeArgv();
+
+	// MCP
+	// write mcp regAddr data
+	if (!strcmp_P( strupr(argv[1]), PSTR("MCP\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_rwMCP(WR_CMD);
+		return;
+	}
 
 	// RTC
 	// write rtc YYMMDDhhmm
@@ -394,33 +422,21 @@ uint8_t pin;
 		return;
 	}
 
-	// OUTPUTS
+	// OUTPUT
 	// write output {0..7} {set | clear}
 	if (!strcmp_P( strupr(argv[1]), PSTR("OUTPUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
-
-		pin = atoi(argv[2]);
-
-		if (!strcmp_P( strupr(argv[3]), PSTR("SET\0"))) {
-			if ( DOUTPUTS_set_pin(pin) ) {
-				systemVars.doutputs_conf.d_outputs |= ( 1 << ( 7 - pin )  );
-				pv_snprintfP_OK();
-			} else {
-				pv_snprintfP_ERR();
-			}
-
-		} else if (!strcmp_P( strupr(argv[3]), PSTR("CLEAR\0"))) {
-			if ( DOUTPUTS_clr_pin(pin) ) {
-				systemVars.doutputs_conf.d_outputs &= ~( 1 << ( 7 - pin ) );
-				pv_snprintfP_OK();
-			} else {
-				pv_snprintfP_ERR();
-			}
-
-		} else {
-			pv_snprintfP_ERR();
-		}
+		doutputs_cmd_write_outputs( argv[2], argv[3] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
 		return;
 	}
+
+	// DOUT
+	// write dout VAL
+	if (!strcmp_P( strupr(argv[1]), PSTR("DOUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		doutput_set( atoi(argv[2]) , true);
+		pv_snprintfP_OK();
+		return;
+	}
+
 
 	// RANGE
 	// write range {run | stop}
@@ -440,18 +456,7 @@ uint8_t pin;
 	// CONSIGNA
 	// write consigna (diurna|nocturna)
 	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) && ( tipo_usuario == USER_TECNICO) ) {
-
-		if (!strcmp_P( strupr(argv[2]), PSTR("DIURNA\0")) ) {
-			systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
-			DRV8814_set_consigna_diurna(); pv_snprintfP_OK(); return;
-		}
-
-		if (!strcmp_P( strupr(argv[2]), PSTR("NOCTURNA\0")) ) {
-			systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
-			DRV8814_set_consigna_nocturna(); pv_snprintfP_OK(); return;
-		}
-
-		xprintf_P( PSTR("cmd ERROR: ( write consigna (diurna|nocturna) )\r\n\0"));
+		doutputs_cmd_write_consigna( argv[2] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
 		return;
 	}
 
@@ -460,7 +465,7 @@ uint8_t pin;
 	//             (open|close) (A|B) (ms)
 	//              power {on|off}
 	if (!strcmp_P( strupr(argv[1]), PSTR("VALVE\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		pv_cmd_write_valve();
+		doutputs_cmd_write_valve( argv[2], argv[3] ) ?  pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
@@ -483,6 +488,13 @@ static void cmdReadFunction(void)
 int16_t range;
 
 	FRTOS_CMD_makeArgv();
+
+	// MCP
+	// read mcp regAddr
+	if (!strcmp_P( strupr(argv[1]), PSTR("MCP\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_rwMCP(RD_CMD);
+		return;
+	}
 
 	// DEBUG
  	if (!strcmp_P( strupr(argv[1]), PSTR("DEBUG\0"))) {
@@ -613,19 +625,35 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
-	// COUNTERS
-	// config counter {0..1} cname magPP
-	if (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
-		retS = counters_config_channel( atoi(argv[2]), argv[3], argv[4] );
+	// OUTMODE
+	// config outmode {none|consigna|perforacion|piloto|remoto}
+	if (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
+		retS = doutputs_config_mode( argv[2] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
-	// CDTIME ( counter_debounce_time )
-	// config cdtime { val }
-	if (!strcmp_P( strupr(argv[1]), PSTR("CDTIME\0")) ) {
-		counters_config_debounce_time( argv[2] );
-		pv_snprintfP_OK();
+	// CONSIGNAS
+	// config consigna  {hhmm_dia hhmm_noche}
+	if ( !strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0"))) {
+		retS = doutputs_config_consignas( argv[2], argv[3]);
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
+	// PILOTOS
+	// config piloto {pout} {pband} {max_steps}
+	if ( !strcmp_P( strupr(argv[1]), PSTR("PILOTO\0"))) {
+		retS = doutputs_config_piloto( argv[2], argv[3], argv[4]);
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
+	// COUNTERS
+	// config counter {0..1} cname magPP
+	if (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
+		retS = counters_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
@@ -643,6 +671,9 @@ bool retS = false;
 			retS = true;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("GPRS\0"))) {
 			systemVars.debug = DEBUG_GPRS;
+			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("OUTPUTS\0"))) {
+			systemVars.debug = DEBUG_OUTPUTS;
 			retS = true;
 		} else {
 			retS = false;
@@ -748,13 +779,6 @@ bool retS = false;
 		}
 
 		pv_snprintfP_ERR();
-		return;
-	}
-
-	// CONSIGNAS
-	// config consigna {on|off) {hhmm_dia hhmm_noche}
-	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0"))) ) {
-		doutputs_config_consignas( argv[2], argv[3], argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
@@ -874,16 +898,33 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  ina {id} {rconfValue}, sens12V {on|off}\r\n\0"));
 
 			if ( spx_io_board == SPX_IO8CH ) {
-				xprintf_P( PSTR("  output {0..7} {set | clear}\r\n\0"));
+				xprintf_P( PSTR("  mcp {regAddr} {data}, mcpinit\r\n\0"));
+				xprintf_P( PSTR("  dout VAL\r\n\0"));
 			}
 
-			if ( spx_io_board == SPX_IO5CH ) {
+			if ( systemVars.rangeMeter_enabled == true ) {
 				xprintf_P( PSTR("  range {run | stop}\r\n\0"));
+			}
+
+			switch ( systemVars.doutputs_conf.modo ) {
+			case NONE:
+				break;
+			case CONSIGNA:
 				xprintf_P( PSTR("  consigna (diurna|nocturna)\r\n\0"));
 				xprintf_P( PSTR("  valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}\r\n\0"));
 				xprintf_P( PSTR("        (open|close) (A|B)\r\n\0"));
 				xprintf_P( PSTR("        pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("        power {on|off}\r\n\0"));
+				break;
+			case PERFORACIONES:
+				xprintf_P( PSTR("  output {0..7} {set | clear}\r\n\0"));
+				break;
+			case PILOTOS:
+				xprintf_P( PSTR("  valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}\r\n\0"));
+				xprintf_P( PSTR("        (open|close) (A|B)\r\n\0"));
+				xprintf_P( PSTR("        pulse (A|B) (secs) \r\n\0"));
+				xprintf_P( PSTR("        power {on|off}\r\n\0"));
+				break;
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|cts|dtr) {on|off}\r\n\0"));
@@ -901,18 +942,17 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  id\r\n\0"));
 			xprintf_P( PSTR("  (ee,nvmee,rtcram) {pos} {lenght}\r\n\0"));
 			xprintf_P( PSTR("  ina (id) {conf|chXshv|chXbusv|mfid|dieid}\r\n\0"));
+			if ( spx_io_board == SPX_IO8CH ) {
+				xprintf_P( PSTR("  mcp {regAddr}\r\n\0"));
+			}
+			xprintf_P( PSTR("  memory {full}\r\n\0"));
+			xprintf_P( PSTR("  din\r\n\0"));
 
 			if ( spx_io_board == SPX_IO5CH ) {
 				xprintf_P( PSTR("  ach {0..%d}, battery\r\n\0"), ( NRO_ANINPUTS - 1 ) );
+				xprintf_P( PSTR("  range\r\n\0"));
 			} else if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  ach {0..%d}\r\n\0"), ( NRO_ANINPUTS - 1 ) );
-			}
-
-			xprintf_P( PSTR("  din\r\n\0"));
-			xprintf_P( PSTR("  memory {full}\r\n\0"));
-
-			if ( spx_io_board == SPX_IO5CH ) {
-				xprintf_P( PSTR("  range\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri)\r\n\0"));
@@ -934,17 +974,16 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("-config\r\n\0"));
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
-		xprintf_P( PSTR("  debug {none,counter,data, gprs}\r\n\0"));
-		xprintf_P( PSTR("  counter {0..%d} cname magPP\r\n\0"), ( NRO_COUNTERS - 1 ) );
-		xprintf_P( PSTR("  cdtime {val}\r\n\0"));
+		xprintf_P( PSTR("  debug {none,counter,data, gprs, outputs }\r\n\0"));
+		xprintf_P( PSTR("  counter {0..%d} cname magPP pw period speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
-		xprintf_P( PSTR("  digital {0..%d} dname\r\n\0"), ( NRO_DINPUTS - 1 ) );
+		xprintf_P( PSTR("  digital {0..%d} dname\r\n\0"), ( NRO_DINPUTS + NRO_DTIMERS - 1 ) );
+		xprintf_P( PSTR("  outmode {none|consigna|perforacion|piloto}\r\n\0"));
 
 		if ( spx_io_board == SPX_IO5CH ) {
 			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
-			xprintf_P( PSTR("  consigna {on|off) {hhmm_dia hhmm_noche}\r\n\0"));
 			xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
 			xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, sensortime {val}\r\n\0"));
 		}
@@ -953,6 +992,9 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  dtimers {on|off}\r\n\0"));
 			xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
 		}
+
+		xprintf_P( PSTR("  consigna {hhmm_dia hhmm_noche}\r\n\0"));
+		xprintf_P( PSTR("  piloto {pout} {pband} {max_steps}\r\n\0"));
 
 		xprintf_P( PSTR("  default {SPY|OSE|UTE}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
@@ -991,8 +1033,10 @@ static void cmdKillFunction(void)
 
 	// KILL COUNTER
 	if (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0"))) {
-		vTaskSuspend( xHandle_tkCounter );
-		ctl_watchdog_kick(WDG_COUNT, 0x8000 );
+		vTaskSuspend( xHandle_tkCounter0 );
+		vTaskSuspend( xHandle_tkCounter1 );
+		ctl_watchdog_kick(WDG_COUNT0, 0x8000 );
+		ctl_watchdog_kick(WDG_COUNT1, 0x8000 );
 		return;
 	}
 
@@ -1097,8 +1141,10 @@ UBaseType_t uxHighWaterMark;
 	xprintf_P( PSTR("CMD: %03d,%03d,[%03d]\r\n\0"),tkCmd_STACK_SIZE,uxHighWaterMark,(tkCmd_STACK_SIZE - uxHighWaterMark)) ;
 
 	// tkCounters
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkCounter );
-	xprintf_P( PSTR("CNT: %03d,%03d,[%03d]\r\n\0"),tkCounter_STACK_SIZE,uxHighWaterMark, (tkCounter_STACK_SIZE - uxHighWaterMark));
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkCounter0 );
+	xprintf_P( PSTR("CNT0: %03d,%03d,[%03d]\r\n\0"),tkCounter_STACK_SIZE,uxHighWaterMark, (tkCounter_STACK_SIZE - uxHighWaterMark));
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkCounter1 );
+	xprintf_P( PSTR("CNT1: %03d,%03d,[%03d]\r\n\0"),tkCounter_STACK_SIZE,uxHighWaterMark, (tkCounter_STACK_SIZE - uxHighWaterMark));
 
 	// tkData
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkData );
@@ -1264,132 +1310,6 @@ bool detail = false;
 
 		xprintf_P(PSTR( "\r\n"));
 	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_cmd_write_valve(void)
-{
-	// write valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}
-	//             (open|close) (A|B) (ms)
-	//              power {on|off}
-
-	// write valve enable (A|B)
-	if (!strcmp_P( strupr(argv[2]), PSTR("ENABLE\0")) ) {
-		DRV8814_enable_pin( toupper(argv[3][0]), 1); pv_snprintfP_OK();
-		return;
-	}
-
-	// write valve disable (A|B)
-	if (!strcmp_P( strupr(argv[2]), PSTR("DISABLE\0")) ) {
-		DRV8814_enable_pin( toupper(argv[3][0]), 0); pv_snprintfP_OK();
-		return;
-	}
-
-	// write valve set
-	if (!strcmp_P( strupr(argv[2]), PSTR("SET\0")) ) {
-		DRV8814_reset_pin(1); pv_snprintfP_OK();
-		return;
-	}
-
-	// write valve reset
-	if (!strcmp_P( strupr(argv[2]), PSTR("RESET\0")) ) {
-		DRV8814_reset_pin(0); pv_snprintfP_OK();
-		return;
-	}
-
-	// write valve sleep
-	if (!strcmp_P( strupr(argv[2]), PSTR("SLEEP\0")) ) {
-		DRV8814_sleep_pin(1);  pv_snprintfP_OK();
-		return;
-	}
-
-	// write valve awake
-	if (!strcmp_P( strupr(argv[2]), PSTR("AWAKE\0")) ) {
-		DRV8814_sleep_pin(0);  pv_snprintfP_OK();
-		return;
-	}
-
-	// write valve ph01 (A|B)
-	if (!strcmp_P( strupr(argv[2]), PSTR("PH01\0")) ) {
-		DRV8814_phase_pin( toupper(argv[3][0]), 1);  pv_snprintfP_OK();
-		return;
-	}
-
-	// write valve ph10 (A|B)
-	if (!strcmp_P( strupr(argv[2]), PSTR("PH10\0")) ) {
-		DRV8814_phase_pin( toupper(argv[3][0]), 0);  pv_snprintfP_OK();
-		return;
-	}
-
-	// write valve power on|off
-	if (!strcmp_P( strupr(argv[2]), PSTR("POWER\0")) ) {
-
-		if (!strcmp_P( strupr(argv[3]), PSTR("ON\0")) ) {
-			DRV8814_power_on();
-			pv_snprintfP_OK();
-			return;
-		}
-		if (!strcmp_P( strupr(argv[3]), PSTR("OFF\0")) ) {
-			DRV8814_power_off();
-			pv_snprintfP_OK();
-			return;
-		}
-		pv_snprintfP_ERR();
-		return;
-	}
-
-	//  write valve (open|close) (A|B) (ms)
-	if (!strcmp_P( strupr(argv[2]), PSTR("OPEN\0")) ) {
-
-		// Proporciono corriente.
-		DRV8814_power_on();
-		// Espero 10s que se carguen los condensasores
-		vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
-
-		xprintf_P( PSTR("VALVE OPEN %c\r\n\0"), toupper(argv[3][0] ));
-		DRV8814_vopen( toupper(argv[3][0]), 100);
-
-		DRV8814_power_off();
-		return;
-	}
-
-	if (!strcmp_P( strupr(argv[2]), PSTR("CLOSE\0")) ) {
-		// Proporciono corriente.
-		DRV8814_power_on();
-		// Espero 10s que se carguen los condensasores
-		vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
-
-		DRV8814_vclose( toupper(argv[3][0]), 100);
-		xprintf_P( PSTR("VALVE CLOSE %c\r\n\0"), toupper(argv[3][0] ));
-
-		DRV8814_power_off();
-		return;
-	}
-
-	// write valve pulse (A/B) ms
-	if (!strcmp_P( strupr(argv[2]), PSTR("PULSE\0")) ) {
-		// Proporciono corriente.
-		DRV8814_power_on();
-		// Espero 10s que se carguen los condensasores
-		vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
-		// Abro la valvula
-		xprintf_P( PSTR("VALVE OPEN...\0") );
-		DRV8814_vopen( toupper(argv[3][0]), 100);
-
-		// Espero en segundos
-		vTaskDelay( ( TickType_t)( atoi(argv[4])*1000 / portTICK_RATE_MS ) );
-
-		// Cierro
-		xprintf_P( PSTR("CLOSE\r\n\0") );
-		DRV8814_vclose( toupper(argv[3][0]), 100);
-
-		DRV8814_power_off();
-		return;
-	}
-
-
-	pv_snprintfP_ERR();
-	return;
 
 }
 //------------------------------------------------------------------------------------
@@ -1634,6 +1554,47 @@ uint8_t pin;
 			pv_snprintfP_ERR();
 			return;
 	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_cmd_rwMCP(uint8_t cmd_mode )
+{
+
+int xBytes = 0;
+uint8_t data;
+
+	if ( spx_io_board != SPX_IO8CH ) {
+		xprintf_P(PSTR("ERROR: IOboard NOT spx8CH !!\r\n\0"));
+		return;
+	}
+
+	// read mcp {regAddr}
+	if ( cmd_mode == RD_CMD ) {
+		xBytes = MCP_read( (uint32_t)(atoi(argv[2])), (char *)&data, 1 );
+		if ( xBytes == -1 )
+			xprintf_P(PSTR("ERROR: I2C:MCP:pv_cmd_rwMCP\r\n\0"));
+
+		if ( xBytes > 0 ) {
+			xprintf_P( PSTR( "MCP ADDR=0x%x, VALUE=0x%x\r\n\0"),atoi(argv[2]), data);
+		}
+		( xBytes > 0 ) ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
+	// write mcp regAddr value
+	if ( cmd_mode == WR_CMD ) {
+		data = atoi(argv[3]);
+
+		xBytes = MCP_write( (uint32_t)(atoi(argv[2])), (char *)&data , 1 );
+		//systemVars.doutputs_conf.perforacion.outs = twiddle_bits( data );
+		doutput_write_perforaciones_outs( twiddle_bits( data ) );
+		if ( xBytes == -1 )
+			xprintf_P(PSTR("ERROR: I2C:MCP:pv_cmd_rwMCP\r\n\0"));
+
+		( xBytes > 0 ) ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
 
 }
 //------------------------------------------------------------------------------------

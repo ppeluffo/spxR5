@@ -459,7 +459,7 @@ uint8_t i;
 	}
 
 	// csq, wrst
-	xCom_printf_P( fdGPRS, PSTR("&CSQ=%d&WRST=0x%02X\0"), GPRS_stateVars.csq, wdg_resetCause );
+	xCom_printf_P( fdGPRS, PSTR("&CSQ=%d&WRST=0x%02X\0"), GPRS_stateVars.dbm, wdg_resetCause );
 	// DEBUG & LOG
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("&CSQ=%d&WRST=0x%02X\0"), GPRS_stateVars.csq, wdg_resetCause );
@@ -522,21 +522,34 @@ uint8_t i;
 			}
 		}
 
-		// Consignas
-		if ( systemVars.doutputs_conf.consigna.c_enabled ) {
-			xCom_printf_P( fdGPRS, PSTR("&CONS=ON,%02d%02d,%02d%02d\0"),systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
-			// DEBUG & LOG
-			if ( systemVars.debug == DEBUG_GPRS ) {
-				xprintf_P( PSTR("&CONS=ON,%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
-			}
-		} else {
-			xCom_printf_P( fdGPRS, PSTR("&CONS=OFF\0"));
-				// DEBUG & LOG
-			if ( systemVars.debug == DEBUG_GPRS ) {
-				xprintf_P( PSTR("&CONS=OFF\0"));
-			}
-		}
+	}
 
+	// doutputs
+	switch( systemVars.doutputs_conf.modo) {
+	case NONE:
+		break;
+	case CONSIGNA:
+		// Consignas
+		xCom_printf_P( fdGPRS, PSTR("&DOUTS=CONS,%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
+		// DEBUG & LOG
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("&DOUTS=CONS,%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
+		}
+		break;
+	case PERFORACIONES:
+		xCom_printf_P( fdGPRS, PSTR("&DOUTS=PERF\0"));
+		// DEBUG & LOG
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("&DOUTS=PERF\0"));
+		}
+		break;
+	case PILOTOS:
+		xCom_printf_P( fdGPRS, PSTR("&DOUTS=PLT,%.02f,%.02f,%d\0"), systemVars.doutputs_conf.piloto.pout,systemVars.doutputs_conf.piloto.band, systemVars.doutputs_conf.piloto.max_steps );
+		// DEBUG & LOG
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("&DOUTS=PLT,%.02f,%.02f,%d\0"), systemVars.doutputs_conf.piloto.pout,systemVars.doutputs_conf.piloto.band, systemVars.doutputs_conf.piloto.max_steps );
+		}
+		break;
 	}
 
 	// TAIL ------------------------------------------------------------------------
@@ -582,6 +595,16 @@ uint32_t u_gprs_read_timeToNextDial(void)
 void u_gprs_set_timeToNextDial( uint32_t time_to_dial )
 {
 	ctl_set_timeToNextDial( time_to_dial );
+}
+//------------------------------------------------------------------------------------
+bool u_gprs_modem_link_up(void)
+{
+	if ( GPRS_stateVars.state == G_DATA ) {
+		return(true);
+	}
+
+	return(false);
+
 }
 //------------------------------------------------------------------------------------
 

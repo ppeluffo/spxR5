@@ -51,14 +51,15 @@ static bool f_terminal_connected;
 
 const char string_0[] PROGMEM = "CTL";
 const char string_1[] PROGMEM = "CMD";
-const char string_2[] PROGMEM = "CNT";
-const char string_3[] PROGMEM = "DAT";
-const char string_4[] PROGMEM = "DIN";
-const char string_5[] PROGMEM = "DOUT";
-const char string_6[] PROGMEM = "GRX";
-const char string_7[] PROGMEM = "GTX";
+const char string_2[] PROGMEM = "CNT0";
+const char string_3[] PROGMEM = "CNT1";
+const char string_4[] PROGMEM = "DAT";
+const char string_5[] PROGMEM = "DTIM";
+const char string_6[] PROGMEM = "DOUT";
+const char string_7[] PROGMEM = "GRX";
+const char string_8[] PROGMEM = "GTX";
 
-const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7 };
+const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7, string_8 };
 
 //------------------------------------------------------------------------------------
 void tkCtl(void * pvParameters)
@@ -143,10 +144,9 @@ char data[3];
 
 	// Configuro los pines
 	u_gprs_init_pines();
-	tkDoutputs_init();
+	//tkDoutputs_init();
 	tkDtimers_init();
 	tkData_init();
-	tkCounter_init();
 
 	// Leo los parametros del la EE y si tengo error, cargo por defecto
 	if ( ! u_load_params_from_NVMEE() ) {

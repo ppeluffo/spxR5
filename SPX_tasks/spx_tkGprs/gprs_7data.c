@@ -25,6 +25,7 @@ static bool pv_procesar_respuesta_server(void);
 static void pv_process_response_RESET(void);
 static uint8_t pv_process_response_OK(void);
 static void pv_process_response_DOUTS(void);
+static void pv_process_response_POUT(void);
 static bool pv_check_more_Rcds4Del ( void );
 
 dataframe_s df;
@@ -540,9 +541,10 @@ uint8_t recds_borrados = 0;
 //------------------------------------------------------------------------------------
 static void pv_process_response_DOUTS(void)
 {
-	// Recibi algo del estilo >RX_OK:285:OUTS=1,0.
+	// Recibi algo del estilo >RX_OK:469:DOUTS=245
+	// Es la respuesta del server para activar las salidas en perforaciones o modo remoto.
+
 	// Extraigo el valor de las salidas y las seteo.
-	// Es valido solo si las salidas estan configuradas para modo NORMAL.
 
 char localStr[32];
 char *stringp;
@@ -563,10 +565,45 @@ char *p;
 	tk_douts = strsep(&stringp,delim);	//OUTS
 	tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
 
-	systemVars.doutputs_conf.d_outputs = atoi(tk_douts);
+	// Actualizo el status a travez de una funcion propia del modulo de outputs
+	doutput_set( atoi( tk_douts ), false );
+	//systemVars.doutputs_conf.d_outputs = atoi(tk_douts);
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: processOUTS %d\r\n\0"), systemVars.doutputs_conf.d_outputs );
+		xprintf_P( PSTR("GPRS: processDOUTS\r\n\0"));
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_process_response_POUT(void)
+{
+	// Recibi algo del estilo >RX_OK:469:POUT=2.3
+	// Es la respuesta del server para modificar la presion de referencia en modo PILOTO
+
+char localStr[32];
+char *stringp;
+char *tk_pout;
+char *delim = ",=:><";
+char *p;
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "POUT");
+	if ( p == NULL ) {
+		return;
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_pout = strsep(&stringp,delim);	// POUT
+	tk_pout = strsep(&stringp,delim);	// valor de presion a fijar
+
+	// Actualizo el status a travez de una funcion propia del modulo de outputs
+	doutputs_config_piloto( tk_pout, NULL, NULL);
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: process POUT\r\n\0"));
 	}
 
 }
