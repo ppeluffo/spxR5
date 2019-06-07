@@ -45,10 +45,7 @@
 #include "frtos-io.h"
 #include "FRTOS-CMD.h"
 
-#include "l_ainputs.h"
 #include "l_counters.h"
-#include "l_dinputs.h"
-#include "l_doutputs.h"
 #include "l_drv8814.h"
 #include "l_iopines.h"
 #include "l_eeprom.h"
@@ -65,8 +62,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.0.0d"
-#define SPX_FW_DATE "@ 20190603"
+#define SPX_FW_REV "2.0.0b"
+#define SPX_FW_DATE "@ 20190607"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -79,18 +76,15 @@
 //
 #define MAX_ANALOG_CHANNELS		8
 #define MAX_DINPUTS_CHANNELS	8
-#define MAX_DTIMERS_CHANNELS	4
 #define MAX_DOUTPUTS_CHANNELS	8
 #define MAX_COUNTER_CHANNELS	2
 
 #define IO5_ANALOG_CHANNELS		5
 #define IO5_DINPUTS_CHANNELS	2
-#define IO5_DTIMERS_CHANNELS	0
 #define IO5_COUNTER_CHANNELS	2
 
 #define IO8_ANALOG_CHANNELS		8
-#define IO8_DINPUTS_CHANNELS	4
-#define IO8_DTIMERS_CHANNELS	4
+#define IO8_DINPUTS_CHANNELS	8
 #define IO8_COUNTER_CHANNELS	2
 #define IO8_DOUTPUTS_CHANNELS	8
 
@@ -103,7 +97,6 @@
 #define tkCmd_STACK_SIZE		512
 #define tkCounter_STACK_SIZE	512
 #define tkData_STACK_SIZE		512
-#define tkDtimers_STACK_SIZE	512
 #define tkDoutputs_STACK_SIZE	512
 #define tkGprs_rx_STACK_SIZE	1024
 #define tkGprs_tx_STACK_SIZE	1024
@@ -112,7 +105,6 @@
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCounter_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkData_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
-#define tkDtimers_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkDoutputs_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
 #define tkGprs_rx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkGprs_tx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
@@ -131,7 +123,7 @@ typedef enum { CTL_BOYA, CTL_SISTEMA } doutputs_control_t;
 typedef enum { NONE = 0, CONSIGNA, PERFORACIONES, PILOTOS  } doutputs_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter0 ,xHandle_tkCounter1 , xHandle_tkData, xHandle_tkDtimers, xHandle_tkDoutputs,  xHandle_tkGprsRx, xHandle_tkGprsTx;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter0 ,xHandle_tkCounter1 , xHandle_tkData, xHandle_tkDoutputs,  xHandle_tkGprsRx, xHandle_tkGprsTx;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -149,7 +141,6 @@ void tkCmd(void * pvParameters);
 void tkCounter0(void * pvParameters);
 void tkCounter1(void * pvParameters);
 void tkData(void * pvParameters);
-void tkDtimers(void * pvParameters);
 void tkDoutputs(void * pvParameters);
 void tkGprsRx(void * pvParameters);
 void tkGprsTx(void * pvParameters);
@@ -166,7 +157,6 @@ void tkGprsTx(void * pvParameters);
 uint8_t NRO_COUNTERS;
 uint8_t NRO_ANINPUTS;
 uint8_t NRO_DINPUTS;
-uint8_t NRO_DTIMERS;
 
 // Estructura de un registro de IO5CH
 typedef struct {
@@ -181,7 +171,6 @@ typedef struct {
 typedef struct {
 	float ainputs[IO8_ANALOG_CHANNELS];			// 4 * 8 = 32
 	uint8_t dinputsA[IO8_DINPUTS_CHANNELS];		// 1 * 4 =  4
-	uint16_t dinputsB[IO8_DTIMERS_CHANNELS];	// 2 * 4 =  8
 	float counters[IO8_COUNTER_CHANNELS];		// 4 * 2 =  8
 } st_io8_t; 									// ----- = 52
 
@@ -200,7 +189,6 @@ typedef struct {
 typedef struct {
 	float ainputs[MAX_ANALOG_CHANNELS];
 	uint8_t dinputsA[MAX_DINPUTS_CHANNELS];
-	uint16_t dinputsB[MAX_DTIMERS_CHANNELS];
 	float counters[MAX_COUNTER_CHANNELS];
 	int16_t range;
 	float battery;
@@ -242,7 +230,7 @@ typedef struct {
 	float magpp[MAX_COUNTER_CHANNELS];
 	uint16_t pwidth[MAX_COUNTER_CHANNELS];
 	uint16_t period[MAX_COUNTER_CHANNELS];
-//	uint8_t speed[MAX_COUNTER_CHANNELS];
+	uint8_t speed[MAX_COUNTER_CHANNELS];
 } counters_conf_t;
 
 // Configuracion de canales digitales
@@ -289,7 +277,6 @@ typedef struct {
 	t_debug debug;
 	uint16_t timerPoll;
 	bool rangeMeter_enabled;
-	bool dtimers_enabled;
 
 	counters_conf_t counters_conf;	// Estructura con la configuracion de los contadores
 	dinputs_conf_t dinputs_conf;	// Estructura con la configuracion de las entradas digitales
@@ -316,11 +303,7 @@ uint8_t u_save_params_in_NVMEE(void);
 bool u_load_params_from_NVMEE(void);
 void u_config_timerpoll ( char *s_timerpoll );
 
-void u_df_print_analogicos( dataframe_s *df );
-void u_df_print_digitales( dataframe_s *df );
-void u_df_print_contadores( dataframe_s *df );
 void u_df_print_range( dataframe_s *df );
-void u_df_print_battery( dataframe_s *df );
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -332,22 +315,12 @@ bool ctl_terminal_connected(void);
 uint32_t ctl_read_timeToNextDial(void);
 void ctl_set_timeToNextDial( uint32_t new_time );
 
-// TKCOUNTER
-float counters_read( uint8_t cnt, bool reset_counter );
-void counters_config_defaults(void);
-bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1, char *s_param2, char *s_param3, char *s_param4 );
-void tkCounter_init(uint8_t cnt);
-
-// TKDINPUTS
-int8_t dinputs_read ( uint8_t din );
+// DINPUTS
+void dinputs_init( void );
+int8_t dinputs_read_channel ( uint8_t din );
 void dinputs_config_defaults(void);
 bool dinputs_config_channel( uint8_t channel,char *s_aname );
-
-// TKDTIMERS
-int16_t dtimers_read ( uint8_t din );
-bool dtimers_config_timermode ( char *s_mode );
-void dtimers_config_defaults(void);
-void tkDtimers_init(void);
+void dinputs_df_print( dataframe_s *df );
 
 // RANGE
 int16_t range_read(void);
@@ -355,20 +328,38 @@ bool range_config ( char *s_mode );
 void range_config_defaults(void);
 
 // AINPUTS
-void ainputs_read ( uint8_t io_channel, uint16_t *raw_val, float *mag_val );
+void ainputs_prender_12V_sensors(void);
+void ainputs_apagar_12Vsensors(void);
+uint16_t ainputs_read_channel_raw(uint8_t channel_id );
+float ainputs_read_channel ( uint8_t io_channel );
+uint16_t ainputs_read_battery_raw(void);
+float ainputs_read_battery(void);
+void ainputs_awake(void);
+void ainputs_sleep(void);
+void ainputs_df_print( dataframe_s *df );
+void ainputs_df_print_battery( dataframe_s *df );
+
 bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax );
 void ainputs_config_defaults(void);
 bool ainputs_config_offset( char *s_channel, char *s_offset );
-void ainputs_config_sensortime ( char *s_sensortime );
+void ainputs_config_timepwrsensor ( char *s_sensortime );
 void ainputs_config_span ( char *s_channel, char *s_span );
 bool ainputs_config_autocalibrar( char *s_channel, char *s_mag_val );
 
+// COUNTERS
+float counters_read_channel( uint8_t cnt, bool reset_counter );
+void counters_config_defaults(void);
+bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1, char *s_param2, char *s_param3, char *s_param4 );
+void counters_df_print( dataframe_s *df );
+
 // TKDATA
 void data_read_frame( bool polling );
-void tkData_init(void);
 
-// TKDOUTPUTS
-void tkDoutputs_init(void);
+// DOUTPUTS
+void doutputs_RELOAD_TIMER_SISTEMA(void);
+void doutputs_RELOAD_TIMER_BOYA(void);
+void doutputs_STOP_TIMER_BOYA(void);
+void doutputs_STOP_TIMER_SISTEMA(void);
 void doutputs_config_defaults(void);
 bool doutputs_config_mode( char *mode );
 bool doutputs_config_consignas( char *hhmm_dia, char *hhmm_noche);
@@ -376,12 +367,9 @@ bool doutputs_config_piloto( char *pref, char *pband, char *psteps );
 bool doutputs_cmd_write_consigna( char *tipo_consigna_str);
 bool doutputs_cmd_write_valve( char *param1, char *param2 );
 bool doutputs_cmd_write_outputs( char *param_pin, char *param_state );
-void doutput_write_perforaciones_outs( uint8_t val);
-
-void doutput_set( uint8_t dout, bool force );
-uint16_t doutput_read_datatimer(void);
-doutputs_control_t doutput_read_control(void);
-void doutput_mcp_raise_error(void);
+uint16_t doutputs_cmd_read_clt_timer(void);
+void doutput_set_douts( uint8_t dout );
+void doutput_set_douts_from_gprs( uint8_t dout );
 
 // WATCHDOG
 uint8_t wdg_resetCause;
@@ -391,12 +379,11 @@ uint8_t wdg_resetCause;
 #define WDG_COUNT0		2
 #define WDG_COUNT1		3
 #define WDG_DAT			4
-#define WDG_DTIM		5
-#define WDG_DOUT		6
-#define WDG_GPRSRX		7
-#define WDG_GPRSTX		8
+#define WDG_DOUT		5
+#define WDG_GPRSRX		6
+#define WDG_GPRSTX		7
 
-#define NRO_WDGS		9
+#define NRO_WDGS		8
 
 
 #endif /* SRC_SPX_H_ */

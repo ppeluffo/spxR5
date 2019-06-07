@@ -245,7 +245,6 @@ void u_load_defaults( char *opt )
 	ainputs_config_defaults();
 	range_config_defaults();
 	doutputs_config_defaults();
-	dtimers_config_defaults();
 
 	u_gprs_load_defaults( opt );
 
@@ -334,81 +333,11 @@ void u_config_timerpoll ( char *s_timerpoll )
 	return;
 }
 //------------------------------------------------------------------------------------
-void u_df_print_analogicos( dataframe_s *df )
-{
-
-uint8_t channel;
-
-	// Canales analogicos: Solo muestro los que tengo configurados.
-	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		if ( ! strcmp ( systemVars.ainputs_conf.name[channel], "X" ) )
-			continue;
-
-		xprintf_P(PSTR(",%s=%.02f"),systemVars.ainputs_conf.name[channel], df->ainputs[channel] );
-	}
-}
-//------------------------------------------------------------------------------------
-void u_df_print_digitales( dataframe_s *df )
-{
-	// Canales digitales.
-
-uint8_t channel;
-
-	if ( spx_io_board == SPX_IO5CH ) {
-		for ( channel = 0; channel < NRO_DINPUTS; channel++) {
-			if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
-				continue;
-
-			xprintf_P(PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], df->dinputsA[channel] );
-		}
-		return;
-	}
-
-	// Aqui hay que ver si los dtimers estan o no habilitados.
-	if ( spx_io_board == SPX_IO8CH ) {
-		// Los primeros 4 son dinputs.
-		for ( channel = 0; channel < 4; channel++) {
-			if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
-				continue;
-			xprintf_P(PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], df->dinputsA[channel] );
-		}
-
-		// Del 4 al 7 pueden ser dinputs o dtimers
-		for ( channel = 4; channel < 8; channel++) {
-			if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
-				continue;
-			xprintf_P(PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], df->dinputsB[channel - 4] );
-		}
-	}
-}
-//------------------------------------------------------------------------------------
-void u_df_print_contadores( dataframe_s *df )
-{
-uint8_t channel;
-
-	// Contadores
-	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
-		// Si el canal no esta configurado no lo muestro.
-		if ( ! strcmp ( systemVars.counters_conf.name[channel], "X" ) )
-			continue;
-
-		xprintf_P(PSTR(",%s=%.02f"),systemVars.counters_conf.name[channel], df->counters[channel] );
-	}
-}
-//------------------------------------------------------------------------------------
 void u_df_print_range( dataframe_s *df )
 {
 	// Range
 	if ( ( spx_io_board == SPX_IO5CH ) && ( systemVars.rangeMeter_enabled ) ) {
 		xprintf_P(PSTR(",RANGE=%d"), df->range );
-	}
-}
-//------------------------------------------------------------------------------------
-void u_df_print_battery( dataframe_s *df )
-{
-	// bateria
-	if ( spx_io_board == SPX_IO5CH ) {
-		xprintf_P(PSTR(",bt=%.02f"), df->battery );
 	}
 }
 //------------------------------------------------------------------------------------

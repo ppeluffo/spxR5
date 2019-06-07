@@ -8,45 +8,14 @@
 #include "spx.h"
 
 //------------------------------------------------------------------------------------
-void ainputs_read ( uint8_t io_channel, uint16_t *raw_val, float *mag_val )
+void ainputs_prender_12V_sensors(void)
 {
-	// Lee un canal analogico y devuelve el valor convertido a la magnitud configurada.
-	// Es publico porque se utiliza tanto desde el modo comando como desde el modulo de poleo de las entradas.
-	// Hay que corregir la correspondencia entre el canal leido del INA y el canal fisico del datalogger
-	// io_channel. Esto lo hacemos en AINPUTS_read_ina.
-
-uint16_t an_raw_val;
-float an_mag_val;
-float I,M,P;
-uint16_t D;
-
-	an_raw_val = AINPUTS_read_ina(spx_io_board, io_channel );
-	*raw_val = an_raw_val;
-
-	// Convierto el raw_value a la magnitud
-	// Calculo la corriente medida en el canal
-	I = (float)( an_raw_val) * 20 / ( systemVars.ainputs_conf.inaspan[io_channel] + 1);
-
-	// Calculo la magnitud
-	P = 0;
-	D = systemVars.ainputs_conf.imax[io_channel] - systemVars.ainputs_conf.imin[io_channel];
-
-	an_mag_val = 0.0;
-	if ( D != 0 ) {
-		// Pendiente
-		P = (float) ( systemVars.ainputs_conf.mmax[io_channel]  -  systemVars.ainputs_conf.mmin[io_channel] ) / D;
-		// Magnitud
-		M = (float) (systemVars.ainputs_conf.mmin[io_channel] + ( I - systemVars.ainputs_conf.imin[io_channel] ) * P);
-
-		// Al calcular la magnitud, al final le sumo el offset.
-		an_mag_val = M + systemVars.ainputs_conf.offset[io_channel];
-	} else {
-		// Error: denominador = 0.
-		an_mag_val = -999.0;
-	}
-
-	*mag_val = an_mag_val;
-
+	IO_set_SENS_12V_CTL();
+}
+//------------------------------------------------------------------------------------
+void ainputs_apagar_12Vsensors(void)
+{
+	IO_clr_SENS_12V_CTL();
 }
 //------------------------------------------------------------------------------------
 bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax )
@@ -94,7 +63,7 @@ float offset;
 	return(false);
 }
 //------------------------------------------------------------------------------------
-void ainputs_config_sensortime ( char *s_sensortime )
+void ainputs_config_timepwrsensor ( char *s_sensortime )
 {
 	// Configura el tiempo de espera entre que prendo  la fuente de los sensores y comienzo el poleo.
 	// Se utiliza solo desde el modo comando.
@@ -152,7 +121,7 @@ float offset;
 	}
 
 	// Leo el canal del ina.
-	an_raw_val = AINPUTS_read_ina( spx_io_board, channel );
+	an_raw_val = ainputs_read_channel_raw( channel );
 //	xprintf_P( PSTR("ANRAW=%d\r\n\0"), an_raw_val );
 
 	// Convierto el raw_value a la magnitud
@@ -208,6 +177,230 @@ uint8_t channel;
 		snprintf_P( systemVars.ainputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("A%d\0"),channel );
 	}
 
+}
+//------------------------------------------------------------------------------------
+uint16_t ainputs_read_channel_raw(uint8_t channel_id )
+{
+	// Como tenemos 2 arquitecturas de dataloggers, SPX_5CH y SPX_8CH,
+	// los canales estan mapeados en INA con diferentes id.
+
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// Aqui convierto de io_channel a (ina_id, ina_channel )
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+	// ina_id es el parametro que se pasa a la funcion INA_id2busaddr para
+	// que me devuelva la direccion en el bus I2C del dispositivo.
+
+
+uint8_t ina_reg = 0;
+uint8_t ina_id = 0;
+uint16_t an_raw_val;
+uint8_t MSB, LSB;
+char res[3];
+int8_t xBytes;
+//float vshunt;
+
+	switch(spx_io_board) {
+
+	case SPX_IO5CH:	// Datalogger SPX_5CH
+		switch ( channel_id ) {
+		case 0:
+			ina_id = INA_A; ina_reg = INA3221_CH1_SHV;
+			break;
+		case 1:
+			ina_id = INA_A; ina_reg = INA3221_CH2_SHV;
+			break;
+		case 2:
+			ina_id = INA_A; ina_reg = INA3221_CH3_SHV;
+			break;
+		case 3:
+			ina_id = INA_B; ina_reg = INA3221_CH2_SHV;
+			break;
+		case 4:
+			ina_id = INA_B; ina_reg = INA3221_CH3_SHV;
+			break;
+		case 99:
+			ina_id = INA_B; ina_reg = INA3221_CH1_BUSV;
+			break;	// Battery
+		default:
+			return(-1);
+			break;
+		}
+		break;
+
+	case SPX_IO8CH:	// Datalogger SPX_8CH
+		switch ( channel_id ) {
+		case 0:
+			ina_id = INA_B; ina_reg = INA3221_CH1_SHV;
+			break;
+		case 1:
+			ina_id = INA_B; ina_reg = INA3221_CH2_SHV;
+			break;
+		case 2:
+			ina_id = INA_B; ina_reg = INA3221_CH3_SHV;
+			break;
+		case 3:
+			ina_id = INA_A; ina_reg = INA3221_CH1_SHV;
+			break;
+		case 4:
+			ina_id = INA_A; ina_reg = INA3221_CH2_SHV;
+			break;
+		case 5:
+			ina_id = INA_A; ina_reg = INA3221_CH3_SHV;
+			break;
+		case 6:
+			ina_id = INA_C; ina_reg = INA3221_CH1_SHV;
+			break;
+		case 7:
+			ina_id = INA_C; ina_reg = INA3221_CH2_SHV;
+			break;
+		case 8:
+			ina_id = INA_C; ina_reg = INA3221_CH3_SHV;
+			break;
+		default:
+			return(-1);
+			break;
+		}
+		break;
+
+	default:
+		return(-1);
+		break;
+	}
+
+	// Leo el valor del INA.
+//	xprintf_P(PSTR("DEBUG: INAID = %d\r\n\0"), ina_id );
+
+	xBytes = INA_read( ina_id, ina_reg, res ,2 );
+	if ( xBytes == -1 )
+		xprintf_P(PSTR("ERROR I2C: ainputs_read_channel_raw.\r\n\0"));
+
+	an_raw_val = 0;
+	MSB = res[0];
+	LSB = res[1];
+	an_raw_val = ( MSB << 8 ) + LSB;
+	an_raw_val = an_raw_val >> 3;
+
+//	vshunt = (float) an_raw_val * 40 / 1000;
+//	xprintf_P( PSTR("ACH: ch=%d, ina=%d, reg=%d, MSB=0x%x, LSB=0x%x, ANV=(0x%x)%d, VSHUNT = %.02f(mV)\r\n\0") ,channel_id, ina_id, ina_reg, MSB, LSB, an_raw_val, an_raw_val, vshunt );
+
+	return( an_raw_val );
+}
+//------------------------------------------------------------------------------------
+float ainputs_read_channel ( uint8_t io_channel )
+{
+	// Lee un canal analogico y devuelve el valor convertido a la magnitud configurada.
+	// Es publico porque se utiliza tanto desde el modo comando como desde el modulo de poleo de las entradas.
+	// Hay que corregir la correspondencia entre el canal leido del INA y el canal fisico del datalogger
+	// io_channel. Esto lo hacemos en AINPUTS_read_ina.
+
+uint16_t an_raw_val;
+float an_mag_val;
+float I,M,P;
+uint16_t D;
+
+	// Leo el valor del INA.
+	an_raw_val = ainputs_read_channel_raw( io_channel );
+
+	// Convierto el raw_value a la magnitud
+	// Calculo la corriente medida en el canal
+	I = (float)( an_raw_val) * 20 / ( systemVars.ainputs_conf.inaspan[io_channel] + 1);
+
+	// Calculo la magnitud
+	P = 0;
+	D = systemVars.ainputs_conf.imax[io_channel] - systemVars.ainputs_conf.imin[io_channel];
+
+	an_mag_val = 0.0;
+	if ( D != 0 ) {
+		// Pendiente
+		P = (float) ( systemVars.ainputs_conf.mmax[io_channel]  -  systemVars.ainputs_conf.mmin[io_channel] ) / D;
+		// Magnitud
+		M = (float) (systemVars.ainputs_conf.mmin[io_channel] + ( I - systemVars.ainputs_conf.imin[io_channel] ) * P);
+
+		// Al calcular la magnitud, al final le sumo el offset.
+		an_mag_val = M + systemVars.ainputs_conf.offset[io_channel];
+	} else {
+		// Error: denominador = 0.
+		an_mag_val = -999.0;
+	}
+
+	return(an_mag_val);
+
+}
+//------------------------------------------------------------------------------------
+uint16_t ainputs_read_battery_raw(void)
+{
+	if ( spx_io_board != SPX_IO5CH ) {
+		return(-1);
+	}
+
+	return( ainputs_read_channel_raw(99));
+}
+//------------------------------------------------------------------------------------
+float ainputs_read_battery(void)
+{
+float battery_level;
+
+	if ( spx_io_board != SPX_IO5CH ) {
+		return(-1);
+	}
+
+	// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
+	battery_level =  0.008 * ainputs_read_battery_raw();
+
+	return(battery_level);
+}
+//------------------------------------------------------------------------------------
+void ainputs_awake(void)
+{
+	switch (spx_io_board) {
+	case SPX_IO5CH:
+		INA_config_avg128(INA_A );
+		INA_config_avg128(INA_B );
+		break;
+	case SPX_IO8CH:
+		INA_config_avg128(INA_A );
+		INA_config_avg128(INA_B );
+		INA_config_avg128(INA_C );
+		break;
+	}
+}
+//------------------------------------------------------------------------------------
+void ainputs_sleep(void)
+{
+	switch (spx_io_board) {
+	case SPX_IO5CH:
+		INA_config_sleep(INA_A );
+		INA_config_sleep(INA_B );
+		break;
+	case SPX_IO8CH:
+		INA_config_sleep(INA_A );
+		INA_config_sleep(INA_B );
+		INA_config_sleep(INA_C );
+		break;
+	}
+}
+//------------------------------------------------------------------------------------
+void ainputs_df_print( dataframe_s *df )
+{
+
+uint8_t channel;
+
+	// Canales analogicos: Solo muestro los que tengo configurados.
+	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
+		if ( ! strcmp ( systemVars.ainputs_conf.name[channel], "X" ) )
+			continue;
+
+		xprintf_P(PSTR(",%s=%.02f"),systemVars.ainputs_conf.name[channel], df->ainputs[channel] );
+	}
+}
+//------------------------------------------------------------------------------------
+void ainputs_df_print_battery( dataframe_s *df )
+{
+	// bateria
+	if ( spx_io_board == SPX_IO5CH ) {
+		xprintf_P(PSTR(",bt=%.02f"), df->battery );
+	}
 }
 //------------------------------------------------------------------------------------
 

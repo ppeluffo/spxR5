@@ -18,10 +18,14 @@
 
 #include "spx.h"
 
-static float counters[MAX_COUNTER_CHANNELS];	// Valores medidos de los contadores
+
+bool counters_enabled[MAX_COUNTER_CHANNELS];
+uint16_t counters[MAX_COUNTER_CHANNELS];	// Valores medidos de los contadores
 
 // La tarea puede estar hasta 10s en standby
 #define WDG_COUNT_TIMEOUT	60
+
+static void pv_tkCounter_init(uint8_t cnt);
 
 //------------------------------------------------------------------------------------
 void tkCounter0(void * pvParameters)
@@ -35,7 +39,7 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
-	tkCounter_init(0);
+	pv_tkCounter_init(0);
 
 	xprintf_P( PSTR("starting tkCounter0..\r\n\0"));
 
@@ -58,7 +62,7 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 			// Espero el ancho de pulso para ver si es valido
 			vTaskDelay( ( TickType_t)( systemVars.counters_conf.pwidth[0] / portTICK_RATE_MS ) );
 			// Leo el pin. Si esta en 1 el ancho es valido y entonces cuento el pulso
-			if ( IO_read_PA2() == 0 ) {
+			if ( CNT_read_CNT0() == 0 ) {
 				counters[0]++;
 				if ( systemVars.debug == DEBUG_COUNTER) {
 					xprintf_P( PSTR("COUNTERS: *C0=%d, C1=%d\r\n\0"),(uint16_t) counters[0],(uint16_t) counters[1] );
@@ -67,8 +71,8 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 
 			// Espero perido
 			vTaskDelay( ( TickType_t)( ( systemVars.counters_conf.period[0] - systemVars.counters_conf.pwidth[0] ) / portTICK_RATE_MS ) );
-			COUNTERS_enable_interrupt(0);
-
+			if ( counters_enabled[0] )
+				COUNTERS_enable_interrupt(0);
 
 		} else   {
 			// Expiro el timeout de la tarea. Por ahora no hago nada.
@@ -87,7 +91,7 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
-	tkCounter_init(1);
+	pv_tkCounter_init(1);
 
 	xprintf_P( PSTR("starting tkCounter1..\r\n\0"));
 
@@ -110,7 +114,7 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 			// Espero el ancho de pulso para ver si es valido
 			vTaskDelay( ( TickType_t)( systemVars.counters_conf.pwidth[1] / portTICK_RATE_MS ) );
 			// Leo el pin. Si esta en 1 el ancho es valido y entonces cuento el pulso
-			if ( IO_read_PB2() == 0 ) {
+			if ( CNT_read_CNT1() == 0 ) {
 				counters[1]++;
 				if ( systemVars.debug == DEBUG_COUNTER) {
 					xprintf_P( PSTR("COUNTERS: *C0=%d, C1=%d\r\n\0"),(uint16_t) counters[0],(uint16_t) counters[1] );
@@ -119,7 +123,8 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 
 			// Espero perido
 			vTaskDelay( ( TickType_t)( ( systemVars.counters_conf.period[1] - systemVars.counters_conf.pwidth[1] ) / portTICK_RATE_MS ) );
-			COUNTERS_enable_interrupt(1);
+			if ( counters_enabled[1] )
+				COUNTERS_enable_interrupt(1);
 
 
 		} else   {
@@ -128,118 +133,26 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 	}
 }
 //------------------------------------------------------------------------------------
-// FUNCIONES PUBLICAS
-//------------------------------------------------------------------------------------
-void tkCounter_init(uint8_t cnt)
+static void pv_tkCounter_init(uint8_t cnt)
 {
 	// Configuracion inicial de la tarea
 
 	switch(cnt) {
 	case 0:
 		COUNTERS_init( 0, xHandle_tkCounter0 );
-		COUNTERS_enable_interrupt(0);
-		counters[ 0 ] = 0;
 		break;
 	case 1:
 		COUNTERS_init( 1, xHandle_tkCounter1 );
-		COUNTERS_enable_interrupt(1);
-		counters[ 1 ] = 0;
-		break;
-	}
-}
-//------------------------------------------------------------------------------------
-float counters_read( uint8_t cnt, bool reset_counter )
-{
-
-	// Funcion para leer el valor de los contadores.
-	// Respecto de los contadores, no leemos pulsos sino magnitudes por eso antes lo
-	// convertimos a la magnitud correspondiente.
-	// Siempre multiplico por magPP. Si quiero que sea en mt3/h, en el server debo hacerlo (  * 3600 / systemVars.timerPoll )
-
-float val = 0;
-
-	switch (cnt) {
-	case 0:
-		val = counters[0] * systemVars.counters_conf.magpp[0];
-		if ( reset_counter )
-			counters[0] = 0;
-		break;
-
-	case 1:
-		val = counters[1] * systemVars.counters_conf.magpp[1];
-		if ( reset_counter )
-			counters[1] = 0;
 		break;
 	}
 
-	return(val);
-}
-//------------------------------------------------------------------------------------
-void counters_config_defaults(void)
-{
-
-	// Realiza la configuracion por defecto de los canales contadores.
-	// Los valores son en ms.
-
-uint8_t i;
-
-	for ( i = 0; i < MAX_COUNTER_CHANNELS; i++ ) {
-		snprintf_P( systemVars.counters_conf.name[i], PARAMNAME_LENGTH, PSTR("C%d\0"), i );
-		systemVars.counters_conf.magpp[i] = 1;
-		systemVars.counters_conf.period[i] = 100;
-		systemVars.counters_conf.pwidth[i] = 10;
+	counters[ cnt ] = 0;
+	if (!strcmp_P( strupr(systemVars.counters_conf.name[cnt]), PSTR("X")) ) {
+		counters_enabled[cnt] = false;
+		COUNTERS_disable_interrupt(cnt);
+	} else {
+		counters_enabled[cnt] = true;
+		COUNTERS_enable_interrupt(cnt);
 	}
-
-//	systemVars.counters_conf.speed[0] = CNT_LOW_SPEED;
-//	systemVars.counters_conf.speed[1] = CNT_HIGH_SPEED;
-
-}
-//------------------------------------------------------------------------------------
-bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1, char *s_param2, char *s_param3, char *s_param4 )
-{
-	// Configuro un canal contador.
-	// channel: id del canal
-	// s_param0: string del nombre del canal
-	// s_param1: string con el valor del factor magpp.
-	//
-	// {0..1} dname magPP
-
-bool retS = false;
-
-	if ( s_param0 == NULL ) {
-		return(retS);
-	}
-
-	if ( ( channel >=  0) && ( channel < MAX_COUNTER_CHANNELS ) ) {
-
-		// NOMBRE
-		if ( u_control_string(s_param0) == 0 ) {
-			xprintf_P( PSTR("DEBUG COUNTERS ERROR: C%d\r\n\0"), channel );
-			return( false );
-		}
-
-		snprintf_P( systemVars.counters_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_param0 );
-
-		// MAGPP
-		if ( s_param1 != NULL ) { systemVars.counters_conf.magpp[channel] = atof(s_param1); }
-
-		// PW
-		if ( s_param2 != NULL ) { systemVars.counters_conf.pwidth[channel] = atof(s_param2); }
-
-		// MAGPP
-		if ( s_param3 != NULL ) { systemVars.counters_conf.period[channel] = atof(s_param3); }
-
-		// SPEED
-//		if ( !strcmp_P( s_param4, PSTR("LS\0"))) {
-//			 systemVars.counters_conf.speed[channel] = CNT_LOW_SPEED;
-//		} else if ( !strcmp_P( s_param4 , PSTR("HS\0"))) {
-//			 systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
-//		}
-
-		retS = true;
-	}
-
-	return(retS);
-
 }
 //------------------------------------------------------------------------------------

@@ -303,7 +303,6 @@ size_t bRead;
 	case SPX_IO8CH:
 		memcpy( &df.ainputs, &dr.df.io8.ainputs, ( NRO_ANINPUTS * sizeof(float)));
 		memcpy( &df.dinputsA, &dr.df.io8.dinputsA, ( NRO_DINPUTS * sizeof(uint8_t)));
-		memcpy( &df.dinputsB, &dr.df.io8.dinputsB, ( NRO_DINPUTS * sizeof(uint16_t)));
 		memcpy( &df.counters, &dr.df.io8.counters, ( NRO_COUNTERS * sizeof(float)));
 		memcpy( &df.rtc, &dr.rtc, sizeof(RtcTimeType_t) );
 		break;
@@ -358,47 +357,17 @@ static void pv_transmitir_df_digitales( void )
 uint8_t channel;
 
 	// Canales digitales.
-	if ( spx_io_board == SPX_IO5CH ) {
-		for ( channel = 0; channel < NRO_DINPUTS; channel++) {
-			if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
-				continue;
+	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
+		if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
+			continue;
 
-			xCom_printf_P( fdGPRS, PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], df.dinputsA[channel] );
-			// DEBUG & LOG
-			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf_P( PSTR(",%s=%d\0"), systemVars.dinputs_conf.name[channel], df.dinputsA[channel] );
-			}
+		xCom_printf_P( fdGPRS, PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], df.dinputsA[channel] );
+		// DEBUG & LOG
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR(",%s=%d\0"), systemVars.dinputs_conf.name[channel], df.dinputsA[channel] );
 		}
-		return;
 	}
 
-	// Aqui hay que ver si los dtimers estan o no habilitados.
-	if ( spx_io_board == SPX_IO8CH ) {
-		// Los primeros 4 son dinputs.
-		for ( channel = 0; channel < 4; channel++) {
-			if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
-				continue;
-
-			xCom_printf_P( fdGPRS, PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], df.dinputsA[channel] );
-			// DEBUG & LOG
-			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf_P( PSTR(",%s=%d\0"), systemVars.dinputs_conf.name[channel], df.dinputsA[channel] );
-			}
-		}
-
-		// Del 4 al 7 pueden ser dinputs o dtimers
-		for ( channel = 4; channel < 8; channel++) {
-			if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
-				continue;
-
-			xCom_printf_P( fdGPRS, PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], df.dinputsB[channel - 4] );
-			// DEBUG & LOG
-			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf_P( PSTR(",%s=%d\0"), systemVars.dinputs_conf.name[channel], df.dinputsB[channel - 4] );
-			}
-		}
-		return;
-	}
 }
 //------------------------------------------------------------------------------------
 static void pv_transmitir_df_contadores( void )
@@ -566,8 +535,7 @@ char *p;
 	tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
 
 	// Actualizo el status a travez de una funcion propia del modulo de outputs
-	doutput_set( atoi( tk_douts ), false );
-	//systemVars.doutputs_conf.d_outputs = atoi(tk_douts);
+	doutput_set_douts_from_gprs( atoi( tk_douts ));
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: processDOUTS\r\n\0"));

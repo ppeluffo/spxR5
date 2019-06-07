@@ -54,12 +54,11 @@ const char string_1[] PROGMEM = "CMD";
 const char string_2[] PROGMEM = "CNT0";
 const char string_3[] PROGMEM = "CNT1";
 const char string_4[] PROGMEM = "DAT";
-const char string_5[] PROGMEM = "DTIM";
-const char string_6[] PROGMEM = "DOUT";
-const char string_7[] PROGMEM = "GRX";
-const char string_8[] PROGMEM = "GTX";
+const char string_5[] PROGMEM = "DOUT";
+const char string_6[] PROGMEM = "GRX";
+const char string_7[] PROGMEM = "GTX";
 
-const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7, string_8 };
+const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7 };
 
 //------------------------------------------------------------------------------------
 void tkCtl(void * pvParameters)
@@ -144,9 +143,6 @@ char data[3];
 
 	// Configuro los pines
 	u_gprs_init_pines();
-	//tkDoutputs_init();
-	tkDtimers_init();
-	tkData_init();
 
 	// Leo los parametros del la EE y si tengo error, cargo por defecto
 	if ( ! u_load_params_from_NVMEE() ) {
@@ -179,10 +175,9 @@ char data[3];
 
 		NRO_ANINPUTS = IO5_ANALOG_CHANNELS;
 		NRO_DINPUTS = IO5_DINPUTS_CHANNELS;
-		NRO_DTIMERS = IO5_DTIMERS_CHANNELS;
 		NRO_COUNTERS = IO5_COUNTER_CHANNELS;
 
-		xprintf_P( PSTR("SPX_IO5CH: DINPUTS=%d, DTIMERS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS , NRO_DTIMERS, NRO_COUNTERS, NRO_ANINPUTS );
+		xprintf_P( PSTR("SPX_IO5CH: DINPUTS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS , NRO_COUNTERS, NRO_ANINPUTS );
 
 	} else if ( spx_io_board == SPX_IO8CH ) {
 
@@ -190,10 +185,9 @@ char data[3];
 
 		NRO_ANINPUTS = IO8_ANALOG_CHANNELS;
 		NRO_DINPUTS = IO8_DINPUTS_CHANNELS;
-		NRO_DTIMERS = IO8_DTIMERS_CHANNELS;
 		NRO_COUNTERS = IO8_COUNTER_CHANNELS;
 
-		xprintf_P( PSTR("SPX_IO8CH: DINPUTS=%d,  DTIMERS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS, NRO_DTIMERS, NRO_COUNTERS, NRO_ANINPUTS );
+		xprintf_P( PSTR("SPX_IO8CH: DINPUTS=%d, COUNTERS=%d, ANINPUTS=%d\r\n\0"), NRO_DINPUTS, NRO_COUNTERS, NRO_ANINPUTS );
 
 	}
 	xprintf_P( PSTR("------------------------------------------------\r\n\0"));

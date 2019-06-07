@@ -19,17 +19,26 @@
  *  Para ver el uso de memoria usamos
  *  avr-nm -n spxR4.elf | more
  *
+ *  Version 2.0.0 @ 20190604
+ *  -Contadores:
+ *   Implementamos que espere un ancho minimo y un periodo minimo ( filtro )
+ *   Si el nombre del canal es 'X' no debe interrumpir.
+ *   Al configurarlo, prendo o apago la flag de enable.
+ *  -En GPRS_init agrego un comando de reset DEFAULT=(NONE,SPY,OSE,UTE)
+ *  -Elimino los canales digitales como timers.
+ *
+ # Revisar CMD read ach / data_read_frame
+ # Revisar configuracion desde el servidor de paramentros que son NULl ( contadores)
+ #
+
  *  Version 1.0.6 @ 20190524
  *  Agrego las modificaciones del driver y librerias de I2C que usamos en spxR3_IO8
  *  Agrego las modificaciones del manejo de las salidas
  *  Agrego la funcion u_gprs_modem_link_up() para saber cuando hay enlace en el control de las salidas
  *  Modifico las tareas de los contadores agregado una para c/u. Al quitar los latches la polaridad
  *  de reposo cambia ( ver consumos ).
- *  + Revisar en los defaults el valor de las outs en decimal o hexa.
- *  + Ver al configurar las salidas que la ioboard lo banque !!
- *  + implementar dpoutputs_set desde modo comando.
- * El SPX_IO8 solo implementa PERFORACIONES. El SPX_IO5 implementa todos.
- * Ver en el servidor que cuando no tenga un canal digital, lo mande apagarse si el datalogger lo manda
+ *  El SPX_IO8 solo implementa PERFORACIONES. El SPX_IO5 implementa todos.
+ *  * Ver en el servidor que cuando no tenga un canal digital, lo mande apagarse si el datalogger lo manda
  *
  *  Version 1.0.5 @ 20190517
  *  - Corregimos que en el init mande el dbm en vez del csq
@@ -133,7 +142,6 @@ int main( void )
 	xTaskCreate(tkCounter0, "CNT0", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter0);
 	xTaskCreate(tkCounter1, "CNT1", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter1);
 	xTaskCreate(tkData, "DATA", tkData_STACK_SIZE, NULL, tkData_TASK_PRIORITY,  &xHandle_tkData);
-	xTaskCreate(tkDtimers, "DTIM", tkDtimers_STACK_SIZE, NULL, tkDtimers_TASK_PRIORITY,  &xHandle_tkDtimers);
 	xTaskCreate(tkDoutputs, "DOUT", tkDoutputs_STACK_SIZE, NULL, tkDoutputs_TASK_PRIORITY,  &xHandle_tkDoutputs);
 	xTaskCreate(tkGprsRx, "RX", tkGprs_rx_STACK_SIZE, NULL, tkGprs_rx_TASK_PRIORITY,  &xHandle_tkGprsRx );
 	xTaskCreate(tkGprsTx, "TX", tkGprs_tx_STACK_SIZE, NULL, tkGprs_tx_TASK_PRIORITY,  &xHandle_tkGprsTx );

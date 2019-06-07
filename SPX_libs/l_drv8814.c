@@ -105,8 +105,8 @@ void DRV8814_set_consigna_nocturna(void)
 
 	// Proporciono corriente.
 	DRV8814_power_on();
-	// Espero 10s que se carguen los condensasores
-	vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
+	// Espero 2s que se carguen los condensasores
+	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
 
 	// EL orden importa para que las valvulas no queden a contrapresion
 	DRV8814_vclose( 'B', 100 );
@@ -123,8 +123,8 @@ void DRV8814_set_consigna_diurna(void)
 
 	// Proporciono corriente.
 	DRV8814_power_on();
-	// Espero 10s que se carguen los condensasores
-	vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
+	// Espero 2s que se carguen los condensasores
+	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
 
 	// EL orden importa para que las valvulas no queden a contrapresion
 	DRV8814_vopen( 'B', 100 );

@@ -43,21 +43,15 @@ typedef int8_t i2c_bus_addr;
 
 //------------------------------------------------------------------------------------
 // API publica
-void INA_init( uint8_t io_board );
 void INA_config( uint8_t ina_id, uint16_t conf_reg_value );
-
-//#define INA_read( dev_id, rdAddress, data, length ) 		I2C_read( INA_id2busaddr(dev_id), rdAddress, data, length )
-//#define INA_write( dev_id, wrAddress, data, length ) 		I2C_write( INA_id2busaddr(dev_id), wrAddress, data, length )
-int8_t INA_read( uint8_t dev_id, uint32_t rdAddress, char *data, uint8_t length );
-int8_t INA_write( uint8_t dev_id, uint32_t wrAddress, char *data, uint8_t length );
-
 #define INA_config_avg128(ina_id)	INA_config(ina_id, CONF_INAS_AVG128 )
 #define INA_config_sleep(ina_id)	INA_config(ina_id, CONF_INAS_SLEEP )
 //
+int8_t INA_read( uint8_t dev_id, uint32_t rdAddress, char *data, uint8_t length );
+int8_t INA_write( uint8_t dev_id, uint32_t wrAddress, char *data, uint8_t length );
+//
 int8_t INA_test_write ( char *ina_id_str, char *rconf_val_str );
 int8_t INA_test_read ( char *ina_id_str, char *regs );
-//
-bool INA_test_presence( uint8_t ina_id );
 //
 // API END
 //------------------------------------------------------------------------------------

@@ -25,6 +25,7 @@ bool sensores_prendidos;
 //------------------------------------------------------------------------------------
 // PROTOTIPOS
 
+static void pv_data_init(void);
 static void pv_data_read_frame( void );
 static void pv_data_read_analogico( void );
 static void pv_data_read_contadores( void );
@@ -53,7 +54,7 @@ TickType_t xLastWakeTime;
 
 	xprintf_P( PSTR("starting tkData..\r\n\0"));
 
-	//pv_data_init(); // Lo paso a tkCTL
+	pv_data_init();
 
    // Initialise the xLastWakeTime variable with the current time.
     xLastWakeTime = xTaskGetTickCount();
@@ -114,23 +115,26 @@ void data_read_frame( bool polling  )
 
 }
 //------------------------------------------------------------------------------------
-void tkData_init(void)
+// FUNCIONES PRIVADAS
+//------------------------------------------------------------------------------------
+static void pv_data_init(void)
 {
 	// Inicializo los INA con los que mido las entradas analogicas.
-	AINPUTS_init( spx_io_board );
+	ainputs_awake();
+	ainputs_sleep();
+
+	dinputs_init();
 
     // Inicializo el sistema de medida de ancho de pulsos
     if ( spx_io_board == SPX_IO5CH ) {
-    	RMETER_init( SYSMAINCLK );
-   }
+     	RMETER_init( SYSMAINCLK );
+     	xprintf_P( PSTR("RMETER init..\r\n\0"));
 
-    INA_config(0, CONF_INAS_SLEEP );
-    INA_config(1, CONF_INAS_SLEEP );
-    sensores_prendidos = false;
+    }
+
+   sensores_prendidos = false;
 
 }
-//------------------------------------------------------------------------------------
-// FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
 static void pv_data_read_analogico( void )
 {
@@ -138,13 +142,11 @@ static void pv_data_read_analogico( void )
 	// En las placas SPX_IO8 no prendo los sensores porque no los alimento.
 	// Los prendo si estoy con una placa IO5 y los sensores estan apagados.
 
-uint16_t raw_val;
-
+	ainputs_awake();
+	//
 	if ( ( spx_io_board == SPX_IO5CH ) && ( ! sensores_prendidos ) ) {
 
-		AINPUTS_prender_12V();
-		INA_config(0, CONF_INAS_AVG128 );
-		INA_config(1, CONF_INAS_AVG128 );
+		ainputs_prender_12V_sensors();
 		sensores_prendidos = true;
 
 		// Normalmente espero 1s de settle time que esta bien para los sensores
@@ -158,33 +160,33 @@ uint16_t raw_val;
 	// Los canales de IO no son los mismos que los canales del INA !! ya que la bateria
 	// esta en el canal 1 del ina2
 	// Lectura general.
-	ainputs_read ( 0, &raw_val, &dataframe.ainputs[0] );
-	ainputs_read ( 1, &raw_val, &dataframe.ainputs[1] );
-	ainputs_read ( 2, &raw_val, &dataframe.ainputs[2] );
-	ainputs_read ( 3, &raw_val, &dataframe.ainputs[3] );
-	ainputs_read ( 4, &raw_val, &dataframe.ainputs[4] );
+	dataframe.ainputs[0] = ainputs_read_channel(0);
+	dataframe.ainputs[1] = ainputs_read_channel(1);
+	dataframe.ainputs[2] = ainputs_read_channel(2);
+	dataframe.ainputs[3] = ainputs_read_channel(3);
+	dataframe.ainputs[4] = ainputs_read_channel(4);
 
 	if ( spx_io_board == SPX_IO8CH ) {
-		ainputs_read ( 5, &raw_val, &dataframe.ainputs[5] );
-		ainputs_read ( 6, &raw_val, &dataframe.ainputs[6] );
-		ainputs_read ( 7, &raw_val, &dataframe.ainputs[7] );
+		dataframe.ainputs[5] = ainputs_read_channel(5);
+		dataframe.ainputs[6] = ainputs_read_channel(6);
+		dataframe.ainputs[7] = ainputs_read_channel(7);
 	}
 
 	if ( spx_io_board == SPX_IO5CH ) {
 		// Leo la bateria
 		// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
-		dataframe.battery = 0.008 * AINPUTS_read_battery();
+		dataframe.battery = ainputs_read_battery();
 	}
 
 	// Apago los sensores y pongo a los INA a dormir si estoy con la board IO5.
 	// Sino dejo todo prendido porque estoy en modo continuo
 	//if ( (spx_io_board == SPX_IO5CH) && ( systemVars.timerPoll > 180 ) ) {
 	if ( spx_io_board == SPX_IO5CH ) {
-		INA_config(0, CONF_INAS_SLEEP );
-		INA_config(1, CONF_INAS_SLEEP );
-		AINPUTS_apagar_12V();
+		ainputs_apagar_12Vsensors();
 		sensores_prendidos = false;
 	}
+	//
+	ainputs_sleep();
 
 }
 //------------------------------------------------------------------------------------
@@ -195,7 +197,7 @@ static void pv_data_read_contadores( void )
 uint8_t i;
 
 	for ( i = 0; i < NRO_COUNTERS; i++ ) {
-		dataframe.counters[i] = counters_read(i, true);
+		dataframe.counters[i] = counters_read_channel(i, true);
 	}
 }
 //------------------------------------------------------------------------------------
@@ -210,37 +212,12 @@ static void pv_data_read_rangemeter( void )
 //------------------------------------------------------------------------------------
 static void pv_data_read_dinputs( void )
 {
-	// Leo las entradas digitales
+	// Leo las entradas digitales de a una
 
 uint8_t i;
 
-	// IO5CH solo tiene entradas digitales tipo A.
-	if ( spx_io_board == SPX_IO5CH ) {
-		for ( i = 0; i < IO5_DINPUTS_CHANNELS; i++ ) {
-			dataframe.dinputsA[i] = dinputs_read(i);
-		}
-		return;
-	}
-
-	// IO8 tiene entradas tipo A y tipo B ( dtimers )
-
-	if ( spx_io_board == SPX_IO8CH ) {
-		// En la placa de 8 canales, tengo  entradas que siempre son entradas digitales.( tipo A )
-		for ( i = 0; i < IO8_DINPUTS_CHANNELS; i++ ) {
-			dataframe.dinputsA[i] = dinputs_read(i);
-		}
-
-		// Si tengo los dtimers habilitados los leo como dtimers.
-		// sino los leo como entradas digitales
-		for ( i = 0; i < IO8_DTIMERS_CHANNELS; i++ ) {
-			if ( systemVars.dtimers_enabled ) {
-				dataframe.dinputsB[i] = dtimers_read(i);
-			} else {
-				dataframe.dinputsB[i] = dinputs_read(i);
-			}
-		}
-
-		return;
+	for ( i = 0; i < NRO_DINPUTS; i++ ) {
+		dataframe.dinputsA[i] = dinputs_read_channel(i);
 	}
 
 }
@@ -274,11 +251,11 @@ static void pv_data_print_frame( void )
 	xprintf_P(PSTR("%04d%02d%02d,"),dataframe.rtc.year, dataframe.rtc.month, dataframe.rtc.day );
 	xprintf_P(PSTR("%02d%02d%02d"), dataframe.rtc.hour, dataframe.rtc.min, dataframe.rtc.sec );
 
-	u_df_print_analogicos( &dataframe );
-    u_df_print_digitales( &dataframe );
-	u_df_print_contadores( &dataframe );
+	ainputs_df_print( &dataframe );
+	dinputs_df_print( &dataframe );
+    counters_df_print( &dataframe );
 	u_df_print_range( &dataframe );
-	u_df_print_battery( &dataframe );
+	ainputs_df_print_battery( &dataframe );
 
 	// TAIL
 	xprintf_P(PSTR("\r\n\0") );
@@ -315,7 +292,6 @@ st_dataRecord_t dr;
 	case SPX_IO8CH:
 		memcpy( &dr.df.io8.ainputs, &dataframe.ainputs, ( NRO_ANINPUTS * sizeof(float)));
 		memcpy( &dr.df.io8.dinputsA, &dataframe.dinputsA, ( NRO_DINPUTS * sizeof(uint8_t)));
-		memcpy( &dr.df.io8.dinputsB, &dataframe.dinputsB, ( NRO_DINPUTS * sizeof(uint16_t)));
 		memcpy( &dr.df.io8.counters, &dataframe.counters, ( NRO_COUNTERS * sizeof(float)));
 		memcpy( &dr.rtc, &dataframe.rtc, sizeof(RtcTimeType_t) );
 		break;

@@ -21,6 +21,7 @@ static uint8_t pv_init_config_rangeMeter(void);
 static uint8_t pv_init_config_doutputs(void);
 static uint8_t pv_init_config_consignas(void);
 static uint8_t pv_init_config_piloto(void);
+static uint8_t pv_init_config_default(void);
 
 // La tarea no puede demorar mas de 180s.
 #define WDG_GPRS_TO_INIT	180
@@ -228,6 +229,8 @@ uint8_t saveFlag = 0;
 	saveFlag += pv_init_config_counterCh(0);
 	saveFlag += pv_init_config_counterCh(1);
 
+	// DEFAULT=dlgid,NONE|SPY|UTE|OSE
+	saveFlag += pv_init_config_default();
 
 	if ( saveFlag > 0 ) {
 
@@ -767,3 +770,43 @@ quit:
 	return(ret);
 }
 //--------------------------------------------------------------------------------------
+static uint8_t pv_init_config_default(void)
+{
+	// Permite hacer una configuracion por defecto desde el servidor
+	//	La linea recibida es del tipo:
+	//	<h1>INIT_OK:CLOCK=1402251122:DEFAULT=dlgid,SPY</h1>
+	//
+char localStr[32];
+char *stringp;
+char *delim = ",=:><";
+char *tk_id, *tk_dlgid, *tk_modo;
+
+	stringp = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DEFAULT=");
+	if ( stringp == NULL ) {
+		return(0);
+	}
+
+	// Copio el mensaje enviado ( solo 32 bytes ) a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,stringp, 31);
+
+	stringp = localStr;
+	tk_id = strsep(&stringp,delim);		// DEFAULT
+	tk_dlgid = strsep(&stringp,delim);	// DLGID
+	tk_modo = strsep(&stringp,delim);	// (NONE|SPY|OSE|UTE)
+
+	u_load_defaults( tk_modo );
+	memset(systemVars.gprs_conf.dlgId,'\0', sizeof(systemVars.gprs_conf.dlgId) );
+	strncpy(systemVars.gprs_conf.dlgId, tk_dlgid, DLGID_LENGTH);
+
+	xprintf_P( PSTR("GPRS: Reconfig to DEFAULT: dlgid->%s, modo->%s\r\n\0"), tk_dlgid, tk_modo );
+
+	u_save_params_in_NVMEE();
+
+	xprintf_P( PSTR("GPRS: Reset...\r\n\0") );
+	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+	CCPWrite( &RST.CTRL, RST_SWRST_bm );
+
+}
+//--------------------------------------------------------------------------------------
+

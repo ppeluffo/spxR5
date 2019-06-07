@@ -204,26 +204,5 @@ int8_t xBytes;
 	return(1);
 }
 //------------------------------------------------------------------------------------
-int8_t IO_reflect_DOUTPUTS(uint8_t output_value )
-{
-uint8_t data;
-int8_t xBytes;
-
-	// Escribe todas las salidas a la vez.
-	// En el hardware las salidas son inversas a los bits ( posiciones )
-
-	data = twiddle_bits( output_value );
-
-//	xprintf_P(PSTR("IO: %d 0x%0x, DAT=0x%0x\r\n\0"),output_value,output_value, data);
-	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
-	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: IO_reflect_DOUTPUTS\r\n\0"));
-		return(-1);
-	}
-
-	return(1);
-}
-//------------------------------------------------------------------------------------
-
 
 

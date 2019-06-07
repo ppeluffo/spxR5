@@ -8,6 +8,24 @@
 #include "spx.h"
 
 //------------------------------------------------------------------------------------
+void dinputs_init( void )
+{
+	// En el caso del SPX_8CH se deberia inicializar el port de salidas del MCP
+	// pero esto se hace en la funcion MCP_init(). Esta tambien inicializa el port
+	// de entradas digitales.
+
+	switch (spx_io_board ) {
+	case SPX_IO5CH:
+		IO_config_PA0();	// D0
+		IO_config_PB7();	// D1
+		break;
+	case SPX_IO8CH:
+		MCP_init();
+		break;
+	}
+
+}
+//------------------------------------------------------------------------------------
 bool dinputs_config_channel( uint8_t channel,char *s_aname )
 {
 
@@ -24,7 +42,7 @@ bool retS = false;
 		return(retS);
 	}
 
-	if ( ( channel >=  0) && ( channel < ( NRO_DINPUTS + NRO_DTIMERS ) ) ) {
+	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
 		snprintf_P( systemVars.dinputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
 		retS = true;
 	}
@@ -44,34 +62,51 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-int8_t dinputs_read ( uint8_t din )
+int8_t dinputs_read_channel ( uint8_t din )
 {
+
 	// Solo devuleve el nivel logico de la entrada. ( OJO: No el dtimer !!! )
 
+int8_t val = -1 ;
 uint8_t port;
-int16_t retVal = -1;
-
-	// Esta funcion la invoca tkData al completar un frame para agregar los datos
-	// digitales.
-	// Leo los niveles de las entradas digitales y copio a dframe.
+int8_t rdBytes;
 
 	switch (spx_io_board ) {
-	case SPX_IO5CH:
-		if ( din < IO5_DINPUTS_CHANNELS ) {
-			retVal = DIN_read_pin( din, SPX_IO5CH );
+
+	case SPX_IO5CH:	// SPX_IO5
+		if ( din == 0 ) {
+			val = IO_read_PA0();
+		} else if ( din == 1 ) {
+			val = IO_read_PB7();
 		}
 		break;
 
 	case SPX_IO8CH:
-		if ( din <  8 ) {
-			port = DIN_read_port();	// Leo el puerto para tener los niveles logicos.
-			//xprintf_P( PSTR("DEBUG DIN: 0x%02x [%c%c%c%c%c%c%c%c]\r\n\0"), port , BYTE_TO_BINARY( port ));
-			retVal = ( port & ( 1 << din )) >> din;
+		rdBytes = MCP_read( MCP_GPIOA, (char *)&port, 1 );
+		if ( rdBytes == -1 ) {
+			xprintf_P(PSTR("ERROR: IO_DIN_read_pin\r\n\0"));
+			return(-1);
 		}
+		val = ( port & ( 1 << din )) >> din;
 		break;
 	}
 
-	return(retVal);
+	return(val);
 
 }
 //------------------------------------------------------------------------------------
+void dinputs_df_print( dataframe_s *df )
+{
+	// Canales digitales.
+
+uint8_t channel;
+
+	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
+		if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
+			continue;
+
+		xprintf_P(PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], df->dinputsA[channel] );
+	}
+}
+//------------------------------------------------------------------------------------
+

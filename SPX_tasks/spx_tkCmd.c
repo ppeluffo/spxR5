@@ -20,7 +20,6 @@ static void pv_cmd_read_battery(void);
 static void pv_cmd_read_analog_channel(void);
 static void pv_cmd_read_digital_channels(void);
 static void pv_cmd_read_memory(void);
-static void pv_cmd_read_debug(void);
 static void pv_cmd_rwGPRS(uint8_t cmd_mode );
 static void pv_cmd_rwMCP(uint8_t cmd_mode );
 
@@ -206,15 +205,6 @@ uint8_t olatb;
 		break;
 	}
 
-	// Digital inputs timers. Solo en SPX_8CH ( para UTE )
-	if ( spx_io_board == SPX_IO8CH ) {
-		if ( systemVars.dtimers_enabled == true ) {
-			xprintf_P( PSTR("  dinputsAsTimers: ON\r\n\0"));
-		} else {
-			xprintf_P( PSTR("  dinputsAsTimers: OFF\r\n\0"));
-		}
-	}
-
 	// Timerpoll
 	xprintf_P( PSTR("  timerPoll: [%d s]/ %d\r\n\0"),systemVars.timerPoll, ctl_readTimeToNextPoll() );
 
@@ -223,7 +213,7 @@ uint8_t olatb;
 	xprintf_P( PSTR(" %d\r\n\0"), u_gprs_read_timeToNextDial() );
 
 	// Sensor Pwr Time
-	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.rangeMeter_enabled );
+	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
 
 	if ( spx_io_board == SPX_IO5CH ) {
 
@@ -251,54 +241,47 @@ uint8_t olatb;
 		// Consignas
 		xprintf_P( PSTR("  doutputs modo: CONSIGNA\r\n"));
 		if ( systemVars.doutputs_conf.consigna.c_aplicada == CONSIGNA_DIURNA ) {
-			xprintf_P( PSTR("    consignas: (DIURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
+			xprintf_P( PSTR("  consignas: (DIURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
 		} else {
-			xprintf_P( PSTR("    consignas: (NOCTURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
+			xprintf_P( PSTR("  consignas: (NOCTURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
 		}
 		break;
 	case PERFORACIONES:
 		xprintf_P( PSTR("  doutputs modo: PERFORACION\r\n"));
 		MCP_read( 0x15, (char *)&olatb, 1 );
-		xprintf_P( PSTR("    out_value=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), systemVars.doutputs_conf.perforacion.outs, systemVars.doutputs_conf.perforacion.outs, BYTE_TO_BINARY( systemVars.doutputs_conf.perforacion.outs ), olatb );
+		xprintf_P( PSTR("  out_value=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), systemVars.doutputs_conf.perforacion.outs, systemVars.doutputs_conf.perforacion.outs, BYTE_TO_BINARY( systemVars.doutputs_conf.perforacion.outs ), olatb );
 		if ( systemVars.doutputs_conf.perforacion.control == CTL_BOYA ) {
-			xprintf_P( PSTR("    out_control=BOYA, timer=%d\r\n\0"), doutput_read_datatimer() );
+			xprintf_P( PSTR("  out_control=BOYA, timer=%d\r\n\0"), doutputs_cmd_read_clt_timer() );
 		} else {
-			xprintf_P( PSTR("    out_control=SISTEMA, timer=%d\r\n\0"), doutput_read_datatimer() );
+			xprintf_P( PSTR("  out_control=SISTEMA, timer=%d\r\n\0"), doutputs_cmd_read_clt_timer() );
 		}
 		break;
 	case PILOTOS:
 		xprintf_P( PSTR("  doutputs modo: PILOTO\r\n"));
-		xprintf_P( PSTR("    Pout_ref=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.pout );
-		xprintf_P( PSTR("    Pband=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.band );
-		xprintf_P( PSTR("    max_steps=%d\r\n\0"), systemVars.doutputs_conf.piloto.max_steps );
+		xprintf_P( PSTR("  pout_ref=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.pout );
+		xprintf_P( PSTR("  pband=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.band );
+		xprintf_P( PSTR("  max_steps=%d\r\n\0"), systemVars.doutputs_conf.piloto.max_steps );
 		break;
 	}
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		xprintf_P( PSTR("  a%d( ) [%d-%d mA/ %.02f,%.02f | %04d | %.02f | %s]\r\n\0"),channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.mmin[channel], systemVars.ainputs_conf.mmax[channel], systemVars.ainputs_conf.inaspan[channel], systemVars.ainputs_conf.offset[channel], systemVars.ainputs_conf.name[channel] );
+		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %04d | %.02f | %s]\r\n\0"),channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.mmin[channel], systemVars.ainputs_conf.mmax[channel], systemVars.ainputs_conf.inaspan[channel], systemVars.ainputs_conf.offset[channel], systemVars.ainputs_conf.name[channel] );
 	}
 
 	// dinputs
-	for ( channel = 0; channel <  ( NRO_DINPUTS + NRO_DTIMERS) ; channel++) {
-		if ( channel < 4 ) {
-			xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.dinputs_conf.name[channel] );
-		} else {
-			if ( systemVars.dtimers_enabled == true ) {
-				xprintf_P( PSTR("  d%d( ) [ %s ] (T)\r\n\0"),channel,  systemVars.dinputs_conf.name[channel] );
-			} else {
-				xprintf_P( PSTR("  d%d( ) [ %s ]\r\n\0"),channel, systemVars.dinputs_conf.name[channel] );
-			}
-		}
+	for ( channel = 0; channel <  NRO_DINPUTS; channel++) {
+		xprintf_P( PSTR("  d%d [ %s ]\r\n\0"),channel, systemVars.dinputs_conf.name[channel] );
 	}
 
-	// contadores
-	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
-//		if ( systemVars.counters_conf.speed[channel] == CNT_LOW_SPEED ) {
-			xprintf_P( PSTR("  c%d [ %s | %.03f ] pw=%d,T=%d,LS\r\n\0"),channel, systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
-//		} else {
-//			xprintf_P( PSTR("  c%d [ %s | %.03f ] pw=%d,T=%d,HS\r\n\0"),channel, systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
-//		}
+	// contadores( Solo hay 2 )
+	// Counter0
+	xprintf_P( PSTR("  c0 [ %s | %.03f ] pw=%d,T=%d\r\n\0"), systemVars.counters_conf.name[0], systemVars.counters_conf.magpp[0], systemVars.counters_conf.pwidth[0], systemVars.counters_conf.period[0] );
+	// Counter1
+	if ( systemVars.counters_conf.speed[1] == CNT_LOW_SPEED ) {
+			xprintf_P( PSTR("  c1 [ %s | %.03f ] pw=%d,T=%d (LS)\r\n\0"),systemVars.counters_conf.name[1], systemVars.counters_conf.magpp[1], systemVars.counters_conf.pwidth[1], systemVars.counters_conf.period[1] );
+	} else {
+		xprintf_P( PSTR("  c1 [ %s | %.03f ] pw=%d,T=%d (HS)\r\n\0"),systemVars.counters_conf.name[1], systemVars.counters_conf.magpp[1], systemVars.counters_conf.pwidth[1], systemVars.counters_conf.period[1] );
 	}
 
 	data_read_frame ( false );
@@ -326,9 +309,6 @@ static void cmdResetFunction(void)
 
 		vTaskSuspend( xHandle_tkData );
 		ctl_watchdog_kick(WDG_DAT, 0x8000 );
-
-		vTaskSuspend( xHandle_tkDtimers );
-		ctl_watchdog_kick(WDG_DTIM, 0x8000 );
 
 		vTaskSuspend( xHandle_tkDoutputs );
 		ctl_watchdog_kick(WDG_DOUT, 0x8000 );
@@ -432,7 +412,7 @@ static void cmdWriteFunction(void)
 	// DOUT
 	// write dout VAL
 	if (!strcmp_P( strupr(argv[1]), PSTR("DOUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		doutput_set( atoi(argv[2]) , true);
+		doutput_set_douts( atoi(argv[2]) );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -495,12 +475,6 @@ int16_t range;
 		pv_cmd_rwMCP(RD_CMD);
 		return;
 	}
-
-	// DEBUG
- 	if (!strcmp_P( strupr(argv[1]), PSTR("DEBUG\0"))) {
- 		pv_cmd_read_debug();
- 		return;
- 	}
 
 	// FUSES
  	if (!strcmp_P( strupr(argv[1]), PSTR("FUSES\0"))) {
@@ -650,7 +624,7 @@ bool retS = false;
 	}
 
 	// COUNTERS
-	// config counter {0..1} cname magPP
+	// config counter {0..1} cname magPP pulseWidth period speed
 	if (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
 		retS = counters_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
@@ -720,10 +694,10 @@ bool retS = false;
 		return;
 	}
 
-	// SENSORTIME
+	// TIMRPWRSENSOR
 	// config sensortime
-	if (!strcmp_P( strupr(argv[1]), PSTR("SENSORTIME\0")) ) {
-		ainputs_config_sensortime( argv[2] );
+	if (!strcmp_P( strupr(argv[1]), PSTR("TIMEPWRSENSOR\0")) ) {
+		ainputs_config_timepwrsensor( argv[2] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -750,27 +724,11 @@ bool retS = false;
 		return;
 	}
 
-	// DTIMERS
-	// config dtimers  {on|off}
-	if ( ( !strcmp_P( strupr(argv[1]), PSTR("DTIMERS\0"))) ) {
-
-		if ( dtimers_config_timermode(argv[3]) ) {
-			pv_snprintfP_OK();
-			return;
-		} else {
-			pv_snprintfP_ERR();
-			return;
-		}
-
-		pv_snprintfP_ERR();
-		return;
-	}
-
 	// RANGEMETER
 	// config rangemeter {on|off}
 	if ( !strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) {
 
-		if ( range_config(argv[3]) ) {
+		if ( range_config(argv[2]) ) {
 			pv_snprintfP_OK();
 			return;
 		} else {
@@ -906,25 +864,16 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  range {run | stop}\r\n\0"));
 			}
 
-			switch ( systemVars.doutputs_conf.modo ) {
-			case NONE:
-				break;
-			case CONSIGNA:
+			if ( spx_io_board == SPX_IO5CH ) {
 				xprintf_P( PSTR("  consigna (diurna|nocturna)\r\n\0"));
 				xprintf_P( PSTR("  valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}\r\n\0"));
 				xprintf_P( PSTR("        (open|close) (A|B)\r\n\0"));
 				xprintf_P( PSTR("        pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("        power {on|off}\r\n\0"));
-				break;
-			case PERFORACIONES:
+			}
+
+			if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  output {0..7} {set | clear}\r\n\0"));
-				break;
-			case PILOTOS:
-				xprintf_P( PSTR("  valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}\r\n\0"));
-				xprintf_P( PSTR("        (open|close) (A|B)\r\n\0"));
-				xprintf_P( PSTR("        pulse (A|B) (secs) \r\n\0"));
-				xprintf_P( PSTR("        power {on|off}\r\n\0"));
-				break;
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|cts|dtr) {on|off}\r\n\0"));
@@ -949,10 +898,10 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  din\r\n\0"));
 
 			if ( spx_io_board == SPX_IO5CH ) {
-				xprintf_P( PSTR("  ach {0..%d}, battery\r\n\0"), ( NRO_ANINPUTS - 1 ) );
+				xprintf_P( PSTR("  ach {0..4}, battery\r\n\0"));
 				xprintf_P( PSTR("  range\r\n\0"));
 			} else if ( spx_io_board == SPX_IO8CH ) {
-				xprintf_P( PSTR("  ach {0..%d}\r\n\0"), ( NRO_ANINPUTS - 1 ) );
+				xprintf_P( PSTR("  ach {0..7}\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri)\r\n\0"));
@@ -974,25 +923,28 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("-config\r\n\0"));
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
-		xprintf_P( PSTR("  debug {none,counter,data, gprs, outputs }\r\n\0"));
-		xprintf_P( PSTR("  counter {0..%d} cname magPP pw period speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
-		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
-		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
-		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
-		xprintf_P( PSTR("  digital {0..%d} dname\r\n\0"), ( NRO_DINPUTS + NRO_DTIMERS - 1 ) );
-		xprintf_P( PSTR("  outmode {none|consigna|perforacion|piloto}\r\n\0"));
 
 		if ( spx_io_board == SPX_IO5CH ) {
-			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
 			xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
-			xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, sensortime {val}\r\n\0"));
+			xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
 		}
 
 		if ( spx_io_board == SPX_IO8CH ) {
-			xprintf_P( PSTR("  dtimers {on|off}\r\n\0"));
 			xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
 		}
 
+		xprintf_P( PSTR("  debug {none,counter,data, gprs, outputs }\r\n\0"));
+		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
+		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
+		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
+		xprintf_P( PSTR("  digital {0..%d} dname\r\n\0"), ( NRO_DINPUTS - 1 ) );
+		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
+
+		if ( spx_io_board == SPX_IO5CH ) {
+			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
+		}
+
+		xprintf_P( PSTR("  outmode {none|cons|perf|plt}\r\n\0"));
 		xprintf_P( PSTR("  consigna {hhmm_dia hhmm_noche}\r\n\0"));
 		xprintf_P( PSTR("  piloto {pout} {pband} {max_steps}\r\n\0"));
 
@@ -1044,13 +996,6 @@ static void cmdKillFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("DATA\0"))) {
 		vTaskSuspend( xHandle_tkData );
 		ctl_watchdog_kick(WDG_DAT, 0x8000 );
-		return;
-	}
-
-	// KILL DTIMERS
-	if (!strcmp_P( strupr(argv[1]), PSTR("DTIMERS\0"))) {
-		vTaskSuspend( xHandle_tkDtimers );
-		ctl_watchdog_kick(WDG_DTIM, 0x8000 );
 		return;
 	}
 
@@ -1150,10 +1095,6 @@ UBaseType_t uxHighWaterMark;
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkData );
 	xprintf_P( PSTR("DAT: %03d,%03d,[%03d]\r\n\0"),tkData_STACK_SIZE,uxHighWaterMark, (tkData_STACK_SIZE - uxHighWaterMark));
 
-	// tkDtimers
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkDtimers );
-	xprintf_P( PSTR("DTIM: %03d,%03d,[%03d]\r\n\0"),tkDtimers_STACK_SIZE,uxHighWaterMark, (tkDtimers_STACK_SIZE - uxHighWaterMark));
-
 	// tkDout
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkDoutputs );
 	xprintf_P( PSTR("DOUT: %03d,%03d,[%03d]\r\n\0"), tkDoutputs_STACK_SIZE,uxHighWaterMark, ( tkDoutputs_STACK_SIZE - uxHighWaterMark));
@@ -1174,11 +1115,14 @@ static void pv_cmd_read_battery(void)
 
 float battery;
 
-	AINPUTS_prender_12V();
-	INA_config(1, CONF_INAS_AVG128 );
-	battery = 0.008 * AINPUTS_read_battery();
-	INA_config(1, CONF_INAS_SLEEP );
-	AINPUTS_apagar_12V();
+	ainputs_prender_12V_sensors();
+	ainputs_awake();
+	vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
+
+	battery = ainputs_read_battery();
+
+	ainputs_sleep();
+	ainputs_apagar_12Vsensors();
 
 	xprintf_P( PSTR("Battery=%.02f\r\n\0"), battery );
 
@@ -1187,13 +1131,21 @@ float battery;
 static void pv_cmd_read_analog_channel(void)
 {
 
-uint16_t raw_val;
 float mag_val;
 
 
 	if ( atoi(argv[2]) <  NRO_ANINPUTS ) {
-		ainputs_read( atoi(argv[2]),&raw_val, &mag_val );
-		xprintf_P( PSTR("anCH[%02d] raw=%d,mag=%.02f\r\n\0"),atoi(argv[2]),raw_val, mag_val );
+
+		ainputs_prender_12V_sensors();
+		ainputs_awake();
+		vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
+
+		mag_val = ainputs_read_channel( atoi(argv[2]) );
+		xprintf_P( PSTR("anCH[%02d]=%.02f\r\n\0"),atoi(argv[2]),mag_val );
+
+		ainputs_sleep();
+		ainputs_apagar_12Vsensors();
+
 	} else {
 		pv_snprintfP_ERR();
 	}
@@ -1204,38 +1156,21 @@ static void pv_cmd_read_digital_channels(void)
 
 	// Leo e imprimo todos los canales digitales a la vez.
 
-uint8_t din0, din1;
-uint16_t dinputs[8];
+uint8_t dinputsA[MAX_DINPUTS_CHANNELS];
 uint8_t i;
 
-	if ( spx_io_board == SPX_IO5CH ) {
-		// Leo los canales digitales.
-		din0 = DIN_read_pin(0, spx_io_board );
-		din1 = DIN_read_pin(1, spx_io_board );
-		xprintf_P( PSTR("Din0: %d, Din1: %d\r\n\0"), din0, din1 );
-		return;
-
-	} else 	if ( spx_io_board == SPX_IO8CH ) {
-
-		for ( i = 0; i < 4; i++ ) {
-			dinputs[i] = dinputs_read(i);
-		}
-
-		for ( i = 4; i < 8; i++ ) {
-			if ( systemVars.dtimers_enabled ) {
-			//	dinputs[i] = dtimers_read(i-4);
-			} else {
-				dinputs[i] = dinputs_read(i);
-			}
-		}
-
-		xprintf_P( PSTR("DINPUTS: "));
-		for ( i=0; i < 8; i++ ) {
-			xprintf_P( PSTR("%d"), dinputs[i] );
-		}
-		xprintf_P( PSTR("\r\n"));
-		return;
+	// Leo
+	for ( i = 0; i < NRO_DINPUTS; i++ ) {
+		dinputsA[i] = dinputs_read_channel(i);
 	}
+
+	// Imprimo al reves (MSB LSB)
+	xprintf_P( PSTR("Dinputs: "));
+	for ( i = 0; i < NRO_DINPUTS; i++ ) {
+		xprintf_P( PSTR(" %d"), dinputsA[ NRO_DINPUTS - 1 - i] );
+	}
+	xprintf_P( PSTR("\r\n\0"));
+
 }
 //------------------------------------------------------------------------------------
 static void pv_cmd_read_memory(void)
@@ -1286,7 +1221,6 @@ bool detail = false;
 		case SPX_IO8CH:
 			memcpy( &df.ainputs, &dr.df.io8.ainputs, ( NRO_ANINPUTS * sizeof(float)));
 			memcpy( &df.dinputsA, &dr.df.io8.dinputsA, ( NRO_DINPUTS * sizeof(uint8_t)));
-			memcpy( &df.dinputsB, &dr.df.io8.dinputsB, ( NRO_DINPUTS * sizeof(uint16_t)));
 			memcpy( &df.counters, &dr.df.io8.counters, ( NRO_COUNTERS * sizeof(float)));
 			memcpy( &df.rtc, &dr.rtc, sizeof(RtcTimeType_t) );
 			break;
@@ -1302,138 +1236,14 @@ bool detail = false;
 		// Imprimo el registro
 		xprintf_P( PSTR("CTL=%d LINE=%04d%02d%02d,%02d%02d%02d\0"), l_fat.rdPTR, df.rtc.year, df.rtc.month, df.rtc.day, df.rtc.hour, df.rtc.min, df.rtc.sec );
 
-		u_df_print_analogicos( &df );
-	    u_df_print_digitales( &df );
-		u_df_print_contadores( &df );
+		ainputs_df_print( &df );
+		dinputs_df_print( &df );
+	    counters_df_print( &df );
 		u_df_print_range( &df );
-		u_df_print_battery( &df );
+		ainputs_df_print_battery( &df );
 
 		xprintf_P(PSTR( "\r\n"));
 	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_cmd_read_debug(void)
-{
-	// Funcion privada para testing de funcionalidades particulares
-
-	// Caso 1: Leo el nivel logico de los pines de control de comunicaciones
-
-uint8_t ina_id;
-uint8_t i2c_bus_address = 0;
-char data[3];
-
-
-	if (!strcmp_P( strupr(argv[2]), PSTR("INAPRES\0"))) {
-		ina_id = atoi( argv[3] );
-		switch ( ina_id ) {
-		case 0:
-			i2c_bus_address = BUSADDR_INA_A;
-			break;
-		case 1:
-			i2c_bus_address = BUSADDR_INA_B;
-			break;
-		case 2:
-			i2c_bus_address = BUSADDR_INA_C;
-			break;
-
-		}
-
-		if ( I2C_test_device( i2c_bus_address ,INA3231_CONF, data, 2 ) ) {
-			xprintf_P( PSTR("INA%02d present\r\n\0"), ina_id);
-		} else {
-			xprintf_P( PSTR("INA%02d NO present\r\n\0"), ina_id);
-
-		}
-
-	}
-
-
-/*
-  	if (!strcmp_P( strupr(argv[2]), PSTR("INAPRES\0"))) {
-		ina_id = atoi( argv[3] );
-		if ( INA_test_presence ( ina_id ) ) {
-			xprintf_P( PSTR("INA%02d present\r\n\0"), ina_id);
-		} else {
-			xprintf_P( PSTR("INA%02d NO present\r\n\0"), ina_id);
-
-		}
-	}
-
-*/
-
-/*
-uint8_t baud, term;
-uint8_t bus_status;
-uint8_t i;
-
-
-	baud = IO_read_BAUD_PIN();
-	term = IO_read_TERMCTL_PIN();
-
-	xprintf_P( PSTR("TERM=%d\r\n\0"),term );
-	xprintf_P( PSTR("BAUD=%d\r\n\0"),baud );
-
-
-	bus_status = TWIE.MASTER.STATUS; //& TWI_MASTER_BUSSTATE_gm;
-	xprintf_P( PSTR("I2C_STATUS: 0x%02x\r\n\0"),TWIE.MASTER.STATUS );
-
-	if (  ( bus_status == TWI_MASTER_BUSSTATE_IDLE_gc ) || ( bus_status == TWI_MASTER_BUSSTATE_OWNER_gc ) ) {
-		return;
-	}
-
-	// El status esta indicando errores. Debo limpiarlos antes de usar la interface.
-	if ( (bus_status & TWI_MASTER_ARBLOST_bm) != 0 ) {
-		xprintf_P( PSTR("ARBLOST\r\n\0"));
-		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_ARBLOST_bm;
-	}
-
-	if ( (bus_status & TWI_MASTER_BUSERR_bm) != 0 ) {
-		xprintf_P( PSTR("BUSERR\r\n\0"));
-		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_BUSERR_bm;
-	}
-
-	if ( (bus_status & TWI_MASTER_WIF_bm) != 0 ) {
-		xprintf_P( PSTR("WIF\r\n\0"));
-		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_WIF_bm;
-	}
-
-	if ( (bus_status & TWI_MASTER_RIF_bm) != 0 ) {
-		xprintf_P( PSTR("RIF\r\n\0"));
-		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_RIF_bm;
-	}
-
-	if ( (bus_status & TWI_MASTER_CLKHOLD_bm) != 0 ) {
-		xprintf_P( PSTR("CLKHOLD\r\n\0"));
-//		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_CLKHOLD_bm;
-	}
-
-	if ( (bus_status & TWI_MASTER_RXACK_bm) != 0 ) {
-		xprintf_P( PSTR("RXACK\r\n\0"));
-//		TWIE.MASTER.STATUS = bus_status | TWI_MASTER_RXACK_bm;
-
-		TWIE.MASTER.CTRLA = 0x00;
-
-		vTaskDelay( ( TickType_t)( 10 / portTICK_RATE_MS ) );
-
-
-		for ( i = 0; i < 10; i++ ) {
-			IO_set_SCL();
-			vTaskDelay( ( TickType_t)( 1 / portTICK_RATE_MS ) );
-			IO_clr_SCL();
-			vTaskDelay( ( TickType_t)( 1 / portTICK_RATE_MS ) );
-		}
-
-
-		TWIE.MASTER.CTRLA |= ( 1<<TWI_MASTER_ENABLE_bp);	// Enable TWI
-
-
-	}
-
-//	TWIE.MASTER.STATUS = bus_status | TWI_MASTER_BUSSTATE_IDLE_gc;	// Pongo el status en 01 ( idle )
-//	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
-*/
-
 
 }
 //------------------------------------------------------------------------------------
@@ -1586,10 +1396,14 @@ uint8_t data;
 		data = atoi(argv[3]);
 
 		xBytes = MCP_write( (uint32_t)(atoi(argv[2])), (char *)&data , 1 );
-		//systemVars.doutputs_conf.perforacion.outs = twiddle_bits( data );
-		doutput_write_perforaciones_outs( twiddle_bits( data ) );
 		if ( xBytes == -1 )
 			xprintf_P(PSTR("ERROR: I2C:MCP:pv_cmd_rwMCP\r\n\0"));
+
+		// Si estoy escribiendo el registro OLATB que refleja las salidas
+		// debo dejar actualizado el valor que puse
+		if ( atoi( argv[2]) == MCP_OLATB ) {
+			doutput_set_douts(data);
+		}
 
 		( xBytes > 0 ) ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
 		return;

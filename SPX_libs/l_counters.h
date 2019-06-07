@@ -37,11 +37,11 @@ void COUNTERS_set_counter1_LS(void);
 #define CNT_set_CLRD()		PORT_SetOutputBit( &CLR_D_PORT, CLR_D_BITPOS)
 #define CNT_clr_CLRD()		PORT_ClearOutputBit( &CLR_D_PORT, CLR_D_BITPOS)
 
-#define CNT_config_CNT0()	IO_config_PB2()
-#define CNT_config_CNT1()	IO_config_PA2()
+#define CNT_config_CNT1()	IO_config_PB2()
+#define CNT_config_CNT0()	IO_config_PA2()
 
-#define CNT_read_CNT0()	IO_read_PB2()
-#define CNT_read_CNT1()	IO_read_PA2()
+#define CNT_read_CNT1()	IO_read_PB2()
+#define CNT_read_CNT0()	IO_read_PA2()
 
 
 
