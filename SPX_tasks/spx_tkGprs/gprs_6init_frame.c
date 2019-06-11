@@ -606,7 +606,12 @@ static uint8_t pv_init_config_counterCh(uint8_t channel)
 char localStr[32];
 char *stringp;
 char *delim = ",=:><";
-char *tk_id, *tk_name, *tk_magPP, *tk_pwidth, *tk_period, *tk_speed;
+char *tk_id = NULL;
+char *tk_name = NULL;
+char *tk_magPP = NULL;
+char *tk_pwidth = NULL;
+char *tk_period = NULL;
+char *tk_speed = NULL;
 
 	switch (channel) {
 	case 0:
@@ -629,7 +634,7 @@ char *tk_id, *tk_name, *tk_magPP, *tk_pwidth, *tk_period, *tk_speed;
 	memcpy(localStr,stringp, 31);
 
 	stringp = localStr;
-	tk_id = strsep(&stringp,delim);	// C0
+	tk_id = strsep(&stringp,delim);		// C0
 	tk_name = strsep(&stringp,delim);	//name
 	tk_magPP = strsep(&stringp,delim);	//magPP
 	tk_pwidth = strsep(&stringp,delim);	//pulse width
@@ -806,6 +811,7 @@ char *tk_id, *tk_dlgid, *tk_modo;
 	xprintf_P( PSTR("GPRS: Reset...\r\n\0") );
 	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
 	CCPWrite( &RST.CTRL, RST_SWRST_bm );
+	return(0);
 
 }
 //--------------------------------------------------------------------------------------

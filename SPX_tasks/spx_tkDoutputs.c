@@ -89,6 +89,14 @@ void tkDoutputs(void * pvParameters)
 static void tkDoutputs_init(void)
 {
 
+	if ( spx_io_board == SPX_IO5CH ) {
+		DRV8814_init();
+	}
+
+	if ( spx_io_board == SPX_IO8CH ) {
+		MCP_init();
+	}
+
 	switch( systemVars.doutputs_conf.modo ) {
 	case NONE:
 		tk_doutputs_init_none();
@@ -110,7 +118,6 @@ static void tk_doutputs_init_none(void)
 	// Configuracion inicial cuando las salidas estan en NONE
 
 	if ( spx_io_board == SPX_IO5CH ) {
-		DRV8814_init();
 		DRV8814_sleep_pin(0);
 		DRV8814_power_off();
 		return;
@@ -133,6 +140,7 @@ uint8_t consigna_a_aplicar = 99;
 
 	if ( spx_io_board != SPX_IO5CH ) {
 		xprintf_P(PSTR("DOUTPUTS Init ERROR: Consigna only in IO_5CH.\r\n\0"));
+		systemVars.doutputs_conf.modo = NONE;
 		return;
 	}
 
@@ -223,6 +231,12 @@ static void tk_doutputs_init_perforaciones(void)
 int xBytes = 0;
 uint8_t data;
 
+	if ( spx_io_board != SPX_IO8CH ) {
+		xprintf_P(PSTR("DOUTPUTS Init ERROR: Perforaciones only in IO_8CH.\r\n\0"));
+		systemVars.doutputs_conf.modo = NONE;
+		return;
+	}
+
 	// Activacion de salidas en 8CH
 	// Leo el OLATB y pongo la salida que tenia
 	if ( spx_io_board == SPX_IO8CH ) {
@@ -258,12 +272,12 @@ uint8_t data;
 
 	// Activacion de salidas en 5CH
 	// No tengo MCP de modo que las salidas las mantiene el micro y se inicializan en 0.
-	if ( spx_io_board == SPX_IO5CH ) {
-		DRV8814_init();
-		DRV8814_sleep_pin(0);
-		DRV8814_power_off();
-		return;
-	}
+//	if ( spx_io_board == SPX_IO5CH ) {
+//		DRV8814_init();
+//		DRV8814_sleep_pin(0);
+//		DRV8814_power_off();
+//		return;
+//	}
 
 }
 //------------------------------------------------------------------------------------
@@ -272,6 +286,7 @@ static void tk_doutputs_init_pilotos(void)
 	// Los pilotos se inicializan igual que las consignas ya que uso las 2 valvulas.
 	if ( spx_io_board != SPX_IO5CH ) {
 		xprintf_P(PSTR("DOUTPUTS ERROR: Pilotos only in IO_5CH.\r\n\0"));
+		systemVars.doutputs_conf.modo = NONE;
 		return;
 	}
 
@@ -301,6 +316,7 @@ RtcTimeType_t rtcDateTime;
 	// Por las dudas
 	if ( spx_io_board != SPX_IO5CH ) {
 		xprintf_P(PSTR("DOUTPUTS loop ERROR: Consigna only in IO_5CH.\r\n\0"));
+		systemVars.doutputs_conf.modo = NONE;
 		return;
 	}
 
@@ -338,6 +354,7 @@ static void tk_doutputs_pilotos(void)
 
 	// Por las dudas
 	if ( spx_io_board != SPX_IO5CH ) {
+		systemVars.doutputs_conf.modo = NONE;
 		return;
 	}
 

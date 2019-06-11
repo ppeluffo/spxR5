@@ -85,10 +85,10 @@ bool retS = false;
 		if ( s_param1 != NULL ) { systemVars.counters_conf.magpp[channel] = atof(s_param1); }
 
 		// PW
-		if ( s_param2 != NULL ) { systemVars.counters_conf.pwidth[channel] = atof(s_param2); }
+		if ( s_param2 != NULL ) { systemVars.counters_conf.pwidth[channel] = atoi(s_param2); }
 
 		// PERIOD
-		if ( s_param3 != NULL ) { systemVars.counters_conf.period[channel] = atof(s_param3); }
+		if ( s_param3 != NULL ) { systemVars.counters_conf.period[channel] = atoi(s_param3); }
 
 		// SPEED
 		if ( !strcmp_P( s_param4, PSTR("LS\0"))) {
