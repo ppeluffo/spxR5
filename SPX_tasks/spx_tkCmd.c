@@ -422,11 +422,11 @@ static void cmdWriteFunction(void)
 	// write range {run | stop}
 	if (!strcmp_P( strupr(argv[1]), PSTR("RANGE\0")) && ( tipo_usuario == USER_TECNICO) ) {
 		if (!strcmp_P( strupr(argv[2]), PSTR("RUN\0")) ) {
-			RMETER_set_UPULSE_RUN(); pv_snprintfP_OK(); return;
+			RMETER_start(); pv_snprintfP_OK(); return;
 		}
 
 		if (!strcmp_P( strupr(argv[2]), PSTR("STOP\0")) ) {
-			RMETER_clr_UPULSE_RUN(); pv_snprintfP_OK();	return;
+			RMETER_stop(); pv_snprintfP_OK();	return;
 		}
 
 		xprintf_P( PSTR("cmd ERROR: ( write range {run|stop} )\r\n\0"));
@@ -989,6 +989,7 @@ static void cmdKillFunction(void)
 		vTaskSuspend( xHandle_tkCounter1 );
 		ctl_watchdog_kick(WDG_COUNT0, 0x8000 );
 		ctl_watchdog_kick(WDG_COUNT1, 0x8000 );
+		pv_snprintfP_OK();
 		return;
 	}
 
@@ -996,6 +997,7 @@ static void cmdKillFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("DATA\0"))) {
 		vTaskSuspend( xHandle_tkData );
 		ctl_watchdog_kick(WDG_DAT, 0x8000 );
+		pv_snprintfP_OK();
 		return;
 	}
 
@@ -1003,6 +1005,7 @@ static void cmdKillFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("DOUTPUTS\0"))) {
 		vTaskSuspend( xHandle_tkDoutputs );
 		ctl_watchdog_kick(WDG_DOUT, 0x8000 );
+		pv_snprintfP_OK();
 		return;
 	}
 
@@ -1012,6 +1015,7 @@ static void cmdKillFunction(void)
 		ctl_watchdog_kick(WDG_GPRSTX, 0x8000 );
 		// Dejo la flag de modem prendido para poder leer comandos
 		GPRS_stateVars.modem_prendido = true;
+		pv_snprintfP_OK();
 		return;
 	}
 
@@ -1019,10 +1023,11 @@ static void cmdKillFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("GPRSRX\0"))) {
 		vTaskSuspend( xHandle_tkGprsRx );
 		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
+		pv_snprintfP_OK();
 		return;
 	}
 
-	pv_snprintfP_OK();
+	pv_snprintfP_ERR();
 	return;
 }
 //------------------------------------------------------------------------------------

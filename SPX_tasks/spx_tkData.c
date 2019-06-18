@@ -127,7 +127,7 @@ static void pv_data_init(void)
 
     // Inicializo el sistema de medida de ancho de pulsos
     if ( spx_io_board == SPX_IO5CH ) {
-     	RMETER_init( SYSMAINCLK );
+    	RMETER_init( SYSMAINCLK );
      	xprintf_P( PSTR("RMETER init..\r\n\0"));
 
     }

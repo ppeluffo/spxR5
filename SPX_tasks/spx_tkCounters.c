@@ -26,6 +26,7 @@ uint16_t counters[MAX_COUNTER_CHANNELS];	// Valores medidos de los contadores
 #define WDG_COUNT_TIMEOUT	60
 
 static void pv_tkCounter_init(uint8_t cnt);
+static void pv_tkCounter_debug_print(void);
 
 //------------------------------------------------------------------------------------
 void tkCounter0(void * pvParameters)
@@ -64,9 +65,7 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 			// Leo el pin. Si esta en 1 el ancho es valido y entonces cuento el pulso
 			if ( CNT_read_CNT0() == 0 ) {
 				counters[0]++;
-				if ( systemVars.debug == DEBUG_COUNTER) {
-					xprintf_P( PSTR("COUNTERS: *C0=%d, C1=%d\r\n\0"),(uint16_t) counters[0],(uint16_t) counters[1] );
-				}
+				pv_tkCounter_debug_print();
 			}
 
 			// Espero perido
@@ -93,6 +92,8 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 
 	pv_tkCounter_init(1);
 
+	(systemVars.counters_conf.speed[1] == CNT_LOW_SPEED ) ?  COUNTERS_set_counter1_LS() :  COUNTERS_set_counter1_HS();
+
 	xprintf_P( PSTR("starting tkCounter1..\r\n\0"));
 
 	// loop
@@ -102,10 +103,19 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 		// Paso c/10s plt 30s es suficiente.
 		ctl_watchdog_kick(WDG_COUNT1, WDG_COUNT_TIMEOUT);
 
-		// Cuando la interrupcion detecta un flanco, solo envia una notificacion
-		// Espero que me avisen. Si no me avisaron en 25s salgo y repito el ciclo.
-		// Esto es lo que me permite entrar en tickless.
-		ulNotificationValue = ulTaskNotifyTake( pdTRUE, xMaxBlockTime );
+		// Si esoy en HS, solo espero.
+		if ( COUNTERS_cnt1_in_HS() ) {
+			vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
+			pv_tkCounter_debug_print();
+			continue;
+
+		} else {
+			// Cuando la interrupcion detecta un flanco, solo envia una notificacion
+			// Espero que me avisen. Si no me avisaron en 25s salgo y repito el ciclo.
+			// Esto es lo que me permite entrar en tickless.
+			ulNotificationValue = ulTaskNotifyTake( pdTRUE, xMaxBlockTime );
+		}
+
 
 		if( ulNotificationValue != 0 ) {
 			// Fui notificado:
@@ -116,9 +126,7 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 			// Leo el pin. Si esta en 1 el ancho es valido y entonces cuento el pulso
 			if ( CNT_read_CNT1() == 0 ) {
 				counters[1]++;
-				if ( systemVars.debug == DEBUG_COUNTER) {
-					xprintf_P( PSTR("COUNTERS: *C0=%d, C1=%d\r\n\0"),(uint16_t) counters[0],(uint16_t) counters[1] );
-				}
+				pv_tkCounter_debug_print();
 			}
 
 			// Espero perido
@@ -143,6 +151,7 @@ static void pv_tkCounter_init(uint8_t cnt)
 		break;
 	case 1:
 		COUNTERS_init( 1, xHandle_tkCounter1 );
+
 		break;
 	}
 
@@ -153,6 +162,18 @@ static void pv_tkCounter_init(uint8_t cnt)
 	} else {
 		counters_enabled[cnt] = true;
 		COUNTERS_enable_interrupt(cnt);
+	}
+}
+//------------------------------------------------------------------------------------
+static void pv_tkCounter_debug_print(void)
+{
+	if ( systemVars.debug == DEBUG_COUNTER) {
+		if ( COUNTERS_cnt1_in_HS() ) {
+			counters[1] = COUNTERS_readCnt1();
+			xprintf_P( PSTR("COUNTERS: *C0=%d, C1(hs)=%d\r\n\0"),(uint16_t) counters[0],(uint16_t) counters[1] );
+		} else {
+			xprintf_P( PSTR("COUNTERS: *C0=%d, C1(ls)=%d\r\n\0"),(uint16_t) counters[0],(uint16_t) counters[1] );
+		}
 	}
 }
 //------------------------------------------------------------------------------------

@@ -11,7 +11,7 @@
 BaseType_t xHigherPriorityTaskWokenDigital = false;
 TaskHandle_t countersTaskHandle0, countersTaskHandle1;
 
-bool counter1_in_HS;
+bool counter1_in_HS = false;
 
 //------------------------------------------------------------------------------------
 void COUNTERS_init( uint8_t cnt, TaskHandle_t taskHandle )
@@ -20,11 +20,12 @@ void COUNTERS_init( uint8_t cnt, TaskHandle_t taskHandle )
 	switch ( cnt ) {
 	case 0:
 		CNT_config_CNT0();
-		//	PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
+		//PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
 		//PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	// Sensa rising edge. Menos consumo con pulldown.
-		PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	    // Sensa falling edge
-		//PORTA.INT0MASK = PIN2_bm;
-		//PORTA.INTCTRL = PORT_INT0LVL0_bm;
+		PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
+//		PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge. Menos consumo con pulldown.
+//		PORTA.PIN2CTRL = PORT_ISC_FALLING_gc;	// Sensa falling edge
+		//PORTA.PIN2CTRL = PORT_OPC_TOTEM_gc | PORT_ISC_FALLING_gc;
 		COUNTERS_enable_interrupt(0);
 		countersTaskHandle0 = ( xTaskHandle ) taskHandle;
 		break;
@@ -34,8 +35,8 @@ void COUNTERS_init( uint8_t cnt, TaskHandle_t taskHandle )
 		//	PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
 		//PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;		// Sensa rising edge. Menos consumo con pulldown.
 		PORTB.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
-		//PORTB.INT0MASK = PIN2_bm;
-		//PORTB.INTCTRL = PORT_INT0LVL0_bm;
+//		PORTB.PIN2CTRL = PORT_ISC_FALLING_gc;
+//		PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge. Menos consumo con pulldown.
 		COUNTERS_enable_interrupt(1);
 		countersTaskHandle1 = ( xTaskHandle ) taskHandle;
 		// Por defecto cuenta en modo LS.
@@ -94,6 +95,7 @@ void COUNTERS_resetCnt1(void)
 	counter1 = 0;
 }
 //------------------------------------------------------------------------------------
+
 ISR ( PORTA_INT0_vect )
 {
 	// Esta ISR se activa cuando el contador D2 (PA2) genera un flaco se subida.
@@ -113,10 +115,13 @@ ISR( PORTB_INT0_vect )
 	// el pulso y haga el debounced.
 	// Dado que los ISR de los 2 contadores son los que despiertan a la tarea, debo
 	// indicarle de donde proviene el llamado
-	//if ( ! counter1_in_HS )
-	vTaskNotifyGiveFromISR( countersTaskHandle1 , &xHigherPriorityTaskWokenDigital );
+	if ( counter1_in_HS  ) {
+		counter1++;
+	} else {
+		vTaskNotifyGiveFromISR( countersTaskHandle1 , &xHigherPriorityTaskWokenDigital );
+	}
 	//PORTB.INTFLAGS = PORT_INT0IF_bm;
-	//counter1++;
+
 }
 //------------------------------------------------------------------------------------
 void COUNTERS_set_counter1_HS(void)
@@ -127,5 +132,10 @@ void COUNTERS_set_counter1_HS(void)
 void COUNTERS_set_counter1_LS(void)
 {
 	counter1_in_HS = false;
+}
+//------------------------------------------------------------------------------------
+bool COUNTERS_cnt1_in_HS(void)
+{
+	return(counter1_in_HS);
 }
 //------------------------------------------------------------------------------------

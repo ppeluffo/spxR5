@@ -21,9 +21,29 @@ float counters_read_channel( uint8_t cnt, bool reset_counter )
 
 float val = 0;
 
-	val = counters[cnt] * systemVars.counters_conf.magpp[cnt];
-	if ( reset_counter )
-		counters[cnt] = 0;
+	switch ( cnt ) {
+	case 0:	// El contador 0 siempre es LS
+		val = counters[0] * systemVars.counters_conf.magpp[0];
+		if ( reset_counter )
+			counters[0] = 0;
+		return(val);
+		break;
+
+	case 1:	// El contador 1 puede ser LS o HS
+		if ( COUNTERS_cnt1_in_HS() ) {
+			val = COUNTERS_readCnt1() * systemVars.counters_conf.magpp[1];
+			if ( reset_counter )
+				COUNTERS_resetCnt1();
+			return(val);
+
+		} else {
+			val = counters[1] * systemVars.counters_conf.magpp[1];
+			if ( reset_counter )
+				counters[1] = 0;
+			return(val);
+		}
+		break;
+	}
 
 	return(val);
 }
@@ -45,7 +65,8 @@ uint8_t i;
 	}
 
 	systemVars.counters_conf.speed[0] = CNT_LOW_SPEED;
-	systemVars.counters_conf.speed[1] = CNT_HIGH_SPEED;
+	systemVars.counters_conf.speed[1] = CNT_LOW_SPEED;
+	COUNTERS_set_counter1_LS();
 
 }
 //------------------------------------------------------------------------------------
@@ -93,8 +114,20 @@ bool retS = false;
 		// SPEED
 		if ( !strcmp_P( s_param4, PSTR("LS\0"))) {
 			 systemVars.counters_conf.speed[channel] = CNT_LOW_SPEED;
+
+			 if ( channel == 1 ) {
+				 COUNTERS_set_counter1_LS();
+				 COUNTERS_enable_interrupt(1);
+			 }
+
 		} else if ( !strcmp_P( s_param4 , PSTR("HS\0"))) {
 			 systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
+
+			 if ( channel == 1 ) {
+				 COUNTERS_set_counter1_HS();
+				 COUNTERS_enable_interrupt(1);
+			 }
+
 		}
 
 		retS = true;

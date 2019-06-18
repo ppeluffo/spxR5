@@ -102,6 +102,10 @@ void DRV8814_set_consigna_nocturna(void)
 {
 	// En consigna nocturna la valvula A (JP28) queda abierta y la valvula B (JP2) cerrada.
 	//
+	// ( VA close / VB open ) -> ( VA open / VB close )
+	// Abro VA ya que esta con pAtm de un lado.
+	// Cierro VB.
+
 
 	// Proporciono corriente.
 	DRV8814_power_on();
@@ -113,13 +117,16 @@ void DRV8814_set_consigna_nocturna(void)
 	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
 	DRV8814_vopen( 'A', 100 );
 
-
 	DRV8814_power_off();
 
 }
 //----------------------------------------------------------------------------------------
 void DRV8814_set_consigna_diurna(void)
 {
+
+	// ( VA open / VB close ) -> ( VA close / VB open )
+	// Open VB con lo que el punto común de las válvulas queda a pAtm y la VA puede operar correctamente.
+	// Close VA.
 
 	// Proporciono corriente.
 	DRV8814_power_on();
@@ -129,6 +136,7 @@ void DRV8814_set_consigna_diurna(void)
 	// EL orden importa para que las valvulas no queden a contrapresion
 	DRV8814_vopen( 'B', 100 );
 	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+
 	DRV8814_vclose( 'A', 100 );
 
 	DRV8814_power_off();

@@ -20,8 +20,6 @@ static struct {
 	int32_t stack[MAX_RANGEMETER_STACK];
 } s_rangeMeter_stack;
 
-void rmeter_start(void);
-void rmeter_stop(void);
 void rmeter_flush_stack(void);
 void rmeter_push_stack(uint16_t counter);
 int16_t rmeter_calcular_distancia(bool debug);
@@ -42,7 +40,7 @@ void RMETER_init( uint8_t sysclock_in_mhz )
 	RMETER_config_IO_UPULSE_WIDTH();
 
 	// Apagamos la medicion de pulsos.
-	rmeter_stop();
+	RMETER_stop();
 
 	// Calculo el prescaler del timer.
 	switch( sysclock_in_mhz ) {
@@ -81,7 +79,7 @@ int16_t ping = 0;
 	}
 
 	// Prendo el sensor
-	rmeter_start();
+	RMETER_start();
 
 	// Inicializo
 	midiendo = false;
@@ -97,7 +95,7 @@ int16_t ping = 0;
 	PORTC.INTCTRL = 0x00;
 	//
 	// Apago el sensor
-	rmeter_stop();
+	RMETER_stop();
 	//
 	if ( debug_flag ) {
 		xprintf_P( PSTR("RANGE: Stop\r\n\0"));
@@ -110,14 +108,7 @@ int16_t ping = 0;
 
 }
 //------------------------------------------------------------------------------------
-// FUNCIONES PRIVADAS
-//------------------------------------------------------------------------------------
-uint8_t rmeter_IO_PULSE_WIDTH(void)
-{
-	return( PORT_GetBitValue(&UPULSE_WIDTH_PORT, UPULSE_WIDTH_BITPOS));
-}
-//------------------------------------------------------------------------------------
-void rmeter_start(void)
+void RMETER_start(void)
 {
 	// Activo el sensor habilitando la señal UPULSE_RUN lo que hace
 	// que el sensor comienze a medir con una frecuencia de 6hz.
@@ -128,7 +119,7 @@ void rmeter_start(void)
 
 }
 //------------------------------------------------------------------------------------
-void rmeter_stop(void)
+void RMETER_stop(void)
 {
 
 	// El pin de RUN es el pin4 del sensor MAX-XL alimentado por medio de un inversor
@@ -137,6 +128,13 @@ void rmeter_stop(void)
 
 	RMETER_set_UPULSE_RUN();
 
+}
+//------------------------------------------------------------------------------------
+// FUNCIONES PRIVADAS
+//------------------------------------------------------------------------------------
+uint8_t rmeter_IO_PULSE_WIDTH(void)
+{
+	return( PORT_GetBitValue(&UPULSE_WIDTH_PORT, UPULSE_WIDTH_BITPOS));
 }
 //------------------------------------------------------------------------------------
 void rmeter_flush_stack(void)

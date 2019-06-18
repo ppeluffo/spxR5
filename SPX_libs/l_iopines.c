@@ -44,9 +44,9 @@ void IO_config_PB2(void)
 	// hay que configurarlo.
 
 	PORT_SetPinAsInput( &PB2_PORT, PB2_BITPOS);
-	PB2_PORT.PIN2CTRL = 0x01;	// sense rising edge
-	PB2_PORT.INTCTRL = 0x01;	// Dispara la interrupcion 0.
-	PB2_PORT.INT0MASK = 0x04;	// Asocio el pin 2 a dicha interrupcion
+//	PB2_PORT.PIN2CTRL = 0x01;	// sense rising edge
+//	PB2_PORT.INTCTRL = 0x01;	// Dispara la interrupcion 0.
+//	PB2_PORT.INT0MASK = 0x04;	// Asocio el pin 2 a dicha interrupcion
 }
 //------------------------------------------------------------------------------------
 void IO_config_PA2(void)
@@ -55,9 +55,9 @@ void IO_config_PA2(void)
 	// hay que configurarlo.
 
 	PORT_SetPinAsInput( &PA2_PORT, PA2_BITPOS);
-	PA2_PORT.PIN2CTRL = 0x01;	// sense rising edge
-	PA2_PORT.INTCTRL = 0x01;	// Dispara la interrupcion 0 con level 1
-	PA2_PORT.INT0MASK = 0x04;	// Asocio el pin 2 a dicha interrupcion
+//	PA2_PORT.PIN2CTRL = 0x01;	// sense rising edge
+//	PA2_PORT.INTCTRL = 0x01;	// Dispara la interrupcion 0 con level 1
+//	PA2_PORT.INT0MASK = 0x04;	// Asocio el pin 2 a dicha interrupcion
 
 
 }

@@ -36,6 +36,8 @@
 // API publica
 void RMETER_init( uint8_t sysclock_in_mhz );
 void RMETER_ping(int16_t *range, bool debug_flag );
+void RMETER_start(void);
+void RMETER_stop(void);
 
 // API end
 //------------------------------------------------------------------------------------

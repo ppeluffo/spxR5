@@ -210,12 +210,12 @@ uint8_t consigna_a_aplicar = 99;
 	case CONSIGNA_DIURNA:
 		DRV8814_set_consigna_diurna();
 		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
-		xprintf_P(PSTR("Set consigna diurna\r\n\0"));
+		xprintf_P(PSTR("Set consigna diurna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		break;
 	case CONSIGNA_NOCTURNA:
 		DRV8814_set_consigna_nocturna();
 		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
-		xprintf_P(PSTR("Set consigna nocturna\r\n\0"));
+		xprintf_P(PSTR("Set consigna nocturna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		break;
 	}
 }
@@ -331,7 +331,7 @@ RtcTimeType_t rtcDateTime;
 
 		DRV8814_set_consigna_diurna();
 		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
-		xprintf_P(PSTR("Set consigna diurna\r\n\0"));
+		xprintf_P(PSTR("Set consigna diurna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		return;
 	 }
 
@@ -340,7 +340,7 @@ RtcTimeType_t rtcDateTime;
 
 		DRV8814_set_consigna_nocturna();
 		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
-		xprintf_P(PSTR("Set consigna nocturna\r\n\0"));
+		xprintf_P(PSTR("Set consigna nocturna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		return;
 	}
 

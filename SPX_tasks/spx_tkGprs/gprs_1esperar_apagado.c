@@ -95,6 +95,7 @@ static bool starting_flag = true;
 	// Cuando arranco ( la primera vez) solo espero 10s y disco por primera vez
 	if ( starting_flag ) {
 		u_gprs_set_timeToNextDial(10);
+		//u_gprs_set_timeToNextDial(600);
 		starting_flag = false;	// Ya no vuelvo a esperar 10s.
 		goto EXIT;
 	}

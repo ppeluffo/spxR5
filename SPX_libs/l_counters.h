@@ -29,6 +29,7 @@ uint32_t COUNTERS_readCnt1(void);
 void COUNTERS_resetCnt1(void);
 void COUNTERS_set_counter1_HS(void);
 void COUNTERS_set_counter1_LS(void);
+bool COUNTERS_cnt1_in_HS(void);
 
 // API end
 //------------------------------------------------------------------------------------
