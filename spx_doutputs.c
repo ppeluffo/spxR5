@@ -67,19 +67,24 @@ void doutputs_config_defaults(void)
 bool doutputs_config_mode( char *mode )
 {
 
-	if (!strcmp_P( strupr(mode), PSTR("NONE\0"))) {
+char l_data[10];
+
+	memcpy(l_data, mode, sizeof(l_data));
+	strupr(l_data);
+
+	if (!strcmp_P( l_data, PSTR("NONE\0"))) {
 		systemVars.doutputs_conf.modo = NONE;
 
-	} else 	if (!strcmp_P( strupr(mode), PSTR("CONS\0"))) {
+	} else 	if (!strcmp_P( l_data, PSTR("CONS\0"))) {
 		if ( spx_io_board != SPX_IO5CH ) {
 			return(false);
 		}
 		systemVars.doutputs_conf.modo = CONSIGNA;
 
-	} else if (!strcmp_P( strupr(mode), PSTR("PERF\0"))) {
+	} else if (!strcmp_P( l_data, PSTR("PERF\0"))) {
 		systemVars.doutputs_conf.modo = PERFORACIONES;
 
-	} else if (!strcmp_P( strupr(mode), PSTR("PLT\0"))) {
+	} else if (!strcmp_P( l_data, PSTR("PLT\0"))) {
 		if ( spx_io_board != SPX_IO5CH ) {
 			return(false);
 		}
@@ -141,17 +146,22 @@ bool doutputs_config_piloto( char *pref, char *pband, char *psteps )
 bool doutputs_cmd_write_consigna( char *tipo_consigna_str)
 {
 
+char l_data[10];
+
+	memcpy(l_data, tipo_consigna_str, sizeof(l_data));
+	strupr(l_data);
+
 	if ( spx_io_board != SPX_IO5CH ) {
 		return(false);
 	}
 
-	if (!strcmp_P( strupr(tipo_consigna_str), PSTR("DIURNA\0")) ) {
+	if (!strcmp_P( l_data, PSTR("DIURNA\0")) ) {
 		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
 		DRV8814_set_consigna_diurna();
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(tipo_consigna_str), PSTR("NOCTURNA\0")) ) {
+	if (!strcmp_P( l_data, PSTR("NOCTURNA\0")) ) {
 		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
 		DRV8814_set_consigna_nocturna();
 		return(true);
@@ -166,60 +176,65 @@ bool doutputs_cmd_write_valve( char *param1, char *param2 )
 	//             (open|close) (A|B) (ms)
 	//              power {on|off}
 
+char l_data[10];
+
+	memcpy(l_data, param1, sizeof(l_data));
+	strupr(l_data);
+
 	if ( spx_io_board != SPX_IO5CH ) {
 		return(false);
 	}
 
 	// write valve enable (A|B)
-	if (!strcmp_P( strupr(param1), PSTR("ENABLE\0")) ) {
+	if (!strcmp_P( l_data, PSTR("ENABLE\0")) ) {
 		DRV8814_enable_pin( toupper(param2[0]), 1);
 		return(true);
 	}
 
 	// write valve disable (A|B)
-	if (!strcmp_P( strupr(param1), PSTR("DISABLE\0")) ) {
+	if (!strcmp_P( l_data, PSTR("DISABLE\0")) ) {
 		DRV8814_enable_pin( toupper(param2[0]), 0);
 		return(true);
 	}
 
 	// write valve set
-	if (!strcmp_P( strupr(param1), PSTR("SET\0")) ) {
+	if (!strcmp_P( l_data, PSTR("SET\0")) ) {
 		DRV8814_reset_pin(1);
 		return(true);
 	}
 
 	// write valve reset
-	if (!strcmp_P( strupr(param1), PSTR("RESET\0")) ) {
+	if (!strcmp_P( l_data, PSTR("RESET\0")) ) {
 		DRV8814_reset_pin(0);
 		return(true);
 	}
 
 	// write valve sleep
-	if (!strcmp_P( strupr(param1), PSTR("SLEEP\0")) ) {
+	if (!strcmp_P( l_data, PSTR("SLEEP\0")) ) {
 		DRV8814_sleep_pin(1);
 		return(true);
 	}
 
 	// write valve awake
-	if (!strcmp_P( strupr(param1), PSTR("AWAKE\0")) ) {
+	if (!strcmp_P( l_data, PSTR("AWAKE\0")) ) {
 		DRV8814_sleep_pin(0);
 		return(true);
 	}
 
 	// write valve ph01 (A|B)
-	if (!strcmp_P( strupr(param1), PSTR("PH01\0")) ) {
+	if (!strcmp_P( l_data, PSTR("PH01\0")) ) {
 		DRV8814_phase_pin( toupper(param2[0]), 1);
 		return(true);
 	}
 
 	// write valve ph10 (A|B)
-	if (!strcmp_P( strupr(param1), PSTR("PH10\0")) ) {
+	if (!strcmp_P( l_data, PSTR("PH10\0")) ) {
 		DRV8814_phase_pin( toupper(param2[0]), 0);
 		return(true);
 	}
 
 	// write valve power on|off
-	if (!strcmp_P( strupr(param1), PSTR("POWER\0")) ) {
+	if (!strcmp_P( l_data, PSTR("POWER\0")) ) {
 
 		if (!strcmp_P( strupr(param2), PSTR("ON\0")) ) {
 			DRV8814_power_on();
@@ -233,7 +248,7 @@ bool doutputs_cmd_write_valve( char *param1, char *param2 )
 	}
 
 	//  write valve (open|close) (A|B) (ms)
-	if (!strcmp_P( strupr(param1), PSTR("OPEN\0")) ) {
+	if (!strcmp_P( l_data, PSTR("OPEN\0")) ) {
 
 		// Proporciono corriente.
 		DRV8814_power_on();
@@ -247,7 +262,7 @@ bool doutputs_cmd_write_valve( char *param1, char *param2 )
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(param1), PSTR("CLOSE\0")) ) {
+	if (!strcmp_P( l_data, PSTR("CLOSE\0")) ) {
 		// Proporciono corriente.
 		DRV8814_power_on();
 		// Espero 10s que se carguen los condensasores
@@ -261,7 +276,7 @@ bool doutputs_cmd_write_valve( char *param1, char *param2 )
 	}
 
 	// write valve pulse (A/B) ms
-	if (!strcmp_P( strupr(param1), PSTR("PULSE\0")) ) {
+	if (!strcmp_P( l_data, PSTR("PULSE\0")) ) {
 		// Proporciono corriente.
 		DRV8814_power_on();
 		// Espero 10s que se carguen los condensasores
@@ -292,6 +307,10 @@ bool doutputs_cmd_write_outputs( char *param_pin, char *param_state )
 
 uint8_t pin;
 int8_t ret_code;
+char l_data[10];
+
+	memcpy(l_data, param_state, sizeof(l_data));
+	strupr(l_data);
 
 	if ( spx_io_board == SPX_IO8CH ) {
 		// Tenemos 8 salidas que las manejamos con el MCP
@@ -299,7 +318,7 @@ int8_t ret_code;
 		if ( pin > 7 )
 			return(false);
 
-		if (!strcmp_P( strupr(param_state), PSTR("SET\0"))) {
+		if (!strcmp_P( l_data, PSTR("SET\0"))) {
 			ret_code = IO_set_DOUT(pin);
 			if ( ret_code == -1 ) {
 				// Error de bus
@@ -309,7 +328,7 @@ int8_t ret_code;
 			return(true);
 		}
 
-		if (!strcmp_P( strupr(param_state), PSTR("CLEAR\0"))) {
+		if (!strcmp_P( l_data, PSTR("CLEAR\0"))) {
 			ret_code = IO_clr_DOUT(pin);
 			if ( ret_code == -1 ) {
 				// Error de bus
@@ -330,7 +349,7 @@ int8_t ret_code;
 		// Espero 10s que se carguen los condensasores
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
-		if (!strcmp_P( strupr(param_state), PSTR("SET\0"))) {
+		if (!strcmp_P( l_data, PSTR("SET\0"))) {
 			switch(pin) {
 			case 0:
 				DRV8814_vopen( 'A', 100);
@@ -342,7 +361,7 @@ int8_t ret_code;
 			return(true);
 		}
 
-		if (!strcmp_P( strupr(param_state), PSTR("CLEAR\0"))) {
+		if (!strcmp_P( l_data, PSTR("CLEAR\0"))) {
 			switch(pin) {
 			case 0:
 				DRV8814_vclose( 'A', 100);

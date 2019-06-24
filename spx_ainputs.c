@@ -165,7 +165,7 @@ void ainputs_config_defaults(void)
 
 uint8_t channel;
 
-	systemVars.ainputs_conf.pwr_settle_time = 1;
+	systemVars.ainputs_conf.pwr_settle_time = 5;
 
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
 		systemVars.ainputs_conf.imin[channel] = 0;

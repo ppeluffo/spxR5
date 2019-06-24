@@ -19,6 +19,11 @@
  *  Para ver el uso de memoria usamos
  *  avr-nm -n spxR4.elf | more
  *
+ *  http://www.CABRERA/MONS/ENRIQUE/Montevideo/Padron/2354U
+ *  18488618
+ *  22923645
+ *
+ *
  *  Version 2.0.0 @ 20190604
  *  -Contadores:
  *   Implementamos que espere un ancho minimo y un periodo minimo ( filtro )

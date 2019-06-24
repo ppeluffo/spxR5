@@ -80,6 +80,7 @@ bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1, ch
 	// {0..1} dname magPP
 
 bool retS = false;
+char l_data[10];
 
 	if ( s_param0 == NULL ) {
 		return(retS);
@@ -94,7 +95,10 @@ bool retS = false;
 		}
 
 		snprintf_P( systemVars.counters_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_param0 );
-		if (!strcmp_P( strupr(systemVars.counters_conf.name[channel]), PSTR("X")) ) {
+		memcpy(l_data, systemVars.counters_conf.name[channel], sizeof(l_data));
+		strupr(l_data);
+
+		if (!strcmp_P( l_data, PSTR("X")) ) {
 			counters_enabled[channel] = false;
 			COUNTERS_disable_interrupt(channel);
 		} else {
@@ -121,7 +125,7 @@ bool retS = false;
 			 }
 
 		} else if ( !strcmp_P( s_param4 , PSTR("HS\0"))) {
-			 systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
+			xprintf_P( PSTR("DEBUG COUNTERS C%d=[%s]\r\n\0"), channel, s_param0 ); systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
 
 			 if ( channel == 1 ) {
 				 COUNTERS_set_counter1_HS();

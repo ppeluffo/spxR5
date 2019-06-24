@@ -17,14 +17,20 @@ void range_config_defaults(void)
 bool range_config ( char *s_mode )
 {
 
+char l_data[10];
+
+	memcpy(l_data, s_mode, sizeof(l_data));
+	strupr(l_data);
+
+
 	// Esta opcion es solo valida para IO5
 	if ( spx_io_board != SPX_IO5CH )
 		return(false);
 
-	if ( !strcmp_P( strupr(s_mode), PSTR("ON\0"))) {
+	if ( !strcmp_P( l_data, PSTR("ON\0"))) {
 		systemVars.rangeMeter_enabled = true;
 		return(true);
-	} else if ( !strcmp_P( strupr(s_mode), PSTR("OFF\0"))) {
+	} else if ( !strcmp_P( l_data, PSTR("OFF\0"))) {
 		systemVars.rangeMeter_enabled = false;
 		return(true);
 	}

@@ -145,6 +145,9 @@ static void pv_tkCounter_init(uint8_t cnt)
 {
 	// Configuracion inicial de la tarea
 
+char l_data[10];
+
+
 	switch(cnt) {
 	case 0:
 		COUNTERS_init( 0, xHandle_tkCounter0 );
@@ -156,7 +159,10 @@ static void pv_tkCounter_init(uint8_t cnt)
 	}
 
 	counters[ cnt ] = 0;
-	if (!strcmp_P( strupr(systemVars.counters_conf.name[cnt]), PSTR("X")) ) {
+	memcpy(l_data, systemVars.counters_conf.name[cnt], sizeof(l_data));
+	strupr(l_data);
+
+	if (!strcmp_P( l_data, PSTR("X")) ) {
 		counters_enabled[cnt] = false;
 		COUNTERS_disable_interrupt(cnt);
 	} else {

@@ -106,21 +106,26 @@ t_socket_status socket_status = SOCK_CLOSED;
 void u_gprs_load_defaults( char *opt )
 {
 
+char l_data[10];
+
+	memcpy(l_data, opt, sizeof(l_data));
+	strupr(l_data);
+
 	if ( spx_io_board == SPX_IO8CH ) {
 		systemVars.gprs_conf.timerDial = 0;
 	} else if ( spx_io_board == SPX_IO5CH ) {
 		systemVars.gprs_conf.timerDial = 900;
 	}
 
-	if (!strcmp_P( strupr(opt), PSTR("SPY\0"))) {
+	if (!strcmp_P( l_data, PSTR("SPY\0"))) {
 		snprintf_P( systemVars.gprs_conf.apn, APN_LENGTH, PSTR("SPYMOVIL.VPNANTEL\0") );
 		strncpy_P(systemVars.gprs_conf.server_ip_address, PSTR("192.168.0.9\0"),16);
 
-	} else if (!strcmp_P( strupr(opt), PSTR("UTE\0"))) {
+	} else if (!strcmp_P( l_data, PSTR("UTE\0"))) {
 		snprintf_P( systemVars.gprs_conf.apn, APN_LENGTH, PSTR("SPYMOVIL.VPNANTEL\0") );
 		strncpy_P(systemVars.gprs_conf.server_ip_address, PSTR("192.168.8.13\0"),16);
 
-	} else if (!strcmp_P( strupr(opt), PSTR("OSE\0"))) {
+	} else if (!strcmp_P( l_data, PSTR("OSE\0"))) {
 		snprintf_P( systemVars.gprs_conf.apn, APN_LENGTH, PSTR("STG1.VPNANTEL\0") );
 		strncpy_P(systemVars.gprs_conf.server_ip_address, PSTR("172.27.0.26\0"),16);
 
