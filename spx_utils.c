@@ -238,13 +238,18 @@ void u_load_defaults( char *opt )
 	// Carga la configuracion por defecto.
 
 	systemVars.debug = DEBUG_NONE;
-	systemVars.timerPoll = 300;
+
+	if ( spx_io_board == SPX_IO8CH ) {
+		systemVars.timerPoll = 60;
+	} else {
+		systemVars.timerPoll = 300;
+	}
 
 	counters_config_defaults();
 	dinputs_config_defaults();
 	ainputs_config_defaults();
 	range_config_defaults();
-	doutputs_config_defaults();
+	doutputs_config_defaults(  opt );
 
 	u_gprs_load_defaults( opt );
 
@@ -341,4 +346,32 @@ void u_df_print_range( dataframe_s *df )
 	}
 }
 //------------------------------------------------------------------------------------
+void u_format_memory(void)
+{
+	// Nadie debe usar la memoria !!!
+	ctl_watchdog_kick(WDG_CMD, 0x8000 );
+
+	vTaskSuspend( xHandle_tkData );
+	ctl_watchdog_kick(WDG_DAT, 0x8000 );
+
+	vTaskSuspend( xHandle_tkCounter0 );
+	ctl_watchdog_kick(WDG_COUNT0, 0x8000 );
+
+	vTaskSuspend( xHandle_tkCounter1 );
+	ctl_watchdog_kick(WDG_COUNT1, 0x8000 );
+
+	vTaskSuspend( xHandle_tkDoutputs );
+	ctl_watchdog_kick(WDG_DOUT, 0x8000 );
+
+	vTaskSuspend( xHandle_tkGprsTx );
+	ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
+
+	// Formateo
+	FF_format(true);
+
+	// Reset
+	CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
+
+}
+ //------------------------------------------------------------------------------------
 

@@ -303,12 +303,10 @@ static void cmdResetFunction(void)
 		ctl_watchdog_kick(WDG_DAT, 0x8000 );
 
 		vTaskSuspend( xHandle_tkCounter0 );
-		vTaskSuspend( xHandle_tkCounter1 );
 		ctl_watchdog_kick(WDG_COUNT0, 0x8000 );
-		ctl_watchdog_kick(WDG_COUNT1, 0x8000 );
 
-		vTaskSuspend( xHandle_tkData );
-		ctl_watchdog_kick(WDG_DAT, 0x8000 );
+		vTaskSuspend( xHandle_tkCounter1 );
+		ctl_watchdog_kick(WDG_COUNT1, 0x8000 );
 
 		vTaskSuspend( xHandle_tkDoutputs );
 		ctl_watchdog_kick(WDG_DOUT, 0x8000 );
@@ -659,7 +657,7 @@ bool retS = false;
 	// DEFAULT
 	// config default
 	if (!strcmp_P( strupr(argv[1]), PSTR("DEFAULT\0"))) {
-		u_load_defaults( argv[2] );
+		u_load_defaults( strupr(argv[2]) );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -832,6 +830,7 @@ bool retS = false;
 			} else {
 				memset(systemVars.gprs_conf.dlgId,'\0', sizeof(systemVars.gprs_conf.dlgId) );
 				memcpy(systemVars.gprs_conf.dlgId, argv[2], sizeof(systemVars.gprs_conf.dlgId));
+				systemVars.gprs_conf.dlgId[DLGID_LENGTH - 1] = '\0';
 				retS = true;
 			}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();

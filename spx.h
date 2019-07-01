@@ -62,8 +62,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.0.2"
-#define SPX_FW_DATE "@ 20190620"
+#define SPX_FW_REV "2.0.4"
+#define SPX_FW_DATE "@ 20190701"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -145,7 +145,7 @@ void tkDoutputs(void * pvParameters);
 void tkGprsRx(void * pvParameters);
 void tkGprsTx(void * pvParameters);
 
-#define DLGID_LENGTH		10
+#define DLGID_LENGTH		12
 #define PARAMNAME_LENGTH	5
 #define IP_LENGTH			24
 #define APN_LENGTH			32
@@ -302,6 +302,7 @@ void u_load_defaults( char *opt );
 uint8_t u_save_params_in_NVMEE(void);
 bool u_load_params_from_NVMEE(void);
 void u_config_timerpoll ( char *s_timerpoll );
+void u_format_memory(void);
 
 void u_df_print_range( dataframe_s *df );
 
@@ -360,7 +361,7 @@ void doutputs_RELOAD_TIMER_SISTEMA(void);
 void doutputs_RELOAD_TIMER_BOYA(void);
 void doutputs_STOP_TIMER_BOYA(void);
 void doutputs_STOP_TIMER_SISTEMA(void);
-void doutputs_config_defaults(void);
+void doutputs_config_defaults( char *opt );
 bool doutputs_config_mode( char *mode );
 bool doutputs_config_consignas( char *hhmm_dia, char *hhmm_noche);
 bool doutputs_config_piloto( char *pref, char *pband, char *psteps );

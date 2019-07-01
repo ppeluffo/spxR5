@@ -23,6 +23,7 @@ static void pv_transmitir_df_bateria( void );
 
 static bool pv_procesar_respuesta_server(void);
 static void pv_process_response_RESET(void);
+static void pv_process_response_MEMFORMAT(void);
 static uint8_t pv_process_response_OK(void);
 static void pv_process_response_DOUTS(void);
 static void pv_process_response_POUT(void);
@@ -450,6 +451,11 @@ bool exit_flag = false;
 				pv_process_response_RESET();
 			}
 
+			if ( u_gprs_check_response ("MFORMAT\0")) {
+				// El sever mando la orden de formatear la memoria y resetearse
+				pv_process_response_MEMFORMAT();
+			}
+
 			if ( ( spx_io_board == SPX_IO8CH ) && u_gprs_check_response ("OUTS\0")) {
 				// El sever mando actualizacion de las salidas
 				pv_process_response_DOUTS();
@@ -479,6 +485,45 @@ static void pv_process_response_RESET(void)
 
 	vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 	// RESET
+	CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
+
+}
+//------------------------------------------------------------------------------------
+static void pv_process_response_MEMFORMAT(void)
+{
+	// El server me pide que me reformatee la memoria y me resetee
+
+	xprintf_P( PSTR("GPRS: Config MFORMAT...\r\n\0"));
+
+	vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+	//
+	// Primero reseteo a default
+	u_load_defaults(NULL);
+	u_save_params_in_NVMEE();
+
+	// Nadie debe usar la memoria !!!
+	ctl_watchdog_kick(WDG_CMD, 0x8000 );
+
+	vTaskSuspend( xHandle_tkData );
+	ctl_watchdog_kick(WDG_DAT, 0x8000 );
+
+	vTaskSuspend( xHandle_tkCounter0 );
+	ctl_watchdog_kick(WDG_COUNT0, 0x8000 );
+
+	vTaskSuspend( xHandle_tkCounter1 );
+	ctl_watchdog_kick(WDG_COUNT1, 0x8000 );
+
+	vTaskSuspend( xHandle_tkDoutputs );
+	ctl_watchdog_kick(WDG_DOUT, 0x8000 );
+
+	// No suspendo esta tarea porque estoy dentro de ella. !!!
+	//vTaskSuspend( xHandle_tkGprsTx );
+	ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
+
+	// Formateo
+	FF_format(true);
+
+	// Reset
 	CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
 
 }

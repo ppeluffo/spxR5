@@ -37,12 +37,18 @@ void doutputs_STOP_TIMER_SISTEMA(void)
 
 }
 //------------------------------------------------------------------------------------
-void doutputs_config_defaults(void)
+void doutputs_config_defaults( char *opt )
 {
 	// En el caso de SPX_IO8, configura la salida a que inicialmente este todo en off.
 
 	if ( spx_io_board == SPX_IO8CH ) {
-		systemVars.doutputs_conf.modo = PERFORACIONES;
+
+		if (!strcmp_P( opt, PSTR("UTE\0"))) {
+			systemVars.doutputs_conf.modo = NONE;
+		} else {
+			systemVars.doutputs_conf.modo = PERFORACIONES;
+		}
+
 	} else if ( spx_io_board == SPX_IO5CH ) {
 		systemVars.doutputs_conf.modo = NONE;
 	}
