@@ -73,7 +73,7 @@ void doutputs_config_defaults( char *opt )
 bool doutputs_config_mode( char *mode )
 {
 
-char l_data[10];
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 
 	memcpy(l_data, mode, sizeof(l_data));
 	strupr(l_data);
@@ -152,7 +152,7 @@ bool doutputs_config_piloto( char *pref, char *pband, char *psteps )
 bool doutputs_cmd_write_consigna( char *tipo_consigna_str)
 {
 
-char l_data[10];
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 
 	memcpy(l_data, tipo_consigna_str, sizeof(l_data));
 	strupr(l_data);
@@ -182,7 +182,7 @@ bool doutputs_cmd_write_valve( char *param1, char *param2 )
 	//             (open|close) (A|B) (ms)
 	//              power {on|off}
 
-char l_data[10];
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 
 	memcpy(l_data, param1, sizeof(l_data));
 	strupr(l_data);
@@ -311,9 +311,9 @@ bool doutputs_cmd_write_outputs( char *param_pin, char *param_state )
 	// Escribe un valor en las salidas.
 	//
 
-uint8_t pin;
-int8_t ret_code;
-char l_data[10];
+uint8_t pin = 0;
+int8_t ret_code = 0;
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 
 	memcpy(l_data, param_state, sizeof(l_data));
 	strupr(l_data);
@@ -409,8 +409,8 @@ void doutput_set_douts( uint8_t dout )
 	// Como el cambio depende de quien tiene el control y del timer, aqui vemos si
 	// se cambia o se ignora.
 
-uint8_t data;
-int8_t xBytes;
+uint8_t data = 0;
+int8_t xBytes = 0;
 
 	// Solo es para IO8CH
 	if ( spx_io_board != SPX_IO8CH ) {

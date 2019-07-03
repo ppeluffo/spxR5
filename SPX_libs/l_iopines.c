@@ -123,8 +123,8 @@ int8_t IO_read_DIN( uint8_t pin)
 
 	// Los pines pueden ser 0 o 1. Cualquier otro valor es error
 
-uint8_t data;
-int8_t rdBytes;
+uint8_t data = 0;
+int8_t rdBytes = 0;
 
 	rdBytes = MCP_read( MCP_GPIOA, (char *)&data, 1 );
 
@@ -144,8 +144,8 @@ int8_t IO_set_DOUT(uint8_t pin)
 {
 	// Leo el MCP, aplico la mascara y lo escribo de nuevo
 
-uint8_t data;
-int8_t xBytes;
+uint8_t data = 0;
+int8_t xBytes = 0;
 
 	// Control de entrada valida
 	if ( pin > 7 ) {
@@ -177,8 +177,8 @@ int8_t IO_clr_DOUT(uint8_t pin)
 {
 	// Leo el MCP, aplico la mascara y lo escribo de nuevo
 
-uint8_t data;
-int8_t xBytes;
+uint8_t data = 0;
+int8_t xBytes = 0;
 
 	// Control de entrada valida
 	if ( pin > 7 ) {

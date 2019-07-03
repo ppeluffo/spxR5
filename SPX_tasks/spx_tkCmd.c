@@ -34,6 +34,8 @@ static void cmdReadFunction(void);
 static void cmdStatusFunction(void);
 static void cmdConfigFunction(void);
 static void cmdKillFunction(void);
+static void cmdPeekFunction(void);
+static void cmdPokeFunction(void);
 
 #define WR_CMD 0
 #define RD_CMD 1
@@ -50,8 +52,8 @@ dataframe_s df;
 void tkCmd(void * pvParameters)
 {
 
-uint8_t c;
-uint8_t ticks;
+uint8_t c = 0;
+uint8_t ticks = 0;
 
 ( void ) pvParameters;
 
@@ -72,6 +74,8 @@ uint8_t ticks;
 	FRTOS_CMD_register( "status\0", cmdStatusFunction );
 	FRTOS_CMD_register( "config\0", cmdConfigFunction );
 	FRTOS_CMD_register( "kill\0", cmdKillFunction );
+	FRTOS_CMD_register( "peek\0", cmdPeekFunction );
+	FRTOS_CMD_register( "poke\0", cmdPokeFunction );
 
 	// Fijo el timeout del READ
 	ticks = 5;
@@ -111,8 +115,10 @@ static void cmdStatusFunction(void)
 {
 
 FAT_t l_fat;
-uint8_t channel;
-uint8_t olatb;
+uint8_t channel = 0;
+uint8_t olatb = 0 ;
+
+	memset( &l_fat, '\0', sizeof(FAT_t));
 
 	xprintf_P( PSTR("\r\nSpymovil %s %s %s %s \r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE);
 	xprintf_P( PSTR("Clock %d Mhz, Tick %d Hz\r\n\0"),SYSMAINCLK, configTICK_RATE_HZ );
@@ -266,7 +272,7 @@ uint8_t olatb;
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %04d | %.02f | %s]\r\n\0"),channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.mmin[channel], systemVars.ainputs_conf.mmax[channel], systemVars.ainputs_conf.inaspan[channel], systemVars.ainputs_conf.offset[channel], systemVars.ainputs_conf.name[channel] );
+		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %04d | %.02f | %.03f | %.03f | %s]\r\n\0"),channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.mmin[channel], systemVars.ainputs_conf.mmax[channel], systemVars.ainputs_conf.inaspan[channel], systemVars.ainputs_conf.offset[channel] , systemVars.ainputs_conf.ieq_min[channel] , systemVars.ainputs_conf.ieq_max[channel], systemVars.ainputs_conf.name[channel] );
 	}
 
 	// dinputs
@@ -338,6 +344,20 @@ static void cmdWriteFunction(void)
 {
 
 	FRTOS_CMD_makeArgv();
+
+	// ANALOG
+	// write analog wakeup/sleep
+	if (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		if (!strcmp_P( strupr(argv[2]), PSTR("WAKEUP\0")) ) {
+			ainputs_awake();
+			return;
+		}
+		if (!strcmp_P( strupr(argv[2]), PSTR(" SLEEP\0")) ) {
+			ainputs_sleep();
+			return;
+		}
+		return;
+	}
 
 	// MCP
 	// write mcp regAddr data
@@ -463,7 +483,7 @@ static void cmdWriteFunction(void)
 static void cmdReadFunction(void)
 {
 
-int16_t range;
+int16_t range = 0;
 
 	FRTOS_CMD_makeArgv();
 
@@ -523,7 +543,9 @@ int16_t range;
 	// INA
 	// read ina id regName
 	if (!strcmp_P( strupr(argv[1]), PSTR("INA\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		 INA_test_read ( argv[2], argv[3] );
+		ainputs_awake();
+		INA_test_read ( argv[2], argv[3] );
+		ainputs_sleep();
 		return;
 	}
 
@@ -692,6 +714,13 @@ bool retS = false;
 		return;
 	}
 
+	// ICAL
+	// config ical {ch} {4 | 20}
+	if (!strcmp_P( strupr(argv[1]), PSTR("ICAL\0")) ) {
+		ainputs_config_ical( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
 	// TIMRPWRSENSOR
 	// config sensortime
 	if (!strcmp_P( strupr(argv[1]), PSTR("TIMEPWRSENSOR\0")) ) {
@@ -853,6 +882,7 @@ static void cmdHelpFunction(void)
 		if ( tipo_usuario == USER_TECNICO ) {
 			xprintf_P( PSTR("  (ee,nvmee,rtcram) {pos} {string}\r\n\0"));
 			xprintf_P( PSTR("  ina {id} {rconfValue}, sens12V {on|off}\r\n\0"));
+			xprintf_P( PSTR("  analog (wakeup | sleep )\r\n\0"));
 
 			if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  mcp {regAddr} {data}, mcpinit\r\n\0"));
@@ -936,6 +966,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
+		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
 		xprintf_P( PSTR("  digital {0..%d} dname\r\n\0"), ( NRO_DINPUTS - 1 ) );
 		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
 
@@ -1044,7 +1075,11 @@ static void pv_cmd_read_fuses(void)
 {
 	// Lee los fuses.
 
-uint8_t fuse0,fuse1,fuse2,fuse4,fuse5;
+uint8_t fuse0 = 0;
+uint8_t fuse1 = 0;
+uint8_t fuse2 = 0;
+uint8_t fuse4 = 0;
+uint8_t fuse5 = 0;
 
 	fuse0 = nvm_fuses_read(0x00);	// FUSE0
 	xprintf_P( PSTR("FUSE0=0x%x\r\n\0"),fuse0);
@@ -1117,7 +1152,7 @@ UBaseType_t uxHighWaterMark;
 static void pv_cmd_read_battery(void)
 {
 
-float battery;
+float battery = 0.0;
 
 	ainputs_prender_12V_sensors();
 	ainputs_awake();
@@ -1135,7 +1170,7 @@ float battery;
 static void pv_cmd_read_analog_channel(void)
 {
 
-float mag_val;
+float mag_val = 0.0;
 
 
 	if ( atoi(argv[2]) <  NRO_ANINPUTS ) {
@@ -1160,8 +1195,8 @@ static void pv_cmd_read_digital_channels(void)
 
 	// Leo e imprimo todos los canales digitales a la vez.
 
-uint8_t dinputsA[MAX_DINPUTS_CHANNELS];
-uint8_t i;
+uint8_t dinputsA[MAX_DINPUTS_CHANNELS] = { 0,0,0,0,0,0,0,0 };
+uint8_t i = 0;
 
 	// Leo
 	for ( i = 0; i < NRO_DINPUTS; i++ ) {
@@ -1188,9 +1223,11 @@ static void pv_cmd_read_memory(void)
 
 
 FAT_t l_fat;
-size_t bRead;
+size_t bRead = 0;
 uint16_t rcds = 0;
 bool detail = false;
+
+	memset( &l_fat, '\0', sizeof(FAT_t));
 
 	if (!strcmp_P( strupr(argv[2]), PSTR("FULL\0"))) {
 		detail = true;
@@ -1254,7 +1291,7 @@ bool detail = false;
 static void pv_cmd_rwGPRS(uint8_t cmd_mode )
 {
 
-uint8_t pin;
+uint8_t pin = 0;
 //char *p;
 
 	if ( cmd_mode == WR_CMD ) {
@@ -1375,7 +1412,7 @@ static void pv_cmd_rwMCP(uint8_t cmd_mode )
 {
 
 int xBytes = 0;
-uint8_t data;
+uint8_t data = 0;
 
 	if ( spx_io_board != SPX_IO8CH ) {
 		xprintf_P(PSTR("ERROR: IOboard NOT spx8CH !!\r\n\0"));
@@ -1416,3 +1453,177 @@ uint8_t data;
 
 }
 //------------------------------------------------------------------------------------
+static void cmdPeekFunction(void)
+{
+	// Comando utilizado para recuperar variables.
+	// peek varName
+	// Return: datos de configuracion de la variable.
+
+uint8_t ch = 0;
+
+	FRTOS_CMD_makeArgv();
+
+	if (!strcmp_P( strupr(argv[1]), PSTR("VERSION\0")) ) {
+		xprintf_P( PSTR("VERSION=%s,%s,%s,%s,%d,%d\r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE, SYSMAINCLK, configTICK_RATE_HZ);
+
+	} else if (!strcmp_P( strupr(argv[1]), PSTR("IOBOARD\0")) ) {
+		xprintf_P( PSTR("IOBOARD=%d\r\n\0"), spx_io_board );
+
+	} else if (!strcmp_P( strupr(argv[1]), PSTR("UID\0")) ) {
+		xprintf_P( PSTR("UID=%s\r\n\0"), NVMEE_readID() );
+
+	} else if (!strcmp_P( strupr(argv[1]), PSTR("DLGID\0")) ) {
+		xprintf_P( PSTR("DLGID=%s\r\n\0"), systemVars.gprs_conf.dlgId );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("APN\0")) ) {
+		xprintf_P( PSTR("APN=%s\r\n\0"), systemVars.gprs_conf.apn );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PORT\0")) ) {
+		xprintf_P( PSTR("PORT=%s\r\n\0"), systemVars.gprs_conf.server_tcp_port );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("IP\0")) ) {
+		xprintf_P( PSTR("IP=%s\r\n\0"), systemVars.gprs_conf.server_ip_address );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SCRIPT\0")) ) {
+		xprintf_P( PSTR("SCRIPT=%s\r\n\0"), systemVars.gprs_conf.serverScript );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SIMPWD\0")) ) {
+		xprintf_P( PSTR("SIMPWD=%s\r\n\0"), systemVars.gprs_conf.simpwd );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERPOLL\0")) ) {
+		xprintf_P( PSTR("TIMERPOLL=%d\r\n\0"), systemVars.timerPoll );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0")) ) {
+		xprintf_P( PSTR("TIMERDIAL=%d\r\n\0"), systemVars.gprs_conf.timerDial );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("timepwrsensor\0")) ) {
+		xprintf_P( PSTR("TIMEPWRSENSOR=%d\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("DEBUG\0")) ) {
+		xprintf_P( PSTR("DEBUG=%d\r\n\0"), systemVars.debug );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0")) ) {
+		xprintf_P( PSTR("RANGEMETER=%d\r\n\0"), systemVars.rangeMeter_enabled );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
+		xprintf_P( PSTR("OUTMODE=%d\r\n\0"), systemVars.doutputs_conf.modo );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0")) ) {
+		xprintf_P( PSTR("PWRSAVE=%d,%d,%d\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled, systemVars.gprs_conf.pwrSave.hora_start, systemVars.gprs_conf.pwrSave.hora_fin  );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
+		xprintf_P( PSTR("CONSIGNA=%d,%d\r\n\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna,systemVars.doutputs_conf.consigna.hhmm_c_nocturna  );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) && ( argv[2] != NULL )) {
+		ch = atoi( argv[2]);
+		xprintf_P( PSTR("ANALOG=%d,%s,%d,%d,%.02f,%.02f\r\n\0"), ch, systemVars.ainputs_conf.name[ch], systemVars.ainputs_conf.imin[ch], systemVars.ainputs_conf.imax[ch], systemVars.ainputs_conf.mmin[ch], systemVars.ainputs_conf.mmax[ch] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("OFFSET\0")) && ( argv[2] != NULL )) {
+		ch = atoi( argv[2]);
+		xprintf_P( PSTR("OFFSET=%d,%.02f\r\n\0"), ch,systemVars.ainputs_conf.offset[ch] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("INASPAN\0")) && ( argv[2] != NULL )) {
+		ch = atoi( argv[2]);
+		xprintf_P( PSTR("INASPAN=%d,%d\r\n\0"), ch,systemVars.ainputs_conf.inaspan[ch] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) && ( argv[2] != NULL )) {
+		ch = atoi( argv[2]);
+		xprintf_P( PSTR("DIGITAL=%d,%s\r\n\0"), ch,systemVars.dinputs_conf.name[ch] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) && ( argv[2] != NULL )) {
+		ch = atoi( argv[2]);
+		xprintf_P( PSTR("COUNTER=%d,%s,%.03f,%d,%d,%\r\n\0"), ch,systemVars.counters_conf.name[ch],systemVars.counters_conf.magpp[ch],systemVars.counters_conf.pwidth[ch],systemVars.counters_conf.period[ch],systemVars.counters_conf.speed[ch] );
+
+	} else {
+		xprintf_P( PSTR("ERROR\r\n\0"));
+	}
+	return;
+
+}
+//------------------------------------------------------------------------------------
+static void cmdPokeFunction(void)
+{
+
+	FRTOS_CMD_makeArgv();
+
+
+	if (!strcmp_P( strupr(argv[1]), PSTR("DLGID\0")) ) {
+
+		memset(systemVars.gprs_conf.dlgId,'\0', sizeof(systemVars.gprs_conf.dlgId) );
+		memcpy(systemVars.gprs_conf.dlgId, argv[2], sizeof(systemVars.gprs_conf.dlgId));
+		systemVars.gprs_conf.dlgId[DLGID_LENGTH - 1] = '\0';
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("APN\0")) ) {
+		memset(systemVars.gprs_conf.apn, '\0', sizeof(systemVars.gprs_conf.apn));
+		memcpy(systemVars.gprs_conf.apn, argv[2], sizeof(systemVars.gprs_conf.apn));
+		systemVars.gprs_conf.apn[APN_LENGTH - 1] = '\0';
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PORT\0")) ) {
+		memset(systemVars.gprs_conf.server_tcp_port, '\0', sizeof(systemVars.gprs_conf.server_tcp_port));
+		memcpy(systemVars.gprs_conf.server_tcp_port, argv[2], sizeof(systemVars.gprs_conf.server_tcp_port));
+		systemVars.gprs_conf.server_tcp_port[PORT_LENGTH - 1] = '\0';
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("IP\0")) ) {
+		memset(systemVars.gprs_conf.server_ip_address, '\0', sizeof(systemVars.gprs_conf.server_ip_address));
+		memcpy(systemVars.gprs_conf.server_ip_address, argv[2], sizeof(systemVars.gprs_conf.server_ip_address));
+		systemVars.gprs_conf.server_ip_address[IP_LENGTH - 1] = '\0';
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SCRIPT\0")) ) {
+		memset(systemVars.gprs_conf.serverScript, '\0', sizeof(systemVars.gprs_conf.serverScript));
+		memcpy(systemVars.gprs_conf.serverScript, argv[2], sizeof(systemVars.gprs_conf.serverScript));
+		systemVars.gprs_conf.serverScript[SCRIPT_LENGTH - 1] = '\0';
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SIMPWD\0")) ) {
+		memset(systemVars.gprs_conf.simpwd, '\0', sizeof(systemVars.gprs_conf.simpwd));
+		memcpy(systemVars.gprs_conf.simpwd, argv[2], sizeof(systemVars.gprs_conf.simpwd));
+		systemVars.gprs_conf.simpwd[PASSWD_LENGTH - 1] = '\0';
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERPOLL\0")) ) {
+		u_config_timerpoll( argv[2] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0")) ) {
+
+		if ( spx_io_board == SPX_IO5CH ) {
+			u_gprs_config_timerdial( argv[2] );
+		}
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("timepwrsensor\0")) ) {
+		ainputs_config_timepwrsensor( argv[2] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("DEBUG\0")) ) {
+		systemVars.debug = atoi(argv[2]);
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0")) ) {
+		range_config(argv[2]);
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
+		doutputs_config_mode( argv[2] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0")) ) {
+		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
+		doutputs_config_consignas( argv[2], argv[3]);
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PILOTO\0")) ) {
+		doutputs_config_piloto( argv[2], argv[3], argv[4]);
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
+		counters_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("OFFSET\0")) ) {
+		ainputs_config_offset( argv[2], argv[3] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("INASPAN\0")) ) {
+		ainputs_config_span( argv[2], argv[3] );
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) ) {
+		dinputs_config_channel( atoi(argv[2]), argv[3]);
+
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) ) {
+		ainputs_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
+	}
+
+}
+//------------------------------------------------------------------------------------
+

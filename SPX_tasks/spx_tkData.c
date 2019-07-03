@@ -18,9 +18,11 @@
 
 #include "spx.h"
 
-dataframe_s dataframe;
+dataframe_s data_df;
+st_dataRecord_t data_dr;
+FAT_t data_fat;
 
-bool sensores_prendidos;
+bool sensores_prendidos = false;
 
 //------------------------------------------------------------------------------------
 // PROTOTIPOS
@@ -45,8 +47,8 @@ void tkData(void * pvParameters)
 
 ( void ) pvParameters;
 
-uint32_t waiting_ticks;
-TickType_t xLastWakeTime;
+uint32_t waiting_ticks = 0;
+TickType_t xLastWakeTime = 0;
 
 	// Espero la notificacion para arrancar
 	while ( !startTask )
@@ -70,6 +72,8 @@ TickType_t xLastWakeTime;
 
 		// Espero. Da el tiempo necesario para entrar en tickless.
 		vTaskDelayUntil( &xLastWakeTime, waiting_ticks );
+
+		memset( &data_df, '\0', sizeof(dataframe_s));
 
 		// Leo analog,digital,rtc,salvo en BD e imprimo.
 		pv_data_read_frame();
@@ -160,22 +164,22 @@ static void pv_data_read_analogico( void )
 	// Los canales de IO no son los mismos que los canales del INA !! ya que la bateria
 	// esta en el canal 1 del ina2
 	// Lectura general.
-	dataframe.ainputs[0] = ainputs_read_channel(0);
-	dataframe.ainputs[1] = ainputs_read_channel(1);
-	dataframe.ainputs[2] = ainputs_read_channel(2);
-	dataframe.ainputs[3] = ainputs_read_channel(3);
-	dataframe.ainputs[4] = ainputs_read_channel(4);
+	data_df.ainputs[0] = ainputs_read_channel(0);
+	data_df.ainputs[1] = ainputs_read_channel(1);
+	data_df.ainputs[2] = ainputs_read_channel(2);
+	data_df.ainputs[3] = ainputs_read_channel(3);
+	data_df.ainputs[4] = ainputs_read_channel(4);
 
 	if ( spx_io_board == SPX_IO8CH ) {
-		dataframe.ainputs[5] = ainputs_read_channel(5);
-		dataframe.ainputs[6] = ainputs_read_channel(6);
-		dataframe.ainputs[7] = ainputs_read_channel(7);
+		data_df.ainputs[5] = ainputs_read_channel(5);
+		data_df.ainputs[6] = ainputs_read_channel(6);
+		data_df.ainputs[7] = ainputs_read_channel(7);
 	}
 
 	if ( spx_io_board == SPX_IO5CH ) {
 		// Leo la bateria
 		// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
-		dataframe.battery = ainputs_read_battery();
+		data_df.battery = ainputs_read_battery();
 	}
 
 	// Apago los sensores y pongo a los INA a dormir si estoy con la board IO5.
@@ -194,10 +198,10 @@ static void pv_data_read_contadores( void )
 {
 	// Leo los contadores
 
-uint8_t i;
+uint8_t i = 0;
 
 	for ( i = 0; i < NRO_COUNTERS; i++ ) {
-		dataframe.counters[i] = counters_read_channel(i, true);
+		data_df.counters[i] = counters_read_channel(i, true);
 	}
 }
 //------------------------------------------------------------------------------------
@@ -206,7 +210,7 @@ static void pv_data_read_rangemeter( void )
 
 	if ( ( spx_io_board == SPX_IO5CH ) && ( systemVars.rangeMeter_enabled == true ) ) {
 		// Leo el ancho de pulso ( rangeMeter ). Demora 5s si esta habilitado
-		dataframe.range = range_read();
+		data_df.range = range_read();
 	}
 }
 //------------------------------------------------------------------------------------
@@ -214,10 +218,10 @@ static void pv_data_read_dinputs( void )
 {
 	// Leo las entradas digitales de a una
 
-uint8_t i;
+uint8_t i = 0;
 
 	for ( i = 0; i < NRO_DINPUTS; i++ ) {
-		dataframe.dinputsA[i] = dinputs_read_channel(i);
+		data_df.dinputsA[i] = dinputs_read_channel(i);
 	}
 
 }
@@ -226,7 +230,7 @@ static void pv_data_read_frame( void )
 {
 	// Leo todos los canales de a 1 que forman un frame de datos analogicos
 
-int8_t xBytes;
+int8_t xBytes = 0;
 
 	pv_data_read_analogico();
 	pv_data_read_contadores();
@@ -234,7 +238,7 @@ int8_t xBytes;
     pv_data_read_rangemeter();
 
 	// Agrego el timestamp
-	xBytes = RTC_read_dtime( &dataframe.rtc );
+	xBytes = RTC_read_dtime( &data_df.rtc );
 	if ( xBytes == -1 )
 		xprintf_P(PSTR("ERROR: I2C:RTC:pub_data_read_frame\r\n\0"));
 
@@ -248,14 +252,14 @@ static void pv_data_print_frame( void )
 	xprintf_P(PSTR("frame: " ) );
 
 	// timeStamp.
-	xprintf_P(PSTR("%04d%02d%02d,"),dataframe.rtc.year, dataframe.rtc.month, dataframe.rtc.day );
-	xprintf_P(PSTR("%02d%02d%02d"), dataframe.rtc.hour, dataframe.rtc.min, dataframe.rtc.sec );
+	xprintf_P(PSTR("%04d%02d%02d,"),data_df.rtc.year, data_df.rtc.month, data_df.rtc.day );
+	xprintf_P(PSTR("%02d%02d%02d"), data_df.rtc.hour, data_df.rtc.min, data_df.rtc.sec );
 
-	ainputs_df_print( &dataframe );
-	dinputs_df_print( &dataframe );
-    counters_df_print( &dataframe );
-	u_df_print_range( &dataframe );
-	ainputs_df_print_battery( &dataframe );
+	ainputs_df_print( &data_df );
+	dinputs_df_print( &data_df );
+    counters_df_print( &data_df );
+	u_df_print_range( &data_df );
+	ainputs_df_print_battery( &data_df );
 
 	// TAIL
 	xprintf_P(PSTR("\r\n\0") );
@@ -268,10 +272,11 @@ static void pv_data_guardar_en_BD(void)
 	// Solo los salvo en la BD si estoy en modo normal.
 	// En otros casos ( service, monitor_frame, etc, no.
 
-FAT_t l_fat;
-int8_t bytes_written;
+int8_t bytes_written = 0;
 static bool primer_frame = true;
-st_dataRecord_t dr;
+
+	memset( &data_fat, '\0', sizeof(FAT_t));
+	memset( &data_dr, '\0', sizeof(st_dataRecord_t));
 
 	// Para no incorporar el error de los contadores en el primer frame no lo guardo.
 	if ( primer_frame ) {
@@ -282,35 +287,33 @@ st_dataRecord_t dr;
 	// Copio al dr solo los campos que correspondan
 	switch ( spx_io_board ) {
 	case SPX_IO5CH:
-		memcpy( &dr.df.io5.ainputs, &dataframe.ainputs, ( NRO_ANINPUTS * sizeof(float)));
-		memcpy( &dr.df.io5.dinputsA, &dataframe.dinputsA, ( NRO_DINPUTS * sizeof(uint16_t)));
-		memcpy( &dr.df.io5.counters, &dataframe.counters, ( NRO_COUNTERS * sizeof(float)));
-		dr.df.io5.range = dataframe.range;
-		dr.df.io5.battery = dataframe.battery;
-		memcpy( &dr.rtc, &dataframe.rtc, sizeof(RtcTimeType_t) );
+		memcpy( &data_dr.df.io5.ainputs, &data_df.ainputs, ( NRO_ANINPUTS * sizeof(float)));
+		memcpy( &data_dr.df.io5.dinputsA, &data_df.dinputsA, ( NRO_DINPUTS * sizeof(uint16_t)));
+		memcpy( &data_dr.df.io5.counters, &data_df.counters, ( NRO_COUNTERS * sizeof(float)));
+		data_dr.df.io5.range = data_df.range;
+		data_dr.df.io5.battery = data_df.battery;
+		memcpy( &data_dr.rtc, &data_df.rtc, sizeof(RtcTimeType_t) );
 		break;
 	case SPX_IO8CH:
-		memcpy( &dr.df.io8.ainputs, &dataframe.ainputs, ( NRO_ANINPUTS * sizeof(float)));
-		memcpy( &dr.df.io8.dinputsA, &dataframe.dinputsA, ( NRO_DINPUTS * sizeof(uint8_t)));
-		memcpy( &dr.df.io8.counters, &dataframe.counters, ( NRO_COUNTERS * sizeof(float)));
-		memcpy( &dr.rtc, &dataframe.rtc, sizeof(RtcTimeType_t) );
+		memcpy( &data_dr.df.io8.ainputs, &data_df.ainputs, ( NRO_ANINPUTS * sizeof(float)));
+		memcpy( &data_dr.df.io8.dinputsA, &data_df.dinputsA, ( NRO_DINPUTS * sizeof(uint8_t)));
+		memcpy( &data_dr.df.io8.counters, &data_df.counters, ( NRO_COUNTERS * sizeof(float)));
+		memcpy( &data_dr.rtc, &data_df.rtc, sizeof(RtcTimeType_t) );
 		break;
 	default:
 		return;
 	}
 
 	// Guardo en BD
-	bytes_written = FF_writeRcd( &dr, sizeof(st_dataRecord_t) );
+	bytes_written = FF_writeRcd( &data_dr, sizeof(st_dataRecord_t) );
 
 	if ( bytes_written == -1 ) {
 		// Error de escritura o memoria llena ??
 		xprintf_P(PSTR("DATA: WR ERROR (%d)\r\n\0"),FF_errno() );
 		// Stats de memoria
-		FAT_read(&l_fat);
-		xprintf_P( PSTR("DATA: MEM [wr=%d,rd=%d,del=%d]\0"), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR );
+		FAT_read(&data_fat);
+		xprintf_P( PSTR("DATA: MEM [wr=%d,rd=%d,del=%d]\0"), data_fat.wrPTR,data_fat.rdPTR, data_fat.delPTR );
 	}
-
-
 
 }
 //------------------------------------------------------------------------------------

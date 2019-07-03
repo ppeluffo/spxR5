@@ -84,7 +84,7 @@ static bool pv_gprs_CPIN(void)
 	// AT+CPIN?
 
 bool retS = false;
-uint8_t tryes;
+uint8_t tryes = 0;
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: CPIN\r\n\0"));
@@ -127,7 +127,7 @@ static bool pv_gprs_CGREG(void)
 	*/
 
 bool retS = false;
-uint8_t tryes;
+uint8_t tryes = 0;
 
 	xprintf_P( PSTR("GPRS: NET registation\r\n\0"));
 
@@ -162,7 +162,7 @@ static bool pv_gprs_CGATT(void)
 	*/
 
 bool retS = false;
-uint8_t tryes;
+uint8_t tryes = 0;
 
 	xprintf_P( PSTR("GPRS: NET attach\r\n\0"));
 

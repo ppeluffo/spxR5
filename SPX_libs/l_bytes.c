@@ -13,7 +13,7 @@ uint8_t twiddle_bits(uint8_t din )
 
 	// Espeja los bits de un byte
 
-uint8_t data;
+uint8_t data = 0;
 
 	data = 0x00;
 	if ( CHECK_BIT_IS_SET(din, 0) ) { data |= 0x80; }

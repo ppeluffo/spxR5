@@ -62,7 +62,7 @@ void drv_uart_interruptOn(uart_id_t iUART)
 	// Habilito la interrupcion TX del UART lo que hace que se ejecute la ISR_TX y
 	// esta vaya a la TXqueue y si hay datos los comienze a trasmitir.
 
-uint8_t tempCTRLA;
+uint8_t tempCTRLA = 0;
 
 	switch(iUART) {
 	case iUART_GPRS:
@@ -93,7 +93,7 @@ uint8_t tempCTRLA;
 void drv_uart_interruptOff(uart_id_t iUART)
 {
 
-uint8_t tempCTRLA;
+uint8_t tempCTRLA = 0;
 
 	switch(iUART) {
 	case iUART_GPRS:
@@ -189,7 +189,9 @@ void drv_uart_gprs_open( uint32_t baudrate )
 	// baudrate / frame format
 	// Enable TX,RX
 
-uint8_t baudA, baudB, ctl;
+uint8_t baudA = 0;
+uint8_t baudB = 0;
+uint8_t ctl = 0;
 
 	PORTE.DIRSET   = PIN3_bm;	// PD3 (TXD0) as output.
 	PORTE.DIRCLR   = PIN2_bm;	// PD2 (RXD0) as input.
@@ -218,7 +220,7 @@ uint8_t baudA, baudB, ctl;
 ISR(USARTE0_DRE_vect)
 {
 
-char cChar;
+char cChar = ' ';
 int8_t res = false;
 
 	res = rBufferPop( &uart_gprs.TXringBuffer, (char *)&cChar );
@@ -235,7 +237,7 @@ int8_t res = false;
 ISR(USARTE0_RXC_vect)
 {
 
-char cChar;
+char cChar = ' ';
 
 	cChar = USARTE0.DATA;
 
@@ -254,7 +256,9 @@ void drv_uart_xbee_open( uint32_t baudrate )
 	// baudrate / frame format
 	// Enable TX,RX
 
-uint8_t baudA, baudB, ctl;
+uint8_t baudA = 0;
+uint8_t baudB = 0;
+uint8_t ctl = 0;
 
 	PORTC.DIRSET   = PIN3_bm;	// PD3 (TXD0) as output.
 	PORTC.DIRCLR   = PIN2_bm;	// PD2 (RXD0) as input.
@@ -284,7 +288,7 @@ uint8_t baudA, baudB, ctl;
 ISR(USARTC0_DRE_vect)
 {
 
-char cChar;
+char cChar = ' ';
 int8_t res = false;
 
 	res = rBufferPop( &uart_xbee.TXringBuffer, (char *)&cChar );

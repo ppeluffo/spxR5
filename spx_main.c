@@ -23,6 +23,16 @@
  *  18488618
  *  22923645
  *
+ *  Version 2.0.5 @ 20190702
+ *  - Inicializo todas las variables en todos los modulos.
+ *  - Borro mensajes de DEBUG de modulo de contadores.
+ *  - En tkData y tkGprs_data  pasamos las variables df, dr, fat a modo global
+ *    de modo de inicializarlas y sacarlas del stack de c/tarea.
+ *  - Cuando timerDial < 900 no lo pongo en 0 para que no se reconfigure c/vez
+ *    que se conecta.
+ *  - Implemento la funcion peek y poke
+ *  - Agrego la funcion ICAL que calibra la corriente en 4 y en 20mA para generar
+ *    correcciones en las instalaciones. ( solo por cmdmode ).
  *
  *  Version 2.0.0 @ 20190604
  *  -Contadores:

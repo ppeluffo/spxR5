@@ -17,7 +17,7 @@ void range_config_defaults(void)
 bool range_config ( char *s_mode )
 {
 
-char l_data[10];
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
 	memcpy(l_data, s_mode, sizeof(l_data));
 	strupr(l_data);

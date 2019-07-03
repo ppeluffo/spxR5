@@ -54,7 +54,7 @@ void counters_config_defaults(void)
 	// Realiza la configuracion por defecto de los canales contadores.
 	// Los valores son en ms.
 
-uint8_t i;
+uint8_t i = 0;
 
 	for ( i = 0; i < MAX_COUNTER_CHANNELS; i++ ) {
 		snprintf_P( systemVars.counters_conf.name[i], PARAMNAME_LENGTH, PSTR("C%d\0"), i );
@@ -80,7 +80,7 @@ bool counters_config_channel( uint8_t channel,char *s_param0, char *s_param1, ch
 	// {0..1} dname magPP
 
 bool retS = false;
-char l_data[10];
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
 	if ( s_param0 == NULL ) {
 		return(retS);
@@ -90,7 +90,7 @@ char l_data[10];
 
 		// NOMBRE
 		if ( u_control_string(s_param0) == 0 ) {
-			xprintf_P( PSTR("DEBUG COUNTERS ERROR: C%d\r\n\0"), channel );
+		//	xprintf_P( PSTR("DEBUG COUNTERS ERROR: C%d\r\n\0"), channel );
 			return( false );
 		}
 
@@ -125,7 +125,7 @@ char l_data[10];
 			 }
 
 		} else if ( !strcmp_P( s_param4 , PSTR("HS\0"))) {
-			xprintf_P( PSTR("DEBUG COUNTERS C%d=[%s]\r\n\0"), channel, s_param0 ); systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
+			//xprintf_P( PSTR("DEBUG COUNTERS C%d=[%s]\r\n\0"), channel, s_param0 ); systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
 
 			 if ( channel == 1 ) {
 				 COUNTERS_set_counter1_HS();
@@ -143,7 +143,7 @@ char l_data[10];
 //------------------------------------------------------------------------------------
 void counters_df_print( dataframe_s *df )
 {
-uint8_t channel;
+uint8_t channel = 0;
 
 	// Contadores
 	for ( channel = 0; channel < NRO_COUNTERS; channel++) {

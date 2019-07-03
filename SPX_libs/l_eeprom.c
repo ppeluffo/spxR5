@@ -23,7 +23,7 @@ int8_t EE_test_write( char *addr, char *str )
 
 int8_t xBytes = 0;
 uint8_t length = 0;
-char *p;
+char *p = NULL;
 
 
 	p = str;
@@ -49,7 +49,7 @@ int8_t EE_test_read( char *addr, char *size )
 	//			nro.de bytes escritos
 
 int8_t xBytes = 0;
-char buffer[32];
+char buffer[32] = { 0 };
 
 	// read ee {pos} {lenght}
 	xBytes = EE_read( (uint32_t)(atol(addr)), buffer, (uint8_t)(atoi(size) ) );
@@ -66,7 +66,7 @@ char buffer[32];
 int8_t EE_read( uint32_t rdAddress, char *data, uint8_t length )
 {
 
-int8_t rcode;
+int8_t rcode = 0;
 uint8_t times = 3;
 
 	while ( times-- > 0 ) {
@@ -91,7 +91,7 @@ uint8_t times = 3;
 int8_t EE_write( uint32_t wrAddress, char *data, uint8_t length )
 {
 
-int8_t rcode;
+int8_t rcode = 0;
 uint8_t times = 3;
 
 	while ( times-- > 0 ) {

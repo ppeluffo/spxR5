@@ -61,7 +61,7 @@ t_socket_status u_gprs_check_socket_status(void)
 	// Cuando el modem esta prendido y el socket cerrado pin_dcd = 1
 	// Cuando el modem esta prendido y el socket abierto pin_dcd = 0.
 
-uint8_t pin_dcd;
+uint8_t pin_dcd = 0;
 t_socket_status socket_status = SOCK_CLOSED;
 
 	pin_dcd = IO_read_DCD();
@@ -106,7 +106,7 @@ t_socket_status socket_status = SOCK_CLOSED;
 void u_gprs_load_defaults( char *opt )
 {
 
-char l_data[10];
+char l_data[10] = { 0 };
 
 	memcpy(l_data, opt, sizeof(l_data));
 	strupr(l_data);
@@ -176,7 +176,8 @@ void u_gprs_print_RX_response(void)
 	// Solo muestra el payload, es decir lo que esta entre <h1> y </h1>
 	// Todas las respuestas el server las encierra entre ambos tags excepto los errores del apache.
 
-	char *start_tag, *end_tag;
+char *start_tag = NULL;
+char *end_tag = NULL;
 
 	start_tag = strstr(pv_gprsRxCbuffer.buffer,"<h1>");
 	end_tag = strstr(pv_gprsRxCbuffer.buffer, "</h1>");
@@ -220,7 +221,7 @@ void u_gprs_ask_sqe(void)
 {
 	// Veo la calidad de senal que estoy recibiendo
 
-char csqBuffer[32];
+char csqBuffer[32] = { 0 };
 char *ts = NULL;
 
 	// AT+CSQ
@@ -267,9 +268,10 @@ void u_gprs_config_timerdial ( char *s_timerdial )
 	systemVars.gprs_conf.timerDial = atoi(s_timerdial);
 
 	// Controlo que este en los rangos permitidos
-	if ( (systemVars.gprs_conf.timerDial > 0) && (systemVars.gprs_conf.timerDial < 900) ) {
-		systemVars.gprs_conf.timerDial = 0;
-		xprintf_P( PSTR("TDIAL warn !! Default to 0. ( continuo TDIAL=0, discreto TDIAL > 900)\r\n\0"));
+	if ( (systemVars.gprs_conf.timerDial > 0) && (systemVars.gprs_conf.timerDial < TDIAL_MIN_DISCRETO ) ) {
+		//systemVars.gprs_conf.timerDial = 0;
+		//xprintf_P( PSTR("TDIAL warn !! Default to 0. ( continuo TDIAL=0, discreto TDIAL > 900)\r\n\0"));
+		xprintf_P( PSTR("TDIAL warn: continuo TDIAL < 900, discreto TDIAL >= 900)\r\n\0"));
 	}
 
 	xSemaphoreGive( sem_SYSVars );
@@ -357,10 +359,11 @@ bool u_gprs_send_frame( t_frames frame_type )
 	// Una vez que envie el INIT, salgo.
 	// Al entrar, veo que el socket este cerrado.
 
-uint8_t intentos;
+uint8_t intentos = 0;
 bool exit_flag = false;
-uint8_t timeout, await_loops;
-t_socket_status socket_status;
+uint8_t timeout = 0;
+uint8_t await_loops = 0;
+t_socket_status socket_status = 0;
 
 	for ( intentos = 0; intentos < MAX_TRYES_OPEN_SOCKET; intentos++ ) {
 
@@ -422,7 +425,7 @@ void u_gprs_send_INIT_frame(void)
 	// Host: www.spymovil.com
 	// Connection: close\r\r ( no mando el close )
 
-uint8_t i;
+uint8_t i = 0;
 
 
 	if ( systemVars.debug == DEBUG_GPRS  ) {

@@ -29,8 +29,9 @@ static void tk_doutputs_init_consigna(void);
 static void tk_doutputs_init_perforaciones(void);
 static void tk_doutputs_init_pilotos(void);
 
-uint8_t o_control;
-uint16_t o_timer_boya, o_timer_sistema;
+uint8_t o_control = 0;
+uint16_t o_timer_boya = 0;
+uint16_t o_timer_sistema = 0;
 
 #define WDG_DOUT_TIMEOUT	60
 
@@ -135,8 +136,12 @@ static void tk_doutputs_init_consigna(void)
 	// Solo es para SPX_IO5CH.
 
 RtcTimeType_t rtcDateTime;
-uint16_t now, horaConsNoc, horaConsDia ;
+uint16_t now = 0;
+uint16_t horaConsNoc = 0;
+uint16_t horaConsDia = 0;
 uint8_t consigna_a_aplicar = 99;
+
+	memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
 
 	if ( spx_io_board != SPX_IO5CH ) {
 		xprintf_P(PSTR("DOUTPUTS Init ERROR: Consigna only in IO_5CH.\r\n\0"));
@@ -229,7 +234,7 @@ static void tk_doutputs_init_perforaciones(void)
 	// y activar las salidas con este valor. El control depende del valor del MCP.
 
 int xBytes = 0;
-uint8_t data;
+uint8_t data = 0;
 
 	if ( spx_io_board != SPX_IO8CH ) {
 		xprintf_P(PSTR("DOUTPUTS Init ERROR: Perforaciones only in IO_8CH.\r\n\0"));
@@ -310,6 +315,8 @@ static void tk_doutputs_consigna(void)
 	// Espero con lo que puedo entrar en tickless
 
 RtcTimeType_t rtcDateTime;
+
+	memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
 
 	vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 

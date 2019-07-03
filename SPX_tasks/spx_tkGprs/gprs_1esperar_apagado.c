@@ -140,8 +140,12 @@ static bool pv_tkGprs_check_inside_pwrSave(void)
 static bool starting_flag_pws = true;
 bool insidePwrSave_flag = false;
 RtcTimeType_t rtc;
-uint16_t now, pwr_save_start, pwr_save_end ;
-int8_t xBytes;;
+uint16_t now = 0;
+uint16_t pwr_save_start = 0;
+uint16_t pwr_save_end = 0;
+int8_t xBytes = 0;
+
+	memset( &rtc, '\0', sizeof(RtcTimeType_t));
 
 	// Estoy en modo PWR_DISCRETO con PWR SAVE ACTIVADO
 	if ( ( MODO_DISCRETO ) && ( systemVars.gprs_conf.pwrSave.pwrs_enabled == true )) {

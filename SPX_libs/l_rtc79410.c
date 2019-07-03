@@ -21,7 +21,7 @@ static char pv_dec2bcd(char num);
 int8_t RTC_read( uint32_t rdAddress, char *data, uint8_t length )
 {
 
-int8_t rcode;
+int8_t rcode = 0;
 uint8_t times = 3;
 
 	while ( times-- > 0 ) {
@@ -47,7 +47,7 @@ uint8_t times = 3;
 int8_t RTC_write( uint32_t wrAddress, char *data, uint8_t length )
 {
 
-int8_t rcode;
+int8_t rcode = 0;
 uint8_t times = 3;
 
 	while ( times-- > 0 ) {
@@ -74,12 +74,14 @@ void RTC_init(void)
 {
 
 RtcTimeType_t rtc;
-uint8_t data;
-int8_t xBytes;
+uint8_t data = 0;
+int8_t xBytes = 0;
 
 	// cuando arranca el RTC de una situacion de pwr_off no battery, esta apagado.
 	// Para que comienze a correr debemos poner el bit7 de RTCSEC en 1.
 	// Por otro lado, puede estar reseteado con lo que la fecha aparece en 01 01 2000.
+
+	memset ( &rtc, '\0', sizeof(RtcTimeType_t));
 
 	// Leo la hora
 	xBytes = RTC_read_dtime( &rtc);
@@ -110,7 +112,7 @@ bool RTC_read_dtime(RtcTimeType_t *rtc)
 	// Retorna la hora formateada en la estructura RtcTimeType_t
 	// No retornamos el valor de EOSC ni los bytes adicionales.
 
-uint8_t data[8];
+uint8_t data[8] = { 0 };
 uint8_t rdBytes = 0;
 
 	rdBytes = RTC_read(0x00, (char *)&data, 7);
@@ -142,8 +144,8 @@ bool RTC_write_dtime(RtcTimeType_t *rtc)
 	// Grabo la nueva hora
 	// Arranco el reloj poniendo ST en 1.
 
-uint8_t data[8];
-uint8_t rdBytes;
+uint8_t data[8] = { 0 };
+uint8_t rdBytes  = 0;
 
 	// Pongo ST en 0.
 	// Como está en el registro que corresponde a los segundos, pongo todo el
@@ -199,9 +201,9 @@ bool RTC_str2rtc(char *str, RtcTimeType_t *rtc)
 {
 	// Convierto los datos de un string con formato YYMMDDhhmm a RTC
 
-char dateTimeStr[11];
-char tmp[3];
-bool retS;
+char dateTimeStr[11] = { 0 };
+char tmp[3] = { 0 };
+bool retS = false;
 
 
 	/* YYMMDDhhmm */
@@ -236,7 +238,9 @@ bool RTC_write_time( char *stime )
 	// graba el RTC con el valor
 
 RtcTimeType_t rtc;
-bool retS;
+bool retS = false;
+
+	memset ( &rtc, '\0', sizeof(RtcTimeType_t));
 
 	RTC_str2rtc( stime, &rtc);			// Convierto el string YYMMDDHHMM a RTC.
 	retS = RTC_write_dtime(&rtc);		// Grabo el RTC
@@ -249,9 +253,11 @@ bool retS;
 void RTC_read_time( void )
 {
 
-char datetime[32];
+char datetime[32] = { 0 };
 RtcTimeType_t rtc;
-bool retS;
+bool retS = false;
+
+	memset ( &rtc, '\0', sizeof(RtcTimeType_t));
 
 	retS = RTC_read_dtime(&rtc);
 	if ( ! retS ) {
@@ -277,7 +283,7 @@ int8_t RTCSRAM_test_write( char *addr, char *str )
 
 int8_t xBytes = 0;
 uint8_t length = 0;
-char *p;
+char *p = NULL;
 
 
 	p = str;
@@ -304,8 +310,8 @@ int8_t RTCSRAM_test_read( char *addr, char *size )
 	//			nro.de bytes escritos
 
 int8_t xBytes = 0;
-char buffer[32];
-int8_t i;
+char buffer[32] = { 0 };
+int8_t i = 0;
 
 	xBytes = RTC_read( ( RTC79410_SRAM_INIT + (uint8_t)(atoi(addr))), (char *)&buffer, (uint8_t)(atoi(size)) );
 	if ( xBytes == -1 )

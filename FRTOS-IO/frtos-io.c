@@ -133,9 +133,9 @@ int frtos_uart_write( periferico_serial_port_t *xCom, const char *pvBuffer, cons
 	// Debe tomar el semaforo antes de trasmitir. Los semaforos los manejamos en la capa FreeRTOS
 	// y no en la de los drivers.
 
-char cChar;
-char *p;
-uint16_t bytes2tx;
+char cChar = '\0';
+char *p = NULL;
+uint16_t bytes2tx = 0;
 int wBytes = 0;
 
 	// Controlo no hacer overflow en la cola de trasmision
@@ -224,7 +224,7 @@ int frtos_uart_read( periferico_serial_port_t *xCom, char *pvBuffer, uint16_t xB
 	// El timeout lo fijo con ioctl.
 
 int xBytesReceived = 0U;
-portTickType xTicksToWait;
+portTickType xTicksToWait = 0;
 xTimeOutType xTimeOut;
 
 	xTicksToWait = 10;
@@ -293,7 +293,7 @@ int frtos_i2c_ioctl( periferico_i2c_port_t *xI2c, uint32_t ulRequest, void *pvVa
 {
 
 int xReturn = 0;
-uint16_t *p;
+uint16_t *p = NULL;
 
 	p = pvValue;
 

@@ -19,7 +19,7 @@ const char str_i2c_dev_6[] PROGMEM = "INA_C";
 const char * const I2C_names[] PROGMEM = { str_i2c_dev_0, str_i2c_dev_1, str_i2c_dev_2, str_i2c_dev_3, str_i2c_dev_4, str_i2c_dev_5, str_i2c_dev_6 };
 
 uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address );
-char buffer[10];
+char buffer[10] = { 0 };
 
 static int8_t ioboard = -1;
 //------------------------------------------------------------------------------------
@@ -31,11 +31,11 @@ int8_t I2C_read( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, uint8_
 	// quien invoca !!!!!
 
 size_t xReturn = 0U;
-uint8_t bus_address;
+uint8_t bus_address = 0;
 uint8_t	dev_address_length = 1;
-uint16_t device_address;
+uint16_t device_address = 0;
 int8_t xBytes = 0;
-uint8_t i2c_error_code;
+uint8_t i2c_error_code = 0;
 
 	frtos_ioctl( fdI2C,ioctl_OBTAIN_BUS_SEMPH, NULL);
 
@@ -87,11 +87,11 @@ int8_t I2C_write( uint8_t i2c_bus_address, uint32_t wrAddress, char *data, uint8
 	// salime de la pagina.
 
 size_t xReturn = 0U;
-uint8_t bus_address;
+uint8_t bus_address = 0;
 uint8_t	dev_address_length = 1;
-uint16_t device_address;
+uint16_t device_address = 0;
 int8_t xBytes = 0;
-uint8_t i2c_error_code;
+uint8_t i2c_error_code = 0;
 
 	frtos_ioctl( fdI2C,ioctl_OBTAIN_BUS_SEMPH, NULL);
 
@@ -148,11 +148,11 @@ bool I2C_test_device( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, u
 
 
 size_t xReturn = 0U;
-uint8_t bus_address;
+uint8_t bus_address = 0;
 uint8_t	dev_address_length = 1;
-uint16_t device_address;
+uint16_t device_address = 0;
 int8_t xBytes = 0;
-uint8_t i2c_error_code;
+uint8_t i2c_error_code = 0;
 bool retS = true;
 
 	frtos_ioctl( fdI2C,ioctl_OBTAIN_BUS_SEMPH, NULL);
@@ -239,7 +239,7 @@ void I2C_reinit_devices(void)
 	// En caso de una falla en el bus I2C ( por lo general por ruidos al activar bombas )
 	// debo reiniciar los dispositivos.
 
-uint8_t olatb;
+uint8_t olatb = 0;
 
 	// Espero 100 ms que se elimine la fuente de ruido.
 	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );

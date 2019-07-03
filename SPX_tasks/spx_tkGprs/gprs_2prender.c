@@ -26,7 +26,8 @@ bool st_gprs_prender(void)
 	// para esperar y salgo.
 	// Mientras lo intento prender no atiendo mensajes ( cambio de configuracion / flooding / Redial )
 
-uint8_t hw_tries, sw_tries;
+uint8_t hw_tries = 0;
+uint8_t sw_tries = 0;
 bool exit_flag = bool_RESTART;
 
 	ctl_watchdog_kick(WDG_GPRSTX, WDG_GPRS_TO_PRENDER);
@@ -116,7 +117,10 @@ static void pv_gprs_readImei(void)
 	// Leo el imei del modem para poder trasmitirlo al server y asi
 	// llevar un control de donde esta c/sim
 
-uint8_t i,j,start, end;
+uint8_t i = 0;
+uint8_t j = 0;
+uint8_t start = 0;
+uint8_t end = 0;
 
 	// Envio un AT+CGSN para leer el IMEI
 	u_gprs_flush_RX_buffer();
@@ -171,7 +175,10 @@ static void pv_gprs_readCcid(void)
 	// OK
 
 
-uint8_t i,j,start, end;
+uint8_t i = 0;
+uint8_t j = 0;
+uint8_t start = 0;
+uint8_t end = 0;
 
 	// Envio un AT+CGSN para leer el SIM ID
 	u_gprs_flush_RX_buffer();

@@ -19,8 +19,8 @@
 #include "spx.h"
 
 
-bool counters_enabled[MAX_COUNTER_CHANNELS];
-uint16_t counters[MAX_COUNTER_CHANNELS];	// Valores medidos de los contadores
+bool counters_enabled[MAX_COUNTER_CHANNELS] = { false, false };
+uint16_t counters[MAX_COUNTER_CHANNELS] = { 0, 0 };	// Valores medidos de los contadores
 
 // La tarea puede estar hasta 10s en standby
 #define WDG_COUNT_TIMEOUT	60
@@ -145,7 +145,7 @@ static void pv_tkCounter_init(uint8_t cnt)
 {
 	// Configuracion inicial de la tarea
 
-char l_data[10];
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
 
 	switch(cnt) {

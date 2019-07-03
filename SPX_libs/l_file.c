@@ -82,7 +82,7 @@ int8_t FF_writeRcd( const void *pvBuffer, uint8_t xSize )
 	// Condicion de borde 1: HEAD(15), TAIL(0), Free(1) OK
 	// Condicion de borde 2: HEAD(0), TAIL(1), Free(1) OK
 
-uint16_t wrAddress;
+uint16_t wrAddress = 0;
 int8_t bytes_written = -1;
 //uint8_t tryes;
 //bool write_ok;
@@ -167,8 +167,8 @@ int8_t FF_readRcd( void *pvBuffer, uint8_t xSize )
 	// Memoria vacia: rcds4wr = MAX, rcds4del = 0;
 	// Memoria toda leida: rcds4rd = 0;
 
-uint8_t rdCheckSum;
-uint16_t rdAddress;
+uint8_t rdCheckSum = 0;
+uint16_t rdAddress = 0;
 int8_t bytes_read = 0U;
 //uint16_t rcdPos = 0;
 
@@ -276,7 +276,7 @@ void FF_deleteRcd(void)
 	// Memoria vacia: rcds4wr = MAX, rcds4del = 0
 
 uint16_t delAddress = 0;
-int8_t xBytes;
+int8_t xBytes = 0;
 
 	// Lo primero es obtener el semaforo
 	while ( xSemaphoreTake(sem_FAT, ( TickType_t ) 5 ) != pdTRUE )
@@ -313,9 +313,9 @@ void FF_format(bool fullformat )
 	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-uint16_t page;
-uint16_t wrAddress;
-int8_t xBytes;
+uint16_t page = 0;
+uint16_t wrAddress = 0;
+int8_t xBytes = 0;
 
 	// Lo primero es obtener el semaforo
 	while ( xSemaphoreTake(sem_FAT, ( TickType_t ) 5 ) != pdTRUE )
@@ -390,7 +390,7 @@ static bool pv_FAT_load( FAT_t *fat )
 
 uint8_t cks = 0x00;
 bool retS = false;
-int8_t xBytes;
+int8_t xBytes = 0;
 
 	xBytes = RTC_read( FAT_ADDRESS, (char *)fat, (uint8_t)sizeof(FAT_t) );
 	if ( xBytes == -1 )
@@ -417,7 +417,7 @@ static bool pv_FAT_save( FAT_t *fat )
 	// Por ahora no controlo errores
 
 uint8_t cks = 0x00;
-int8_t xBytes;
+int8_t xBytes = 0;
 
 	cks = pv_chksum8( (char *)fat, (sizeof( FAT_t) - 1));
 	fat->checksum = cks;

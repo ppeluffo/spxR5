@@ -38,10 +38,10 @@ static void pv_ctl_check_terminal(void);
 #define MAX_TIMERS	2
 #define TIME_TO_NEXT_POLL	0
 #define TIME_TO_NEXT_DIAL	1
-static uint32_t pv_timers[MAX_TIMERS];
+static uint32_t pv_timers[MAX_TIMERS] = { 0, 0 };
 
-static uint16_t watchdog_timers[NRO_WDGS];
-static bool f_terminal_connected;
+static uint16_t watchdog_timers[NRO_WDGS] = { 0,0,0,0,0,0,0,0 };
+static bool f_terminal_connected = false;;
 
 // Timpo que espera la tkControl entre round-a-robin
 #define TKCTL_DELAY_S	5
@@ -100,10 +100,12 @@ static void pv_ctl_init_system(void)
 	// permite usar las funciones del rtos-io y rtos en las inicializaciones.
 	//
 
-uint8_t wdg;
+uint8_t wdg = 0;
 FAT_t l_fat;
-uint16_t recSize;
-char data[3];
+uint16_t recSize = 0;
+char data[3] = { '\0', '\0', '\0' };
+
+	memset( &l_fat, '\0', sizeof(FAT_t));
 
 	// Configuro los pines del micro que no se configuran en funciones particulares
 	// LEDS:
@@ -239,8 +241,8 @@ static void pv_ctl_check_wdg(void)
 	// Esta tarea los decrementa cada 5 segundos.
 	// Si alguno llego a 0 es que la tarea se colgo y entonces se reinicia el sistema.
 
-	uint8_t wdg;
-	char buffer[10];
+	uint8_t wdg = 0;
+	char buffer[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 
 		// Cada ciclo reseteo el wdg para que no expire.
 		WDT_Reset();
@@ -276,7 +278,7 @@ static void pv_ctl_check_wdg(void)
 //------------------------------------------------------------------------------------
 static void pv_ctl_ticks(void)
 {
-uint8_t i;
+uint8_t i = 0;
 
 	// Ajusto los timers hasta llegar a 0.
 
@@ -331,8 +333,8 @@ void ctl_print_wdg_timers(void)
 	// Muestra en pantalla el valor de los timers individuales de los watchdogs.
 	// Se usa solo para diagnostico.
 
-uint8_t wdg;
-char buffer[10];
+uint8_t wdg = 0;
+char buffer[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();

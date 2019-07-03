@@ -36,7 +36,7 @@ bool st_gprs_init_frame(void)
 	// si esta cerrado abrirlo.
 	// Mientras espero la respuesta debo monitorear que el socket no se cierre
 
-uint8_t intentos;
+uint8_t intentos = 0;
 bool exit_flag = bool_RESTART;
 
 // Entry:
@@ -118,7 +118,7 @@ static t_frame_responses pv_init_process_response(void)
 	// Si la recibo la proceso.
 	// Salgo por timeout 10s o por socket closed.
 
-uint8_t timeout;
+uint8_t timeout = 0;
 uint8_t exit_code = FRAME_ERROR;
 
 	for ( timeout = 0; timeout < 10; timeout++) {
@@ -252,16 +252,20 @@ static void pv_init_process_server_clock(void)
  *
  */
 
-char *p;
-char localStr[32];
-char *stringp;
-char *token;
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *token = NULL;
 char *delim = ",=:><";
 char rtcStr[12];
-uint8_t i;
-char c;
+uint8_t i = 0;
+char c = '\0';
 RtcTimeType_t rtc;
-int8_t xBytes;
+int8_t xBytes = 0;
+
+	memset( &localStr, '\0', sizeof(localStr) );
+	memset( &rtcStr, '\0', sizeof(rtcStr) );
+	memset( &rtc, '\0', sizeof(rtc) );
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "CLOCK");
 	if ( p  == NULL ) {
@@ -302,12 +306,14 @@ static uint8_t pv_init_config_dlg_id(void)
 {
 	//	La linea recibida es del tipo: <h1>INIT_OK:CLOCK=1402251122:DLGID=TH001:PWRM=DISC:</h1>
 
-char *p;
+char *p = NULL;
 uint8_t ret = 0;
-char localStr[32];
-char *stringp;
-char *token;
+char localStr[32]  = { 0 };
+char *stringp = NULL;
+char *token = NULL;
 char *delim = ",=:><";
+
+	memset( &localStr, '\0', sizeof(localStr) );
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DLGID");
 	if ( p == NULL ) {
@@ -344,11 +350,13 @@ static uint8_t pv_init_config_timerPoll(void)
 {
 //	La linea recibida es del tipo: <h1>INIT_OK:CLOCK=1402251122:TPOLL=600:</h1>
 
-char *p;
-char localStr[32];
-char *stringp;
-char *tk_timerPoll;
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_timerPoll = NULL;
 char *delim = ",=:><";
+
+	memset( &localStr, '\0', sizeof(localStr) );
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "TPOLL");
 	if ( p == NULL ) {
@@ -375,11 +383,13 @@ static uint8_t pv_init_config_timerDial(void)
 {
 	//	La linea recibida es del tipo: <h1>INIT_OK:CLOCK=1402251122:TPOLL=600:TDIAL=10300:PWRM=DISC:CD=1230:CN=0530</h1>
 
-char *p;
-char localStr[32];
-char *stringp;
-char *tk_timerDial;
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_timerDial = NULL;
 char *delim = ",=:><";
+
+	memset( &localStr, '\0', sizeof(localStr) );
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "TDIAL");
 	if ( p == NULL ) {
@@ -407,11 +417,15 @@ static uint8_t pv_init_config_pwrSave(void)
 //	La linea recibida trae: PWRS=ON,2230,0600:
 //  Las horas estan en formato HHMM.
 
-char localStr[32];
-char *stringp;
-char *tk_pws_modo, *tk_pws_start, *tk_pws_end;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_pws_modo = NULL;
+char *tk_pws_start = NULL;
+char *tk_pws_end = NULL;
 char *delim = ",=:><";
-char *p;
+char *p = NULL;
+
+	memset( &localStr, '\0', sizeof(localStr) );
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PWRS");
 	if ( p == NULL ) {
@@ -439,7 +453,7 @@ static uint8_t pv_init_config_rangeMeter(void)
 {
 	// ?DIST=ON{OFF}
 
-char *p;
+char *p = NULL;
 uint8_t ret = 0;
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIST");
@@ -472,10 +486,15 @@ static uint8_t pv_init_config_analogCh(uint8_t channel)
 //	La linea recibida es del tipo:
 //	<h1>INIT_OK:CLOCK=1402251122:TPOLL=600:TDIAL=10300:PWRM=DISC:A0=pA,0,20,0,6:A1=pB,0,20,0,10:A2=pC,0,20,0,10:D0=q0,1.00:D1=q1,1.00</h1>
 
-char localStr[32];
-char *stringp;
+char localStr[32] = { 0 };
+char *stringp = NULL;
 char *delim = ",=:><";
-char *tk_id, *tk_name,*tk_iMin,*tk_iMax,*tk_mMin,*tk_mMax;
+char *tk_id = NULL;
+char *tk_name= NULL;
+char *tk_iMin= NULL;
+char *tk_iMax = NULL;
+char *tk_mMin = NULL;
+char *tk_mMax = NULL;
 
 	switch (channel) {
 	case 0:
@@ -539,10 +558,11 @@ static uint8_t pv_init_config_digitalCh(uint8_t channel)
 //
 // D0=C,q0,1.00:D1=L,q1
 //
-char localStr[32];
-char *stringp;
+char localStr[32] = { 0 };
+char *stringp = NULL;
 char *delim = ",=:><";
-char *tk_id, *tk_name;
+char *tk_id = NULL;
+char *tk_name = NULL;
 
 	switch (channel) {
 	case 0:
@@ -603,8 +623,8 @@ static uint8_t pv_init_config_counterCh(uint8_t channel)
 //
 //  C0=q0,1.00:C1=q1,1.45
 //
-char localStr[32];
-char *stringp;
+char localStr[32] = { 0 };
+char *stringp = NULL;
 char *delim = ",=:><";
 char *tk_id = NULL;
 char *tk_name = NULL;
@@ -655,10 +675,10 @@ static uint8_t pv_init_config_doutputs(void)
 {
 	//	La linea recibida es del tipo: <h1>INIT_OK:DOUTMODE=doutmode</h1>
 
-char *p;
-char localStr[32];
-char *stringp;
-char *tk_doutmode;
+char *p = NULL;
+char localStr[32] =  { 0 };
+char *stringp = NULL;
+char *tk_doutmode = NULL;
 char *delim = ",=:><";
 uint8_t ret = 0;
 
@@ -694,11 +714,12 @@ static uint8_t pv_init_config_consignas(void)
 	// param1, param2 son las horas de la consigna diurna y la nocturna
 	// Las horas estan en formato HHMM.
 
-char localStr[32];
-char *stringp;
-char *tk_hhmm1, *tk_hhmm2;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_hhmm1 = NULL;
+char *tk_hhmm2 = NULL;
 char *delim = ",=:><";
-char *p;
+char *p = NULL;
 uint8_t ret = 0;
 
 
@@ -737,11 +758,13 @@ static uint8_t pv_init_config_piloto(void)
 	// <h1>INIT_OK:PILOTO=param1,param2,param3:</h1>
 	// param1, param2, param3 son: pout,pband,max_steps
 
-char localStr[32];
-char *stringp;
-char *tk_pout, *tk_pband, *tk_psteps;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_pout = NULL;
+char *tk_pband = NULL;
+char *tk_psteps = NULL;
 char *delim = ",=:><";
-char *p;
+char *p = NULL;
 uint8_t ret = 0;
 
 
@@ -781,10 +804,12 @@ static uint8_t pv_init_config_default(void)
 	//	La linea recibida es del tipo:
 	//	<h1>INIT_OK:CLOCK=1402251122:DEFAULT=dlgid,SPY</h1>
 	//
-char localStr[32];
-char *stringp;
+char localStr[32] = { 0 };
+char *stringp = NULL;
 char *delim = ",=:><";
-char *tk_id, *tk_dlgid, *tk_modo;
+char *tk_id = NULL;
+char *tk_dlgid = NULL;
+char *tk_modo = NULL;
 
 	stringp = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DEFAULT=");
 	if ( stringp == NULL ) {

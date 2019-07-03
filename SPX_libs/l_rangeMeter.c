@@ -142,7 +142,7 @@ void rmeter_flush_stack(void)
 
 	// Inicicalizo el stack de datos
 
-uint8_t i;
+uint8_t i = 0;
 
 	for (i=0; i < MAX_RANGEMETER_STACK; i++) {
 		s_rangeMeter_stack.stack[i] = -1;
@@ -163,10 +163,10 @@ void rmeter_push_stack(uint16_t counter)
 int16_t rmeter_calcular_distancia(bool debug_flag)
 {
 
-uint16_t avg;
-double var;
-float us;
-uint16_t distancia;
+uint16_t avg = 0;
+double var = 0.0;
+float us = 0.0;
+uint16_t distancia = 0;
 
 	rmeter_statistics(&avg, &var, debug_flag );
 	us = USxTICK * avg;						// Convierto a us.
@@ -188,8 +188,9 @@ void rmeter_statistics(uint16_t *avg, double *var, bool debug_flag)
 {
 	// Calculo el promedio de los datos del stack si sin validos.
 
-uint32_t sum;
-uint8_t i, items;
+uint32_t sum = 0;
+uint8_t i = 0;
+uint8_t items = 0;
 
 	// Promedio.
 	sum = 0;

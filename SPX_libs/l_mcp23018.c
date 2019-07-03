@@ -13,7 +13,7 @@ static uint8_t pv_mcp_olatb;
 int8_t MCP_read( uint32_t rdAddress, char *data, uint8_t length )
 {
 
-int8_t rcode;
+int8_t rcode = 0;
 uint8_t times = 3;
 
 	while ( times-- > 0 ) {
@@ -38,7 +38,7 @@ uint8_t times = 3;
 int8_t MCP_write( uint32_t wrAddress, char *data, uint8_t length )
 {
 
-int8_t rcode;
+int8_t rcode = 0;
 uint8_t times = 3;
 
 	while ( times-- > 0 ) {
@@ -65,8 +65,8 @@ void MCP_init( void )
 {
 	// Inicializo el MCP23018 de la placa analogica
 
-uint8_t data;
-int8_t rdBytes;
+uint8_t data = 0;
+int8_t rdBytes = 0;
 bool init_flag = true;
 
 	// IOCON
@@ -199,8 +199,8 @@ uint8_t MCP_get_olatb(void)
 void MCP_check(void)
 {
 
-uint8_t data;
-int8_t rdBytes;
+uint8_t data = 0;
+int8_t rdBytes = 0;
 
 	// IOCON = 0x63
 	rdBytes = MCP_read( MCP_IOCON, (char *)&data, 1 );

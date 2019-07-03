@@ -54,7 +54,7 @@ void dinputs_config_defaults(void)
 {
 	// Realiza la configuracion por defecto de los canales digitales.
 
-uint8_t i;
+uint8_t i = 0;
 
 	for ( i = 0; i < MAX_DINPUTS_CHANNELS; i++ ) {
 		snprintf_P( systemVars.dinputs_conf.name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );
@@ -68,8 +68,8 @@ int8_t dinputs_read_channel ( uint8_t din )
 	// Solo devuleve el nivel logico de la entrada. ( OJO: No el dtimer !!! )
 
 int8_t val = -1 ;
-uint8_t port;
-int8_t rdBytes;
+uint8_t port = 0;
+int8_t rdBytes = 0;
 
 	switch (spx_io_board ) {
 
@@ -99,7 +99,7 @@ void dinputs_df_print( dataframe_s *df )
 {
 	// Canales digitales.
 
-uint8_t channel;
+uint8_t channel = 0;
 
 	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
 		if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )

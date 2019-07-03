@@ -62,8 +62,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.0.4"
-#define SPX_FW_DATE "@ 20190701"
+#define SPX_FW_REV "2.0.5"
+#define SPX_FW_DATE "@ 20190702"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -109,7 +109,9 @@
 #define tkGprs_rx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkGprs_tx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 
-#define MODO_DISCRETO ( (systemVars.gprs_conf.timerDial > 0 ) ? true : false )
+#define TDIAL_MIN_DISCRETO 900
+
+#define MODO_DISCRETO ( (systemVars.gprs_conf.timerDial > TDIAL_MIN_DISCRETO ) ? true : false )
 
 // Mensajes entre tareas
 #define TK_FRAME_READY			0x01	//
@@ -248,6 +250,8 @@ typedef struct {
 	float offset[MAX_ANALOG_CHANNELS];
 	uint16_t inaspan[MAX_ANALOG_CHANNELS];
 	uint8_t pwr_settle_time;
+	float ieq_min[MAX_ANALOG_CHANNELS];
+	float ieq_max[MAX_ANALOG_CHANNELS];
 } ainputs_conf_t;
 
 // Configuracion de salidas
@@ -346,6 +350,8 @@ bool ainputs_config_offset( char *s_channel, char *s_offset );
 void ainputs_config_timepwrsensor ( char *s_sensortime );
 void ainputs_config_span ( char *s_channel, char *s_span );
 bool ainputs_config_autocalibrar( char *s_channel, char *s_mag_val );
+bool ainputs_config_ical( char *s_channel, char *s_ieqv );
+float analog_convert_ieqv( float i_real, uint8_t io_channel );
 
 // COUNTERS
 float counters_read_channel( uint8_t cnt, bool reset_counter );

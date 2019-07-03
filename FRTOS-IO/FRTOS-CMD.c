@@ -225,7 +225,7 @@ void pv_CMD_execute(void)
 	// ingresado en la linea de comandos.
 
 uint8_t i = 0;
-uint8_t cmdIndex;
+uint8_t cmdIndex = 0;
 
 	// Primero debo quedarme solo con el comando y no los argumentos
 	// de la linea de comandos.

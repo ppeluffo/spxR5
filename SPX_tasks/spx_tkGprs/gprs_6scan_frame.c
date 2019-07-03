@@ -133,7 +133,7 @@ static t_frame_responses pv_scan_process_response(void)
 	// Espero una respuesta del server y la proceso
 	// Salgo por timeout 10s o por socket closed.
 
-uint8_t timeout;
+uint8_t timeout = 0;
 uint8_t exit_code = FRAME_ERROR;
 
 	xprintf_P( PSTR("GPRS_SCAN:: try to check response\r\n\0"));
@@ -208,10 +208,10 @@ static void pv_scan_config_dlgid(void)
 	//                 - Me pasa el DLGID correcto.
 
 
-char *p;
-char localStr[32];
-char *stringp;
-char *token;
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *token = NULL;
 char *delim = ",=:><";
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DLGID");

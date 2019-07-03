@@ -109,7 +109,9 @@ void nvm_read_device_serial(struct nvm_device_serial *storage)
  */
 uint8_t nvm_eeprom_read_byte(eeprom_addr_t addr)
 {
-	uint8_t data;
+
+uint8_t data = 0;
+
 	Assert(addr <= EEPROM_SIZE);
 
 	/* Wait until NVM is ready */
@@ -148,7 +150,7 @@ void nvm_eeprom_read_buffer(eeprom_addr_t address, void *buf, uint16_t len)
  */
 void nvm_eeprom_write_byte(eeprom_addr_t address, uint8_t value)
 {
-	uint8_t old_cmd;
+	uint8_t old_cmd = 0;
 
 	Assert(address <= EEPROM_SIZE);
 	/*  Flush buffer to make sure no unintentional data is written and load

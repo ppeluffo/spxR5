@@ -185,8 +185,8 @@ uint8_t u_control_string( char *s_name )
 	// Si encuentro un caracter extraño, lo sustituyo por un \0 y salgo
 
 uint8_t max_length = PARAMNAME_LENGTH;
-char *p;
-uint8_t cChar;
+char *p = NULL;
+uint8_t cChar = 0;
 uint8_t length = 0;
 
 	p = (char *)s_name;
@@ -210,7 +210,7 @@ void u_convert_str_to_time_t ( char *time_str, st_time_t *time_struct )
 	// Convierte un string hhmm en una estructura time_type que tiene
 	// un campo hora y otro minuto
 
-uint16_t time_num;
+uint16_t time_num = 0;
 
 	time_num = atol(time_str);
 	time_struct->hour = (uint8_t) (time_num / 100);
@@ -260,11 +260,10 @@ uint8_t u_save_params_in_NVMEE(void)
 	// Calculo el checksum del systemVars.
 	// Considero el systemVars como un array de chars.
 
-uint8_t *p;
-uint8_t checksum;
-uint16_t data_length;
-uint16_t i;
-
+uint8_t *p = NULL;
+uint8_t checksum = 0;
+uint16_t data_length = 0;
+uint16_t i = 0;
 
 	// Calculo el checksum del systemVars.
 	systemVars.checksum = 0;
@@ -293,10 +292,11 @@ bool u_load_params_from_NVMEE(void)
 	// error por lo que cargo el default.
 
 
-uint8_t *p;
-uint8_t stored_checksum, checksum;
-uint16_t data_length;
-uint16_t i;
+uint8_t *p = NULL;
+uint8_t stored_checksum = 0;
+uint8_t checksum = 0;
+uint16_t data_length = 0;
+uint16_t i = 0;
 
 	// Leo de la EE es systemVars.
 	nvm_eeprom_read_buffer(0x00, (char *)&systemVars, sizeof(systemVars));

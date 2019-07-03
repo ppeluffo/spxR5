@@ -37,8 +37,8 @@ i2c_bus_addr INA_id2busaddr( uint8_t ina_id )
 //------------------------------------------------------------------------------------
 void INA_config( uint8_t ina_id, uint16_t conf_reg_value )
 {
-char res[3];
-int8_t xBytes;
+char res[3] = { 0 };
+int8_t xBytes = 0;
 
 	res[0] = ( conf_reg_value & 0xFF00 ) >> 8;
 	res[1] = ( conf_reg_value & 0x00FF );
@@ -53,10 +53,10 @@ int8_t INA_test_write ( char *ina_id_str, char *rconf_val_str )
 
 	// Escribe en el registro de configuracion de un INA ( 0, 1, 2)
 
-uint16_t val;
-uint8_t ina_id;
-char data[3];
-int8_t xBytes;
+uint16_t val = 0;
+uint8_t ina_id = 0;
+char data[3] = { 0 };
+int8_t xBytes = 0;
 
 	ina_id = atoi(ina_id_str);
 	val = atoi( rconf_val_str);
@@ -72,17 +72,19 @@ int8_t xBytes;
 int8_t INA_test_read ( char *ina_id_str, char *regs )
 {
 
-uint16_t val;
-uint8_t ina_id;
-char data[3];
-int8_t xBytes;
-char l_data[10];
+uint16_t val = 0;
+uint8_t ina_id = 0;
+char data[3] = { ' ' };
+int8_t xBytes = 0;
+char l_data[10] = { ' ' };
 
 	memcpy(l_data, regs, sizeof(l_data));
 	strupr(l_data);
 
 	// read ina id {conf|chxshv|chxbusv|mfid|dieid}
 	ina_id = atoi(ina_id_str);
+
+//	xprintf_P( PSTR("in->DEBUG=[%02x][%02x]\r\n\0"), data[0], data[1]);
 
 	if (!strcmp_P( l_data, PSTR("CONF\0"))) {
 		xBytes = INA_read(  ina_id, INA3231_CONF, data, 2 );
@@ -111,9 +113,10 @@ char l_data[10];
 
 	} else {
 
-		val = ( data[0]<< 8 ) + data	[1];
+		val = ( data[0]<< 8 ) + data[1];
 		xprintf_P( PSTR("INAID=%d\r\n\0"), ina_id);
 		xprintf_P( PSTR("VAL=0x%04x\r\n\0"), val);
+//		xprintf_P( PSTR("out->DEBUG=[%02x][%02x]\r\n\0"), data[0], data[1]);
 	}
 
 	return(xBytes);
@@ -123,12 +126,14 @@ char l_data[10];
 int8_t INA_read( uint8_t dev_id, uint32_t rdAddress, char *data, uint8_t length )
 {
 
-int8_t rcode;
+int8_t rcode = 0;
 uint8_t times = 3;
 
 	while ( times-- > 0 ) {
 
+//		xprintf_P(PSTR("in DEBUG INA_read: INA%d times=%d, addr=%d D0=[%02x] D1=[%02x] D2=[%02x]\r\n\0"), dev_id, times, rdAddress, data[0], data[1], data[2] );
 		rcode =  I2C_read( INA_id2busaddr(dev_id), rdAddress, data, length );
+//		xprintf_P(PSTR("out DEBUG INA_read: INA%d times=%d, addr=%d D0=[%02x] D1=[%02x] D2=[%02x]\r\n\0"), dev_id, times, rdAddress, data[0], data[1], data[2] );
 
 		if ( rcode == -1 ) {
 			// Hubo error: trato de reparar el bus y reintentar la operacion
@@ -149,7 +154,7 @@ uint8_t times = 3;
 int8_t INA_write( uint8_t dev_id, uint32_t wrAddress, char *data, uint8_t length )
 {
 
-int8_t rcode;
+int8_t rcode = 0;
 uint8_t times = 3;
 
 	while ( times-- > 0 ) {

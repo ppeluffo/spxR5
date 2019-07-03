@@ -26,10 +26,12 @@ static void pv_process_response_RESET(void);
 static void pv_process_response_MEMFORMAT(void);
 static uint8_t pv_process_response_OK(void);
 static void pv_process_response_DOUTS(void);
-static void pv_process_response_POUT(void);
+//static void pv_process_response_POUT(void);
 static bool pv_check_more_Rcds4Del ( void );
 
-dataframe_s df;
+dataframe_s gprs_df;
+FAT_t gprs_fat;
+st_dataRecord_t gprs_dr;
 
 // La tarea se repite para cada paquete de datos. Esto no puede demorar
 // mas de 5 minutos
@@ -54,7 +56,7 @@ bool st_gprs_data(void)
 	// Mientras estoy trasmitiendo datos no atiendo las señales; solo durante la espera en modo
 	// continuo.
 
-uint8_t sleep_time;
+uint8_t sleep_time = 0;
 bool exit_flag = bool_RESTART;
 
 	GPRS_stateVars.state = G_DATA;
@@ -122,15 +124,15 @@ static bool pv_hay_datos_para_trasmitir(void)
 	 * Memoria toda leida: rcds4rd = 0;
 	 */
 
-//	l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
+//	gprs_fat.wrPTR,gprs_fat.rdPTR, gprs_fat.delPTR,gprs_fat.rcds4wr,gprs_fat.rcds4rd,gprs_fat.rcds4del );
 
-FAT_t l_fat;
 bool retS = false;
 
-	FAT_read(&l_fat);
+	memset( &gprs_fat, '\0', sizeof ( FAT_t));
+	FAT_read(&gprs_fat);
 
 	// Si hay registros para leer
-	if ( l_fat.rcds4rd > 0) {
+	if ( gprs_fat.rcds4rd > 0) {
 		retS = true;
 	} else {
 		retS = false;
@@ -146,7 +148,7 @@ static bool pv_procesar_frame( void )
 {
 	// Intento MAX_TRYES de trasmitir un frame y recibir la respuesta correctamente
 
-uint8_t intentos;
+uint8_t intentos = 0;
 
 	for ( intentos = 0; intentos < MAX_INIT_TRYES; intentos++ ) {
 
@@ -182,8 +184,8 @@ static bool pv_trasmitir_frame(void )
 	// Entro luego de haber chequeado que hay registros para trasmitir o sea que se que los hay !!
 
 uint8_t registros_trasmitidos = 0;
-uint8_t i;
-t_socket_status socket_status;
+uint8_t i = 0;
+t_socket_status socket_status = 0;
 
 	for ( i = 0; i < MAX_TRYES_OPEN_SOCKET; i++ ) {
 
@@ -214,8 +216,9 @@ t_socket_status socket_status;
 static void pv_try_to_open_socket(void)
 {
 	// Doy el comando de abrir el socket
-uint8_t timeout, await_loops;
-t_socket_status socket_status;
+uint8_t timeout = 0;
+uint8_t await_loops = 0;
+t_socket_status socket_status = 0;
 
 	u_gprs_open_socket();
 	// Y espero que lo abra
@@ -277,35 +280,35 @@ static void pv_trasmitir_dataframe( void )
 	// Primero recupero los datos de la memoria haciendo el proceso inverso de
 	// cuando los grabe en spx_tkData::pv_data_guardar_en_BD
 
-st_dataRecord_t dr;
-
-FAT_t l_fat;
 size_t bRead;
 
+	memset ( &gprs_fat, '\0', sizeof(FAT_t));
+	memset ( &gprs_df, '\0', sizeof( st_dataRecord_t));
+
 	// Paso1: Leo un registro de memoria
-	bRead = FF_readRcd( &dr, sizeof(st_dataRecord_t));
+	bRead = FF_readRcd( &gprs_dr, sizeof(st_dataRecord_t));
 	if ( bRead == 0) {
 		return;
 	}
 
-	FAT_read(&l_fat);
+	FAT_read(&gprs_fat);
 
 	// Inversamente a cuando en tkData guarde en memoria, convierto el datarecord a dataframe
 	// Copio al dr solo los campos que correspondan
 	switch ( spx_io_board ) {
 	case SPX_IO5CH:
-		memcpy( &df.ainputs, &dr.df.io5.ainputs, ( NRO_ANINPUTS * sizeof(float)));
-		memcpy( &df.dinputsA, &dr.df.io5.dinputsA, ( NRO_DINPUTS * sizeof(uint16_t)));
-		memcpy( &df.counters, &dr.df.io5.counters, ( NRO_COUNTERS * sizeof(float)));
-		df.range = dr.df.io5.range;
-		df.battery = dr.df.io5.battery;
-		memcpy( &df.rtc, &dr.rtc, sizeof(RtcTimeType_t) );
+		memcpy( &gprs_df.ainputs, &gprs_dr.df.io5.ainputs, ( NRO_ANINPUTS * sizeof(float)));
+		memcpy( &gprs_df.dinputsA, &gprs_dr.df.io5.dinputsA, ( NRO_DINPUTS * sizeof(uint16_t)));
+		memcpy( &gprs_df.counters, &gprs_dr.df.io5.counters, ( NRO_COUNTERS * sizeof(float)));
+		gprs_df.range = gprs_dr.df.io5.range;
+		gprs_df.battery = gprs_dr.df.io5.battery;
+		memcpy( &gprs_df.rtc, &gprs_dr.rtc, sizeof(RtcTimeType_t) );
 		break;
 	case SPX_IO8CH:
-		memcpy( &df.ainputs, &dr.df.io8.ainputs, ( NRO_ANINPUTS * sizeof(float)));
-		memcpy( &df.dinputsA, &dr.df.io8.dinputsA, ( NRO_DINPUTS * sizeof(uint8_t)));
-		memcpy( &df.counters, &dr.df.io8.counters, ( NRO_COUNTERS * sizeof(float)));
-		memcpy( &df.rtc, &dr.rtc, sizeof(RtcTimeType_t) );
+		memcpy( &gprs_df.ainputs, &gprs_dr.df.io8.ainputs, ( NRO_ANINPUTS * sizeof(float)));
+		memcpy( &gprs_df.dinputsA, &gprs_dr.df.io8.dinputsA, ( NRO_DINPUTS * sizeof(uint8_t)));
+		memcpy( &gprs_df.counters, &gprs_dr.df.io8.counters, ( NRO_COUNTERS * sizeof(float)));
+		memcpy( &gprs_df.rtc, &gprs_dr.rtc, sizeof(RtcTimeType_t) );
 		break;
 	default:
 		return;
@@ -314,10 +317,10 @@ size_t bRead;
 	// Paso2: Armo el frame
 	// Siempre trasmito los datos aunque vengan papasfritas.
 	//pub_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("&CTL=%d&LINE=%04d%02d%02d,%02d%02d%02d\0"), l_fat.rdPTR, dr.rtc.year, dr.rtc.month, dr.rtc.day, dr.rtc.hour, dr.rtc.min, dr.rtc.sec );
+	xCom_printf_P( fdGPRS,PSTR("&CTL=%d&LINE=%04d%02d%02d,%02d%02d%02d\0"), gprs_fat.rdPTR, gprs_dr.rtc.year, gprs_dr.rtc.month, gprs_dr.rtc.day, gprs_dr.rtc.hour, gprs_dr.rtc.min, gprs_dr.rtc.sec );
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: sent> CTL=%d&LINE=%04d%02d%02d,%02d%02d%02d\0"), l_fat.rdPTR, dr.rtc.year, dr.rtc.month, dr.rtc.day, dr.rtc.hour, dr.rtc.min, dr.rtc.sec );
+		xprintf_P( PSTR("GPRS: sent> CTL=%d&LINE=%04d%02d%02d,%02d%02d%02d\0"), gprs_fat.rdPTR, gprs_dr.rtc.year, gprs_dr.rtc.month, gprs_dr.rtc.day, gprs_dr.rtc.hour, gprs_dr.rtc.min, gprs_dr.rtc.sec );
 	}
 
 	pv_transmitir_df_analogicos();
@@ -337,17 +340,17 @@ size_t bRead;
 //------------------------------------------------------------------------------------
 static void pv_transmitir_df_analogicos( void )
 {
-uint8_t channel;
+uint8_t channel = 0;
 
 	// Canales analogicos: Solo muestro los que tengo configurados.
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
 		if ( ! strcmp ( systemVars.ainputs_conf.name[channel], "X" ) )
 			continue;
 
-		xCom_printf_P( fdGPRS, PSTR(",%s=%.02f"),systemVars.ainputs_conf.name[channel], df.ainputs[channel] );
+		xCom_printf_P( fdGPRS, PSTR(",%s=%.02f"),systemVars.ainputs_conf.name[channel], gprs_df.ainputs[channel] );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR(",%s=%.02f"),systemVars.ainputs_conf.name[channel], df.ainputs[channel] );
+			xprintf_P( PSTR(",%s=%.02f"),systemVars.ainputs_conf.name[channel], gprs_df.ainputs[channel] );
 		}
 	}
 }
@@ -355,17 +358,17 @@ uint8_t channel;
 static void pv_transmitir_df_digitales( void )
 {
 
-uint8_t channel;
+uint8_t channel = 0;
 
 	// Canales digitales.
 	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
 		if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
 			continue;
 
-		xCom_printf_P( fdGPRS, PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], df.dinputsA[channel] );
+		xCom_printf_P( fdGPRS, PSTR(",%s=%d"), systemVars.dinputs_conf.name[channel], gprs_df.dinputsA[channel] );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR(",%s=%d\0"), systemVars.dinputs_conf.name[channel], df.dinputsA[channel] );
+			xprintf_P( PSTR(",%s=%d\0"), systemVars.dinputs_conf.name[channel], gprs_df.dinputsA[channel] );
 		}
 	}
 
@@ -373,7 +376,7 @@ uint8_t channel;
 //------------------------------------------------------------------------------------
 static void pv_transmitir_df_contadores( void )
 {
-uint8_t channel;
+uint8_t channel = 0;
 
 	// Contadores
 	for ( channel = 0; channel < NRO_COUNTERS; channel++) {
@@ -381,10 +384,10 @@ uint8_t channel;
 		if ( ! strcmp ( systemVars.counters_conf.name[channel], "X" ) )
 			continue;
 
-		xCom_printf_P( fdGPRS, PSTR(",%s=%.02f"),systemVars.counters_conf.name[channel], df.counters[channel] );
+		xCom_printf_P( fdGPRS, PSTR(",%s=%.02f"),systemVars.counters_conf.name[channel], gprs_df.counters[channel] );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P(PSTR(",%s=%.02f"),systemVars.counters_conf.name[channel], df.counters[channel] );
+			xprintf_P(PSTR(",%s=%.02f"),systemVars.counters_conf.name[channel], gprs_df.counters[channel] );
 		}
 	}
 }
@@ -393,10 +396,10 @@ static void pv_transmitir_df_range( void )
 {
 	// Range
 	if ( ( spx_io_board == SPX_IO5CH ) && ( systemVars.rangeMeter_enabled ) ) {
-		xCom_printf_P( fdGPRS, PSTR(",DIST=%d"), df.range );
+		xCom_printf_P( fdGPRS, PSTR(",DIST=%d"), gprs_df.range );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P(PSTR(",DIST=%d"), df.range );
+			xprintf_P(PSTR(",DIST=%d"), gprs_df.range );
 		}
 	}
 }
@@ -405,10 +408,10 @@ static void pv_transmitir_df_bateria( void )
 {
 	// bateria
 	if ( spx_io_board == SPX_IO5CH ) {
-		xCom_printf_P( fdGPRS, PSTR(",bt=%.02f"),df.battery );
+		xCom_printf_P( fdGPRS, PSTR(",bt=%.02f"),gprs_df.battery );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P(PSTR( ",bt=%.02f"), df.battery );
+			xprintf_P(PSTR( ",bt=%.02f"), gprs_df.battery );
 		}
 	}
 }
@@ -419,7 +422,7 @@ static bool pv_procesar_respuesta_server(void)
 	// Salgo por timeout, socket cerrado, error del server o respuesta correcta
 	// Si la respuesta es correcta, ejecuto la misma
 
-uint8_t timeout;
+uint8_t timeout = 0;
 bool exit_flag = false;
 
 	for ( timeout = 0; timeout < 10; timeout++) {
@@ -534,18 +537,19 @@ static uint8_t pv_process_response_OK(void)
 	// Recibi un OK del server y el ultimo ID de registro a borrar.
 	// Los borro de a uno.
 
-FAT_t l_fat;
 uint8_t recds_borrados = 0;
+
+	memset ( &gprs_fat, '\0', sizeof( FAT_t));
 
 	// Borro los registros.
 	while ( pv_check_more_Rcds4Del() ) {
 
 		FF_deleteRcd();
 		recds_borrados++;
-		FAT_read(&l_fat);
+		FAT_read(&gprs_fat);
 
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: mem wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
+			xprintf_P( PSTR("GPRS: mem wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), gprs_fat.wrPTR,gprs_fat.rdPTR, gprs_fat.delPTR,gprs_fat.rcds4wr,gprs_fat.rcds4rd,gprs_fat.rcds4del );
 		}
 
 	}
@@ -560,11 +564,11 @@ static void pv_process_response_DOUTS(void)
 
 	// Extraigo el valor de las salidas y las seteo.
 
-char localStr[32];
-char *stringp;
-char *tk_douts;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_douts = NULL;
 char *delim = ",=:><";
-char *p;
+char *p = NULL;
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DOUTS");
 	if ( p == NULL ) {
@@ -588,48 +592,15 @@ char *p;
 
 }
 //------------------------------------------------------------------------------------
-static void pv_process_response_POUT(void)
-{
-	// Recibi algo del estilo >RX_OK:469:POUT=2.3
-	// Es la respuesta del server para modificar la presion de referencia en modo PILOTO
-
-char localStr[32];
-char *stringp;
-char *tk_pout;
-char *delim = ",=:><";
-char *p;
-
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "POUT");
-	if ( p == NULL ) {
-		return;
-	}
-
-	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
-	memset(localStr,'\0',32);
-	memcpy(localStr,p,sizeof(localStr));
-
-	stringp = localStr;
-	tk_pout = strsep(&stringp,delim);	// POUT
-	tk_pout = strsep(&stringp,delim);	// valor de presion a fijar
-
-	// Actualizo el status a travez de una funcion propia del modulo de outputs
-	doutputs_config_piloto( tk_pout, NULL, NULL);
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: process POUT\r\n\0"));
-	}
-
-}
-//------------------------------------------------------------------------------------
 static bool pv_check_more_Rcds4Del ( void )
 {
 	// Devuelve si aun quedan registros para borrar del FS
 
-FAT_t l_fat;
+	memset ( &gprs_fat, '\0', sizeof( FAT_t));
 
-	FAT_read(&l_fat);
+	FAT_read(&gprs_fat);
 
-	if ( l_fat.rcds4del > 0 ) {
+	if ( gprs_fat.rcds4del > 0 ) {
 		return(true);
 	} else {
 		return(false);

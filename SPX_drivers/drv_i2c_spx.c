@@ -39,7 +39,7 @@ void pvI2C_reset(void);
 //------------------------------------------------------------------------------------
 void drv_I2C_init(void)
 {
-uint16_t bitrate_div;
+uint16_t bitrate_div = 0;
 uint16_t bitrateKHz = 100;
 
 	// El pin PE1(SCK) lo pongo como output.( master genera el reloj )
@@ -62,7 +62,7 @@ int drv_I2C_master_write ( const uint8_t devAddress, const uint8_t devAddressLen
 	// Durante c/operacion del ciclo WRITE, el status debe ser 0x62.!!!
 
 bool retV = false;
-uint8_t i;
+uint8_t i = 0;
 int xReturn = -1;
 
 #ifdef DEBUG_I2C
@@ -106,8 +106,8 @@ int drv_I2C_master_read  ( const uint8_t devAddress, const uint8_t devAddressLen
 	// En el caso del ADC, el read no lleva la parte de mandar la SLA+W. !!!!!
 
 bool retV = false;
-char rxByte;
-uint8_t i;
+char rxByte = ' ';
+uint8_t i = 0;
 int xReturn = -1;
 
 #ifdef DEBUG_I2C
@@ -173,7 +173,7 @@ bool pvI2C_set_bus_idle(void)
 	// Intento pasarlo a IDLE hasta 3 veces antes de abortar, esperando 100ms
 	// entre c/intento.
 
-uint8_t bus_status;
+uint8_t bus_status = 0;
 uint8_t	reintentos = I2C_MAXTRIES;
 
 	while ( reintentos-- > 0 ) {
@@ -224,7 +224,7 @@ bool pvI2C_write_slave_address(const uint8_t devAddress)
 
 char txbyte = devAddress;	// (SLA_W/R) Send slave address
 bool ret_code = false;
-uint8_t currentStatus;
+uint8_t currentStatus = 0;
 
 	TWIE.MASTER.ADDR = txbyte;
 	if ( ! pvI2C_waitForComplete() ) goto i2c_exit;
@@ -264,9 +264,9 @@ bool pvI2C_write_slave_reg( const uint8_t devAddressLength, const uint16_t byteA
 // Envio primero el High 8 bit i2c address.
 // Luego envio el Low 8 byte i2c address.
 
-char txbyte;
+char txbyte = ' ';
 bool ret_code = false;
-uint8_t currentStatus;
+uint8_t currentStatus = 0;
 
 	// HIGH address
 	if ( devAddressLength == 2 ) {
@@ -311,7 +311,7 @@ bool pvI2C_write_data( const char txbyte)
 	// flag WIF y recibo un ACK.
 
 bool ret_code = false;
-uint8_t currentStatus;
+uint8_t currentStatus = 0;
 
 	TWIE.MASTER.DATA = txbyte;		// send byte
 	if ( ! pvI2C_waitForComplete() )  goto i2c_exit;
@@ -336,7 +336,7 @@ bool pvI2C_read_slave( uint8_t response_flag, char *rxByte )
 {
 
 bool ret_code = false;
-uint8_t currentStatus;
+uint8_t currentStatus = 0;
 
 	// Espero 1 byte enviado por el slave
 	if ( ! pvI2C_waitForComplete() ) goto i2c_exit;
@@ -392,8 +392,8 @@ uint8_t ticks_to_wait = 30;		// 3 ticks ( 30ms es el maximo tiempo que espero )
 void pvI2C_reset(void)
 {
 
-uint8_t bus_status;
-uint8_t i;
+uint8_t bus_status = 0;
+uint8_t i = 0;
 
 	// https://stackoverflow.com/questions/5497488/failed-twi-transaction-after-sleep-on-xmega
 	// There is a common problem on I2C/TWI where the internal state machine gets stuck in an

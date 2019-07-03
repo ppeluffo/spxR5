@@ -9,7 +9,7 @@
 #include "l_printf.h"
 
 bool signature_ok = false;
-char nvmid_str[32];
+char nvmid_str[32] = { 0 };
 
 //------------------------------------------------------------------------------------
 char *NVMEE_readID( void )
@@ -35,7 +35,7 @@ void NVMEE_test_read( char *addr, char *size )
 	// retorna: -1 error
 	//			nro.de bytes escritos
 
-char buffer[32];
+char buffer[32] = { 0 };
 int length = (uint8_t)(atoi( size));
 
 	nvm_eeprom_read_buffer( (uint16_t)(atoi(addr)), buffer, length );
@@ -56,7 +56,7 @@ void NVMEE_test_write( char *addr, char *str )
 	// Calculamos el largo del texto a escribir en la eeprom.
 
 uint8_t length = 0;
-char *p;
+char *p = NULL;
 
 
 	p = str;

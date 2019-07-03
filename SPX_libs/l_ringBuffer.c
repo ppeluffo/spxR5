@@ -11,10 +11,10 @@
 //------------------------------------------------------------------------------------
 ringBufferHandle_t ringBufferCreate ( const uint16_t length,int flags  )
 {
-ringBuffer_s *pxNewRingBuffer;
+ringBuffer_s *pxNewRingBuffer = NULL;
 ringBufferHandle_t xReturn = NULL;
-int8_t *pcAllocatedBuffer;
-uint8_t *dataBuffer;
+int8_t *pcAllocatedBuffer = NULL ;
+uint8_t *dataBuffer = NULL;
 
 	// Aloco el espacio para el buffer de datos.
 	dataBuffer = ( uint8_t * ) pvPortMalloc( length + 1);
@@ -37,7 +37,7 @@ uint8_t *dataBuffer;
 //------------------------------------------------------------------------------------
 void ringBufferFlush( ringBufferHandle_t ringBufferHandle )
 {
-ringBuffer_s *pxRingBuffer;
+ringBuffer_s *pxRingBuffer = NULL;
 
 	taskENTER_CRITICAL();
 

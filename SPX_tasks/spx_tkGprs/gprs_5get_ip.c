@@ -69,7 +69,7 @@ static bool pv_gprs_netopen(void)
 	// y reintento varias veces.
 
 uint8_t reintentos = MAX_TRYES_NET_ATTCH;
-uint8_t checks;
+uint8_t checks = 0;
 
 	xprintf_P( PSTR("GPRS: netopen (get IP).\r\n\0") );
 	// Espero 2s para dar el comando
@@ -143,7 +143,7 @@ static void pv_gprs_read_ip_assigned(void)
 
 char *ts = NULL;
 int i=0;
-char c;
+char c = '\0';
 
 	// AT+CGPADDR para leer la IP
 	u_gprs_flush_RX_buffer();
@@ -202,6 +202,7 @@ static bool pv_scan_apn( void )
 uint8_t apn_id = 0;
 char apn[APN_LENGTH];
 
+	memset( &apn, '\0', APN_LENGTH );
 	while ( apn_id < MAXAPN ) {
 		strcpy_P( apn, (PGM_P)pgm_read_word(&(apn_names[apn_id++])));			// Tomo un APN de la lista de posibles.
 		xprintf_P( PSTR("GPRS: scan APN: %s\r\n\0"), apn);
