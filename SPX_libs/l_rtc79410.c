@@ -15,8 +15,26 @@
 static char pv_bcd2dec(char num);
 static char pv_dec2bcd(char num);
 
+char datetime[32];
 //------------------------------------------------------------------------------------
 // Funciones de uso general
+//------------------------------------------------------------------------------------
+char *RTC_logprint( void )
+{
+
+RtcTimeType_t rtc;
+bool retS;
+
+	retS = RTC_read_dtime(&rtc);
+	if ( ! retS ) {
+		xprintf_P(PSTR("ERROR: I2C:RTC:pv_cmd_rwRTC\r\n\0"));
+		return(NULL);
+	} else {
+		memset(datetime, '\0', sizeof(datetime));
+		RTC_rtc2str( datetime, &rtc);
+		return ( (char *)&datetime);
+	}
+}
 //------------------------------------------------------------------------------------
 int8_t RTC_read( uint32_t rdAddress, char *data, uint8_t length )
 {

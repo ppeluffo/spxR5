@@ -53,6 +53,7 @@ bool RTC_read_dtime(RtcTimeType_t *rtc);
 bool RTC_write_dtime(RtcTimeType_t *rtc);
 bool RTC_write_time( char *stime );
 void RTC_read_time( void );
+char *RTC_logprint( void );
 
 // API END
 //--------------------------------------------------------------------------------

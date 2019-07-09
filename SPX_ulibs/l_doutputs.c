@@ -11,31 +11,6 @@ extern uint8_t o_control;
 extern uint16_t o_timer_sistema, o_timer_boya;
 extern bool doutputs_reinit;
 
-#define TIMEOUT_O_TIMER_BOYA	 60
-#define TIMEOUT_O_TIMER_SISTEMA	 600
-//------------------------------------------------------------------------------------
-void doutputs_RELOAD_TIMER_SISTEMA(void)
-{
-	o_timer_sistema = TIMEOUT_O_TIMER_SISTEMA;
-}
-//------------------------------------------------------------------------------------
-void doutputs_RELOAD_TIMER_BOYA(void)
-{
-	o_timer_boya = TIMEOUT_O_TIMER_BOYA;
-
-}
-//------------------------------------------------------------------------------------
-void doutputs_STOP_TIMER_BOYA(void)
-{
-	o_timer_boya = 0;
-
-}
-//------------------------------------------------------------------------------------
-void doutputs_STOP_TIMER_SISTEMA(void)
-{
-	o_timer_sistema = 0;
-
-}
 //------------------------------------------------------------------------------------
 void doutputs_config_defaults( char *opt )
 {
@@ -65,7 +40,7 @@ void doutputs_config_defaults( char *opt )
 	systemVars.doutputs_conf.perforacion.control = CTL_BOYA;
 	systemVars.doutputs_conf.perforacion.outs = 0x00;
 
-	doutput_set_douts(0x00 );
+	perforaciones_set_douts(0x00 );
 	doutputs_reinit = true;
 
 }
@@ -103,77 +78,6 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 	// Debo re-inicializar las salidas
 	doutputs_reinit = true;
 	return ( true );
-}
-//------------------------------------------------------------------------------------
-bool doutputs_config_consignas( char *hhmm_dia, char *hhmm_noche)
-{
-	// Configura las horas de consigna diurna y noctura
-
-	if ( spx_io_board != SPX_IO5CH ) {
-		return(false);
-	}
-
-	if ( hhmm_dia != NULL ) {
-		u_convert_int_to_time_t( atoi(hhmm_dia), &systemVars.doutputs_conf.consigna.hhmm_c_diurna );
-	}
-
-	if ( hhmm_noche != NULL ) {
-		u_convert_int_to_time_t( atoi(hhmm_noche), &systemVars.doutputs_conf.consigna.hhmm_c_nocturna );
-	}
-
-	doutputs_reinit = true;
-	return(true);
-
-}
-//------------------------------------------------------------------------------------
-bool doutputs_config_piloto( char *pref, char *pband, char *psteps )
-{
-
-	if ( spx_io_board != SPX_IO5CH ) {
-		return(false);
-	}
-
-	// Configura la presion de referencia, la banda y la cantidad de pasos
-	systemVars.doutputs_conf.piloto.pout = atof( pref);
-
-	if ( pband != NULL ) {
-		systemVars.doutputs_conf.piloto.band = atof( pband);
-	}
-
-	if ( psteps != NULL ) {
-		systemVars.doutputs_conf.piloto.max_steps = atoi( psteps );
-	}
-
-	doutputs_reinit = true;
-	return(true);
-
-}
-//------------------------------------------------------------------------------------
-bool doutputs_cmd_write_consigna( char *tipo_consigna_str)
-{
-
-char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
-
-	memcpy(l_data, tipo_consigna_str, sizeof(l_data));
-	strupr(l_data);
-
-	if ( spx_io_board != SPX_IO5CH ) {
-		return(false);
-	}
-
-	if (!strcmp_P( l_data, PSTR("DIURNA\0")) ) {
-		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
-		DRV8814_set_consigna_diurna();
-		return(true);
-	}
-
-	if (!strcmp_P( l_data, PSTR("NOCTURNA\0")) ) {
-		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
-		DRV8814_set_consigna_nocturna();
-		return(true);
-	}
-
-	return(false);
 }
 //------------------------------------------------------------------------------------
 bool doutputs_cmd_write_valve( char *param1, char *param2 )
@@ -386,69 +290,5 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 
 
 
-}
-//------------------------------------------------------------------------------------
-uint16_t doutputs_cmd_read_clt_timer(void)
-{
-	// Devuelve el valor del timer. Se usa en tkCMD.status
-	switch (o_control ) {
-	case CTL_BOYA:
-		return(o_timer_boya);
-		break;
-	case CTL_SISTEMA:
-		return(o_timer_sistema);
-		break;
-	}
-	return(0);
-}
-//------------------------------------------------------------------------------------
-void doutput_set_douts( uint8_t dout )
-{
-	// Funcion para setear el valor de las salidas desde el resto del programa.
-	// La usamos desde tkGprs cuando en un frame nos indican cambiar las salidas.
-	// Como el cambio depende de quien tiene el control y del timer, aqui vemos si
-	// se cambia o se ignora.
-
-uint8_t data = 0;
-int8_t xBytes = 0;
-
-	// Solo es para IO8CH
-	if ( spx_io_board != SPX_IO8CH ) {
-		return;
-	}
-
-	// Vemos que no se halla desconfigurado
-	MCP_check();
-
-	// Guardo el valor recibido
-	data = dout;
-	systemVars.doutputs_conf.perforacion.outs = dout;
-	MCP_update_olatb( systemVars.doutputs_conf.perforacion.outs );
-
-	// Invierto el byte antes de escribirlo !!!
-	data = twiddle_bits(data);
-	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
-	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: doutput_set_douts MCP write\r\n\0"));
-		return;
-	}
-
-	xprintf_P( PSTR("doutput_set_douts (set outputs to 0x%02x)\r\n\0"),dout);
-}
-//------------------------------------------------------------------------------------
-void doutput_set_douts_from_gprs( uint8_t dout )
-{
-	// El GPRS recibio datos de setear la salida.
-	// El control debe ser de SISTEMA y reiniciar el timer_SISTEMA
-
-	if ( o_control == CTL_BOYA ) {
-		xprintf_P( PSTR("OUTPUT CTL to SISTEMA !!!. (set outputs to 0x%02x)\r\n\0"),dout);
-	}
-
-	o_control = CTL_SISTEMA;
-	doutputs_RELOAD_TIMER_SISTEMA();
-	systemVars.doutputs_conf.perforacion.control = CTL_SISTEMA;
-
-	doutput_set_douts( dout );
 }
 //------------------------------------------------------------------------------------

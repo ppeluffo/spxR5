@@ -107,16 +107,34 @@ void data_read_frame( bool polling  )
 {
 	// Esta funcion puede polear y mostrar el resultado.
 	// Si la flag polling es false, no poleo. ( requerido en cmd::status )
-	// Si el puntero a la estructura el NULL, uso la estructura estatica local
-	// Si no es null, imprimo esta ( cmd::read_memory )
 
 	if ( polling ) {
 		// Leo analog,digital,rtc e imprimo.
+		while ( xSemaphoreTake( sem_DATA, ( TickType_t ) 10 ) != pdTRUE )
+			taskYIELD();
+
 		pv_data_read_frame();
+
+		xSemaphoreGive( sem_DATA );
 	}
 
 	pv_data_print_frame();
 
+}
+//------------------------------------------------------------------------------------
+void data_read_pAB( float *pA, float *pB )
+{
+	// Utilizada desde tk_pilotos para leer las presiones de alta y baja
+
+	while ( xSemaphoreTake( sem_DATA, ( TickType_t ) 10 ) != pdTRUE )
+		taskYIELD();
+
+	// Leo todos los canales analogicos.
+	pv_data_read_analogico();
+	*pA = data_df.ainputs[0];
+	*pB = data_df.ainputs[1];
+
+	xSemaphoreGive( sem_DATA );
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS

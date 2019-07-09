@@ -63,7 +63,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.0.5"
-#define SPX_FW_DATE "@ 20190702"
+#define SPX_FW_DATE "@ 20190709"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -116,7 +116,7 @@
 // Mensajes entre tareas
 #define TK_FRAME_READY			0x01	//
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_OUTPUTS } t_debug;
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_OUTPUTS, DEBUG_PILOTO } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
@@ -124,6 +124,9 @@ typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 typedef enum { CTL_BOYA, CTL_SISTEMA } doutputs_control_t;
 typedef enum { NONE = 0, CONSIGNA, PERFORACIONES, PILOTOS  } doutputs_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
+typedef enum { ALTA_PRESION = 0, BAJA_PRESION } t_init_limit_presion;
+typedef enum { OPEN = 0, CLOSE } t_valve_status;
+typedef enum { VR_CHICA = 0, VR_MEDIA, VR_GRANDE } t_valvula_reguladora;
 
 TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter0 ,xHandle_tkCounter1 , xHandle_tkData, xHandle_tkDoutputs,  xHandle_tkGprsRx, xHandle_tkGprsTx;
 
@@ -137,6 +140,10 @@ StaticSemaphore_t SYSVARS_xMutexBuffer;
 xSemaphoreHandle sem_WDGS;
 StaticSemaphore_t WDGS_xMutexBuffer;
 #define MSTOTAKEWDGSSEMPH ((  TickType_t ) 10 )
+
+xSemaphoreHandle sem_DATA;
+StaticSemaphore_t DATA_xMutexBuffer;
+#define MSTOTAKEDATASEMPH ((  TickType_t ) 10 )
 
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
@@ -210,9 +217,9 @@ typedef struct {
 } st_consigna_t;
 
 typedef struct {
-	float pout;
-	float band;
-	uint8_t max_steps;
+	float pout;				// Presion de referencia que hay que poner ( configurable )
+	float band;				// Banda de variacion de la presion de trabajo ( configurable )
+	uint8_t max_steps;		// Maxima cantida de pasos para llegar a la presion ( configurable )
 } st_pilotos_t;
 
 typedef struct {
@@ -361,22 +368,32 @@ void counters_df_print( dataframe_s *df );
 
 // TKDATA
 void data_read_frame( bool polling );
+void data_read_pAB( float *pA, float *pB );
 
 // DOUTPUTS
-void doutputs_RELOAD_TIMER_SISTEMA(void);
-void doutputs_RELOAD_TIMER_BOYA(void);
-void doutputs_STOP_TIMER_BOYA(void);
-void doutputs_STOP_TIMER_SISTEMA(void);
 void doutputs_config_defaults( char *opt );
 bool doutputs_config_mode( char *mode );
-bool doutputs_config_consignas( char *hhmm_dia, char *hhmm_noche);
-bool doutputs_config_piloto( char *pref, char *pband, char *psteps );
-bool doutputs_cmd_write_consigna( char *tipo_consigna_str);
 bool doutputs_cmd_write_valve( char *param1, char *param2 );
 bool doutputs_cmd_write_outputs( char *param_pin, char *param_state );
-uint16_t doutputs_cmd_read_clt_timer(void);
-void doutput_set_douts( uint8_t dout );
-void doutput_set_douts_from_gprs( uint8_t dout );
+
+// DOUTPUTS: Consignas
+bool consignas_config( char *hhmm_dia, char *hhmm_noche);
+bool consigna_write( char *tipo_consigna_str);
+void tk_init_consigna(void);
+void tk_consigna(void);
+
+// DOUTPUTS: Perforaciones
+void tk_init_perforaciones(void);
+void tk_perforaciones(void);
+void perforaciones_set_douts( uint8_t dout );
+void perforaciones_set_douts_from_gprs( uint8_t dout );
+uint16_t perforaciones_read_clt_timer(void);
+
+// DOUTPUTS: Piloto
+void tk_pilotos(void);
+void tk_init_pilotos(void);
+bool piloto_config( char *pref, char *pband, char *psteps );
+void pilotos_readCounters( uint8_t *VA_cnt, uint8_t *VB_cnt, uint8_t *VA_status, uint8_t *VB_status );
 
 // WATCHDOG
 uint8_t wdg_resetCause;

@@ -584,7 +584,7 @@ char *p = NULL;
 	tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
 
 	// Actualizo el status a travez de una funcion propia del modulo de outputs
-	doutput_set_douts_from_gprs( atoi( tk_douts ));
+	perforaciones_set_douts_from_gprs( atoi( tk_douts ));
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: processDOUTS\r\n\0"));

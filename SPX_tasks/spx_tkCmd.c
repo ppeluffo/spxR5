@@ -117,6 +117,7 @@ static void cmdStatusFunction(void)
 FAT_t l_fat;
 uint8_t channel = 0;
 uint8_t olatb = 0 ;
+uint8_t VA_cnt, VB_cnt, VA_status, VB_status;
 
 	memset( &l_fat, '\0', sizeof(FAT_t));
 
@@ -206,6 +207,9 @@ uint8_t olatb = 0 ;
 	case DEBUG_GPRS:
 		xprintf_P( PSTR("  debug: gprs\r\n\0") );
 		break;
+	case DEBUG_PILOTO:
+		xprintf_P( PSTR("  debug: piloto\r\n\0") );
+		break;
 	default:
 		xprintf_P( PSTR("  debug: ???\r\n\0") );
 		break;
@@ -257,16 +261,17 @@ uint8_t olatb = 0 ;
 		MCP_read( 0x15, (char *)&olatb, 1 );
 		xprintf_P( PSTR("  out_value=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), systemVars.doutputs_conf.perforacion.outs, systemVars.doutputs_conf.perforacion.outs, BYTE_TO_BINARY( systemVars.doutputs_conf.perforacion.outs ), olatb );
 		if ( systemVars.doutputs_conf.perforacion.control == CTL_BOYA ) {
-			xprintf_P( PSTR("  out_control=BOYA, timer=%d\r\n\0"), doutputs_cmd_read_clt_timer() );
+			xprintf_P( PSTR("  out_control=BOYA, timer=%d\r\n\0"), perforaciones_read_clt_timer() );
 		} else {
-			xprintf_P( PSTR("  out_control=SISTEMA, timer=%d\r\n\0"), doutputs_cmd_read_clt_timer() );
+			xprintf_P( PSTR("  out_control=SISTEMA, timer=%d\r\n\0"), perforaciones_read_clt_timer() );
 		}
 		break;
 	case PILOTOS:
+		pilotos_readCounters(&VA_cnt, &VB_cnt, &VA_status, &VB_status );
 		xprintf_P( PSTR("  doutputs modo: PILOTO\r\n"));
 		xprintf_P( PSTR("  pout_ref=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.pout );
 		xprintf_P( PSTR("  pband=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.band );
-		xprintf_P( PSTR("  max_steps=%d\r\n\0"), systemVars.doutputs_conf.piloto.max_steps );
+		xprintf_P( PSTR("  max_steps=%d, VAp=%d, VBp=%d\r\n\0"), systemVars.doutputs_conf.piloto.max_steps, VA_cnt, VB_cnt );
 		break;
 	}
 
@@ -430,7 +435,7 @@ static void cmdWriteFunction(void)
 	// DOUT
 	// write dout VAL
 	if (!strcmp_P( strupr(argv[1]), PSTR("DOUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		doutput_set_douts( atoi(argv[2]) );
+		perforaciones_set_douts( atoi(argv[2]) );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -454,7 +459,7 @@ static void cmdWriteFunction(void)
 	// CONSIGNA
 	// write consigna (diurna|nocturna)
 	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		doutputs_cmd_write_consigna( argv[2] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		consigna_write( argv[2] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
 		return;
 	}
 
@@ -630,7 +635,7 @@ bool retS = false;
 	// CONSIGNAS
 	// config consigna  {hhmm_dia hhmm_noche}
 	if ( !strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0"))) {
-		retS = doutputs_config_consignas( argv[2], argv[3]);
+		retS = consignas_config( argv[2], argv[3]);
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -638,7 +643,7 @@ bool retS = false;
 	// PILOTOS
 	// config piloto {pout} {pband} {max_steps}
 	if ( !strcmp_P( strupr(argv[1]), PSTR("PILOTO\0"))) {
-		retS = doutputs_config_piloto( argv[2], argv[3], argv[4]);
+		retS = piloto_config( argv[2], argv[3], argv[4]);
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -668,6 +673,9 @@ bool retS = false;
 			retS = true;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("OUTPUTS\0"))) {
 			systemVars.debug = DEBUG_OUTPUTS;
+			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("PILOTO\0"))) {
+			systemVars.debug = DEBUG_PILOTO;
 			retS = true;
 		} else {
 			retS = false;
@@ -962,7 +970,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
 		}
 
-		xprintf_P( PSTR("  debug {none,counter,data, gprs, outputs }\r\n\0"));
+		xprintf_P( PSTR("  debug {none,counter,data, gprs, outputs, piloto }\r\n\0"));
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
@@ -1443,7 +1451,7 @@ uint8_t data = 0;
 		// Si estoy escribiendo el registro OLATB que refleja las salidas
 		// debo dejar actualizado el valor que puse
 		if ( atoi( argv[2]) == MCP_OLATB ) {
-			doutput_set_douts(data);
+			perforaciones_set_douts(data);
 		}
 
 		( xBytes > 0 ) ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -1543,6 +1551,7 @@ uint8_t ch = 0;
 //------------------------------------------------------------------------------------
 static void cmdPokeFunction(void)
 {
+	// COmando para configurar variables.
 
 	FRTOS_CMD_makeArgv();
 
@@ -1603,10 +1612,10 @@ static void cmdPokeFunction(void)
 		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
-		doutputs_config_consignas( argv[2], argv[3]);
+		consignas_config( argv[2], argv[3]);
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PILOTO\0")) ) {
-		doutputs_config_piloto( argv[2], argv[3], argv[4]);
+		piloto_config( argv[2], argv[3], argv[4]);
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
 		counters_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );

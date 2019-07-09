@@ -739,7 +739,7 @@ uint8_t ret = 0;
 	tk_hhmm1 = strsep(&stringp,delim);	// shhmm consigna_diurna
 	tk_hhmm2 = strsep(&stringp,delim); 	// shhmm consigna_nocturna
 
-	if ( doutputs_config_consignas(tk_hhmm1, tk_hhmm2) ) {
+	if ( consignas_config(tk_hhmm1, tk_hhmm2) ) {
 		ret = 1;
 	}
 
@@ -785,7 +785,7 @@ uint8_t ret = 0;
 	tk_pband = strsep(&stringp,delim); 	// pband
 	tk_psteps = strsep(&stringp,delim); 	// psteps
 
-	if ( doutputs_config_piloto(tk_pout, tk_pband, tk_psteps) ) {
+	if ( piloto_config(tk_pout, tk_pband, tk_psteps) ) {
 		ret = 1;
 	}
 

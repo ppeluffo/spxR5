@@ -23,6 +23,15 @@
  *  18488618
  *  22923645
  *
+ *  Version 2.0.6 @ 20190708
+ *  - Modifico la estructura de archivos fuentes para segmentar el manejo
+ *  de las salidas como general, consignas, perforaciones y pilotos
+ *  - Agrego las rutinas de regulacion por piloto.
+ *  - Modifico el formato del frame de datos de modo de tener en c/intervalo cuantas
+ *  operaciones se hicieron de apertura/cierre de valvulas.
+ *  - Como la lectura de las presiones las hago desde mas de una tarea, incorporo un
+ *  semaforo.
+ *
  *  Version 2.0.5 @ 20190702
  *  - Inicializo todas las variables en todos los modulos.
  *  - Borro mensajes de DEBUG de modulo de contadores.
@@ -145,6 +154,7 @@ int main( void )
 	// Creo los semaforos
 	sem_SYSVars = xSemaphoreCreateMutexStatic( &SYSVARS_xMutexBuffer );
 	sem_WDGS = xSemaphoreCreateMutexStatic( &WDGS_xMutexBuffer );
+	sem_DATA = xSemaphoreCreateMutexStatic( &DATA_xMutexBuffer );
 
 	xprintf_init();
 	FAT_init();
