@@ -23,7 +23,7 @@
  *  18488618
  *  22923645
  *
- *  Version 2.0.6 @ 20190708
+ *  Version 2.0.6 @ 20190710
  *  - Modifico la estructura de archivos fuentes para segmentar el manejo
  *  de las salidas como general, consignas, perforaciones y pilotos
  *  - Agrego las rutinas de regulacion por piloto.
@@ -31,6 +31,9 @@
  *  operaciones se hicieron de apertura/cierre de valvulas.
  *  - Como la lectura de las presiones las hago desde mas de una tarea, incorporo un
  *  semaforo.
+ *  - Agrego a la estructura io5 el valor de VA/B_cnt para trasmitirlo y ver como opera
+ *  el piloto.
+ *  - Corrigo un bug en la trasmision de los INITS en el modulo del rangemeter.
  *
  *  Version 2.0.5 @ 20190702
  *  - Inicializo todas las variables en todos los modulos.

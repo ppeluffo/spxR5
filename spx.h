@@ -63,7 +63,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.0.5"
-#define SPX_FW_DATE "@ 20190709"
+#define SPX_FW_DATE "@ 20190711"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -124,7 +124,6 @@ typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 typedef enum { CTL_BOYA, CTL_SISTEMA } doutputs_control_t;
 typedef enum { NONE = 0, CONSIGNA, PERFORACIONES, PILOTOS  } doutputs_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
-typedef enum { ALTA_PRESION = 0, BAJA_PRESION } t_init_limit_presion;
 typedef enum { OPEN = 0, CLOSE } t_valve_status;
 typedef enum { VR_CHICA = 0, VR_MEDIA, VR_GRANDE } t_valvula_reguladora;
 
@@ -174,7 +173,8 @@ typedef struct {
 	float counters[IO5_COUNTER_CHANNELS];		// 4 * 2 =  8
 	int16_t range;								// 2 * 1 =  2
 	float battery;								// 4 * 1 =  4
-} st_io5_t;										// ----- = 36
+	uint8_t plt_Vcounters[2];					// 2 * 1 =  2
+} st_io5_t;										// ----- = 38
 
 // Estructura de un registro de IO8CH
 typedef struct {
@@ -202,6 +202,7 @@ typedef struct {
 	int16_t range;
 	float battery;
 	RtcTimeType_t rtc;
+	uint8_t plt_Vcounters[2];
 } dataframe_s;
 
 // Estructuras para las consignas
@@ -220,6 +221,7 @@ typedef struct {
 	float pout;				// Presion de referencia que hay que poner ( configurable )
 	float band;				// Banda de variacion de la presion de trabajo ( configurable )
 	uint8_t max_steps;		// Maxima cantida de pasos para llegar a la presion ( configurable )
+	t_valvula_reguladora tipo_valvula;
 } st_pilotos_t;
 
 typedef struct {
@@ -372,12 +374,11 @@ void data_read_pAB( float *pA, float *pB );
 
 // DOUTPUTS
 void doutputs_config_defaults( char *opt );
-bool doutputs_config_mode( char *mode );
+bool doutputs_config_mode( char *mode, char *param1, char *param2, char *param3 );
 bool doutputs_cmd_write_valve( char *param1, char *param2 );
 bool doutputs_cmd_write_outputs( char *param_pin, char *param_state );
 
 // DOUTPUTS: Consignas
-bool consignas_config( char *hhmm_dia, char *hhmm_noche);
 bool consigna_write( char *tipo_consigna_str);
 void tk_init_consigna(void);
 void tk_consigna(void);
@@ -392,8 +393,8 @@ uint16_t perforaciones_read_clt_timer(void);
 // DOUTPUTS: Piloto
 void tk_pilotos(void);
 void tk_init_pilotos(void);
-bool piloto_config( char *pref, char *pband, char *psteps );
 void pilotos_readCounters( uint8_t *VA_cnt, uint8_t *VB_cnt, uint8_t *VA_status, uint8_t *VB_status );
+void pilotos_df_print( dataframe_s *df );
 
 // WATCHDOG
 uint8_t wdg_resetCause;
@@ -409,5 +410,6 @@ uint8_t wdg_resetCause;
 
 #define NRO_WDGS		8
 
+#define WDG_DOUT_TIMEOUT	100
 
 #endif /* SRC_SPX_H_ */

@@ -21,8 +21,6 @@ static void tkDoutputs_init(void);
 static void tk_doutputs_init_none(void);
 static void tk_doutputs_none(void);
 
-#define WDG_DOUT_TIMEOUT	120
-
 bool doutputs_reinit = false;
 
 //------------------------------------------------------------------------------------

@@ -127,7 +127,10 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 		} else if ( !strcmp_P( s_param4 , PSTR("HS\0"))) {
 			//xprintf_P( PSTR("DEBUG COUNTERS C%d=[%s]\r\n\0"), channel, s_param0 ); systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
 
+			// El contador 0 nunca puede estar en HS.
+			// Solo el 1.
 			 if ( channel == 1 ) {
+				 systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
 				 COUNTERS_set_counter1_HS();
 				 COUNTERS_enable_interrupt(1);
 			 }

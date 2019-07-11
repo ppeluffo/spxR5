@@ -20,13 +20,14 @@ static void pv_transmitir_df_digitales( void );
 static void pv_transmitir_df_contadores( void );
 static void pv_transmitir_df_range( void );
 static void pv_transmitir_df_bateria( void );
+static void pv_transmitir_df_pilotos( void );
 
 static bool pv_procesar_respuesta_server(void);
 static void pv_process_response_RESET(void);
 static void pv_process_response_MEMFORMAT(void);
 static uint8_t pv_process_response_OK(void);
 static void pv_process_response_DOUTS(void);
-//static void pv_process_response_POUT(void);
+static void pv_process_response_POUT(void);
 static bool pv_check_more_Rcds4Del ( void );
 
 dataframe_s gprs_df;
@@ -303,6 +304,7 @@ size_t bRead;
 		gprs_df.range = gprs_dr.df.io5.range;
 		gprs_df.battery = gprs_dr.df.io5.battery;
 		memcpy( &gprs_df.rtc, &gprs_dr.rtc, sizeof(RtcTimeType_t) );
+		memcpy( &gprs_df.plt_Vcounters, &gprs_dr.df.io5.plt_Vcounters, 2 * sizeof(uint8_t) );
 		break;
 	case SPX_IO8CH:
 		memcpy( &gprs_df.ainputs, &gprs_dr.df.io8.ainputs, ( NRO_ANINPUTS * sizeof(float)));
@@ -327,6 +329,7 @@ size_t bRead;
 	pv_transmitir_df_digitales();
 	pv_transmitir_df_contadores();
 	pv_transmitir_df_range();
+	pv_transmitir_df_pilotos();
 	pv_transmitir_df_bateria();
 
 	// DEBUG & LOG
@@ -404,6 +407,18 @@ static void pv_transmitir_df_range( void )
 	}
 }
 //------------------------------------------------------------------------------------
+static void pv_transmitir_df_pilotos( void )
+{
+	// Pilotos VA/VB cnt
+	if ( ( spx_io_board == SPX_IO5CH ) && ( systemVars.doutputs_conf.modo == PILOTOS ) ) {
+		xCom_printf_P( fdGPRS, PSTR(",VAp=%d,VBp=%d"), gprs_df.plt_Vcounters[0],gprs_df.plt_Vcounters[1] );
+		// DEBUG & LOG
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P(PSTR(",VAp=%d,VBp=%d"), gprs_df.plt_Vcounters[0],gprs_df.plt_Vcounters[1] );
+		}
+	}
+}
+//------------------------------------------------------------------------------------
 static void pv_transmitir_df_bateria( void )
 {
 	// bateria
@@ -462,6 +477,11 @@ bool exit_flag = false;
 			if ( ( spx_io_board == SPX_IO8CH ) && u_gprs_check_response ("OUTS\0")) {
 				// El sever mando actualizacion de las salidas
 				pv_process_response_DOUTS();
+			}
+
+			if ( u_gprs_check_response ("POUT\0")) {
+				// El sever mando la orden de cambiar la presion del piloto.
+				pv_process_response_POUT();
 			}
 
 			if ( u_gprs_check_response ("RX_OK\0")) {
@@ -588,6 +608,41 @@ char *p = NULL;
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: processDOUTS\r\n\0"));
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_process_response_POUT(void)
+{
+	// Recibi algo del estilo >RX_OK:469:POUT=1.4
+
+	// Extraigo el valor de las pout y las seteo.
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_pout = NULL;
+char *delim = ",=:><";
+char *p = NULL;
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "POUT");
+	if ( p == NULL ) {
+		return;
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_pout = strsep(&stringp,delim);	//POUT
+	tk_pout = strsep(&stringp,delim);	// Str. con el valor de las pout
+
+	// Actualizo.
+	systemVars.doutputs_conf.piloto.pout = ( atof( tk_pout ));
+	u_save_params_in_NVMEE();
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: processPOUT\r\n\0"));
 	}
 
 }

@@ -9,27 +9,6 @@
 
 extern bool doutputs_reinit;
 //------------------------------------------------------------------------------------
-bool consignas_config( char *hhmm_dia, char *hhmm_noche)
-{
-	// Configura las horas de consigna diurna y noctura
-
-	if ( spx_io_board != SPX_IO5CH ) {
-		return(false);
-	}
-
-	if ( hhmm_dia != NULL ) {
-		u_convert_int_to_time_t( atoi(hhmm_dia), &systemVars.doutputs_conf.consigna.hhmm_c_diurna );
-	}
-
-	if ( hhmm_noche != NULL ) {
-		u_convert_int_to_time_t( atoi(hhmm_noche), &systemVars.doutputs_conf.consigna.hhmm_c_nocturna );
-	}
-
-	doutputs_reinit = true;
-	return(true);
-
-}
-//------------------------------------------------------------------------------------
 bool consigna_write( char *tipo_consigna_str)
 {
 

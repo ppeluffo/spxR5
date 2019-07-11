@@ -520,13 +520,13 @@ uint8_t i = 0;
 		if ( systemVars.rangeMeter_enabled ) {
 			xCom_printf_P( fdGPRS,PSTR("&DIST=ON\0"));
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf( PSTR("&DIST=ON\0"));
+				xprintf_P( PSTR("&DIST=ON\0"));
 			}
 
 		} else {
 			xCom_printf_P( fdGPRS,PSTR("&DIST=OFF\0"));
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf( PSTR("&DIST=OFF\0"));
+				xprintf_P( PSTR("&DIST=OFF\0"));
 			}
 		}
 

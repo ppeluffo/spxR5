@@ -33,6 +33,7 @@ static void pv_data_read_analogico( void );
 static void pv_data_read_contadores( void );
 static void pv_data_read_rangemeter( void );
 static void pv_data_read_dinputs( void );
+static void pv_data_read_pilotos( void );
 
 static void pv_data_print_frame( void );
 static void pv_data_guardar_en_BD(void);
@@ -244,6 +245,21 @@ uint8_t i = 0;
 
 }
 //------------------------------------------------------------------------------------
+static void pv_data_read_pilotos( void )
+{
+uint8_t VA_cnt = 0;
+uint8_t VB_cnt = 0;
+uint8_t VA_status, VB_status;
+
+	if ( systemVars.doutputs_conf.modo == PILOTOS ) {
+		pilotos_readCounters(&VA_cnt, &VB_cnt, &VA_status, &VB_status );
+	}
+
+	data_df.plt_Vcounters[0] = VA_cnt;
+	data_df.plt_Vcounters[1] = VB_cnt;
+
+}
+//------------------------------------------------------------------------------------
 static void pv_data_read_frame( void )
 {
 	// Leo todos los canales de a 1 que forman un frame de datos analogicos
@@ -254,6 +270,7 @@ int8_t xBytes = 0;
 	pv_data_read_contadores();
     pv_data_read_dinputs();
     pv_data_read_rangemeter();
+    pv_data_read_pilotos();
 
 	// Agrego el timestamp
 	xBytes = RTC_read_dtime( &data_df.rtc );
@@ -277,6 +294,7 @@ static void pv_data_print_frame( void )
 	dinputs_df_print( &data_df );
     counters_df_print( &data_df );
 	u_df_print_range( &data_df );
+	pilotos_df_print( &data_df );
 	ainputs_df_print_battery( &data_df );
 
 	// TAIL
@@ -311,6 +329,7 @@ static bool primer_frame = true;
 		data_dr.df.io5.range = data_df.range;
 		data_dr.df.io5.battery = data_df.battery;
 		memcpy( &data_dr.rtc, &data_df.rtc, sizeof(RtcTimeType_t) );
+		memcpy( &data_dr.df.io5.plt_Vcounters, &data_df.plt_Vcounters, 2 * sizeof(uint8_t) );
 		break;
 	case SPX_IO8CH:
 		memcpy( &data_dr.df.io8.ainputs, &data_df.ainputs, ( NRO_ANINPUTS * sizeof(float)));

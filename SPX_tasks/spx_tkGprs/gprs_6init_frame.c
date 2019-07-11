@@ -19,8 +19,6 @@ static uint8_t pv_init_config_analogCh(uint8_t channel);
 static uint8_t pv_init_config_counterCh(uint8_t channel);
 static uint8_t pv_init_config_rangeMeter(void);
 static uint8_t pv_init_config_doutputs(void);
-static uint8_t pv_init_config_consignas(void);
-static uint8_t pv_init_config_piloto(void);
 static uint8_t pv_init_config_default(void);
 
 // La tarea no puede demorar mas de 180s.
@@ -193,13 +191,8 @@ uint8_t saveFlag = 0;
 	// RangeMeter
 	saveFlag += pv_init_config_rangeMeter();
 
-	// Doutputs
+	// Doutputs(none,perf,cons,plt)
 	saveFlag += pv_init_config_doutputs();
-	// Consignas
-	saveFlag += pv_init_config_consignas();
-	// Perforaciones: No se configuran
-	// Piloto
-	saveFlag += pv_init_config_piloto();
 
 	// Canales analogicos.
 	saveFlag += pv_init_config_analogCh(0);
@@ -673,13 +666,16 @@ char *tk_speed = NULL;
 //--------------------------------------------------------------------------------------
 static uint8_t pv_init_config_doutputs(void)
 {
-	//	La linea recibida es del tipo: <h1>INIT_OK:DOUTMODE=doutmode</h1>
+	//	La linea recibida es del tipo: <h1>INIT_OK:DOUTMODE=doutmode,p1,p2,p3</h1>
 
 char *p = NULL;
-char localStr[32] =  { 0 };
+char localStr[32] =  { '\0' };
 char *stringp = NULL;
 char *tk_doutmode = NULL;
 char *delim = ",=:><";
+char *param1 = NULL;
+char *param2 = NULL;
+char *param3 = NULL;
 uint8_t ret = 0;
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DOUTMODE");
@@ -692,105 +688,23 @@ uint8_t ret = 0;
 	memcpy(localStr,p,sizeof(localStr));
 
 	stringp = localStr;
+
+	//xprintf_P( PSTR("DEBUG GPRS_PLT(1): %s\r\n\0"),stringp );
+
 	strsep(&stringp,delim);					// DOUTMODE
-	tk_doutmode = strsep(&stringp,delim);	// doutmode
-	if ( doutputs_config_mode( tk_doutmode ) == true ) {
+	tk_doutmode = strsep(&stringp,delim);	// NONE,CONS,PERF,PLT
+	param1 = strsep(&stringp,delim);		// pout
+	param2 = strsep(&stringp,delim);		// pband
+	param3 = strsep(&stringp,delim);		// psteps
+
+	//xprintf_P( PSTR("DEBUG GPRS_PLT(2): P1=%s, P2=%s, P3=%s \r\n\0"), param1, param2, param3 );
+
+	if ( doutputs_config_mode( tk_doutmode, param1, param2, param3 ) == true ) {
 		ret = 1;
 	}
 
 	if ( ( systemVars.debug == DEBUG_GPRS ) && ( ret == 1 ) ) {
 		xprintf_P( PSTR("GPRS: Reconfig DOUTMODE\r\n\0"));
-	}
-
-quit:
-
-	return(ret);
-}
-//--------------------------------------------------------------------------------------
-static uint8_t pv_init_config_consignas(void)
-{
-	// La linea recibida es del tipo:
-	// <h1>INIT_OK:CONS=param1,param2:</h1>
-	// param1, param2 son las horas de la consigna diurna y la nocturna
-	// Las horas estan en formato HHMM.
-
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_hhmm1 = NULL;
-char *tk_hhmm2 = NULL;
-char *delim = ",=:><";
-char *p = NULL;
-uint8_t ret = 0;
-
-
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "CONS");
-
-	// No vino el parametro
-	if ( p == NULL )
-		goto quit;
-
-	// Si vino el parametro
-	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
-	memset(localStr,'\0',32);
-	memcpy(localStr,p,sizeof(localStr));
-
-	stringp = localStr;
-	tk_hhmm1 = strsep(&stringp,delim);	// CONS
-	tk_hhmm1 = strsep(&stringp,delim);	// shhmm consigna_diurna
-	tk_hhmm2 = strsep(&stringp,delim); 	// shhmm consigna_nocturna
-
-	if ( consignas_config(tk_hhmm1, tk_hhmm2) ) {
-		ret = 1;
-	}
-
-	if ( ( systemVars.debug == DEBUG_GPRS ) && ( ret == 1 ) ) {
-		xprintf_P( PSTR("GPRS: Reconfig CONSIGNAS\r\n\0"));
-	}
-
-quit:
-
-	return(ret);
-}
-//--------------------------------------------------------------------------------------
-static uint8_t pv_init_config_piloto(void)
-{
-	// La linea recibida es del tipo:
-	// <h1>INIT_OK:PILOTO=param1,param2,param3:</h1>
-	// param1, param2, param3 son: pout,pband,max_steps
-
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_pout = NULL;
-char *tk_pband = NULL;
-char *tk_psteps = NULL;
-char *delim = ",=:><";
-char *p = NULL;
-uint8_t ret = 0;
-
-
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PILOTO");
-
-	// No vino el parametro
-	if ( p == NULL )
-		goto quit;
-
-	// Si vino el parametro
-	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
-	memset(localStr,'\0',32);
-	memcpy(localStr,p,sizeof(localStr));
-
-	stringp = localStr;
-	tk_pout = strsep(&stringp,delim);	// PILOTO
-	tk_pout = strsep(&stringp,delim);	// pout
-	tk_pband = strsep(&stringp,delim); 	// pband
-	tk_psteps = strsep(&stringp,delim); 	// psteps
-
-	if ( piloto_config(tk_pout, tk_pband, tk_psteps) ) {
-		ret = 1;
-	}
-
-	if ( ( systemVars.debug == DEBUG_GPRS ) && ( ret == 1 ) ) {
-		xprintf_P( PSTR("GPRS: Reconfig PILOTOS\r\n\0"));
 	}
 
 quit:

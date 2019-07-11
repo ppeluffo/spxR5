@@ -272,6 +272,17 @@ uint8_t VA_cnt, VB_cnt, VA_status, VB_status;
 		xprintf_P( PSTR("  pout_ref=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.pout );
 		xprintf_P( PSTR("  pband=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.band );
 		xprintf_P( PSTR("  max_steps=%d, VAp=%d, VBp=%d\r\n\0"), systemVars.doutputs_conf.piloto.max_steps, VA_cnt, VB_cnt );
+		switch(systemVars.doutputs_conf.piloto.tipo_valvula) {
+		case VR_CHICA:
+			xprintf_P( PSTR("  VReg: chica\r\n"));
+			break;
+		case VR_MEDIA:
+			xprintf_P( PSTR("  VReg: media\r\n"));
+			break;
+		case VR_GRANDE:
+			xprintf_P( PSTR("  VReg: grande\r\n"));
+			break;
+		}
 		break;
 	}
 
@@ -624,26 +635,24 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
+	// REGULADORA
+	// config regualadora
+	if (!strcmp_P( strupr(argv[1]), PSTR("REGULADORA\0"))) {
+		if (!strcmp_P( strupr(argv[2]), PSTR("CHICA\0"))) {
+			systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("MEDIA\0"))) {
+			systemVars.doutputs_conf.piloto.tipo_valvula = VR_MEDIA;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("GRANDE\0"))) {
+			systemVars.doutputs_conf.piloto.tipo_valvula = VR_GRANDE;
+		}
+		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
 	// OUTMODE
-	// config outmode {none|consigna|perforacion|piloto|remoto}
+	// outmode {none|cons {hhmm1} {hhmm2} |perf|plt {pout} {pband} {max_steps}
 	if (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
-		retS = doutputs_config_mode( argv[2] );
-		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-
-	// CONSIGNAS
-	// config consigna  {hhmm_dia hhmm_noche}
-	if ( !strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0"))) {
-		retS = consignas_config( argv[2], argv[3]);
-		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-
-	// PILOTOS
-	// config piloto {pout} {pband} {max_steps}
-	if ( !strcmp_P( strupr(argv[1]), PSTR("PILOTO\0"))) {
-		retS = piloto_config( argv[2], argv[3], argv[4]);
+		retS = doutputs_config_mode( argv[2], argv[3], argv[4], argv[5] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -982,10 +991,8 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
 		}
 
-		xprintf_P( PSTR("  outmode {none|cons|perf|plt}\r\n\0"));
-		xprintf_P( PSTR("  consigna {hhmm_dia hhmm_noche}\r\n\0"));
-		xprintf_P( PSTR("  piloto {pout} {pband} {max_steps}\r\n\0"));
-
+		xprintf_P( PSTR("  outmode { none | cons {hhmm1} {hhmm2} | perf | plt {pout} {pband} {max_steps} }\r\n\0"));
+		xprintf_P( PSTR("  reguladora { CHICA | MEDIA | GRANDE }\r\n\0"));
 		xprintf_P( PSTR("  default {SPY|OSE|UTE}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
 	}
@@ -1606,16 +1613,10 @@ static void cmdPokeFunction(void)
 		range_config(argv[2]);
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
-		doutputs_config_mode( argv[2] );
+		doutputs_config_mode( argv[2], argv[3], argv[4], argv[5] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0")) ) {
 		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
-
-	} else if  (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
-		consignas_config( argv[2], argv[3]);
-
-	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PILOTO\0")) ) {
-		piloto_config( argv[2], argv[3], argv[4]);
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
 		counters_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
@@ -1635,4 +1636,3 @@ static void cmdPokeFunction(void)
 
 }
 //------------------------------------------------------------------------------------
-

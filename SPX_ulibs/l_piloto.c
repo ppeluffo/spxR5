@@ -14,6 +14,9 @@
 #define MAX_WAIT_LOOPS	5
 #define MAX_TIMES_FOR_STABILITY	5
 
+typedef enum { WAIT_0 = 0, WAIT_NORMAL, WAIT_MAX } espera_t;
+typedef enum { ALTA_PRESION = 0, BAJA_PRESION } t_init_limit_presion;
+
 float pres_baja_data[ P_STACK_SIZE ];
 
 typedef struct {
@@ -36,40 +39,15 @@ st_dataPiloto_t ldata;
 
 stack_t pres_baja_s;
 
-extern bool doutputs_reinit;
-
 void pv_pilotos_set_lineal_zone( t_init_limit_presion zona );
 void pv_piloto_vopen ( char valve_id );
 void pv_piloto_vclose ( char valve_id );
 void pv_piloto_vpulse( char valve_id, float pulse_width_s );
-void pv_piloto_espera_progresiva(bool action );
+void pv_piloto_espera_progresiva( espera_t espera );
 float pv_piloto_calcular_pwidth( float delta_P, float presion_alta );
-bool pv_piloto_regular_presion( void );
-void pv_pilotos_leer_pB_estable( t_valvula_reguladora tipo_valvula_reguladora  );
+espera_t pv_piloto_regular_presion( void );
+void pv_piloto_leer_pB_estable( t_valvula_reguladora tipo_valvula_reguladora  );
 
-//------------------------------------------------------------------------------------
-bool piloto_config( char *pref, char *pband, char *psteps )
-{
-
-	if ( spx_io_board != SPX_IO5CH ) {
-		return(false);
-	}
-
-	// Configura la presion de referencia, la banda y la cantidad de pasos
-	systemVars.doutputs_conf.piloto.pout = atof( pref);
-
-	if ( pband != NULL ) {
-		systemVars.doutputs_conf.piloto.band = atof( pband);
-	}
-
-	if ( psteps != NULL ) {
-		systemVars.doutputs_conf.piloto.max_steps = atoi( psteps );
-	}
-
-	doutputs_reinit = true;
-	return(true);
-
-}
 //------------------------------------------------------------------------------------
 void tk_init_pilotos(void)
 {
@@ -96,7 +74,7 @@ void tk_init_pilotos(void)
 void tk_pilotos(void)
 {
 
-bool tipo_espera = false;
+espera_t espera = WAIT_NORMAL;
 
 	// Implementa el control por pilotos.
 	// El tema es que debemos polear tambien para hacer el control
@@ -108,10 +86,9 @@ bool tipo_espera = false;
 		return;
 	}
 
-	tipo_espera = pv_piloto_regular_presion();
-	pv_piloto_espera_progresiva(tipo_espera);
-
-	//vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
+	pv_piloto_leer_pB_estable( systemVars.doutputs_conf.piloto.tipo_valvula );
+	espera = pv_piloto_regular_presion();
+	pv_piloto_espera_progresiva(espera);
 
 }
 //------------------------------------------------------------------------------------
@@ -123,6 +100,14 @@ void pilotos_readCounters( uint8_t *VA_cnt, uint8_t *VB_cnt, uint8_t *VA_status,
 	*VB_status = ldata.VB_status;
 }
 //------------------------------------------------------------------------------------
+void pilotos_df_print( dataframe_s *df )
+{
+
+	if ( systemVars.doutputs_conf.modo == PILOTOS ) {
+		xprintf_P(PSTR(",VAp=%d,VBp=%d"), df->plt_Vcounters[0], df->plt_Vcounters[1] );
+	}
+}
+//------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
 void pv_pilotos_set_lineal_zone( t_init_limit_presion zona )
@@ -131,7 +116,9 @@ void pv_pilotos_set_lineal_zone( t_init_limit_presion zona )
 	// Lo llena para llevar la presion al maximo y luego abre la valvula de escape por
 	// 1.5s para llevarlo a unos 1.6K.
 
-	xprintf_P( PSTR("%s: Set lineal_zone..\r\n\0"), RTC_logprint() );
+	if ( systemVars.debug == DEBUG_PILOTO ) {
+		xprintf_P( PSTR("%s: Set lineal_zone..\r\n\0"), RTC_logprint() );
+	}
 
 	if ( zona == ALTA_PRESION ) {
 		// Al iniciar lleno la cabeza del piloto y llevo la presion al maximo
@@ -174,7 +161,9 @@ void pv_piloto_vopen ( char valve_id )
 	// Espero 10s que se carguen los condensasores
 	vTaskDelay( ( TickType_t)( TIME_PWR_ON_VALVES / portTICK_RATE_MS ) );
 
-	xprintf_P( PSTR("%s: VALVE OPEN %c\r\n\0"), RTC_logprint(), valve_id );
+	if ( systemVars.debug == DEBUG_PILOTO ) {
+		xprintf_P( PSTR("%s: VALVE OPEN %c\r\n\0"), RTC_logprint(), valve_id );
+	}
 
 	DRV8814_vopen( valve_id, 100);
 
@@ -200,7 +189,9 @@ void pv_piloto_vclose ( char valve_id )
 	// Espero 10s que se carguen los condensasores
 	vTaskDelay( ( TickType_t)( TIME_PWR_ON_VALVES / portTICK_RATE_MS ) );
 
-	xprintf_P( PSTR("%s: VALVE CLOSE %c\r\n\0"), RTC_logprint(), valve_id );
+	if ( systemVars.debug == DEBUG_PILOTO ) {
+		xprintf_P( PSTR("%s: VALVE CLOSE %c\r\n\0"), RTC_logprint(), valve_id );
+	}
 
 	DRV8814_vclose( valve_id, 100);
 
@@ -227,7 +218,9 @@ void pv_piloto_vpulse( char valve_id, float pulse_width_s )
 	vTaskDelay( ( TickType_t)( TIME_PWR_ON_VALVES / portTICK_RATE_MS ) );
 
 	DRV8814_vopen( toupper(valve_id), 100);
-	xprintf_P( PSTR("%s: Vopen %c\r\n\0"), RTC_logprint(), valve_id );
+	if ( systemVars.debug == DEBUG_PILOTO ) {
+		xprintf_P( PSTR("%s: Vopen %c\r\n\0"), RTC_logprint(), valve_id );
+	}
 
 	switch (valve_id) {
 	case 'A':
@@ -241,7 +234,10 @@ void pv_piloto_vpulse( char valve_id, float pulse_width_s )
 
 	DRV8814_vclose( toupper(valve_id), 100);
 
-	xprintf_P( PSTR("%s: Vclose %c\r\n\0"), RTC_logprint(), valve_id );
+	if ( systemVars.debug == DEBUG_PILOTO ) {
+		xprintf_P( PSTR("%s: Vclose %c\r\n\0"), RTC_logprint(), valve_id );
+	}
+
 	switch (valve_id) {
 	case 'A':
 		ldata.VA_status = CLOSE;
@@ -254,7 +250,7 @@ void pv_piloto_vpulse( char valve_id, float pulse_width_s )
 
 }
 //------------------------------------------------------------------------------------
-void pv_pilotos_leer_pB_estable( t_valvula_reguladora tipo_valvula_reguladora  )
+void pv_piloto_leer_pB_estable( t_valvula_reguladora tipo_valvula_reguladora  )
 {
 	// Leo las presiones hasta que sean estable.
 	// Criterio:
@@ -292,16 +288,21 @@ int8_t counts;
 
 		pv_push_stack( &pres_baja_s, ldata.pB );
 
-		xprintf_P(PSTR("%s: Mon: P.alta=%.02f, P.baja=%.02f\r\n\0"), RTC_logprint(), ldata.pA, ldata.pB );
-
+		if ( systemVars.debug == DEBUG_PILOTO ) {
+			xprintf_P(PSTR("%s: Mon: P.alta=%.02f, P.baja=%.02f\r\n\0"), RTC_logprint(), ldata.pA, ldata.pB );
+		}
 	}
 
-	xprintf_P( PSTR("%s: Mon: \0"), RTC_logprint());
-	pv_print_stack( &pres_baja_s );
+	if ( systemVars.debug == DEBUG_PILOTO ) {
+		xprintf_P( PSTR("%s: Mon: \0"), RTC_logprint());
+		pv_print_stack( &pres_baja_s );
+	}
 
 	ldata.pB_avg = pv_get_stack_avg( &pres_baja_s );
-	xprintf_P( PSTR("%s: Mon: P.baja avg = %0.02f\r\n\0"), RTC_logprint(), ldata.pB_avg );
 
+	if ( systemVars.debug == DEBUG_PILOTO ) {
+		xprintf_P( PSTR("%s: Mon: P.baja avg = %0.02f\r\n\0"), RTC_logprint(), ldata.pB_avg );
+	}
 }
 //------------------------------------------------------------------------------------
 float pv_piloto_calcular_pwidth( float delta_P, float presion_alta )
@@ -330,12 +331,12 @@ float dP;
 
 }
 //------------------------------------------------------------------------------------
-bool pv_piloto_regular_presion( void )
+espera_t pv_piloto_regular_presion( void )
 {
 
 float delta_P;
 float pulseW;
-bool espera_progresiva = false;
+espera_t espera;
 
 	// Calculos
 	// Diferencia de presion. Puede ser positiva o negativa
@@ -343,20 +344,24 @@ bool espera_progresiva = false;
 
 	if ( fabs(delta_P) <= systemVars.doutputs_conf.piloto.band  ) {
 		// No debo regular
-		xprintf_P(PSTR("%s: Reg(in-band): deltaP(%.02f) = %.02f (%.02f - %.02f)\r\n\0"), RTC_logprint(), systemVars.doutputs_conf.piloto.band, delta_P, systemVars.doutputs_conf.piloto.pout, ldata.pB_avg );
-		xprintf_P(PSTR("%s: Reg STEPS: total=%d, VA=%d, VB=%d\r\n\0"), RTC_logprint(), (ldata.VA_cnt + ldata.VB_cnt), ldata.VA_cnt,ldata.VB_cnt );
-		xprintf_P(PSTR("\r\n\0"));
+		if ( systemVars.debug == DEBUG_PILOTO ) {
+			xprintf_P(PSTR("%s: Reg(in-band): deltaP(%.02f) = %.02f (%.02f - %.02f)\r\n\0"), RTC_logprint(), systemVars.doutputs_conf.piloto.band, delta_P, systemVars.doutputs_conf.piloto.pout, ldata.pB_avg );
+			xprintf_P(PSTR("%s: Reg STEPS: total=%d, VA=%d, VB=%d\r\n\0"), RTC_logprint(), (ldata.VA_cnt + ldata.VB_cnt), ldata.VA_cnt,ldata.VB_cnt );
+			xprintf_P(PSTR("\r\n\0"));
+		}
 
 		ldata.VA_cnt = 0;
 		ldata.VB_cnt = 0;
 		// Estoy in-band. Espero progresivamente
-		espera_progresiva = true;
+		espera = WAIT_NORMAL;
+		//xprintf_P(PSTR("DEBUG espera wait_normal\r\n\0"));
 
 	} else {
 		// Si debo regular
 		pulseW = pv_piloto_calcular_pwidth( delta_P, ldata.pA );
-		xprintf_P(PSTR("%s: Reg(out-band): deltaP(%.02f) = %.02f (%.02f - %.02f), pulse_width = %.02f\r\n\0"), RTC_logprint(), systemVars.doutputs_conf.piloto.band, delta_P, systemVars.doutputs_conf.piloto.pout, ldata.pB_avg, pulseW );
-
+		if ( systemVars.debug == DEBUG_PILOTO ) {
+			xprintf_P(PSTR("%s: Reg(out-band): deltaP(%.02f) = %.02f (%.02f - %.02f), pulse_width = %.02f\r\n\0"), RTC_logprint(), systemVars.doutputs_conf.piloto.band, delta_P, systemVars.doutputs_conf.piloto.pout, ldata.pB_avg, pulseW );
+		}
 		// Aplico correcciones.
 		if ( systemVars.doutputs_conf.piloto.pout > ldata.pB_avg ) {
 			// Delta > 0
@@ -370,49 +375,64 @@ bool espera_progresiva = false;
 			ldata.VB_cnt++;
 		}
 
-		// Reseteo la espera progresiva
-		xprintf_P(PSTR("%s: Reg Pulsos: total=%d, VA=%d, VB=%d\r\n\0"), RTC_logprint(), (ldata.VA_cnt + ldata.VB_cnt), ldata.VA_cnt, ldata.VB_cnt );
-		// Estoy off-band: No espero
-		espera_progresiva = false;
+		if ( systemVars.debug == DEBUG_PILOTO ) {
+			xprintf_P(PSTR("%s: Reg Pulsos: total=%d, VA=%d, VB=%d\r\n\0"), RTC_logprint(), (ldata.VA_cnt + ldata.VB_cnt), ldata.VA_cnt, ldata.VB_cnt );
+		}
+
+		if ( (ldata.VA_cnt + ldata.VB_cnt) > systemVars.doutputs_conf.piloto.max_steps ) {
+			//xprintf_P(PSTR("DEBUG espera wait_max\r\n\0"));
+
+			espera = WAIT_MAX;
+			ldata.VA_cnt = 0;
+			ldata.VB_cnt = 0;
+
+		} else {
+			// Estoy off-band: No espero
+			//xprintf_P(PSTR("DEBUG espera wait_0\r\n\0"));
+			espera = WAIT_0;
+		}
+
 	}
 
-	return(espera_progresiva);
+	return(espera);
 
 }
 //------------------------------------------------------------------------------------
-void pv_piloto_espera_progresiva(bool action )
+void pv_piloto_espera_progresiva(espera_t espera )
 {
 
 	// Genero una espera progresiva de hasta 5 minutos.
 static uint8_t wait_loops = 1;
 uint16_t i;
 
-	// Espero progresivamente: aumento los loops.
-	if ( action == true ) {
+	switch ( espera ) {
+	case WAIT_0:
+		// Espero 60s
+		wait_loops = 1;
+		break;
+	case WAIT_NORMAL:
+		// Espra progresiva
 		if ( wait_loops++ > MAX_WAIT_LOOPS ) {
 			wait_loops = MAX_WAIT_LOOPS;
 		}
-
-	} else {
-		wait_loops = 1;
-		//return;
+		break;
+	case WAIT_MAX:
+		// Espera maxima
+		wait_loops = MAX_WAIT_LOOPS;
+		break;
 	}
 
 	// Espera
-	xprintf_P( PSTR("%s: Espera progresiva(%d)\0"), RTC_logprint(), ( wait_loops * 60 ));
-	for (i = 1; i<= ( wait_loops * 6 ); i++) {
-
-		// c/10s muestro un tick.
-		vTaskDelay( 10000 / portTICK_RATE_MS );
-		if ( i % 6 == 0 ) {
-			xprintf_P( PSTR("|"));	// Minutos
-		} else {
-			xprintf_P( PSTR("."));	// 10 secs.
-		}
-
+	if ( systemVars.debug == DEBUG_PILOTO ) {
+		xprintf_P( PSTR("%s: Espera progresiva (%d)secs.\r\n\0"), RTC_logprint(), ( wait_loops * 60 ));
 	}
 
-	xprintf_P( PSTR("End\r\n\0"), wait_loops );
+	// Espero de a 1 minuto
+	for (i = 1; i<= wait_loops; i++) {
+		ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
+		vTaskDelay( 60000 / portTICK_RATE_MS );
+	}
+
 }
 //------------------------------------------------------------------------------------
 

@@ -7,8 +7,6 @@
 
 #include "spx.h"
 
-extern uint8_t o_control;
-extern uint16_t o_timer_sistema, o_timer_boya;
 extern bool doutputs_reinit;
 
 //------------------------------------------------------------------------------------
@@ -36,7 +34,7 @@ void doutputs_config_defaults( char *opt )
 	systemVars.doutputs_conf.piloto.band = 0.2;
 	systemVars.doutputs_conf.piloto.max_steps = 6;
 	systemVars.doutputs_conf.piloto.pout = 1.5;
-
+	systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
 	systemVars.doutputs_conf.perforacion.control = CTL_BOYA;
 	systemVars.doutputs_conf.perforacion.outs = 0x00;
 
@@ -45,10 +43,10 @@ void doutputs_config_defaults( char *opt )
 
 }
 //------------------------------------------------------------------------------------
-bool doutputs_config_mode( char *mode )
+bool doutputs_config_mode( char *mode, char *param1, char *param2, char *param3 )
 {
 
-char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
+char l_data[10] = { '\0' } ;
 
 	memcpy(l_data, mode, sizeof(l_data));
 	strupr(l_data);
@@ -56,20 +54,49 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 	if (!strcmp_P( l_data, PSTR("NONE\0"))) {
 		systemVars.doutputs_conf.modo = NONE;
 
-	} else 	if (!strcmp_P( l_data, PSTR("CONS\0"))) {
-		if ( spx_io_board != SPX_IO5CH ) {
+	} else if (!strcmp_P( l_data, PSTR("PERF\0"))) {
+
+		if ( spx_io_board != SPX_IO8CH ) {
 			return(false);
 		}
-		systemVars.doutputs_conf.modo = CONSIGNA;
-
-	} else if (!strcmp_P( l_data, PSTR("PERF\0"))) {
 		systemVars.doutputs_conf.modo = PERFORACIONES;
 
-	} else if (!strcmp_P( l_data, PSTR("PLT\0"))) {
+	} else 	if (!strcmp_P( l_data, PSTR("CONS\0"))) {
+
 		if ( spx_io_board != SPX_IO5CH ) {
 			return(false);
 		}
+
+		systemVars.doutputs_conf.modo = CONSIGNA;
+		if ( param1 != NULL ) {
+			u_convert_int_to_time_t( atoi(param1), &systemVars.doutputs_conf.consigna.hhmm_c_diurna );
+		}
+
+		if ( param2 != NULL ) {
+			u_convert_int_to_time_t( atoi(param2), &systemVars.doutputs_conf.consigna.hhmm_c_nocturna );
+		}
+
+	} else if (!strcmp_P( l_data, PSTR("PLT\0"))) {
+
+		if ( spx_io_board != SPX_IO5CH ) {
+			return(false);
+		}
+
+//		xprintf_P( PSTR("DEBUG PLT: modo=%s, pout=%s, pband=%s, psteps=%s \r\n\0"), mode, param1, param2, param3 );
+
 		systemVars.doutputs_conf.modo = PILOTOS;
+
+		// Configura la presion de referencia, la banda y la cantidad de pasos
+		systemVars.doutputs_conf.piloto.pout = atof( param1);
+
+		if ( param2 != NULL ) {
+			systemVars.doutputs_conf.piloto.band = atof( param2);
+		}
+
+		if ( param3 != NULL ) {
+			systemVars.doutputs_conf.piloto.max_steps = atoi( param3 );
+		}
+
 
 	} else {
 		return(false);
