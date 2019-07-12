@@ -14,6 +14,8 @@ void doutputs_config_defaults( char *opt )
 {
 	// En el caso de SPX_IO8, configura la salida a que inicialmente este todo en off.
 
+uint8_t i;
+
 	if ( spx_io_board == SPX_IO8CH ) {
 
 		if (!strcmp_P( opt, PSTR("UTE\0"))) {
@@ -33,17 +35,24 @@ void doutputs_config_defaults( char *opt )
 
 	systemVars.doutputs_conf.piloto.band = 0.2;
 	systemVars.doutputs_conf.piloto.max_steps = 6;
-	systemVars.doutputs_conf.piloto.pout = 1.5;
 	systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
+
+	for ( i = 0; i < MAX_PILOTO_PSLOTS; i++ ) {
+		systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour = 0;
+		systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min = 0;
+		systemVars.doutputs_conf.piloto.pSlots[i].pout = 0;
+	}
+
 	systemVars.doutputs_conf.perforacion.control = CTL_BOYA;
 	systemVars.doutputs_conf.perforacion.outs = 0x00;
+
 
 	perforaciones_set_douts(0x00 );
 	doutputs_reinit = true;
 
 }
 //------------------------------------------------------------------------------------
-bool doutputs_config_mode( char *mode, char *param1, char *param2, char *param3 )
+bool doutputs_config_mode( char *mode )
 {
 
 char l_data[10] = { '\0' } ;
@@ -68,13 +77,6 @@ char l_data[10] = { '\0' } ;
 		}
 
 		systemVars.doutputs_conf.modo = CONSIGNA;
-		if ( param1 != NULL ) {
-			u_convert_int_to_time_t( atoi(param1), &systemVars.doutputs_conf.consigna.hhmm_c_diurna );
-		}
-
-		if ( param2 != NULL ) {
-			u_convert_int_to_time_t( atoi(param2), &systemVars.doutputs_conf.consigna.hhmm_c_nocturna );
-		}
 
 	} else if (!strcmp_P( l_data, PSTR("PLT\0"))) {
 
@@ -82,21 +84,7 @@ char l_data[10] = { '\0' } ;
 			return(false);
 		}
 
-//		xprintf_P( PSTR("DEBUG PLT: modo=%s, pout=%s, pband=%s, psteps=%s \r\n\0"), mode, param1, param2, param3 );
-
 		systemVars.doutputs_conf.modo = PILOTOS;
-
-		// Configura la presion de referencia, la banda y la cantidad de pasos
-		systemVars.doutputs_conf.piloto.pout = atof( param1);
-
-		if ( param2 != NULL ) {
-			systemVars.doutputs_conf.piloto.band = atof( param2);
-		}
-
-		if ( param3 != NULL ) {
-			systemVars.doutputs_conf.piloto.max_steps = atoi( param3 );
-		}
-
 
 	} else {
 		return(false);

@@ -176,4 +176,18 @@ RtcTimeType_t rtcDateTime;
 
 }
 //------------------------------------------------------------------------------------
+bool consigna_config ( char *hhmm1, char *hhmm2 )
+{
+	if ( hhmm1 != NULL ) {
+		u_convert_int_to_time_t( atoi( hhmm1), &systemVars.doutputs_conf.consigna.hhmm_c_diurna );
+	}
 
+	if ( hhmm2 != NULL ) {
+		u_convert_int_to_time_t( atoi(hhmm2), &systemVars.doutputs_conf.consigna.hhmm_c_nocturna );
+	}
+
+	doutputs_reinit = true;
+	return(true);
+
+}
+//------------------------------------------------------------------------------------

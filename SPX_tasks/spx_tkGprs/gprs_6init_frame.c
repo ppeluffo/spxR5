@@ -673,9 +673,6 @@ char localStr[32] =  { '\0' };
 char *stringp = NULL;
 char *tk_doutmode = NULL;
 char *delim = ",=:><";
-char *param1 = NULL;
-char *param2 = NULL;
-char *param3 = NULL;
 uint8_t ret = 0;
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DOUTMODE");
@@ -689,17 +686,10 @@ uint8_t ret = 0;
 
 	stringp = localStr;
 
-	//xprintf_P( PSTR("DEBUG GPRS_PLT(1): %s\r\n\0"),stringp );
-
 	strsep(&stringp,delim);					// DOUTMODE
 	tk_doutmode = strsep(&stringp,delim);	// NONE,CONS,PERF,PLT
-	param1 = strsep(&stringp,delim);		// pout
-	param2 = strsep(&stringp,delim);		// pband
-	param3 = strsep(&stringp,delim);		// psteps
 
-	//xprintf_P( PSTR("DEBUG GPRS_PLT(2): P1=%s, P2=%s, P3=%s \r\n\0"), param1, param2, param3 );
-
-	if ( doutputs_config_mode( tk_doutmode, param1, param2, param3 ) == true ) {
+	if ( doutputs_config_mode( tk_doutmode ) == true ) {
 		ret = 1;
 	}
 

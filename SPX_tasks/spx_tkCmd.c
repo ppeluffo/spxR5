@@ -269,7 +269,7 @@ uint8_t VA_cnt, VB_cnt, VA_status, VB_status;
 	case PILOTOS:
 		pilotos_readCounters(&VA_cnt, &VB_cnt, &VA_status, &VB_status );
 		xprintf_P( PSTR("  doutputs modo: PILOTO\r\n"));
-		xprintf_P( PSTR("  pout_ref=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.pout );
+		//xprintf_P( PSTR("  pout_ref=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.pout );
 		xprintf_P( PSTR("  pband=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.band );
 		xprintf_P( PSTR("  max_steps=%d, VAp=%d, VBp=%d\r\n\0"), systemVars.doutputs_conf.piloto.max_steps, VA_cnt, VB_cnt );
 		switch(systemVars.doutputs_conf.piloto.tipo_valvula) {
@@ -283,6 +283,11 @@ uint8_t VA_cnt, VB_cnt, VA_status, VB_status;
 			xprintf_P( PSTR("  VReg: grande\r\n"));
 			break;
 		}
+		xprintf_P( PSTR("  Slots: "));
+		for ( channel = 0; channel < MAX_PILOTO_PSLOTS; channel++ ) {
+			xprintf_P( PSTR("[%d]%02d:%02d->%.02f "), channel, systemVars.doutputs_conf.piloto.pSlots[channel].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[channel].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[channel].pout );
+		}
+		xprintf_P( PSTR("\r\n\0"));
 		break;
 	}
 
@@ -635,24 +640,26 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
-	// REGULADORA
-	// config regualadora
-	if (!strcmp_P( strupr(argv[1]), PSTR("REGULADORA\0"))) {
-		if (!strcmp_P( strupr(argv[2]), PSTR("CHICA\0"))) {
-			systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("MEDIA\0"))) {
-			systemVars.doutputs_conf.piloto.tipo_valvula = VR_MEDIA;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("GRANDE\0"))) {
-			systemVars.doutputs_conf.piloto.tipo_valvula = VR_GRANDE;
-		}
-		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+	// OUTMODE
+	// outmode {none|cons | perf | plt
+	if (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
+		retS = doutputs_config_mode( argv[2]);
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
-	// OUTMODE
-	// outmode {none|cons {hhmm1} {hhmm2} |perf|plt {pout} {pband} {max_steps}
-	if (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
-		retS = doutputs_config_mode( argv[2], argv[3], argv[4], argv[5] );
+	// CONSIGNA
+	// config consigna {hhmm1} {hhmm2}
+	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
+		retS = consigna_config( argv[2], argv[3]);
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
+	// PILOTO
+	// config piloto { reg { CHICA | MEDIA | GRANDE },pout {pout},pband {pband},steps {steps},slot {idx} {hhmm} {pout} }\r\n\0"));
+	if (!strcmp_P( strupr(argv[1]), PSTR("PILOTO\0")) ) {
+		retS = piloto_config( argv[2], argv[3], argv[4], argv[5]);
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -991,8 +998,9 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
 		}
 
-		xprintf_P( PSTR("  outmode { none | cons {hhmm1} {hhmm2} | perf | plt {pout} {pband} {max_steps} }\r\n\0"));
-		xprintf_P( PSTR("  reguladora { CHICA | MEDIA | GRANDE }\r\n\0"));
+		xprintf_P( PSTR("  outmode { none | perf | plt | cons }\r\n\0"));
+		xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));
+		xprintf_P( PSTR("  piloto { reg{CHICA|MEDIA|GRANDE}, pband {pband},steps {steps},slot {idx} {hhmm} {pout} }\r\n\0"));
 		xprintf_P( PSTR("  default {SPY|OSE|UTE}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
 	}
@@ -1613,7 +1621,7 @@ static void cmdPokeFunction(void)
 		range_config(argv[2]);
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
-		doutputs_config_mode( argv[2], argv[3], argv[4], argv[5] );
+		doutputs_config_mode( argv[2] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0")) ) {
 		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );

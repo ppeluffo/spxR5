@@ -614,13 +614,14 @@ char *p = NULL;
 //------------------------------------------------------------------------------------
 static void pv_process_response_POUT(void)
 {
-	// Recibi algo del estilo >RX_OK:469:POUT=1.4
+	// Recibi algo del estilo >RX_OK:469:POUT=slot, pout
 
 	// Extraigo el valor de las pout y las seteo.
 
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_pout = NULL;
+char *tk_slot = NULL;
 char *delim = ",=:><";
 char *p = NULL;
 
@@ -634,11 +635,12 @@ char *p = NULL;
 	memcpy(localStr,p,sizeof(localStr));
 
 	stringp = localStr;
-	tk_pout = strsep(&stringp,delim);	//POUT
-	tk_pout = strsep(&stringp,delim);	// Str. con el valor de las pout
+	tk_slot = strsep(&stringp,delim);	//POUT
+	tk_slot = strsep(&stringp,delim);	// slot
+	tk_pout = strsep(&stringp,delim);	// pout
 
 	// Actualizo.
-	systemVars.doutputs_conf.piloto.pout = ( atof( tk_pout ));
+	piloto_config_online( tk_slot, tk_pout);
 	u_save_params_in_NVMEE();
 
 	if ( systemVars.debug == DEBUG_GPRS ) {

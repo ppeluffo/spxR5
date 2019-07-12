@@ -63,7 +63,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.0.5"
-#define SPX_FW_DATE "@ 20190711"
+#define SPX_FW_DATE "@ 20190712"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -87,6 +87,8 @@
 #define IO8_DINPUTS_CHANNELS	8
 #define IO8_COUNTER_CHANNELS	2
 #define IO8_DOUTPUTS_CHANNELS	8
+
+#define MAX_PILOTO_PSLOTS		5
 
 #define CHAR32	32
 #define CHAR64	64
@@ -217,11 +219,16 @@ typedef struct {
 	consigna_t c_aplicada;
 } st_consigna_t;
 
+typedef struct {		// Elemento de piloto: presion, hora.
+	st_time_t hhmm;
+	float pout;
+} st_piloto_data_t;
+
 typedef struct {
-	float pout;				// Presion de referencia que hay que poner ( configurable )
 	float band;				// Banda de variacion de la presion de trabajo ( configurable )
 	uint8_t max_steps;		// Maxima cantida de pasos para llegar a la presion ( configurable )
 	t_valvula_reguladora tipo_valvula;
+	st_piloto_data_t pSlots [MAX_PILOTO_PSLOTS];	// lista de presiones y horas en que se pone c/u.
 } st_pilotos_t;
 
 typedef struct {
@@ -374,7 +381,7 @@ void data_read_pAB( float *pA, float *pB );
 
 // DOUTPUTS
 void doutputs_config_defaults( char *opt );
-bool doutputs_config_mode( char *mode, char *param1, char *param2, char *param3 );
+bool doutputs_config_mode( char *mode );
 bool doutputs_cmd_write_valve( char *param1, char *param2 );
 bool doutputs_cmd_write_outputs( char *param_pin, char *param_state );
 
@@ -382,6 +389,7 @@ bool doutputs_cmd_write_outputs( char *param_pin, char *param_state );
 bool consigna_write( char *tipo_consigna_str);
 void tk_init_consigna(void);
 void tk_consigna(void);
+bool consigna_config ( char *hhmm1, char *hhmm2 );
 
 // DOUTPUTS: Perforaciones
 void tk_init_perforaciones(void);
@@ -395,6 +403,8 @@ void tk_pilotos(void);
 void tk_init_pilotos(void);
 void pilotos_readCounters( uint8_t *VA_cnt, uint8_t *VB_cnt, uint8_t *VA_status, uint8_t *VB_status );
 void pilotos_df_print( dataframe_s *df );
+bool piloto_config( char *param1, char *param2, char *param3, char *param4 );
+void piloto_config_online( char *slot, char *pout );
 
 // WATCHDOG
 uint8_t wdg_resetCause;

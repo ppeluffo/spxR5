@@ -47,6 +47,7 @@ void pv_piloto_espera_progresiva( espera_t espera );
 float pv_piloto_calcular_pwidth( float delta_P, float presion_alta );
 espera_t pv_piloto_regular_presion( void );
 void pv_piloto_leer_pB_estable( t_valvula_reguladora tipo_valvula_reguladora  );
+int8_t pv_get_pslot_actual(void);
 
 //------------------------------------------------------------------------------------
 void tk_init_pilotos(void)
@@ -117,7 +118,7 @@ void pv_pilotos_set_lineal_zone( t_init_limit_presion zona )
 	// 1.5s para llevarlo a unos 1.6K.
 
 	if ( systemVars.debug == DEBUG_PILOTO ) {
-		xprintf_P( PSTR("%s: Set lineal_zone..\r\n\0"), RTC_logprint() );
+		xprintf_P( PSTR("PLT: %s: Set lineal_zone..\r\n\0"), RTC_logprint() );
 	}
 
 	if ( zona == ALTA_PRESION ) {
@@ -162,7 +163,7 @@ void pv_piloto_vopen ( char valve_id )
 	vTaskDelay( ( TickType_t)( TIME_PWR_ON_VALVES / portTICK_RATE_MS ) );
 
 	if ( systemVars.debug == DEBUG_PILOTO ) {
-		xprintf_P( PSTR("%s: VALVE OPEN %c\r\n\0"), RTC_logprint(), valve_id );
+		xprintf_P( PSTR("PLT: %s: VALVE OPEN %c\r\n\0"), RTC_logprint(), valve_id );
 	}
 
 	DRV8814_vopen( valve_id, 100);
@@ -190,7 +191,7 @@ void pv_piloto_vclose ( char valve_id )
 	vTaskDelay( ( TickType_t)( TIME_PWR_ON_VALVES / portTICK_RATE_MS ) );
 
 	if ( systemVars.debug == DEBUG_PILOTO ) {
-		xprintf_P( PSTR("%s: VALVE CLOSE %c\r\n\0"), RTC_logprint(), valve_id );
+		xprintf_P( PSTR("PLT: %s: VALVE CLOSE %c\r\n\0"), RTC_logprint(), valve_id );
 	}
 
 	DRV8814_vclose( valve_id, 100);
@@ -219,7 +220,7 @@ void pv_piloto_vpulse( char valve_id, float pulse_width_s )
 
 	DRV8814_vopen( toupper(valve_id), 100);
 	if ( systemVars.debug == DEBUG_PILOTO ) {
-		xprintf_P( PSTR("%s: Vopen %c\r\n\0"), RTC_logprint(), valve_id );
+		xprintf_P( PSTR("PLT: %s: Vopen %c\r\n\0"), RTC_logprint(), valve_id );
 	}
 
 	switch (valve_id) {
@@ -235,7 +236,7 @@ void pv_piloto_vpulse( char valve_id, float pulse_width_s )
 	DRV8814_vclose( toupper(valve_id), 100);
 
 	if ( systemVars.debug == DEBUG_PILOTO ) {
-		xprintf_P( PSTR("%s: Vclose %c\r\n\0"), RTC_logprint(), valve_id );
+		xprintf_P( PSTR("PLT: %s: Vclose %c\r\n\0"), RTC_logprint(), valve_id );
 	}
 
 	switch (valve_id) {
@@ -289,19 +290,19 @@ int8_t counts;
 		pv_push_stack( &pres_baja_s, ldata.pB );
 
 		if ( systemVars.debug == DEBUG_PILOTO ) {
-			xprintf_P(PSTR("%s: Mon: P.alta=%.02f, P.baja=%.02f\r\n\0"), RTC_logprint(), ldata.pA, ldata.pB );
+			xprintf_P(PSTR("PLT: %s: Mon: P.alta=%.02f, P.baja=%.02f\r\n\0"), RTC_logprint(), ldata.pA, ldata.pB );
 		}
 	}
 
 	if ( systemVars.debug == DEBUG_PILOTO ) {
-		xprintf_P( PSTR("%s: Mon: \0"), RTC_logprint());
+		xprintf_P( PSTR("PLT: %s: Mon: \0"), RTC_logprint());
 		pv_print_stack( &pres_baja_s );
 	}
 
 	ldata.pB_avg = pv_get_stack_avg( &pres_baja_s );
 
 	if ( systemVars.debug == DEBUG_PILOTO ) {
-		xprintf_P( PSTR("%s: Mon: P.baja avg = %0.02f\r\n\0"), RTC_logprint(), ldata.pB_avg );
+		xprintf_P( PSTR("PLT: %s: Mon: P.baja avg = %0.02f\r\n\0"), RTC_logprint(), ldata.pB_avg );
 	}
 }
 //------------------------------------------------------------------------------------
@@ -337,16 +338,27 @@ espera_t pv_piloto_regular_presion( void )
 float delta_P;
 float pulseW;
 espera_t espera;
+float pout = 0.0;
+int8_t pslot;
 
 	// Calculos
 	// Diferencia de presion. Puede ser positiva o negativa
-	delta_P = ( systemVars.doutputs_conf.piloto.pout - ldata.pB_avg );
+
+	pslot = pv_get_pslot_actual();
+	if ( pslot < 0 ) {
+		// No tengo slots con hhmm configurados. Salgo son regular.
+		xprintf_P(PSTR("PLT: No slots hhmm configurados !!!.\r\n\0"));
+		return( WAIT_MAX );
+	}
+
+	pout = systemVars.doutputs_conf.piloto.pSlots[ pslot ].pout;
+	delta_P = ( pout - ldata.pB_avg );
 
 	if ( fabs(delta_P) <= systemVars.doutputs_conf.piloto.band  ) {
 		// No debo regular
 		if ( systemVars.debug == DEBUG_PILOTO ) {
-			xprintf_P(PSTR("%s: Reg(in-band): deltaP(%.02f) = %.02f (%.02f - %.02f)\r\n\0"), RTC_logprint(), systemVars.doutputs_conf.piloto.band, delta_P, systemVars.doutputs_conf.piloto.pout, ldata.pB_avg );
-			xprintf_P(PSTR("%s: Reg STEPS: total=%d, VA=%d, VB=%d\r\n\0"), RTC_logprint(), (ldata.VA_cnt + ldata.VB_cnt), ldata.VA_cnt,ldata.VB_cnt );
+			xprintf_P(PSTR("PLT: %s: Reg(in-band): deltaP(%.02f) = %.02f (%.02f - %.02f)\r\n\0"), RTC_logprint(), systemVars.doutputs_conf.piloto.band, delta_P, pout, ldata.pB_avg );
+			xprintf_P(PSTR("PLT: %s: Reg STEPS: total=%d, VA=%d, VB=%d\r\n\0"), RTC_logprint(), (ldata.VA_cnt + ldata.VB_cnt), ldata.VA_cnt,ldata.VB_cnt );
 			xprintf_P(PSTR("\r\n\0"));
 		}
 
@@ -360,15 +372,15 @@ espera_t espera;
 		// Si debo regular
 		pulseW = pv_piloto_calcular_pwidth( delta_P, ldata.pA );
 		if ( systemVars.debug == DEBUG_PILOTO ) {
-			xprintf_P(PSTR("%s: Reg(out-band): deltaP(%.02f) = %.02f (%.02f - %.02f), pulse_width = %.02f\r\n\0"), RTC_logprint(), systemVars.doutputs_conf.piloto.band, delta_P, systemVars.doutputs_conf.piloto.pout, ldata.pB_avg, pulseW );
+			xprintf_P(PSTR("PLT: %s: Reg(out-band): deltaP(%.02f) = %.02f (%.02f - %.02f), pulse_width = %.02f\r\n\0"), RTC_logprint(), systemVars.doutputs_conf.piloto.band, delta_P, pout, ldata.pB_avg, pulseW );
 		}
 		// Aplico correcciones.
-		if ( systemVars.doutputs_conf.piloto.pout > ldata.pB_avg ) {
+		if ( pout > ldata.pB_avg ) {
 			// Delta > 0
 			// Debo subir la presion ( llenar el piston )
 			ldata.VA_cnt++;
 			pv_piloto_vpulse( 'A', pulseW );
-		} else if ( systemVars.doutputs_conf.piloto.pout < ldata.pB_avg ) {
+		} else if ( pout < ldata.pB_avg ) {
 			// Delta  < 0
 			// Debo bajar la presion ( vaciar el piston )
 			pv_piloto_vpulse( 'B', pulseW );
@@ -376,7 +388,7 @@ espera_t espera;
 		}
 
 		if ( systemVars.debug == DEBUG_PILOTO ) {
-			xprintf_P(PSTR("%s: Reg Pulsos: total=%d, VA=%d, VB=%d\r\n\0"), RTC_logprint(), (ldata.VA_cnt + ldata.VB_cnt), ldata.VA_cnt, ldata.VB_cnt );
+			xprintf_P(PSTR("PLT: %s: Reg Pulsos: total=%d, VA=%d, VB=%d\r\n\0"), RTC_logprint(), (ldata.VA_cnt + ldata.VB_cnt), ldata.VA_cnt, ldata.VB_cnt );
 		}
 
 		if ( (ldata.VA_cnt + ldata.VB_cnt) > systemVars.doutputs_conf.piloto.max_steps ) {
@@ -424,7 +436,7 @@ uint16_t i;
 
 	// Espera
 	if ( systemVars.debug == DEBUG_PILOTO ) {
-		xprintf_P( PSTR("%s: Espera progresiva (%d)secs.\r\n\0"), RTC_logprint(), ( wait_loops * 60 ));
+		xprintf_P( PSTR("PLT: %s: Espera progresiva (%d)secs.\r\n\0"), RTC_logprint(), ( wait_loops * 60 ));
 	}
 
 	// Espero de a 1 minuto
@@ -435,6 +447,122 @@ uint16_t i;
 
 }
 //------------------------------------------------------------------------------------
+bool piloto_config( char *param1, char *param2, char *param3, char *param4 )
+{
+	// config piloto { reg { CHICA | MEDIA | GRANDE },pband {pband},steps {steps},slot {idx} {hhmm} {pout} }\r\n\0"));
 
+uint8_t idx;
 
+	if (!strcmp_P( strupr(param1), PSTR("REG\0"))) {
+		// Configuro tipo de valvula reguladora
+		if (!strcmp_P( strupr( param2), PSTR("CHICA\0"))) {
+			systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
+			return(true);
+		} else if (!strcmp_P( strupr(param2), PSTR("MEDIA\0"))) {
+			systemVars.doutputs_conf.piloto.tipo_valvula = VR_MEDIA;
+			return(true);
+		} else if (!strcmp_P( strupr(param2), PSTR("GRANDE\0"))) {
+			systemVars.doutputs_conf.piloto.tipo_valvula = VR_GRANDE;
+			return(true);
+		}
+
+	} else if (!strcmp_P( strupr(param1), PSTR("PBAND\0"))) {
+		// Banda de variabilidad de la presion regulada
+		if ( param2 != NULL ) {
+			systemVars.doutputs_conf.piloto.band = atof( param2);
+			return(true);
+		}
+
+	} else if (!strcmp_P( strupr(param1), PSTR("STEPS\0"))) {
+		// Maxima cantidad de pulsos para llegar a la presion dada
+		if ( param2 != NULL ) {
+			systemVars.doutputs_conf.piloto.max_steps = atoi( param2);
+			return(true);
+		}
+
+	} else if (!strcmp_P( strupr(param1), PSTR("SLOT\0"))) {
+		// Intervalos tiempo:presion.
+		idx = atoi(param2);
+		if ( idx < MAX_PILOTO_PSLOTS ) {
+			if ( param3 != NULL ) {
+				u_convert_int_to_time_t( atoi( param3), &systemVars.doutputs_conf.piloto.pSlots[idx].hhmm );
+			}
+			if ( param4 != NULL ) {
+				systemVars.doutputs_conf.piloto.pSlots[idx].pout = atof(param4);
+			}
+			return(true);
+		}
+	}
+
+	return(false);
+}
+//------------------------------------------------------------------------------------
+void piloto_config_online( char *slot, char *pout )
+{
+	// Cambia la presion del slot indicado.
+	// Se usa para los casos en que por EPANET deba modificar una presion
+
+	systemVars.doutputs_conf.piloto.pSlots[atoi(slot)].pout = atof(pout);
+
+}
+//------------------------------------------------------------------------------------
+int8_t pv_get_pslot_actual(void)
+{
+	// Determina en base a la hhmm actuales, en cual pslot estoy.
+	// LOS PSLOTS DEBEN ESTAR ORDENADOS POR FECHA.
+	// La hhmm = 00:00 se usa como un tag para indicar vacio !!!!
+	// Si no tengo ningun slot configurado ( todos hhmm = 00:00 ) salgo con -1
+
+RtcTimeType_t rtcDateTime;
+uint16_t time_now_s, time_slot_s;
+uint8_t i;
+int8_t slot, max_slot;
+
+	// No hay hhmm configuradas.
+	if ( ( systemVars.doutputs_conf.piloto.pSlots[0].hhmm.hour == 0) && ( systemVars.doutputs_conf.piloto.pSlots[0].hhmm.min == 0) ) {
+		return (-1);
+	}
+
+	// NOW
+	memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
+	if ( ! RTC_read_dtime(&rtcDateTime) ) {
+		xprintf_P(PSTR("ERROR: I2C:RTC:pv_dout_chequear_consignas\r\n\0"));
+		return(-1);
+	}
+
+	time_now_s = rtcDateTime.hour * 60 + rtcDateTime.min;
+
+	// Vemos a que slot de tiempo corresponde NOW
+	slot = -1;
+	max_slot = 0;
+	for ( i = 0; i < MAX_PILOTO_PSLOTS; i++ ) {
+		time_slot_s = systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour * 60 + systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min;
+		if ( time_slot_s != 0 )
+			max_slot = i;
+
+	}
+
+	for ( i = 0; i < MAX_PILOTO_PSLOTS; i++ ) {
+		time_slot_s = systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour * 60 + systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min;
+
+		if ( time_slot_s == 0 ) {		// Encontre un slot no definid: termino
+			break;
+		}
+
+		if ( time_now_s <= time_slot_s ) {	// Now esta en el slot: salgo
+			break;
+		}
+
+		slot++;
+	}
+
+	// Si sali con slot = -1, corresponde a un round-a-robin.
+	if ( slot == -1 )
+		slot = max_slot;
+
+	// Todos los slots estan en 00:00.
+	return(slot);
+
+}
+//------------------------------------------------------------------------------------
 

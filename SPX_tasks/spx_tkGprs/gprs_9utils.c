@@ -538,10 +538,17 @@ uint8_t i = 0;
 		break;
 	case CONSIGNA:
 		// Consignas
-		xCom_printf_P( fdGPRS, PSTR("&DOUTS=CONS,%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
+		xCom_printf_P( fdGPRS, PSTR("&DOUTS=CONS\0"));
 		// DEBUG & LOG
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&DOUTS=CONS,%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
+			xprintf_P( PSTR("&DOUTS=CONS\0"));
+		}
+		//
+		// CONSIGNA
+		xCom_printf_P( fdGPRS, PSTR("&CONS=%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
+		// DEBUG & LOG
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("&CONS=%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
 		}
 		break;
 	case PERFORACIONES:
@@ -552,10 +559,9 @@ uint8_t i = 0;
 		}
 		break;
 	case PILOTOS:
-		xCom_printf_P( fdGPRS, PSTR("&DOUTS=PLT,%.02f,%.02f,%d\0"), systemVars.doutputs_conf.piloto.pout,systemVars.doutputs_conf.piloto.band, systemVars.doutputs_conf.piloto.max_steps );
-		// DEBUG & LOG
+		xCom_printf_P( fdGPRS, PSTR("&DOUTS=PLT\0"));
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&DOUTS=PLT,%.02f,%.02f,%d\0"), systemVars.doutputs_conf.piloto.pout,systemVars.doutputs_conf.piloto.band, systemVars.doutputs_conf.piloto.max_steps );
+			xprintf_P( PSTR("&DOUTS=PLT\0"));
 		}
 		break;
 	}
