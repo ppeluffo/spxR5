@@ -63,7 +63,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.0.5"
-#define SPX_FW_DATE "@ 20190712"
+#define SPX_FW_DATE "@ 20190813"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -102,6 +102,7 @@
 #define tkDoutputs_STACK_SIZE	512
 #define tkGprs_rx_STACK_SIZE	1024
 #define tkGprs_tx_STACK_SIZE	1024
+#define tkDinputs_STACK_SIZE	512
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
@@ -110,10 +111,11 @@
 #define tkDoutputs_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
 #define tkGprs_rx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkGprs_tx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define tkDinputs_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 
 #define TDIAL_MIN_DISCRETO 900
 
-#define MODO_DISCRETO ( (systemVars.gprs_conf.timerDial > TDIAL_MIN_DISCRETO ) ? true : false )
+#define MODO_DISCRETO ( (systemVars.gprs_conf.timerDial >= TDIAL_MIN_DISCRETO ) ? true : false )
 
 // Mensajes entre tareas
 #define TK_FRAME_READY			0x01	//
@@ -129,7 +131,7 @@ typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
 typedef enum { OPEN = 0, CLOSE } t_valve_status;
 typedef enum { VR_CHICA = 0, VR_MEDIA, VR_GRANDE } t_valvula_reguladora;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter0 ,xHandle_tkCounter1 , xHandle_tkData, xHandle_tkDoutputs,  xHandle_tkGprsRx, xHandle_tkGprsTx;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkCounter0 ,xHandle_tkCounter1 , xHandle_tkData, xHandle_tkDoutputs, xHandle_tkDinputs, xHandle_tkGprsRx, xHandle_tkGprsTx;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -154,6 +156,7 @@ void tkData(void * pvParameters);
 void tkDoutputs(void * pvParameters);
 void tkGprsRx(void * pvParameters);
 void tkGprsTx(void * pvParameters);
+void tkDinputs(void * pvParameters);
 
 #define DLGID_LENGTH		12
 #define PARAMNAME_LENGTH	5
@@ -254,6 +257,7 @@ typedef struct {
 // Configuracion de canales digitales
 typedef struct {
 	char name[MAX_DINPUTS_CHANNELS][PARAMNAME_LENGTH];
+	uint16_t tpoll[MAX_DINPUTS_CHANNELS];
 } dinputs_conf_t;
 
 // Configuracion de canales analogicos
@@ -340,7 +344,7 @@ void ctl_set_timeToNextDial( uint32_t new_time );
 void dinputs_init( void );
 int8_t dinputs_read_channel ( uint8_t din );
 void dinputs_config_defaults(void);
-bool dinputs_config_channel( uint8_t channel,char *s_aname );
+bool dinputs_config_channel( uint8_t channel,char *s_aname ,char *s_tpoll );
 void dinputs_df_print( dataframe_s *df );
 
 // RANGE
@@ -378,6 +382,9 @@ void counters_df_print( dataframe_s *df );
 // TKDATA
 void data_read_frame( bool polling );
 void data_read_pAB( float *pA, float *pB );
+
+// DINPUTS
+void dinputs_read_din( uint16_t *d0, uint16_t *d1 );
 
 // DOUTPUTS
 void doutputs_config_defaults( char *opt );
@@ -417,8 +424,9 @@ uint8_t wdg_resetCause;
 #define WDG_DOUT		5
 #define WDG_GPRSRX		6
 #define WDG_GPRSTX		7
+#define WDG_DINPUTS		8
 
-#define NRO_WDGS		8
+#define NRO_WDGS		9
 
 #define WDG_DOUT_TIMEOUT	100
 

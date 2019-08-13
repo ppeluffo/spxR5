@@ -335,6 +335,8 @@ void u_config_timerpoll ( char *s_timerpoll )
 	if ( systemVars.timerPoll > 3600 )
 		systemVars.timerPoll = 300;
 
+	u_gprs_redial();
+
 	return;
 }
 //------------------------------------------------------------------------------------
@@ -365,6 +367,9 @@ void u_format_memory(void)
 
 	vTaskSuspend( xHandle_tkGprsTx );
 	ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
+
+	vTaskSuspend( xHandle_tkDinputs );
+	ctl_watchdog_kick(WDG_DINPUTS, 0x8000 );
 
 	// Formateo
 	FF_format(true);

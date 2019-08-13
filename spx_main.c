@@ -23,7 +23,11 @@
  *  18488618
  *  22923645
  *
- *  Version 2.0.6 @ 20190710
+ *  Version 2.0.5 @ 20190812
+ *  - BUG timerpoll: Al reconfigurarse on-line, si estaba en modo continuo, luego del init pasa al modo data
+ *  y hasta que no caiga el enlace y pase por 'esperar_apagado', no va a releer los parametros.
+ *  La solucion es mandar una señal de redial.
+ *
  *  - Modifico la estructura de archivos fuentes para segmentar el manejo
  *  de las salidas como general, consignas, perforaciones y pilotos
  *  - Agrego las rutinas de regulacion por piloto.
@@ -33,7 +37,9 @@
  *  semaforo.
  *  - Agrego a la estructura io5 el valor de VA/B_cnt para trasmitirlo y ver como opera
  *  el piloto.
- *  - Corrigo un bug en la trasmision de los INITS en el modulo del rangemeter.
+ *  - Corrigo un bug en la trasmision de los INITS en el modulo del rangemeter
+ *  - Agrego que los canales digitales tienen un timerpoll y si es > 0 los poleo.
+ *
  *
  *  Version 2.0.5 @ 20190702
  *  - Inicializo todas las variables en todos los modulos.
@@ -173,6 +179,7 @@ int main( void )
 	xTaskCreate(tkDoutputs, "DOUT", tkDoutputs_STACK_SIZE, NULL, tkDoutputs_TASK_PRIORITY,  &xHandle_tkDoutputs);
 	xTaskCreate(tkGprsRx, "RX", tkGprs_rx_STACK_SIZE, NULL, tkGprs_rx_TASK_PRIORITY,  &xHandle_tkGprsRx );
 	xTaskCreate(tkGprsTx, "TX", tkGprs_tx_STACK_SIZE, NULL, tkGprs_tx_TASK_PRIORITY,  &xHandle_tkGprsTx );
+	xTaskCreate(tkDinputs, "DIN", tkDinputs_STACK_SIZE, NULL, tkDinputs_TASK_PRIORITY,  &xHandle_tkDinputs );
 
 	/* Arranco el RTOS. */
 	vTaskStartScheduler();

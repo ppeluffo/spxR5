@@ -26,7 +26,7 @@ void dinputs_init( void )
 
 }
 //------------------------------------------------------------------------------------
-bool dinputs_config_channel( uint8_t channel,char *s_aname )
+bool dinputs_config_channel( uint8_t channel,char *s_aname ,char *s_tpoll )
 {
 
 	// Configura los canales digitales. Es usada tanto desde el modo comando como desde el modo online por gprs.
@@ -44,8 +44,12 @@ bool retS = false;
 
 	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
 		snprintf_P( systemVars.dinputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
+		if ( s_tpoll != NULL ) {
+			systemVars.dinputs_conf.tpoll[channel] = atoi(s_tpoll);
+		}
 		retS = true;
 	}
+
 
 	return(retS);
 }
@@ -58,6 +62,7 @@ uint8_t i = 0;
 
 	for ( i = 0; i < MAX_DINPUTS_CHANNELS; i++ ) {
 		snprintf_P( systemVars.dinputs_conf.name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );
+		systemVars.dinputs_conf.tpoll[i] = 0;
 	}
 
 }

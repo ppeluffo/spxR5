@@ -37,7 +37,7 @@ char buff_gprs_ccid[IMEIBUFFSIZE];
 typedef enum { G_ESPERA_APAGADO = 0, G_PRENDER, G_CONFIGURAR, G_MON_SQE, G_SCAN_APN, G_GET_IP, G_SCAN_FRAME, G_INIT_FRAME, G_DATA } t_gprs_states;
 typedef enum { SOCK_CLOSED = 0, SOCK_OPEN, SOCK_ERROR, SOCK_FAIL } t_socket_status;
 typedef enum { FRAME_ERROR = 0, FRAME_SOCK_CLOSE, FRAME_OK, FRAME_NOT_ALLOWED, FRAME_ERR404, FRAME_RETRY } t_frame_responses;
-typedef enum { INIT_FRAME = 0, SCAN_FRAME } t_frames;
+typedef enum { INIT_FRAME_A = 0, INIT_FRAME_B, SCAN_FRAME } t_frames;
 
 struct {
 	bool modem_prendido;
@@ -64,7 +64,8 @@ bool st_gprs_configurar(void);
 bool st_gprs_monitor_sqe(void);
 bool st_gprs_scan_apn(void);
 bool st_gprs_get_ip(void);
-bool st_gprs_init_frame(void);
+bool st_gprs_init_frame_A(void);
+bool st_gprs_init_frame_B(void);
 bool st_gprs_scan_frame(void);
 bool st_gprs_data(void);
 
@@ -94,7 +95,8 @@ bool u_gprs_modem_prendido(void);
 bool u_gprs_modem_link_up(void);
 
 bool u_gprs_send_frame( t_frames frame_type );
-void u_gprs_send_INIT_frame(void);
+void u_gprs_send_INIT_A_frame(void);
+void u_gprs_send_INIT_B_frame(void);
 void u_gprs_send_SCAN_frame(void);
 
 uint32_t u_gprs_read_timeToNextDial(void);

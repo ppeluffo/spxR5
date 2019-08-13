@@ -9,7 +9,8 @@
 
 static t_frame_responses pv_init_process_response(void);
 static void pv_init_process_server_clock(void);
-static void pv_init_reconfigure_params(void);
+static void pv_init_reconfigure_params_A(void);
+static void pv_init_reconfigure_params_B(void);
 static uint8_t pv_init_config_dlg_id(void);
 static uint8_t pv_init_config_pwrSave(void);
 static uint8_t pv_init_config_timerPoll(void);
@@ -19,13 +20,17 @@ static uint8_t pv_init_config_analogCh(uint8_t channel);
 static uint8_t pv_init_config_counterCh(uint8_t channel);
 static uint8_t pv_init_config_rangeMeter(void);
 static uint8_t pv_init_config_doutputs(void);
+static uint8_t pv_init_config_consignas(void);
 static uint8_t pv_init_config_default(void);
+static uint8_t pv_init_B_config_pband(void);
+static uint8_t pv_init_B_config_psteps(void);
+static uint8_t pv_init_B_config_pslots(uint8_t channel);
 
 // La tarea no puede demorar mas de 180s.
 #define WDG_GPRS_TO_INIT	180
 
 //------------------------------------------------------------------------------------
-bool st_gprs_init_frame(void)
+bool st_gprs_init_frame_A(void)
 {
 	// Debo mandar el frame de init al server, esperar la respuesta, analizarla
 	// y reconfigurarme.
@@ -46,12 +51,12 @@ bool exit_flag = bool_RESTART;
 
 	ctl_watchdog_kick(WDG_GPRSTX, WDG_GPRS_TO_INIT );
 
-	xprintf_P( PSTR("GPRS: iniframe.\r\n\0" ));
+	xprintf_P( PSTR("GPRS: iniframe_A.\r\n\0" ));
 
 	// Intenteo MAX_INIT_TRYES procesar correctamente el INIT
 	for ( intentos = 0; intentos < MAX_INIT_TRYES; intentos++ ) {
 
-		if ( u_gprs_send_frame( INIT_FRAME ) ) {
+		if ( u_gprs_send_frame( INIT_FRAME_A ) ) {
 
 			switch( pv_init_process_response() ) {
 
@@ -67,7 +72,7 @@ bool exit_flag = bool_RESTART;
 			case FRAME_OK:
 				// Aqui es que anduvo todo bien y debo salir para pasar al modo DATA
 				if ( systemVars.debug == DEBUG_GPRS ) {
-					xprintf_P( PSTR("\r\nGPRS: Init frame OK.\r\n\0" ));
+					xprintf_P( PSTR("\r\nGPRS: Init frame_A OK.\r\n\0" ));
 				}
 				exit_flag = bool_CONTINUAR;
 				goto EXIT;
@@ -87,7 +92,7 @@ bool exit_flag = bool_RESTART;
 		} else {
 
 			if ( systemVars.debug == DEBUG_GPRS ) {
-				xprintf_P( PSTR("GPRS: iniframe retry(%d)\r\n\0"),intentos);
+				xprintf_P( PSTR("GPRS: iniframe_A retry(%d)\r\n\0"),intentos);
 			}
 
 			// Espero 3s antes de reintentar
@@ -97,7 +102,96 @@ bool exit_flag = bool_RESTART;
 
 	// Aqui es que no puede enviar/procesar el INIT correctamente
 	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Init frame FAIL !!.\r\n\0" ));
+		xprintf_P( PSTR("GPRS: Init frame_A FAIL !!.\r\n\0" ));
+	}
+
+// Exit
+EXIT:
+
+	return(exit_flag);
+
+}
+//------------------------------------------------------------------------------------
+bool st_gprs_init_frame_B(void)
+{
+	// Debo mandar el frame de init de pilotos al server, esperar la respuesta, analizarla
+	// y reconfigurarme.
+	// Intento 3 veces antes de darme por vencido.
+	// El socket puede estar abierto o cerrado. Lo debo determinar en c/caso y
+	// si esta cerrado abrirlo.
+	// Mientras espero la respuesta debo monitorear que el socket no se cierre
+
+uint8_t intentos = 0;
+bool exit_flag = bool_RESTART;
+
+// Entry:
+
+	GPRS_stateVars.state = G_INIT_FRAME;
+
+	// Este frame lo mando solo si tengo la salida configurada para pilotos.
+	if ( systemVars.doutputs_conf.modo != PILOTOS ) {
+		// Si no tengo pilotos, sigo adelante.
+		exit_flag = bool_CONTINUAR;
+		goto EXIT;
+	}
+
+	// En open_socket uso la IP del GPRS_stateVars asi que antes debo copiarla.
+	strcpy( GPRS_stateVars.server_ip_address, systemVars.gprs_conf.server_ip_address );
+
+	ctl_watchdog_kick(WDG_GPRSTX, WDG_GPRS_TO_INIT );
+
+	xprintf_P( PSTR("GPRS: iniframe_B.\r\n\0" ));
+
+	// Intenteo MAX_INIT_TRYES procesar correctamente el INIT
+	for ( intentos = 0; intentos < MAX_INIT_TRYES; intentos++ ) {
+
+		if ( u_gprs_send_frame( INIT_FRAME_B ) ) {
+
+			switch( pv_init_process_response() ) {
+
+			case FRAME_ERROR:
+				// Reintento
+				break;
+			case FRAME_SOCK_CLOSE:
+				// Reintento
+				break;
+			case FRAME_RETRY:
+				// Reintento
+				break;
+			case FRAME_OK:
+				// Aqui es que anduvo todo bien y debo salir para pasar al modo DATA
+				if ( systemVars.debug == DEBUG_GPRS ) {
+					xprintf_P( PSTR("\r\nGPRS: Init frame_B OK.\r\n\0" ));
+				}
+				exit_flag = bool_CONTINUAR;
+				goto EXIT;
+				break;
+			case FRAME_NOT_ALLOWED:
+				// Respondio bien pero debo salir a apagarme
+				exit_flag = bool_RESTART;
+				goto EXIT;
+				break;
+			case FRAME_ERR404:
+				// No existe el recurso en el server
+				exit_flag = bool_RESTART;
+				goto EXIT;
+				break;
+			}
+
+		} else {
+
+			if ( systemVars.debug == DEBUG_GPRS ) {
+				xprintf_P( PSTR("GPRS: iniframe_B retry(%d)\r\n\0"),intentos);
+			}
+
+			// Espero 3s antes de reintentar
+			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
+		}
+	}
+
+	// Aqui es que no puede enviar/procesar el INIT correctamente
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Init frame_B FAIL !!.\r\n\0" ));
 	}
 
 // Exit
@@ -145,7 +239,15 @@ uint8_t exit_code = FRAME_ERROR;
 			if ( u_gprs_check_response("INIT_OK") ) {	// Respuesta correcta
 				// Borro la causa del reset
 				wdg_resetCause = 0x00;
-				pv_init_reconfigure_params();
+				pv_init_reconfigure_params_A();
+				exit_code = FRAME_OK;
+				goto EXIT;
+			}
+
+			if ( u_gprs_check_response("PLT_OK") ) {	// Respuesta correcta
+				// Borro la causa del reset
+				wdg_resetCause = 0x00;
+				pv_init_reconfigure_params_B();
 				exit_code = FRAME_OK;
 				goto EXIT;
 			}
@@ -173,7 +275,7 @@ EXIT:
 
 }
 //------------------------------------------------------------------------------------
-static void pv_init_reconfigure_params(void)
+static void pv_init_reconfigure_params_A(void)
 {
 
 uint8_t saveFlag = 0;
@@ -193,6 +295,9 @@ uint8_t saveFlag = 0;
 
 	// Doutputs(none,perf,cons,plt)
 	saveFlag += pv_init_config_doutputs();
+
+	// Consignas
+	saveFlag += pv_init_config_consignas();
 
 	// Canales analogicos.
 	saveFlag += pv_init_config_analogCh(0);
@@ -231,7 +336,37 @@ uint8_t saveFlag = 0;
 
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: Save params OK\r\n\0"));
+			xprintf_P( PSTR("GPRS: Save params(A) OK\r\n\0"));
+		}
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_params_B(void)
+{
+
+	// Proceso la respuesta del PLT_OK para reconfigurar los parametros del piloto
+	// PLT_OK&PBAND=0.2&PSTEPS=6&S0=hhmm0,p0&S1=hhmm1,p1&S2=hhmm2,p2&S3=hhmm3,p3&S4=hhmm4,p4
+
+	// En el protocolo nuevo, el dlgid se reconfigura en SCAN
+	//saveFlag += pv_init_config_dlg_id();
+
+uint8_t i;
+uint8_t saveFlag = 0;
+
+	saveFlag += pv_init_B_config_pband();
+	 saveFlag += pv_init_B_config_psteps();
+	for ( i = 0; i < MAX_PILOTO_PSLOTS; i++ ) {
+		saveFlag += pv_init_B_config_pslots(i);
+	}
+
+	if ( saveFlag > 0 ) {
+
+		u_save_params_in_NVMEE();
+
+		// DEBUG & LOG
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: Save params(B) OK\r\n\0"));
 		}
 	}
 
@@ -556,6 +691,7 @@ char *stringp = NULL;
 char *delim = ",=:><";
 char *tk_id = NULL;
 char *tk_name = NULL;
+char *tk_poll = NULL;
 
 	switch (channel) {
 	case 0:
@@ -596,10 +732,11 @@ char *tk_name = NULL;
 	memcpy(localStr,stringp, 31);
 
 	stringp = localStr;
-	tk_id = strsep(&stringp,delim);	//D0
+	tk_id = strsep(&stringp,delim);	    //D0
 	tk_name = strsep(&stringp,delim);	//name
+	tk_poll = strsep(&stringp,delim);	//poll
 
-	dinputs_config_channel( channel, tk_name );
+	dinputs_config_channel( channel, tk_name, tk_poll );
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig D%d\r\n\0"), channel);
@@ -675,7 +812,7 @@ char *tk_doutmode = NULL;
 char *delim = ",=:><";
 uint8_t ret = 0;
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DOUTMODE");
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DOUT");
 	if ( p == NULL ) {
 		goto quit;
 	}
@@ -694,12 +831,48 @@ uint8_t ret = 0;
 	}
 
 	if ( ( systemVars.debug == DEBUG_GPRS ) && ( ret == 1 ) ) {
-		xprintf_P( PSTR("GPRS: Reconfig DOUTMODE\r\n\0"));
+		xprintf_P( PSTR("GPRS: Reconfig DOUTs\r\n\0"));
 	}
 
 quit:
 
 	return(ret);
+}
+//--------------------------------------------------------------------------------------
+static uint8_t pv_init_config_consignas(void)
+{
+//	La linea recibida trae: CONS=2230,0600:
+//  Las horas estan en formato HHMM.
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_id = NULL;
+char *tk_cons_start = NULL;
+char *tk_cons_end = NULL;
+char *delim = ",=:><";
+char *p = NULL;
+
+	memset( &localStr, '\0', sizeof(localStr) );
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "CSGNA=");
+	if ( p == NULL ) {
+		return(0);
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_id = strsep(&stringp,delim);		//CONS
+	tk_cons_start = strsep(&stringp,delim);		// startTime
+	tk_cons_end  = strsep(&stringp,delim); 		// endTime
+	consigna_config( tk_cons_start, tk_cons_end );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig CONSIGNAS\r\n\0"));
+	}
+
+	return(1);
 }
 //--------------------------------------------------------------------------------------
 static uint8_t pv_init_config_default(void)
@@ -744,4 +917,114 @@ char *tk_modo = NULL;
 
 }
 //--------------------------------------------------------------------------------------
+static uint8_t pv_init_B_config_pband(void)
+{
+//	La linea recibida es del tipo: <h1>PLT_OK&PBAND=0.2&PSTEPS=6&S0=hhmm0,p0&S1=hhmm1,p1&S2=hhmm2,p2&S3=hhmm3,p3&S4=hhmm4,p4</h1>
 
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_pband = NULL;
+char *delim = ",=:><";
+
+	memset( &localStr, '\0', sizeof(localStr) );
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PBAND");
+	if ( p == NULL ) {
+		return(0);
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_pband = strsep(&stringp,delim);	// PBAND
+	tk_pband = strsep(&stringp,delim);	// band
+	systemVars.doutputs_conf.piloto.band = atof( tk_pband );
+
+	return(1);
+}
+//------------------------------------------------------------------------------------
+static uint8_t pv_init_B_config_psteps(void)
+{
+//	La linea recibida es del tipo: <h1>PLT_OK&PBAND=0.2&PSTEPS=6&S0=hhmm0,p0&S1=hhmm1,p1&S2=hhmm2,p2&S3=hhmm3,p3&S4=hhmm4,p4</h1>
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_psteps = NULL;
+char *delim = ",=:><";
+
+	memset( &localStr, '\0', sizeof(localStr) );
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PSTEPS");
+	if ( p == NULL ) {
+		return(0);
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_psteps = strsep(&stringp,delim);	// PSTEPS
+	tk_psteps = strsep(&stringp,delim);	// steps
+	systemVars.doutputs_conf.piloto.max_steps = atoi( tk_psteps );
+
+	return(1);
+}
+//------------------------------------------------------------------------------------
+static uint8_t pv_init_B_config_pslots(uint8_t channel)
+{
+
+	//	La linea recibida es del tipo: <h1>PLT_OK&PBAND=0.2&PSTEPS=6&S0=hhmm0,p0&S1=hhmm1,p1&S2=hhmm2,p2&S3=hhmm3,p3&S4=hhmm4,p4</h1>
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *delim = ",=:><";
+char *tk_id = NULL;
+char *tk_hhmm = NULL;
+char *tk_pout = NULL;
+
+	switch (channel) {
+	case 0:
+		stringp = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "S0=");
+		break;
+	case 1:
+		stringp = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "S1=");
+		break;
+	case 2:
+		stringp = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "S2=");
+		break;
+	case 3:
+		stringp = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "S3=");
+		break;
+	case 4:
+		stringp = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "S4=");
+		break;
+	default:
+		return(0);
+		break;
+	}
+
+	if ( stringp == NULL ) {
+		return(0);
+	}
+
+	// Copio el mensaje enviado ( solo 32 bytes ) a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,stringp, 31);
+
+	stringp = localStr;
+	tk_id = strsep(&stringp,delim);		//D0
+	tk_hhmm = strsep(&stringp,delim);	//hhmmx
+	tk_pout = strsep(&stringp,delim);	//pout
+
+	u_convert_int_to_time_t( atoi( tk_hhmm), &systemVars.doutputs_conf.piloto.pSlots[channel].hhmm );
+	systemVars.doutputs_conf.piloto.pSlots[channel].pout = atof(tk_pout);
+
+	return(1);
+
+}
+//--------------------------------------------------------------------------------------

@@ -109,8 +109,12 @@ RESTART:
 			goto RESTART;								// descubrir la server IP correcta.
 		}
 
-		if ( st_gprs_init_frame() != bool_CONTINUAR ) { // Si no pude enviar exitosamente el INIT vuelvo a APAGAR.
+		if ( st_gprs_init_frame_A() != bool_CONTINUAR ) { // Si no pude enviar exitosamente el INIT vuelvo a APAGAR.
 			goto RESTART;
+		}
+
+		if ( st_gprs_init_frame_B() != bool_CONTINUAR ) { // Si tengo una configuracion activa de PILOTOS mando esta
+			goto RESTART;								  // para reconfigurarla.
 		}
 
 		if ( st_gprs_data() != bool_CONTINUAR ) {		// Trasmito datos si hay. En modo DISCRETO termino y vuelvo a apagarme y esperar

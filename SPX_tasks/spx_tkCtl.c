@@ -57,8 +57,9 @@ const char string_4[] PROGMEM = "DAT";
 const char string_5[] PROGMEM = "DOUT";
 const char string_6[] PROGMEM = "GRX";
 const char string_7[] PROGMEM = "GTX";
+const char string_8[] PROGMEM = "DIN";
 
-const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7 };
+const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7, string_8 };
 
 //------------------------------------------------------------------------------------
 void tkCtl(void * pvParameters)

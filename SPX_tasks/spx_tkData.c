@@ -34,7 +34,6 @@ static void pv_data_read_contadores( void );
 static void pv_data_read_rangemeter( void );
 static void pv_data_read_dinputs( void );
 static void pv_data_read_pilotos( void );
-
 static void pv_data_print_frame( void );
 static void pv_data_guardar_en_BD(void);
 static void pv_data_signal_to_tkgprs(void);;
@@ -146,8 +145,6 @@ static void pv_data_init(void)
 	ainputs_awake();
 	ainputs_sleep();
 
-	dinputs_init();
-
     // Inicializo el sistema de medida de ancho de pulsos
     if ( spx_io_board == SPX_IO5CH ) {
     	RMETER_init( SYSMAINCLK );
@@ -235,13 +232,9 @@ static void pv_data_read_rangemeter( void )
 //------------------------------------------------------------------------------------
 static void pv_data_read_dinputs( void )
 {
-	// Leo las entradas digitales de a una
+	// Leo las entradas digitales
 
-uint8_t i = 0;
-
-	for ( i = 0; i < NRO_DINPUTS; i++ ) {
-		data_df.dinputsA[i] = dinputs_read_channel(i);
-	}
+	dinputs_read_din( (uint16_t *)&data_df.dinputsA[0], (uint16_t *)&data_df.dinputsA[1] );
 
 }
 //------------------------------------------------------------------------------------

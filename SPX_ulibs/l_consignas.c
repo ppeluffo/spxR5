@@ -178,6 +178,8 @@ RtcTimeType_t rtcDateTime;
 //------------------------------------------------------------------------------------
 bool consigna_config ( char *hhmm1, char *hhmm2 )
 {
+	//xprintf_P(PSTR("DEBUG CONSIGNAS [%s][%s]\r\n\0"), hhmm1, hhmm2);
+
 	if ( hhmm1 != NULL ) {
 		u_convert_int_to_time_t( atoi( hhmm1), &systemVars.doutputs_conf.consigna.hhmm_c_diurna );
 	}

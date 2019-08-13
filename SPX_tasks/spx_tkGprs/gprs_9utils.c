@@ -135,7 +135,7 @@ char l_data[10] = { 0 };
 	}
 
 	snprintf_P( systemVars.gprs_conf.dlgId, DLGID_LENGTH, PSTR("DEFAULT\0") );
-	strncpy_P(systemVars.gprs_conf.serverScript, PSTR("/cgi-bin/spx/SPY.pl\0"),SCRIPT_LENGTH);
+	strncpy_P(systemVars.gprs_conf.serverScript, PSTR("/cgi-bin/PY/spy.py\0"),SCRIPT_LENGTH);
 	strncpy_P(systemVars.gprs_conf.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
     strncpy_P(systemVars.gprs_conf.simpwd, PSTR("DEFAULT\0"),PASSWD_LENGTH);
 
@@ -372,8 +372,12 @@ t_socket_status socket_status = 0;
 		if (  socket_status == SOCK_OPEN ) {
 
 			switch ( frame_type ) {
-			case INIT_FRAME:
-				u_gprs_send_INIT_frame();		// Escribo en el socket el frame de INIT
+			case INIT_FRAME_A:
+				u_gprs_send_INIT_A_frame();		// Escribo en el socket el frame de INIT
+				return(true);
+				break;
+			case INIT_FRAME_B:
+				u_gprs_send_INIT_B_frame();
 				return(true);
 				break;
 			case SCAN_FRAME:
@@ -413,7 +417,7 @@ t_socket_status socket_status = 0;
 	return(exit_flag);
 }
 //------------------------------------------------------------------------------------
-void u_gprs_send_INIT_frame(void)
+void u_gprs_send_INIT_A_frame(void)
 {
 
 	// Send Init Frame
@@ -429,7 +433,7 @@ uint8_t i = 0;
 
 
 	if ( systemVars.debug == DEBUG_GPRS  ) {
-		xprintf_P( PSTR("GPRS: initframe: Sent\r\n\0"));
+		xprintf_P( PSTR("GPRS: initframe A: Sent\r\n\0"));
 	}
 
 	// Trasmision: 1r.Parte.
@@ -494,10 +498,10 @@ uint8_t i = 0;
 		if (!strcmp_P( systemVars.dinputs_conf.name[i], PSTR("X"))) {
 			continue;
 		}
-		xCom_printf_P( fdGPRS,PSTR("&D%d=%s\0"),i, systemVars.dinputs_conf.name[i] );
+		xCom_printf_P( fdGPRS,PSTR("&D%d=%s,%d\0"),i, systemVars.dinputs_conf.name[i],systemVars.dinputs_conf.tpoll[i] );
 		// DEBUG & LOG
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&D%d=%s\0"),i, systemVars.dinputs_conf.name[i] );
+			xprintf_P( PSTR("&D%d=%s,%d\0"),i, systemVars.dinputs_conf.name[i],systemVars.dinputs_conf.tpoll[i] );
 		}
 	}
 
@@ -564,6 +568,56 @@ uint8_t i = 0;
 			xprintf_P( PSTR("&DOUTS=PLT\0"));
 		}
 		break;
+	}
+
+	// TAIL ------------------------------------------------------------------------
+	// ( No mando el close ya que espero la respuesta y no quiero que el socket se cierre )
+	xCom_printf_P( fdGPRS, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
+
+	// DEBUG & LOG
+	if ( systemVars.debug ==  DEBUG_GPRS ) {
+		xprintf_P( PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
+	}
+
+	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
+
+
+}
+//------------------------------------------------------------------------------------
+void u_gprs_send_INIT_B_frame(void)
+{
+
+	// Send Init Frame
+	// GET /cgi-bin/spx/SPY.pl?DLGID=TEST02&IAUX0&PBAND=0.2&PSTEPS=6&S0=hhmm0,p0&S1=hhmm1,p1&S2=hhmm2,p2&S3=hhmm3,p3&S4=hhmm4,p4 HTTP/1.1
+	// Host: www.spymovil.com
+
+uint8_t i = 0;
+
+	if ( systemVars.debug == DEBUG_GPRS  ) {
+		xprintf_P( PSTR("GPRS: initframe B: Sent\r\n\0"));
+	}
+
+	// Trasmision: 1r.Parte.
+	// HEADER:---------------------------------------------------------------------
+	// Envio parcial ( no CR )
+	u_gprs_flush_RX_buffer();
+	u_gprs_flush_TX_buffer();
+
+	// dlgid, simpwd,imei,uid
+	xCom_printf_P( fdGPRS,PSTR("GET %s?IAUX0&DLGID=%s&PBAND=%.02f&PSTEPS=%d\0" ), systemVars.gprs_conf.serverScript, systemVars.gprs_conf.dlgId, systemVars.doutputs_conf.piloto.band, systemVars.doutputs_conf.piloto.max_steps );
+
+	if ( systemVars.debug ==  DEBUG_GPRS ) {
+		xprintf_P( PSTR("GET %s?IAUX0&DLGID=%s&PBAND=%.02f&PSTEPS=%d\0" ), systemVars.gprs_conf.serverScript, systemVars.gprs_conf.dlgId, systemVars.doutputs_conf.piloto.band, systemVars.doutputs_conf.piloto.max_steps );
+	}
+
+	// Slots
+	for ( i = 0; i < MAX_PILOTO_PSLOTS; i++ ) {
+
+		xCom_printf_P( fdGPRS, PSTR("&S%d=%02d%02d,%.02f\0"), i, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[i].pout );
+		// DEBUG & LOG
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("&S%d=%d%02d,%.02f\0"), i, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[i].pout );
+		}
 	}
 
 	// TAIL ------------------------------------------------------------------------

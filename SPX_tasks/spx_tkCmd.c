@@ -298,7 +298,7 @@ uint8_t VA_cnt, VB_cnt, VA_status, VB_status;
 
 	// dinputs
 	for ( channel = 0; channel <  NRO_DINPUTS; channel++) {
-		xprintf_P( PSTR("  d%d [ %s ]\r\n\0"),channel, systemVars.dinputs_conf.name[channel] );
+		xprintf_P( PSTR("  d%d [ %s | %d ]\r\n\0"),channel, systemVars.dinputs_conf.name[channel], systemVars.dinputs_conf.tpoll[channel] );
 	}
 
 	// contadores( Solo hay 2 )
@@ -340,6 +340,9 @@ static void cmdResetFunction(void)
 
 		vTaskSuspend( xHandle_tkGprsTx );
 		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
+
+		vTaskSuspend( xHandle_tkDinputs );
+		ctl_watchdog_kick(WDG_DINPUTS, 0x8000 );
 
 		if (!strcmp_P( strupr(argv[2]), PSTR("SOFT\0"))) {
 			FF_format(false );
@@ -769,9 +772,9 @@ bool retS = false;
 	}
 
 	// DIGITAL
-	// config digital {0..N} dname
+	// config digital {0..N} dname tpoll
 	if (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) ) {
-		dinputs_config_channel( atoi(argv[2]), argv[3]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		dinputs_config_channel( atoi(argv[2]), argv[3], argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
@@ -991,7 +994,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
-		xprintf_P( PSTR("  digital {0..%d} dname\r\n\0"), ( NRO_DINPUTS - 1 ) );
+		xprintf_P( PSTR("  digital {0..%d} dname tpoll\r\n\0"), ( NRO_DINPUTS - 1 ) );
 		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
 
 		if ( spx_io_board == SPX_IO5CH ) {
@@ -1076,6 +1079,14 @@ static void cmdKillFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("GPRSRX\0"))) {
 		vTaskSuspend( xHandle_tkGprsRx );
 		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
+		pv_snprintfP_OK();
+		return;
+	}
+
+	// KILL DINPUTS
+	if (!strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0"))) {
+		vTaskSuspend( xHandle_tkDinputs);
+		ctl_watchdog_kick(WDG_DINPUTS, 0x8000 );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -1168,6 +1179,10 @@ UBaseType_t uxHighWaterMark;
 	// tkGprsRX
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkGprsRx );
 	xprintf_P( PSTR("RX: %03d,%03d,[%03d]\r\n\0"), tkGprs_rx_STACK_SIZE ,uxHighWaterMark, ( tkGprs_rx_STACK_SIZE - uxHighWaterMark));
+
+	// tkDigital
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkDinputs );
+	xprintf_P( PSTR("RX: %03d,%03d,[%03d]\r\n\0"), tkDinputs_STACK_SIZE ,uxHighWaterMark, ( tkDinputs_STACK_SIZE - uxHighWaterMark));
 
 
 }
@@ -1636,7 +1651,7 @@ static void cmdPokeFunction(void)
 		ainputs_config_span( argv[2], argv[3] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) ) {
-		dinputs_config_channel( atoi(argv[2]), argv[3]);
+		dinputs_config_channel( atoi(argv[2]), argv[3], argv[4] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) ) {
 		ainputs_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
