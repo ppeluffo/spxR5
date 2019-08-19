@@ -38,9 +38,9 @@ uint8_t i;
 	systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
 
 	for ( i = 0; i < MAX_PILOTO_PSLOTS; i++ ) {
-		systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour = 0;
+		systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour = i*3;
 		systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min = 0;
-		systemVars.doutputs_conf.piloto.pSlots[i].pout = 0;
+		systemVars.doutputs_conf.piloto.pSlots[i].pout = 1.5;
 	}
 
 	systemVars.doutputs_conf.perforacion.control = CTL_BOYA;

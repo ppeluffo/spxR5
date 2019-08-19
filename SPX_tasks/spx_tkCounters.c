@@ -64,14 +64,14 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 			vTaskDelay( ( TickType_t)( systemVars.counters_conf.pwidth[0] / portTICK_RATE_MS ) );
 			// Leo el pin. Si esta en 1 el ancho es valido y entonces cuento el pulso
 			if ( CNT_read_CNT0() == 0 ) {
+				// Cuento
 				counters[0]++;
 				pv_tkCounter_debug_print();
+				// Espero perido
+				vTaskDelay( ( TickType_t)( ( systemVars.counters_conf.period[0] - systemVars.counters_conf.pwidth[0] ) / portTICK_RATE_MS ) );
 			}
 
-			// Espero perido
-			vTaskDelay( ( TickType_t)( ( systemVars.counters_conf.period[0] - systemVars.counters_conf.pwidth[0] ) / portTICK_RATE_MS ) );
-			if ( counters_enabled[0] )
-				COUNTERS_enable_interrupt(0);
+			COUNTERS_enable_interrupt(0);
 
 		} else   {
 			// Expiro el timeout de la tarea. Por ahora no hago nada.
@@ -108,14 +108,13 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 			vTaskDelay( ( TickType_t)( 10000 / portTICK_RATE_MS ) );
 			pv_tkCounter_debug_print();
 			continue;
-
-		} else {
-			// Cuando la interrupcion detecta un flanco, solo envia una notificacion
-			// Espero que me avisen. Si no me avisaron en 25s salgo y repito el ciclo.
-			// Esto es lo que me permite entrar en tickless.
-			ulNotificationValue = ulTaskNotifyTake( pdTRUE, xMaxBlockTime );
 		}
 
+		// Estoy en LS
+		// Cuando la interrupcion detecta un flanco, solo envia una notificacion
+		// Espero que me avisen. Si no me avisaron en 25s salgo y repito el ciclo.
+		// Esto es lo que me permite entrar en tickless.
+		ulNotificationValue = ulTaskNotifyTake( pdTRUE, xMaxBlockTime );
 
 		if( ulNotificationValue != 0 ) {
 			// Fui notificado:
@@ -127,13 +126,10 @@ const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 25000 );
 			if ( CNT_read_CNT1() == 0 ) {
 				counters[1]++;
 				pv_tkCounter_debug_print();
+				// Espero perido
+				vTaskDelay( ( TickType_t)( ( systemVars.counters_conf.period[1] - systemVars.counters_conf.pwidth[1] ) / portTICK_RATE_MS ) );
 			}
-
-			// Espero perido
-			vTaskDelay( ( TickType_t)( ( systemVars.counters_conf.period[1] - systemVars.counters_conf.pwidth[1] ) / portTICK_RATE_MS ) );
-			if ( counters_enabled[1] )
-				COUNTERS_enable_interrupt(1);
-
+			COUNTERS_enable_interrupt(1);
 
 		} else   {
 			// Expiro el timeout de la tarea. Por ahora no hago nada.
@@ -175,8 +171,8 @@ static void pv_tkCounter_debug_print(void)
 {
 	if ( systemVars.debug == DEBUG_COUNTER) {
 		if ( COUNTERS_cnt1_in_HS() ) {
-			counters[1] = COUNTERS_readCnt1();
-			xprintf_P( PSTR("COUNTERS: *C0=%d, C1(hs)=%d\r\n\0"),(uint16_t) counters[0],(uint16_t) counters[1] );
+			counters[1] = (uint16_t) COUNTERS_readCnt1();
+			xprintf_P( PSTR("COUNTERS: *C0=%d, C1(hs)=%d\r\n\0"),(uint16_t) counters[0], (uint16_t) counters[1] );
 		} else {
 			xprintf_P( PSTR("COUNTERS: *C0=%d, C1(ls)=%d\r\n\0"),(uint16_t) counters[0],(uint16_t) counters[1] );
 		}

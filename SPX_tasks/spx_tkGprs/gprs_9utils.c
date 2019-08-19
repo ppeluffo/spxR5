@@ -511,10 +511,18 @@ uint8_t i = 0;
 		if (!strcmp_P( systemVars.counters_conf.name[i], PSTR("X"))) {
 			continue;
 		}
-		xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.03f,%d,%d,%d\0"),i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i],systemVars.counters_conf.pwidth[i], systemVars.counters_conf.period[i], systemVars.counters_conf.speed[i] );
-		// DEBUG & LOG
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&C%d=%s,%.03f,%d,%d,%d\0"),i, systemVars.counters_conf.name[i], systemVars.counters_conf.magpp[i],systemVars.counters_conf.pwidth[i], systemVars.counters_conf.period[i], systemVars.counters_conf.speed[i]  );
+		if ( systemVars.counters_conf.speed[i] == CNT_LOW_SPEED ) {
+			xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.03f,%d,%d,LS\0"),i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i],systemVars.counters_conf.pwidth[i], systemVars.counters_conf.period[i] );
+			// DEBUG & LOG
+			if ( systemVars.debug ==  DEBUG_GPRS ) {
+				xprintf_P( PSTR("&C%d=%s,%.03f,%d,%d,LS\0"),i, systemVars.counters_conf.name[i], systemVars.counters_conf.magpp[i],systemVars.counters_conf.pwidth[i], systemVars.counters_conf.period[i] );
+			}
+		} else {
+			xCom_printf_P( fdGPRS,PSTR("&C%d=%s,%.03f,%d,%d,HS\0"),i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i],systemVars.counters_conf.pwidth[i], systemVars.counters_conf.period[i] );
+			// DEBUG & LOG
+			if ( systemVars.debug ==  DEBUG_GPRS ) {
+				xprintf_P( PSTR("&C%d=%s,%.03f,%d,%d,HS\0"),i, systemVars.counters_conf.name[i], systemVars.counters_conf.magpp[i],systemVars.counters_conf.pwidth[i], systemVars.counters_conf.period[i] );
+			}
 		}
 	}
 

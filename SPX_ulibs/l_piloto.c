@@ -3,10 +3,24 @@
  *
  *  Created on: 8 jul. 2019
  *      Author: pablo
+ *
+ *  Para llevarlo a la zona lineal conviene hacerlo en 3 o 4 pasos cortos !!!
+ *  Ver espera de regualacion en el status
+ *  En 7 pulsos no pudo bajar de 1.8 a 1.2. Quedo en 1.5
+ *  Ver sistema de calibracion. Llevar de la alta a la baja con pulsos de .5 y de baja a alta.
+ *  Luego repetirlo con pulsos 0.3
+ *  Luego con puslsos de 0.1 y por ultimo de 0.1
+ *  De ahi sacar la escalera a utilizar.
+ *  Hacerlo a mano y medir en el caso de la descarga cuanto agua sale.
+ *  HAcer un algoritmo adaptativo para subir/bajar la presion
+ *
+ *
+ *
  */
 
 #include "spx.h"
 #include  "l_stacks.h"
+#include "math.h"
 
 #define P_STACK_SIZE	3
 #define TIME_PWR_ON_VALVES 10
@@ -48,6 +62,8 @@ float pv_piloto_calcular_pwidth( float delta_P, float presion_alta );
 espera_t pv_piloto_regular_presion( void );
 void pv_piloto_leer_pB_estable( t_valvula_reguladora tipo_valvula_reguladora  );
 int8_t pv_get_pslot_actual(void);
+
+float l_pw[] = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.7 };
 
 //------------------------------------------------------------------------------------
 void tk_init_pilotos(void)
@@ -269,7 +285,7 @@ int8_t counts;
 		// Espero
 		switch ( tipo_valvula_reguladora ) {
 		case VR_CHICA:
-			waiting_ticks = ( 15000 / portTICK_RATE_MS );
+			waiting_ticks = ( 10000 / portTICK_RATE_MS );
 			break;
 		case VR_MEDIA:
 			waiting_ticks = ( 30000 / portTICK_RATE_MS );
@@ -316,19 +332,16 @@ float pv_piloto_calcular_pwidth( float delta_P, float presion_alta )
 float pw = 0.1;
 float dP;
 
+int pos;
+
 	dP = fabs(delta_P);
 
-	if ( dP > 0.2 ) {
-		pw = 0.2;
-	} else if (dP > 0.15 ) {
-		pw = 0.1;
-	} else if ( dP > 0.1 ) {
-		pw = 0.05;
-	} else {
-		pw = 0.01;
-	}
+	pos = (uint8_t) floor( dP*10);
+	if (pos > 5)
+		pos = 5;
 
-	return( pw);
+	xprintf_P(PSTR("PLT: dP=%.03f, pos=%d\r\n\0"), dP, pos );
+	return(l_pw[pos]);
 
 }
 //------------------------------------------------------------------------------------
@@ -442,7 +455,7 @@ uint16_t i;
 	// Espero de a 1 minuto
 	for (i = 1; i<= wait_loops; i++) {
 		ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
-		vTaskDelay( 60000 / portTICK_RATE_MS );
+		vTaskDelay( 30000 / portTICK_RATE_MS );
 	}
 
 }
