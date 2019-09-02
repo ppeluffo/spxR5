@@ -36,7 +36,7 @@ char buff_gprs_ccid[IMEIBUFFSIZE];
 
 typedef enum { G_ESPERA_APAGADO = 0, G_PRENDER, G_CONFIGURAR, G_MON_SQE, G_SCAN_APN, G_GET_IP, G_SCAN_FRAME, G_INIT_FRAME, G_DATA } t_gprs_states;
 typedef enum { SOCK_CLOSED = 0, SOCK_OPEN, SOCK_ERROR, SOCK_FAIL } t_socket_status;
-typedef enum { FRAME_ERROR = 0, FRAME_SOCK_CLOSE, FRAME_OK, FRAME_NOT_ALLOWED, FRAME_ERR404, FRAME_RETRY } t_frame_responses;
+typedef enum { FRAME_ERROR = 0, FRAME_SOCK_CLOSE, FRAME_OK, FRAME_NOT_ALLOWED, FRAME_ERR404, FRAME_RETRY, FRAME_SRV_ERR } t_frame_responses;
 typedef enum { INIT_FRAME_A = 0, INIT_FRAME_B, SCAN_FRAME } t_frames;
 
 struct {

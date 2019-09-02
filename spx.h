@@ -58,12 +58,13 @@
 #include "l_printf.h"
 #include "l_rangeMeter.h"
 #include "l_bytes.h"
+#include "l_psensor.h"
 
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.0.5"
-#define SPX_FW_DATE "@ 20190819"
+#define SPX_FW_DATE "@ 20190902"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"

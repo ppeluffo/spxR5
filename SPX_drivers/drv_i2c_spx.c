@@ -22,6 +22,9 @@
 
 
 #include "drv_i2c_spx.h"
+#include "l_printf.h"
+
+//#define DEBUG_I2C
 
 //------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
@@ -111,7 +114,7 @@ uint8_t i = 0;
 int xReturn = -1;
 
 #ifdef DEBUG_I2C
-//	xprintf_P( PSTR("drv_i2c: I2C_MR: 0x%02x,0x%02x,0x%02x,0x%02x\r\n\0"),devAddress,devAddressLength, (u16)(byteAddress), xBytes );
+	xprintf_P( PSTR("DEBUG: drv_i2c: I2C_MR: 0x%02x,0x%02x,0x%02x,0x%02x\r\n\0"),devAddress, devAddressLength, (uint16_t)(byteAddress), xBytes );
 #endif
 
 	if ( xBytes < 1 ) return(false);
@@ -121,15 +124,25 @@ int xReturn = -1;
 	// Fuerzo al bus al estado idle.
 	if ( ! pvI2C_set_bus_idle() ) goto i2c_quit;
 
-	// Pass1: Mando un START y el SLAVE_ADDRESS (SLA_W)
-	retV = pvI2C_write_slave_address(devAddress & ~0x01);
-	if (!retV) goto i2c_quit;
+	// Hay dispositivos, ADC/psensor que no tienen direccion de la cual leer por lo que no se manda
+	if ( devAddressLength > 0 ) {
 
-	// Pass2: Mando la direccion interna del slave desde donde voy a leer.
-	if ( ! pvI2C_write_slave_reg( devAddressLength, byteAddress ) ) goto i2c_quit;
+#ifdef DEBUG_I2C
+		xprintf_P( PSTR("DEBUG: drv_i2c: SLA_0: 0x%02x,\r\n\0"),devAddress & ~0x01 );
+#endif
+		// Pass1: Mando un START y el SLAVE_ADDRESS (SLA_W)
+		retV = pvI2C_write_slave_address(devAddress & ~0x01);
+		if (!retV) goto i2c_quit;
+
+		// Pass2: Mando la direccion interna del slave desde donde voy a leer.
+		if ( ! pvI2C_write_slave_reg( devAddressLength, byteAddress ) ) goto i2c_quit;
+	}
 
 	// Pass3: Mando un REPEATED START y el SLAVE_ADDRESS (SLA_R)
 	// Lo mando una sola vez ya que estoy en medio del ciclo.
+#ifdef DEBUG_I2C
+		xprintf_P( PSTR("DEBUG: drv_i2c: SLA_1: 0x%02x,\r\n\0"),devAddress | 0x01 );
+#endif
 	if ( ! pvI2C_write_slave_address(devAddress | 0x01) ) goto i2c_quit;
 
 	// Pass4: Leo todos los bytes requeridos y respondo a c/u con ACK.
@@ -164,6 +177,89 @@ i2c_quit:
 
 }
 //------------------------------------------------------------------------------------
+bool drv_I2C_scan_device( const uint8_t devAddress, uint8_t modo, bool verbose )
+{
+	// Pass1: Mando un START y el SLAVE_ADDRESS
+	// Si modo es 0 es 'RD', si es 1 es 'WR'
+	// El start se genera automaticamente al escribir en el reg MASTER.ADDR.
+	// Esto tambien resetea todas las flags.
+	// La salida correcta es con STATUS = 0x62.
+	// El escribir el ADDR borra todas las flags.
+
+char txbyte = devAddress;
+bool ret_code = false;
+uint8_t currentStatus = 0;
+uint8_t ticks_to_wait = 30;
+
+	if ( verbose )
+		xprintf_P( PSTR("drv_i2c: DEV_ADDR=0x%02x, modo=%d "),devAddress, modo );
+
+	switch (modo) {
+	case 0:
+		txbyte &= ~0x01;
+		break;
+	case 1:
+		txbyte |= 0x01;
+		break;
+	default:
+		if ( verbose )
+			xprintf_P( PSTR("drv_i2c: mode error !!.\r\n\0") );
+		goto i2c_exit;
+		break;
+	}
+
+	TWIE.MASTER.ADDR = txbyte;
+
+	//waitForComplete
+	while ( ticks_to_wait-- > 0 ) {
+		if ( ( (TWIE.MASTER.STATUS & TWI_MASTER_WIF_bm) != 0 ) || ( (TWIE.MASTER.STATUS & TWI_MASTER_RIF_bm) != 0 ) ) {
+			break;
+		}
+		//vTaskDelay( ( TickType_t)( 10 / portTICK_RATE_MS ) );
+		vTaskDelay( ( TickType_t)( 1 ) );
+	}
+
+	if ( ticks_to_wait == 0 ) {
+		if ( verbose )
+			xprintf_P( PSTR("drv_i2c:  scan wait for complete ERROR.\r\n\0") );
+		goto i2c_exit;
+	}
+
+	currentStatus = TWIE.MASTER.STATUS;
+	if ( verbose )
+		xprintf_P( PSTR("drv_i2c: TX=0x%02x, STATUS=0x%02x\r\n\0"),txbyte, currentStatus );
+
+	// Primero evaluo no tener errores.
+	if ( (currentStatus & TWI_MASTER_ARBLOST_bm) != 0 ) {
+		if ( verbose )
+			xprintf_P( PSTR("drv_i2c: scan ARBLOST error !!.\r\n\0") );
+		goto i2c_exit;
+	}
+
+	if ( (currentStatus & TWI_MASTER_BUSERR_bm) != 0 ) {
+		if ( verbose )
+			xprintf_P( PSTR("drv_i2c: scan BUSERR error !!.\r\n\0") );
+		goto i2c_exit;
+	}
+
+	// ACK o NACK ?
+	if ( (currentStatus & TWI_MASTER_RXACK_bm) != 0 ) {
+		if ( verbose )
+			xprintf_P( PSTR("drv_i2c: scan rcvd NACK\r\n\0") );
+		goto i2c_exit;
+	} else {
+		// ACK
+		if ( verbose )
+			xprintf_P( PSTR("drv_i2c: scan OK: DEV_ADDR=0x%02x,MODE=%d\r\n\0"),devAddress, modo );
+		ret_code = true;
+		goto i2c_exit;
+	}
+
+i2c_exit:
+
+	return(ret_code);
+}
+//------------------------------------------------------------------------------------
 // FUNCIONES AUXILIARES PRIVADAS DE I2C
 //------------------------------------------------------------------------------------
 bool pvI2C_set_bus_idle(void)
@@ -183,7 +279,7 @@ uint8_t	reintentos = I2C_MAXTRIES;
 		bus_status = TWIE.MASTER.STATUS & 0xCF; 	//& TWI_MASTER_BUSSTATE_gm;
 
 #ifdef DEBUG_I2C
-		//	xprintf_P( PSTR("drv_i2c: I2C_BUSIDLE(%d): 0x%02x\r\n\0"),reintentos,TWIE.MASTER.STATUS );
+		xprintf_P( PSTR("drv_i2c: I2C_BUSIDLE(%d): 0x%02x\r\n\0"),reintentos,TWIE.MASTER.STATUS );
 #endif
 
 		if (  ( bus_status == TWI_MASTER_BUSSTATE_IDLE_gc ) || ( bus_status == TWI_MASTER_BUSSTATE_OWNER_gc ) ) {
@@ -210,7 +306,7 @@ uint8_t	reintentos = I2C_MAXTRIES;
 	}
 
 	// No pude pasarlo a IDLE: Error !!!
-	//	xprintf_P( PSTR("drv_i2c: I2C_BUSIDLE ERROR!!: 0x%02x\r\n\0"),TWIE.MASTER.STATUS );
+	xprintf_P( PSTR("drv_i2c: I2C_BUSIDLE ERROR!!: 0x%02x\r\n\0"),TWIE.MASTER.STATUS );
 	return(false);
 }
 //------------------------------------------------------------------------------------
@@ -226,12 +322,16 @@ char txbyte = devAddress;	// (SLA_W/R) Send slave address
 bool ret_code = false;
 uint8_t currentStatus = 0;
 
+#ifdef DEBUG_I2C
+		xprintf_P( PSTR("drv_i2c: I2C_SLA: DEV_ADDR=0x%02x,\r\n\0"),devAddress );
+#endif
+
 	TWIE.MASTER.ADDR = txbyte;
 	if ( ! pvI2C_waitForComplete() ) goto i2c_exit;
 	currentStatus = TWIE.MASTER.STATUS;
 
 #ifdef DEBUG_I2C
-	//	xprintf_P( PSTR("drv_i2c: I2C_SLA: 0x%02x,0x%02x\r\n\0"),txbyte, currentStatus );
+		xprintf_P( PSTR("drv_i2c: I2C_SLA: 0x%02x,0x%02x\r\n\0"),txbyte, currentStatus );
 #endif
 
 	// Primero evaluo no tener errores.
@@ -250,7 +350,7 @@ uint8_t currentStatus = 0;
 
 i2c_exit:
 	if ( !ret_code ) {
-		//	xprintf_P( PSTR("drv_i2c: I2C_ADDR_ERROR: 0x%02x,0x%02x\r\n\0"),txbyte,currentStatus );
+		xprintf_P( PSTR("drv_i2c: I2C_ADDR_ERROR: 0x%02x,0x%02x\r\n\0"),txbyte,currentStatus );
 	}
 	return(ret_code);
 }
@@ -276,7 +376,7 @@ uint8_t currentStatus = 0;
 		currentStatus = TWIE.MASTER.STATUS;
 
 #ifdef DEBUG_I2C
-		//	xprintf_P( PSTR("drv_i2c: I2C_SR_H: 0x%02x,0x%02x\r\n\0"),txbyte,currentStatus );
+			xprintf_P( PSTR("drv_i2c: I2C_SR_H: 0x%02x,0x%02x\r\n\0"),txbyte,currentStatus );
 #endif
 		// ACK o NACK ?
 		if ( (currentStatus & TWI_MASTER_RXACK_bm) != 0 )  goto i2c_exit;
@@ -290,7 +390,7 @@ uint8_t currentStatus = 0;
 		currentStatus = TWIE.MASTER.STATUS;
 
 #ifdef DEBUG_I2C
-		//	xprintf_P( PSTR("drv_i2c: I2C_SL_L: 0x%02x,0x%02x\r\n\0"),txbyte,currentStatus );
+			xprintf_P( PSTR("drv_i2c: I2C_SL_L: 0x%02x,0x%02x\r\n\0"),txbyte,currentStatus );
 #endif
 		if ( (currentStatus & TWI_MASTER_RXACK_bm) != 0 )  goto i2c_exit;
 	}
@@ -299,7 +399,7 @@ uint8_t currentStatus = 0;
 
 i2c_exit:
 	if ( !ret_code ) {
-		//	xprintf_P( PSTR("drv_i2c: I2C_REG_ERROR: 0x%02x,0x%02x\r\n\0"),txbyte,currentStatus );
+		xprintf_P( PSTR("drv_i2c: I2C_REG_ERROR: 0x%02x,0x%02x\r\n\0"),txbyte,currentStatus );
 	}
 	return(ret_code);
 }
@@ -351,7 +451,7 @@ uint8_t currentStatus = 0;
 	}
 
 #ifdef DEBUG_I2C
-	//	xprintf_P( PSTR("drv_i2c: I2C_SLR: 0x%02x(%c),0x%02x\r\n\0"),*rxByte,*rxByte,currentStatus );
+		xprintf_P( PSTR("drv_i2c: I2C_SLR: 0x%02x(%c),0x%02x\r\n\0"),*rxByte,*rxByte,currentStatus );
 #endif
 
 	// Primero evaluo no tener errores.
@@ -363,7 +463,7 @@ uint8_t currentStatus = 0;
 i2c_exit:
 
 	if ( !ret_code ) {
-		//	xprintf_P( PSTR("drv_i2c: I2C_SLR_ERROR: 0x%02x(%c),0x%02x\r\n\0"),*rxByte,*rxByte,currentStatus );
+		xprintf_P( PSTR("drv_i2c: I2C_SLR_ERROR: 0x%02x(%c),0x%02x\r\n\0"),*rxByte,*rxByte,currentStatus );
 	}
 	return(ret_code);
 }
@@ -383,7 +483,9 @@ uint8_t ticks_to_wait = 30;		// 3 ticks ( 30ms es el maximo tiempo que espero )
 	}
 
 	// DEBUG
-	//	xprintf_P( PSTR("drv_i2c: I2C TO 0x%02x\r\n\0"),TWIE.MASTER.STATUS );
+#ifdef DEBUG_I2C
+	xprintf_P( PSTR("drv_i2c: WFC: TO 0x%02x\r\n\0"),TWIE.MASTER.STATUS );
+#endif
 
 	return(false);
 
@@ -442,7 +544,11 @@ uint8_t i = 0;
 	TWIE.MASTER.STATUS = TWI_MASTER_BUSSTATE_IDLE_gc;	// Pongo el status en 01 ( idle )
 	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
-//	xprintf_P( PSTR("drv_i2c: I2C_RESET_TWI: 0x%02x\r\n\0"),TWIE.MASTER.STATUS );
-
+#ifdef DEBUG_I2C
+	xprintf_P( PSTR("drv_i2c: I2C_RESET_TWI: 0x%02x\r\n\0"),TWIE.MASTER.STATUS );
+#endif
 }
 //------------------------------------------------------------------------------------
+
+
+

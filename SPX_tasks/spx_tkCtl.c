@@ -137,9 +137,11 @@ char data[3] = { '\0', '\0', '\0' };
 
 	// Determino la io_board attached
 	spx_io_board = SPX_IO5CH;
-	if ( I2C_test_device( BUSADDR_INA_C ,INA3231_CONF, data, 2 ) ) {
+	//if ( I2C_test_device( BUSADDR_INA_C ,INA3231_CONF, data, 2 ) ) {
+	if ( I2C_scan_device( BUSADDR_INA_C ) ) {
 		spx_io_board = SPX_IO8CH;
 	}
+
 
 	// Luego del posible error del bus I2C espero para que se reponga !!!
 	vTaskDelay( ( TickType_t)( 100 ) );

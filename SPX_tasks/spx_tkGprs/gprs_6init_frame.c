@@ -171,6 +171,11 @@ bool exit_flag = bool_RESTART;
 				exit_flag = bool_RESTART;
 				goto EXIT;
 				break;
+			case FRAME_SRV_ERR:
+				// El server no pudo procesar el frame. No puedo hacer nada.
+				exit_flag = bool_CONTINUAR;
+				goto EXIT;
+				break;
 			case FRAME_ERR404:
 				// No existe el recurso en el server
 				exit_flag = bool_RESTART;
@@ -249,6 +254,14 @@ uint8_t exit_code = FRAME_ERROR;
 				wdg_resetCause = 0x00;
 				pv_init_reconfigure_params_B();
 				exit_code = FRAME_OK;
+				goto EXIT;
+			}
+
+			if ( u_gprs_check_response("SRV_ERR") ) {	// El servidor no pudo procesar el frame. Problema del server
+				// Borro la causa del reset
+				wdg_resetCause = 0x00;
+				exit_code = FRAME_SRV_ERR;
+				xprintf_P( PSTR("GPRS: SERVER ERROR !!.\r\n\0" ));
 				goto EXIT;
 			}
 

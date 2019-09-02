@@ -22,6 +22,7 @@ static void pv_cmd_read_digital_channels(void);
 static void pv_cmd_read_memory(void);
 static void pv_cmd_rwGPRS(uint8_t cmd_mode );
 static void pv_cmd_rwMCP(uint8_t cmd_mode );
+static void pv_cmd_I2Cscan(void);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -511,6 +512,20 @@ int16_t range = 0;
 
 	FRTOS_CMD_makeArgv();
 
+	// PSENS
+	// read psens
+	//if (!strcmp_P( strupr(argv[1]), PSTR("PSENS\0")) && ( tipo_usuario == USER_TECNICO) ) {
+	//	PSENS_test_read ();
+	//	return;
+	//}
+
+	// I2Cscan
+	// read i2cscan busaddr
+	if (!strcmp_P( strupr(argv[1]), PSTR("I2CSCAN\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_I2Cscan();
+		return;
+	}
+
 	// MCP
 	// read mcp regAddr
 	if (!strcmp_P( strupr(argv[1]), PSTR("MCP\0")) && ( tipo_usuario == USER_TECNICO) ) {
@@ -947,6 +962,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  id\r\n\0"));
 			xprintf_P( PSTR("  (ee,nvmee,rtcram) {pos} {lenght}\r\n\0"));
 			xprintf_P( PSTR("  ina (id) {conf|chXshv|chXbusv|mfid|dieid}\r\n\0"));
+			xprintf_P( PSTR("  i2cscan {busaddr}\r\n\0"));
 			if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  mcp {regAddr}\r\n\0"));
 			}
@@ -956,6 +972,7 @@ static void cmdHelpFunction(void)
 			if ( spx_io_board == SPX_IO5CH ) {
 				xprintf_P( PSTR("  ach {0..4}, battery\r\n\0"));
 				xprintf_P( PSTR("  range\r\n\0"));
+				//xprintf_P( PSTR("  psens\r\n\0"));
 			} else if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  ach {0..7}\r\n\0"));
 			}
@@ -1659,3 +1676,14 @@ static void cmdPokeFunction(void)
 
 }
 //------------------------------------------------------------------------------------
+static void pv_cmd_I2Cscan(void)
+{
+
+bool retS = false;
+
+	retS = I2C_scan_device( atoi(argv[2]));
+	( retS) ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+	return;
+}
+//------------------------------------------------------------------------------------
+

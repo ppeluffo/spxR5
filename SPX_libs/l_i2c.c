@@ -15,8 +15,9 @@ const char str_i2c_dev_3[] PROGMEM = "MCP";
 const char str_i2c_dev_4[] PROGMEM = "INA_A";
 const char str_i2c_dev_5[] PROGMEM = "INA_B";
 const char str_i2c_dev_6[] PROGMEM = "INA_C";
+const char str_i2c_dev_7[] PROGMEM = "PSENS";
 
-const char * const I2C_names[] PROGMEM = { str_i2c_dev_0, str_i2c_dev_1, str_i2c_dev_2, str_i2c_dev_3, str_i2c_dev_4, str_i2c_dev_5, str_i2c_dev_6 };
+const char * const I2C_names[] PROGMEM = { str_i2c_dev_0, str_i2c_dev_1, str_i2c_dev_2, str_i2c_dev_3, str_i2c_dev_4, str_i2c_dev_5, str_i2c_dev_6, str_i2c_dev_7 };
 
 uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address );
 char buffer[10] = { 0 };
@@ -37,6 +38,9 @@ uint16_t device_address = 0;
 int8_t xBytes = 0;
 uint8_t i2c_error_code = 0;
 
+	//xBytes = length;
+	//xprintf_P( PSTR("DEBUG: i2c_rd: BADDR=0x%02x ,RDADDR=0x%02x, LEN=0x%02x \r\n\0"), i2c_bus_address, rdAddress, xBytes );
+
 	frtos_ioctl( fdI2C,ioctl_OBTAIN_BUS_SEMPH, NULL);
 
 	// 1) Indicamos el periferico i2c en el cual queremos leer ( variable de 8 bits !!! )
@@ -47,7 +51,9 @@ uint8_t i2c_error_code = 0;
 	//    Largo: 1 byte indica el largo. El FRTOS espera 1 byte.
 	if ( i2c_bus_address == BUSADDR_EEPROM_M2402 ) {
 		dev_address_length = 2;	// Las direccione de la EEprom son de 16 bits
-	} else {
+	} else if ( i2c_bus_address == BUSADDR_PSENS ) {
+		dev_address_length = 0;	//
+	} else{
 		dev_address_length = 1;
 	}
 	frtos_ioctl(fdI2C,ioctl_I2C_SET_BYTEADDRESSLENGTH, &dev_address_length);
@@ -205,6 +211,35 @@ bool retS = true;
 
 }
 //------------------------------------------------------------------------------------
+bool I2C_scan_device( uint8_t i2c_bus_address )
+{
+	// Utiliza las funciones SCAN del driver para testear su presencia.
+	// No genera mensajes de error en consola ya que se usa al inicio para detectar que
+	// placa hay conectada.
+
+uint8_t bus_address = 0;
+bool retS = true;
+
+	frtos_ioctl( fdI2C,ioctl_OBTAIN_BUS_SEMPH, NULL);
+
+	// 1) Indicamos el periferico i2c en el cual queremos leer ( variable de 8 bits !!! )
+	bus_address = i2c_bus_address;
+	frtos_ioctl(fdI2C,ioctl_I2C_SET_DEVADDRESS, &bus_address);
+
+	retS = frtos_ioctl(fdI2C,ioctl_I2C_SCAN, false);
+
+	frtos_ioctl( fdI2C,ioctl_RELEASE_BUS_SEMPH, NULL);
+
+	// 0:SPX_IO5CH, 1:SPX_IO8CH
+	// Al arrancar el programa desde tkCtl se invoca esta funcion y entonces
+	// deja en esta variable estatica la ioborad detectada.
+	// Se usa cuando es necesario resetear los devices en caso de error del bus
+	ioboard = retS;
+
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
 uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address )
 {
 	switch( i2c_bus_address ) {
@@ -225,6 +260,9 @@ uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address )
 		break;
 	case BUSADDR_INA_C:
 		return(6);
+		break;
+	case BUSADDR_PSENS:
+		return(7);
 		break;
 	default:
 		return(0);

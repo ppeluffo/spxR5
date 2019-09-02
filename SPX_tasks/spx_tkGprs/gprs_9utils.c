@@ -547,13 +547,18 @@ uint8_t i = 0;
 	// doutputs
 	switch( systemVars.doutputs_conf.modo) {
 	case NONE:
+		xCom_printf_P( fdGPRS, PSTR("&DOUTPUTS=OFF\0"));
+		// DEBUG & LOG
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("&DOUTPUTS=OFF\0"));
+		}
 		break;
 	case CONSIGNA:
 		// Consignas
-		xCom_printf_P( fdGPRS, PSTR("&DOUTS=CONS\0"));
+		xCom_printf_P( fdGPRS, PSTR("&DOUTPUTS=CONS\0"));
 		// DEBUG & LOG
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&DOUTS=CONS\0"));
+			xprintf_P( PSTR("&DOUTPUTS=CONS\0"));
 		}
 		//
 		// CONSIGNA
@@ -564,16 +569,16 @@ uint8_t i = 0;
 		}
 		break;
 	case PERFORACIONES:
-		xCom_printf_P( fdGPRS, PSTR("&DOUTS=PERF\0"));
+		xCom_printf_P( fdGPRS, PSTR("&DOUTPUTS=PERF\0"));
 		// DEBUG & LOG
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&DOUTS=PERF\0"));
+			xprintf_P( PSTR("&DOUTPUTS=PERF\0"));
 		}
 		break;
 	case PILOTOS:
-		xCom_printf_P( fdGPRS, PSTR("&DOUTS=PLT\0"));
+		xCom_printf_P( fdGPRS, PSTR("&DOUTPUTS=PLT\0"));
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&DOUTS=PLT\0"));
+			xprintf_P( PSTR("&DOUTPUTS=PLT\0"));
 		}
 		break;
 	}
