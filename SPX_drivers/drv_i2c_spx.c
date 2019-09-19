@@ -177,85 +177,26 @@ i2c_quit:
 
 }
 //------------------------------------------------------------------------------------
-bool drv_I2C_scan_device( const uint8_t devAddress, uint8_t modo, bool verbose )
+bool drv_I2C_scan_device( const uint8_t devAddress )
 {
-	// Pass1: Mando un START y el SLAVE_ADDRESS
-	// Si modo es 0 es 'RD', si es 1 es 'WR'
+	// Pass1: Mando un START y el SLAVE_ADDRESS con 1 ('WR')
 	// El start se genera automaticamente al escribir en el reg MASTER.ADDR.
 	// Esto tambien resetea todas las flags.
 	// La salida correcta es con STATUS = 0x62.
 	// El escribir el ADDR borra todas las flags.
 
-char txbyte = devAddress;
 bool ret_code = false;
-uint8_t currentStatus = 0;
-uint8_t ticks_to_wait = 30;
 
-	if ( verbose )
-		xprintf_P( PSTR("drv_i2c: DEV_ADDR=0x%02x, modo=%d "),devAddress, modo );
+	TWIE.MASTER.CTRLA |= ( 1<<TWI_MASTER_ENABLE_bp);	// Enable TWI
 
-	switch (modo) {
-	case 0:
-		txbyte &= ~0x01;
-		break;
-	case 1:
-		txbyte |= 0x01;
-		break;
-	default:
-		if ( verbose )
-			xprintf_P( PSTR("drv_i2c: mode error !!.\r\n\0") );
-		goto i2c_exit;
-		break;
-	}
+	// Fuerzo al bus al estado idle.
+	if ( ! pvI2C_set_bus_idle() ) goto i2c_quit;
 
-	TWIE.MASTER.ADDR = txbyte;
+	// Pass1: Mando un START y el SLAVE_ADDRESS (SLA_W).
+	// Reintento porque el slave puede estar ocupado y hasta que termine no va a mandar un ACK.
+	ret_code = pvI2C_write_slave_address(devAddress & ~0x01);
 
-	//waitForComplete
-	while ( ticks_to_wait-- > 0 ) {
-		if ( ( (TWIE.MASTER.STATUS & TWI_MASTER_WIF_bm) != 0 ) || ( (TWIE.MASTER.STATUS & TWI_MASTER_RIF_bm) != 0 ) ) {
-			break;
-		}
-		//vTaskDelay( ( TickType_t)( 10 / portTICK_RATE_MS ) );
-		vTaskDelay( ( TickType_t)( 1 ) );
-	}
-
-	if ( ticks_to_wait == 0 ) {
-		if ( verbose )
-			xprintf_P( PSTR("drv_i2c:  scan wait for complete ERROR.\r\n\0") );
-		goto i2c_exit;
-	}
-
-	currentStatus = TWIE.MASTER.STATUS;
-	if ( verbose )
-		xprintf_P( PSTR("drv_i2c: TX=0x%02x, STATUS=0x%02x\r\n\0"),txbyte, currentStatus );
-
-	// Primero evaluo no tener errores.
-	if ( (currentStatus & TWI_MASTER_ARBLOST_bm) != 0 ) {
-		if ( verbose )
-			xprintf_P( PSTR("drv_i2c: scan ARBLOST error !!.\r\n\0") );
-		goto i2c_exit;
-	}
-
-	if ( (currentStatus & TWI_MASTER_BUSERR_bm) != 0 ) {
-		if ( verbose )
-			xprintf_P( PSTR("drv_i2c: scan BUSERR error !!.\r\n\0") );
-		goto i2c_exit;
-	}
-
-	// ACK o NACK ?
-	if ( (currentStatus & TWI_MASTER_RXACK_bm) != 0 ) {
-		if ( verbose )
-			xprintf_P( PSTR("drv_i2c: scan rcvd NACK\r\n\0") );
-		goto i2c_exit;
-	} else {
-		// ACK
-		if ( verbose )
-			xprintf_P( PSTR("drv_i2c: scan OK: DEV_ADDR=0x%02x,MODE=%d\r\n\0"),devAddress, modo );
-		ret_code = true;
-		goto i2c_exit;
-	}
-
-i2c_exit:
+i2c_quit:
 
 	return(ret_code);
 }
@@ -349,9 +290,13 @@ uint8_t currentStatus = 0;
 	}
 
 i2c_exit:
+
+#ifdef DEBUG_I2C
 	if ( !ret_code ) {
 		xprintf_P( PSTR("drv_i2c: I2C_ADDR_ERROR: 0x%02x,0x%02x\r\n\0"),txbyte,currentStatus );
 	}
+#endif
+
 	return(ret_code);
 }
 //------------------------------------------------------------------------------------

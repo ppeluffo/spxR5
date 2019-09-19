@@ -55,7 +55,7 @@ void tkDoutputs(void * pvParameters)
 		}
 
 		switch( systemVars.doutputs_conf.modo ) {
-		case NONE:
+		case OFF:
 			tk_doutputs_none();
 			break;
 		case CONSIGNA:
@@ -85,7 +85,7 @@ static void tkDoutputs_init(void)
 	}
 
 	switch( systemVars.doutputs_conf.modo ) {
-	case NONE:
+	case OFF:
 		tk_doutputs_init_none();
 		break;
 	case CONSIGNA:

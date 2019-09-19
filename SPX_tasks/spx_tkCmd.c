@@ -243,10 +243,15 @@ uint8_t VA_cnt, VB_cnt, VA_status, VB_status;
 		}
 	}
 
+	// Psensor
+	if ( systemVars.psensor_enabled == true ) {
+		xprintf_P( PSTR("  psensor: %s (%d,%d)\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax);
+	}
+
 	// doutputs
 	switch( systemVars.doutputs_conf.modo) {
-	case NONE:
-		xprintf_P( PSTR("  doutputs modo: NONE\r\n"));
+	case OFF:
+		xprintf_P( PSTR("  doutputs modo: OFF\r\n"));
 		break;
 	case CONSIGNA:
 		// Consignas
@@ -514,10 +519,10 @@ int16_t range = 0;
 
 	// PSENS
 	// read psens
-	//if (!strcmp_P( strupr(argv[1]), PSTR("PSENS\0")) && ( tipo_usuario == USER_TECNICO) ) {
-	//	PSENS_test_read ();
-	//	return;
-	//}
+	if (!strcmp_P( strupr(argv[1]), PSTR("PSENSOR\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		PSENS_test_read ();
+		return;
+	}
 
 	// I2Cscan
 	// read i2cscan busaddr
@@ -793,6 +798,13 @@ bool retS = false;
 		return;
 	}
 
+	// PSENSOR
+	// config psensor pmin pmax
+	if (!strcmp_P( strupr(argv[1]), PSTR("PSENSOR\0")) ) {
+		psensor_config( argv[2], argv[3], argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
 	// RANGEMETER
 	// config rangemeter {on|off}
 	if ( !strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) {
@@ -808,6 +820,7 @@ bool retS = false;
 		pv_snprintfP_ERR();
 		return;
 	}
+
 
 	// TIMERDIAL
 	// config timerdial
@@ -972,9 +985,12 @@ static void cmdHelpFunction(void)
 			if ( spx_io_board == SPX_IO5CH ) {
 				xprintf_P( PSTR("  ach {0..4}, battery\r\n\0"));
 				xprintf_P( PSTR("  range\r\n\0"));
-				//xprintf_P( PSTR("  psens\r\n\0"));
 			} else if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  ach {0..7}\r\n\0"));
+			}
+
+			if ( systemVars.psensor_enabled == true ) {
+				xprintf_P( PSTR("  psensor\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri)\r\n\0"));
@@ -1018,7 +1034,11 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
 		}
 
-		xprintf_P( PSTR("  outmode { none | perf | plt | cons }\r\n\0"));
+		if ( systemVars.psensor_enabled == true ) {
+			xprintf_P( PSTR("  psensor {name} {pmin} {pmax}\r\n\0"));
+		}
+
+		xprintf_P( PSTR("  outmode { off | perf | plt | cons }\r\n\0"));
 		xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  piloto { reg{CHICA|MEDIA|GRANDE}, pband {pband},steps {steps},slot {idx} {hhmm} {pout} }\r\n\0"));
 		xprintf_P( PSTR("  default {SPY|OSE|UTE}\r\n\0"));
@@ -1261,7 +1281,8 @@ uint8_t i = 0;
 	// Imprimo al reves (MSB LSB)
 	xprintf_P( PSTR("Dinputs: "));
 	for ( i = 0; i < NRO_DINPUTS; i++ ) {
-		xprintf_P( PSTR(" %d"), dinputsA[ NRO_DINPUTS - 1 - i] );
+		//xprintf_P( PSTR(" %d"), dinputsA[ NRO_DINPUTS - 1 - i] );
+		xprintf_P( PSTR(" %d"), dinputsA[ i] );
 	}
 	xprintf_P( PSTR("\r\n\0"));
 
@@ -1336,6 +1357,7 @@ bool detail = false;
 		dinputs_df_print( &df );
 	    counters_df_print( &df );
 		u_df_print_range( &df );
+		u_df_print_psensor( &df );
 		ainputs_df_print_battery( &df );
 
 		xprintf_P(PSTR( "\r\n"));
@@ -1587,7 +1609,7 @@ uint8_t ch = 0;
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) && ( argv[2] != NULL )) {
 		ch = atoi( argv[2]);
-		xprintf_P( PSTR("COUNTER=%d,%s,%.03f,%d,%d,%\r\n\0"), ch,systemVars.counters_conf.name[ch],systemVars.counters_conf.magpp[ch],systemVars.counters_conf.pwidth[ch],systemVars.counters_conf.period[ch],systemVars.counters_conf.speed[ch] );
+		xprintf_P( PSTR("COUNTER=%d,%s,%.03f,%d,%d,%s\r\n\0"), ch,systemVars.counters_conf.name[ch],systemVars.counters_conf.magpp[ch],systemVars.counters_conf.pwidth[ch],systemVars.counters_conf.period[ch],systemVars.counters_conf.speed[ch] );
 
 	} else {
 		xprintf_P( PSTR("ERROR\r\n\0"));
@@ -1680,9 +1702,15 @@ static void pv_cmd_I2Cscan(void)
 {
 
 bool retS = false;
+uint8_t i2c_address;
 
-	retS = I2C_scan_device( atoi(argv[2]));
-	( retS) ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+	i2c_address = atoi(argv[2]);
+	retS = I2C_scan_device(i2c_address);
+	if (retS) {
+		xprintf_P( PSTR("I2C device found at 0x%02x\r\n\0"), i2c_address );
+	} else {
+		xprintf_P( PSTR("I2C device NOT found at 0x%02x\r\n\0"), i2c_address );
+	}
 	return;
 }
 //------------------------------------------------------------------------------------

@@ -141,10 +141,18 @@ bool retS = false;
 		return(retS);
 	}
 
+	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
+	signal_tkData_poll_off();
+	ainputs_prender_12V_sensors();
+	vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
+
 	// Leo el canal del ina.
 	ainputs_awake();
 	an_raw_val = ainputs_read_channel_raw( channel );
 	ainputs_sleep();
+
+	// Habilito a la tkData a volver a polear
+	signal_tkData_poll_on();
 
 	// Convierto el raw_value a la magnitud
 	I = (float)( an_raw_val) * 20 / ( systemVars.ainputs_conf.inaspan[channel] + 1);
@@ -187,6 +195,11 @@ float offset = 0.0;
 		return(false);
 	}
 
+	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
+	signal_tkData_poll_off();
+	ainputs_prender_12V_sensors();
+	vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
+
 	// Leo el canal del ina.
 	ainputs_awake();
 	an_raw_val = ainputs_read_channel_raw( channel );
@@ -197,6 +210,9 @@ float offset = 0.0;
 	I = (float)( an_raw_val) * 20 / ( systemVars.ainputs_conf.inaspan[channel] + 1);
 	P = 0;
 	D = systemVars.ainputs_conf.imax[channel] - systemVars.ainputs_conf.imin[channel];
+
+	// Habilito a la tkData a volver a polear
+	signal_tkData_poll_on();
 
 	an_mag_val = 0.0;
 	if ( D != 0 ) {

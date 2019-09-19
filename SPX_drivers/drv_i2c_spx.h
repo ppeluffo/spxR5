@@ -27,8 +27,7 @@
 void drv_I2C_init(void);
 int drv_I2C_master_write ( const uint8_t devAddress, const uint8_t devAddressLength, const uint16_t byteAddress, char *pvBuffer, size_t xBytes );
 int drv_I2C_master_read  ( const uint8_t devAddress, const uint8_t devAddressLength, const uint16_t byteAddress, char *pvBuffer, size_t xBytes );
-bool drv_I2C_scan_device( const uint8_t devAddress, uint8_t modo, bool verbose );
-
+bool drv_I2C_scan_device( const uint8_t devAddress );
 
 
 #endif /* SRC_SPX_DRIVERS_DRV_I2C_SPX_H_ */

@@ -22,7 +22,6 @@ const char * const I2C_names[] PROGMEM = { str_i2c_dev_0, str_i2c_dev_1, str_i2c
 uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address );
 char buffer[10] = { 0 };
 
-static int8_t ioboard = -1;
 //------------------------------------------------------------------------------------
 int8_t I2C_read( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, uint8_t length )
 {
@@ -147,70 +146,6 @@ uint8_t i2c_error_code = 0;
 
 }
 //------------------------------------------------------------------------------------
-bool I2C_test_device( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, uint8_t length )
-{
-	// Es lo mismo que I2C_read pero como se usa para ver cual dispositivo esta en el bus
-	// y asi determinar cual placa IO tenemos, no muestra errores.
-
-
-size_t xReturn = 0U;
-uint8_t bus_address = 0;
-uint8_t	dev_address_length = 1;
-uint16_t device_address = 0;
-int8_t xBytes = 0;
-uint8_t i2c_error_code = 0;
-bool retS = true;
-
-	frtos_ioctl( fdI2C,ioctl_OBTAIN_BUS_SEMPH, NULL);
-
-	// 1) Indicamos el periferico i2c en el cual queremos leer ( variable de 8 bits !!! )
-	bus_address = i2c_bus_address;
-	frtos_ioctl(fdI2C,ioctl_I2C_SET_DEVADDRESS, &bus_address);
-
-	// 2) Luego indicamos la direccion desde donde leer:
-	//    Largo: 1 byte indica el largo. El FRTOS espera 1 byte.
-	if ( i2c_bus_address == BUSADDR_EEPROM_M2402 ) {
-		dev_address_length = 2;	// Las direccione de la EEprom son de 16 bits
-	} else {
-		dev_address_length = 1;
-	}
-	frtos_ioctl(fdI2C,ioctl_I2C_SET_BYTEADDRESSLENGTH, &dev_address_length);
-	// 	Direccion: El FRTOS espera siempre 2 bytes.
-	//  Hago un cast para dejarla en 16 bits.
-	device_address = (uint16_t)(rdAddress);
-	frtos_ioctl(fdI2C,ioctl_I2C_SET_BYTEADDRESS,&device_address);
-
-	//  3) Por ultimo leemos. No controlo fronteras.
-	xBytes = length;
-	xReturn = frtos_read(fdI2C, data, xBytes);
-//	memset(buffer,'\0', 10);
-//	strcpy_P(buffer, (PGM_P)pgm_read_word(&(I2C_names[pv_i2_addr_2_idx( i2c_bus_address )])));
-//	xprintf_P(PSTR("I2C TST 0x0%X, %s.\r\n\0"), i2c_bus_address, buffer );
-
-	i2c_error_code = frtos_ioctl(fdI2C, ioctl_I2C_GET_LAST_ERROR, NULL );
-	if (i2c_error_code != I2C_OK ) {
-//		memset(buffer,'\0', 10);
-//		strcpy_P(buffer, (PGM_P)pgm_read_word(&(I2C_names[pv_i2_addr_2_idx( i2c_bus_address )])));
-//		xprintf_P(PSTR("ERROR: I2C Test err 0x0%X, %s.\r\n\0"), i2c_bus_address, buffer );
-	}
-
-	if (xReturn != xBytes ) {
-		xReturn = -1;
-		retS = false;
-	}
-
-	frtos_ioctl( fdI2C,ioctl_RELEASE_BUS_SEMPH, NULL);
-
-	// 0:SPX_IO5CH, 1:SPX_IO8CH
-	// Al arrancar el programa desde tkCtl se invoca esta funcion y entonces
-	// deja en esta variable estatica la ioborad detectada.
-	// Se usa cuando es necesario resetear los devices en caso de error del bus
-	ioboard = retS;
-
-	return(retS);
-
-}
-//------------------------------------------------------------------------------------
 bool I2C_scan_device( uint8_t i2c_bus_address )
 {
 	// Utiliza las funciones SCAN del driver para testear su presencia.
@@ -225,19 +160,39 @@ bool retS = true;
 	// 1) Indicamos el periferico i2c en el cual queremos leer ( variable de 8 bits !!! )
 	bus_address = i2c_bus_address;
 	frtos_ioctl(fdI2C,ioctl_I2C_SET_DEVADDRESS, &bus_address);
-
 	retS = frtos_ioctl(fdI2C,ioctl_I2C_SCAN, false);
-
 	frtos_ioctl( fdI2C,ioctl_RELEASE_BUS_SEMPH, NULL);
-
-	// 0:SPX_IO5CH, 1:SPX_IO8CH
-	// Al arrancar el programa desde tkCtl se invoca esta funcion y entonces
-	// deja en esta variable estatica la ioborad detectada.
-	// Se usa cuando es necesario resetear los devices en caso de error del bus
-	ioboard = retS;
-
 	return(retS);
 
+}
+//------------------------------------------------------------------------------------
+void I2C_reinit_devices(void)
+{
+	// En caso de una falla en el bus I2C ( por lo general por ruidos al activar bombas )
+	// debo reiniciar los dispositivos.
+
+uint8_t olatb = 0;
+
+	// Espero 100 ms que se elimine la fuente de ruido.
+	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+
+	INA_config_avg128( INA_A );
+	INA_config_avg128( INA_B );
+	RTC_init();
+
+	if ( I2C_scan_device( BUSADDR_INA_C ) )
+	{
+	// SPX_IO8CH
+		INA_config_avg128( INA_C );
+		MCP_init();
+		//
+		// El MCP_init no escribe el olatb. En este caso debo leerlo del systemVars
+		// y actualizarlo
+		olatb = MCP_get_olatb();
+		MCP_write( MCP_OLATB, (char *)&olatb , 1 );
+
+	}
+	xprintf_P(PSTR("ERROR: I2C_reinit_devices.\r\n\0") );
 }
 //------------------------------------------------------------------------------------
 uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address )
@@ -270,42 +225,5 @@ uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address )
 
 	return(0);
 
-}
-//------------------------------------------------------------------------------------
-void I2C_reinit_devices(void)
-{
-	// En caso de una falla en el bus I2C ( por lo general por ruidos al activar bombas )
-	// debo reiniciar los dispositivos.
-
-uint8_t olatb = 0;
-
-	// Espero 100 ms que se elimine la fuente de ruido.
-	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
-
-	if ( ioboard == 0 ) {			//SPX_IO5CH
-
-		INA_config_avg128( INA_A );
-		INA_config_avg128( INA_B );
-		RTC_init();
-
-	} else if ( ioboard == 1 ) {	// SPX_IO8CH
-
-		INA_config_avg128( INA_A );
-		INA_config_avg128( INA_B );
-		INA_config_avg128( INA_C );
-		MCP_init();
-		//
-		// El MCP_init no escribe el olatb. En este caso debo leerlo del systemVars
-		// y actualizarlo
-		olatb = MCP_get_olatb();
-		MCP_write( MCP_OLATB, (char *)&olatb , 1 );
-
-		RTC_init();
-
-	} else {
-		xprintf_P(PSTR("ERROR: I2C INIT DEVICES: board not detected(%d).\r\n\0"), ioboard );
-	}
-
-	xprintf_P(PSTR("ERROR: I2C_reinit_devices.\r\n\0") );
 }
 //------------------------------------------------------------------------------------

@@ -19,13 +19,13 @@ uint8_t i;
 	if ( spx_io_board == SPX_IO8CH ) {
 
 		if (!strcmp_P( opt, PSTR("UTE\0"))) {
-			systemVars.doutputs_conf.modo = NONE;
+			systemVars.doutputs_conf.modo = OFF;
 		} else {
 			systemVars.doutputs_conf.modo = PERFORACIONES;
 		}
 
 	} else if ( spx_io_board == SPX_IO5CH ) {
-		systemVars.doutputs_conf.modo = NONE;
+		systemVars.doutputs_conf.modo = OFF;
 	}
 
 	systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour = 05;
@@ -60,8 +60,8 @@ char l_data[10] = { '\0' } ;
 	memcpy(l_data, mode, sizeof(l_data));
 	strupr(l_data);
 
-	if (!strcmp_P( l_data, PSTR("NONE\0"))) {
-		systemVars.doutputs_conf.modo = NONE;
+	if (!strcmp_P( l_data, PSTR("OFF\0"))) {
+		systemVars.doutputs_conf.modo = OFF;
 
 	} else if (!strcmp_P( l_data, PSTR("PERF\0"))) {
 

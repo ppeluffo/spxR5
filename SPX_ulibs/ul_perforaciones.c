@@ -33,7 +33,7 @@ uint8_t data = 0;
 
 	if ( spx_io_board != SPX_IO8CH ) {
 		xprintf_P(PSTR("DOUTPUTS Init ERROR: Perforaciones only in IO_8CH.\r\n\0"));
-		systemVars.doutputs_conf.modo = NONE;
+		systemVars.doutputs_conf.modo = OFF;
 		return;
 	}
 

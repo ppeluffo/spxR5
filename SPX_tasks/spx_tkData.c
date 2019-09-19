@@ -23,6 +23,7 @@ st_dataRecord_t data_dr;
 FAT_t data_fat;
 
 bool sensores_prendidos = false;
+static bool poll_enable = true;
 
 //------------------------------------------------------------------------------------
 // PROTOTIPOS
@@ -32,6 +33,7 @@ static void pv_data_read_frame( void );
 static void pv_data_read_analogico( void );
 static void pv_data_read_contadores( void );
 static void pv_data_read_rangemeter( void );
+static void pv_data_read_psensor( void );
 static void pv_data_read_dinputs( void );
 static void pv_data_read_pilotos( void );
 static void pv_data_print_frame( void );
@@ -159,12 +161,15 @@ static void pv_data_init(void)
 static void pv_data_read_analogico( void )
 {
 	// Prendo los sensores, espero un settle time de 1s, los leo y apago los sensores.
-	// En las placas SPX_IO8 no prendo los sensores porque no los alimento.
+	// En las placas SPX_IO8 siempre dejo los sensores prendidos y no los apago mas.
 	// Los prendo si estoy con una placa IO5 y los sensores estan apagados.
+
+	if ( ! poll_enable )
+		return;
 
 	ainputs_awake();
 	//
-	if ( ( spx_io_board == SPX_IO5CH ) && ( ! sensores_prendidos ) ) {
+	if ( ! sensores_prendidos ) {
 
 		ainputs_prender_12V_sensors();
 		sensores_prendidos = true;
@@ -230,9 +235,24 @@ static void pv_data_read_rangemeter( void )
 	}
 }
 //------------------------------------------------------------------------------------
+static void pv_data_read_psensor( void )
+{
+
+	data_df.psensor = psensor_read();
+}
+//------------------------------------------------------------------------------------
 static void pv_data_read_dinputs( void )
 {
+uint8_t ch;
+
 	// Leo las entradas digitales
+	if ( spx_io_board == SPX_IO8CH ) {
+		for ( ch = 0; ch < NRO_DINPUTS; ch++ ) {
+			data_df.dinputsA[ch] = dinputs_read_channel(ch);
+		}
+		return;
+	}
+
 
 	dinputs_read_din( (uint16_t *)&data_df.dinputsA[0], (uint16_t *)&data_df.dinputsA[1] );
 
@@ -263,6 +283,7 @@ int8_t xBytes = 0;
 	pv_data_read_contadores();
     pv_data_read_dinputs();
     pv_data_read_rangemeter();
+    pv_data_read_psensor();
     pv_data_read_pilotos();
 
 	// Agrego el timestamp
@@ -287,6 +308,7 @@ static void pv_data_print_frame( void )
 	dinputs_df_print( &data_df );
     counters_df_print( &data_df );
 	u_df_print_range( &data_df );
+	u_df_print_psensor( &data_df );
 	pilotos_df_print( &data_df );
 	ainputs_df_print_battery( &data_df );
 
@@ -320,6 +342,7 @@ static bool primer_frame = true;
 		memcpy( &data_dr.df.io5.dinputsA, &data_df.dinputsA, ( NRO_DINPUTS * sizeof(uint16_t)));
 		memcpy( &data_dr.df.io5.counters, &data_df.counters, ( NRO_COUNTERS * sizeof(float)));
 		data_dr.df.io5.range = data_df.range;
+		data_dr.df.io5.psensor = data_df.psensor;
 		data_dr.df.io5.battery = data_df.battery;
 		memcpy( &data_dr.rtc, &data_df.rtc, sizeof(RtcTimeType_t) );
 		memcpy( &data_dr.df.io5.plt_Vcounters, &data_df.plt_Vcounters, 2 * sizeof(uint8_t) );
@@ -357,5 +380,13 @@ static void pv_data_signal_to_tkgprs(void)
 	}
 }
 //------------------------------------------------------------------------------------
-
-
+void signal_tkData_poll_off(void)
+{
+	poll_enable = false;
+}
+//------------------------------------------------------------------------------------
+void signal_tkData_poll_on(void)
+{
+	poll_enable = true;
+}
+//------------------------------------------------------------------------------------

@@ -544,41 +544,49 @@ uint8_t i = 0;
 
 	}
 
+	// Configuracion del psensor
+	if ( systemVars.psensor_enabled ) {
+		xCom_printf_P( fdGPRS,PSTR("&PSENSOR=%s,%d,%d\0"),systemVars.psensor_conf.name, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax);
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PSENSOR=%s,%d,%d\0"),systemVars.psensor_conf.name,systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax);
+		}
+	}
+
 	// doutputs
 	switch( systemVars.doutputs_conf.modo) {
-	case NONE:
-		xCom_printf_P( fdGPRS, PSTR("&DOUTPUTS=OFF\0"));
+	case OFF:
+		xCom_printf_P( fdGPRS, PSTR("&DOUT=OFF\0"));
 		// DEBUG & LOG
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&DOUTPUTS=OFF\0"));
+			xprintf_P( PSTR("&DOUT=OFF\0"));
 		}
 		break;
 	case CONSIGNA:
 		// Consignas
-		xCom_printf_P( fdGPRS, PSTR("&DOUTPUTS=CONS\0"));
+		xCom_printf_P( fdGPRS, PSTR("&DOUT=CONS\0"));
 		// DEBUG & LOG
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&DOUTPUTS=CONS\0"));
+			xprintf_P( PSTR("&DOUT=CONS\0"));
 		}
 		//
 		// CONSIGNA
-		xCom_printf_P( fdGPRS, PSTR("&CONS=%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
+		xCom_printf_P( fdGPRS, PSTR("&CSGNA=%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
 		// DEBUG & LOG
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&CONS=%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
+			xprintf_P( PSTR("&CSGNA=%02d%02d,%02d%02d\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour,systemVars.doutputs_conf.consigna.hhmm_c_diurna.min,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour,systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min);
 		}
 		break;
 	case PERFORACIONES:
-		xCom_printf_P( fdGPRS, PSTR("&DOUTPUTS=PERF\0"));
+		xCom_printf_P( fdGPRS, PSTR("&DOUT=PERF\0"));
 		// DEBUG & LOG
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&DOUTPUTS=PERF\0"));
+			xprintf_P( PSTR("&DOUT=PERF\0"));
 		}
 		break;
 	case PILOTOS:
-		xCom_printf_P( fdGPRS, PSTR("&DOUTPUTS=PLT\0"));
+		xCom_printf_P( fdGPRS, PSTR("&DOUT=PLT\0"));
 		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("&DOUTPUTS=PLT\0"));
+			xprintf_P( PSTR("&DOUT=PLT\0"));
 		}
 		break;
 	}

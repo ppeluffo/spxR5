@@ -23,13 +23,12 @@
 #define BUSADDR_INA_A			0x80
 #define BUSADDR_INA_B			0x82
 #define BUSADDR_INA_C			0x86
-#define BUSADDR_PSENS			0x28
+#define BUSADDR_PSENS			0x50
 
 int8_t I2C_read( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, uint8_t length );
 int8_t I2C_write( uint8_t i2c_bus_address, uint32_t wrAddress, char *data, uint8_t length );
-
-bool I2C_test_device( uint8_t i2c_bus_address, uint32_t rdAddress, char *data, uint8_t length );
-void I2C_reinit_devices(void);
 bool I2C_scan_device( uint8_t i2c_bus_address );
+void I2C_reinit_devices(void);
+
 
 #endif /* SPX_LIBS_L_I2C_H_ */

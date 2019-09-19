@@ -71,7 +71,7 @@ void tk_init_pilotos(void)
 	// Los pilotos se inicializan igual que las consignas ya que uso las 2 valvulas.
 	if ( spx_io_board != SPX_IO5CH ) {
 		xprintf_P(PSTR("DOUTPUTS ERROR: Pilotos only in IO_5CH.\r\n\0"));
-		systemVars.doutputs_conf.modo = NONE;
+		systemVars.doutputs_conf.modo = OFF;
 		return;
 	}
 
@@ -99,7 +99,7 @@ espera_t espera = WAIT_NORMAL;
 
 	// Por las dudas
 	if ( spx_io_board != SPX_IO5CH ) {
-		systemVars.doutputs_conf.modo = NONE;
+		systemVars.doutputs_conf.modo = OFF;
 		return;
 	}
 

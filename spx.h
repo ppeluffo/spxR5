@@ -64,7 +64,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.0.5"
-#define SPX_FW_DATE "@ 20190902"
+#define SPX_FW_DATE "@ 20190919"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -127,7 +127,7 @@ typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 typedef enum { CTL_BOYA, CTL_SISTEMA } doutputs_control_t;
-typedef enum { NONE = 0, CONSIGNA, PERFORACIONES, PILOTOS  } doutputs_modo_t;
+typedef enum { OFF = 0, CONSIGNA, PERFORACIONES, PILOTOS  } doutputs_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
 typedef enum { OPEN = 0, CLOSE } t_valve_status;
 typedef enum { VR_CHICA = 0, VR_MEDIA, VR_GRANDE } t_valvula_reguladora;
@@ -178,9 +178,10 @@ typedef struct {
 	uint8_t dinputsA[IO5_DINPUTS_CHANNELS];		// 1 * 2 =  2
 	float counters[IO5_COUNTER_CHANNELS];		// 4 * 2 =  8
 	int16_t range;								// 2 * 1 =  2
+	int16_t psensor;							// 2 * 1 =  2
 	float battery;								// 4 * 1 =  4
 	uint8_t plt_Vcounters[2];					// 2 * 1 =  2
-} st_io5_t;										// ----- = 38
+} st_io5_t;										// ----- = 40
 
 // Estructura de un registro de IO8CH
 typedef struct {
@@ -206,6 +207,7 @@ typedef struct {
 	uint8_t dinputsA[MAX_DINPUTS_CHANNELS];
 	float counters[MAX_COUNTER_CHANNELS];
 	int16_t range;
+	int16_t psensor;
 	float battery;
 	RtcTimeType_t rtc;
 	uint8_t plt_Vcounters[2];
@@ -294,6 +296,12 @@ typedef struct {
 	st_pwrsave_t pwrSave;
 } gprs_conf_t;
 
+// Configuracion del sensor i2c de presion
+typedef struct {
+	char name[PARAMNAME_LENGTH];
+	uint16_t pmax;
+	uint16_t pmin;
+} psensor_conf_t;
 
 typedef struct {
 
@@ -302,12 +310,14 @@ typedef struct {
 	t_debug debug;
 	uint16_t timerPoll;
 	bool rangeMeter_enabled;
+	bool psensor_enabled;
 
 	counters_conf_t counters_conf;	// Estructura con la configuracion de los contadores
 	dinputs_conf_t dinputs_conf;	// Estructura con la configuracion de las entradas digitales
 	ainputs_conf_t ainputs_conf;	// Estructura con la configuracion de las entradas analogicas
 	doutputs_conf_t doutputs_conf;	//
 	gprs_conf_t	gprs_conf;
+	psensor_conf_t psensor_conf;
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -330,6 +340,7 @@ void u_config_timerpoll ( char *s_timerpoll );
 void u_format_memory(void);
 
 void u_df_print_range( dataframe_s *df );
+void u_df_print_psensor( dataframe_s *df );
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -352,6 +363,12 @@ void dinputs_df_print( dataframe_s *df );
 int16_t range_read(void);
 bool range_config ( char *s_mode );
 void range_config_defaults(void);
+
+// PSENSOR
+int16_t psensor_read(void);
+bool psensor_config ( char *s_pname, char *s_pmin, char *s_pmax  );
+void psensor_config_defaults(void);
+
 
 // AINPUTS
 void ainputs_prender_12V_sensors(void);
@@ -383,6 +400,8 @@ void counters_df_print( dataframe_s *df );
 // TKDATA
 void data_read_frame( bool polling );
 void data_read_pAB( float *pA, float *pB );
+void signal_tkData_poll_on(void);
+void signal_tkData_poll_off(void);
 
 // DINPUTS
 void dinputs_read_din( uint16_t *d0, uint16_t *d1 );

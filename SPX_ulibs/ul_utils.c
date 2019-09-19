@@ -249,6 +249,8 @@ void u_load_defaults( char *opt )
 	dinputs_config_defaults();
 	ainputs_config_defaults();
 	range_config_defaults();
+	psensor_config_defaults();
+
 	doutputs_config_defaults(  opt );
 
 	u_gprs_load_defaults( opt );
@@ -345,6 +347,14 @@ void u_df_print_range( dataframe_s *df )
 	// Range
 	if ( ( spx_io_board == SPX_IO5CH ) && ( systemVars.rangeMeter_enabled ) ) {
 		xprintf_P(PSTR(",RANGE=%d"), df->range );
+	}
+}
+//------------------------------------------------------------------------------------
+void u_df_print_psensor( dataframe_s *df )
+{
+	// Range
+	if ( systemVars.psensor_enabled ) {
+		xprintf_P(PSTR(",%s=%d"), systemVars.psensor_conf.name, df->psensor );
 	}
 }
 //------------------------------------------------------------------------------------

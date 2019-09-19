@@ -327,7 +327,7 @@ uint16_t *p = NULL;
 				xReturn = xI2c->i2c_error_code;;
 				break;
 			case ioctl_I2C_SCAN:
-				xReturn = drv_I2C_scan_device(xI2c->devAddress, 0, false );
+				xReturn = drv_I2C_scan_device(xI2c->devAddress );
 				break;
 			default :
 				xReturn = -1;

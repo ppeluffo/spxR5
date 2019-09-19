@@ -76,13 +76,39 @@ uint16_t waiting_time;
 //------------------------------------------------------------------------------------
 uint16_t pv_time_to_poll(void)
 {
-	return( max( systemVars.dinputs_conf.tpoll[0], systemVars.dinputs_conf.tpoll[1]));
+uint16_t pt;
+
+	if ( systemVars.dinputs_conf.tpoll[0] == 0 ) {
+		pt = systemVars.dinputs_conf.tpoll[1];
+		//xprintf_P( PSTR("DEBUG TIMETOPOLL = %d(1)\r\n\0"), pt);
+		return(pt);
+	}
+
+	if ( systemVars.dinputs_conf.tpoll[1] == 0 ) {
+		pt = systemVars.dinputs_conf.tpoll[0];
+		//xprintf_P( PSTR("DEBUG TIMETOPOLL = %d(0)\r\n\0"), pt);
+		return(pt);
+	}
+
+	pt = min( systemVars.dinputs_conf.tpoll[0], systemVars.dinputs_conf.tpoll[1]);
+	//xprintf_P( PSTR("DEBUG TIMETOPOLL = %d(min)\r\n\0"), pt);
+	return(pt);
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PUBLICAS
 //------------------------------------------------------------------------------------
 void dinputs_read_din( uint16_t *d0, uint16_t *d1 )
 {
+
+	if ( pv_time_to_poll() == 0 ) {
+		// No estoy en modo poleo. Retorno el valor del nivel
+		*d0 = dinputs_read_channel(0);
+		*d1 = dinputs_read_channel(1);
+		//xprintf_P( PSTR("DEBUG READ DIN tpll=0\r\n\0"));
+		return;
+
+	}
+
 	*d0 = din0;
 	din0 = 0;
 

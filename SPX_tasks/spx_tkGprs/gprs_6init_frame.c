@@ -21,6 +21,7 @@ static uint8_t pv_init_config_counterCh(uint8_t channel);
 static uint8_t pv_init_config_rangeMeter(void);
 static uint8_t pv_init_config_doutputs(void);
 static uint8_t pv_init_config_consignas(void);
+static uint8_t pv_init_config_psensor(void);
 static uint8_t pv_init_config_default(void);
 static uint8_t pv_init_B_config_pband(void);
 static uint8_t pv_init_B_config_psteps(void);
@@ -339,6 +340,9 @@ uint8_t saveFlag = 0;
 	// Canales de contadores
 	saveFlag += pv_init_config_counterCh(0);
 	saveFlag += pv_init_config_counterCh(1);
+
+	// Psensor
+	saveFlag += pv_init_config_psensor();
 
 	// DEFAULT=dlgid,NONE|SPY|UTE|OSE
 	saveFlag += pv_init_config_default();
@@ -883,6 +887,43 @@ char *p = NULL;
 	consigna_config( tk_cons_start, tk_cons_end );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig CONSIGNAS\r\n\0"));
+	}
+
+	return(1);
+}
+//-------------------------------------------------------------------------------------
+static uint8_t pv_init_config_psensor(void)
+{
+//	La linea recibida trae: PSENSOR=0,1000:
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_id = NULL;
+char *tk_pname = NULL;
+char *tk_pmin = NULL;
+char *tk_pmax = NULL;
+char *delim = ",=:><";
+char *p = NULL;
+
+	memset( &localStr, '\0', sizeof(localStr) );
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PSENSOR=");
+	if ( p == NULL ) {
+		return(0);
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_id = strsep(&stringp,delim);			//PSENSOR
+	tk_pname = strsep(&stringp,delim);		// pname
+	tk_pmin = strsep(&stringp,delim);		// pmin
+	tk_pmax  = strsep(&stringp,delim); 		// pmax
+	psensor_config( tk_pname, tk_pmin, tk_pmax );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig PSENSOR\r\n\0"));
 	}
 
 	return(1);
