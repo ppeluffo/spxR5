@@ -9,11 +9,12 @@
  *
  */
 
-#include "gprs.h"
+#include <spx_tkComms/gprs.h>
 
 static bool pv_scan_try_ipservers(void);
 static t_frame_responses pv_scan_process_response(void);
 static void pv_scan_config_dlgid(void);
+static bool  pv_scan_send_frame( void );
 
 // La tarea no puede demorar mas de 180s.
 #define WDG_GPRS_TO_INIT	180
@@ -42,7 +43,7 @@ bool exit_flag = bool_RESTART;
 	ctl_watchdog_kick(WDG_GPRSTX, WDG_GPRS_TO_INIT );
 
 	// Veo si es necesario hacer un SCAN de la IP del server
-	if ( strcmp_P( systemVars.gprs_conf.server_ip_address, PSTR("DEFAULT\0")) ) {
+	if ( strcmp_P( systemVars.gprs_conf.server_ip_address, PSTR("DEFAULT\0")) != 0 ) {
 		// No es necesario.
 		// Copio la IP en el GPRS_stateVars y salgo
 		strcpy( GPRS_stateVars.server_ip_address, systemVars.gprs_conf.server_ip_address );
@@ -105,7 +106,7 @@ uint8_t ip_id = 0;
 
 		// Aqui estoy con una IP listo para abrir un socket.
 		// Solo mando 1 frame de scan
-		if ( u_gprs_send_frame( SCAN_FRAME ) ) {
+		if ( pv_scan_send_frame() ) {
 
 			if ( pv_scan_process_response() == FRAME_OK ) {
 
@@ -117,6 +118,7 @@ uint8_t ip_id = 0;
 				continue;
 			}
 		}
+
 	}
 
 	// Despues de reintentar con toda la lista de ip no pude conectarme a ninguna
@@ -160,31 +162,27 @@ uint8_t exit_code = FRAME_ERROR;
 
 		if ( u_gprs_check_response("</h1>") ) {	// Respuesta completa del server
 
-			if ( u_gprs_check_response("SCAN_OK") ) {	// Respuesta correcta. El dlgid esta definido en la BD
+			if ( u_gprs_check_response("STATUS:OK") ) {	// Respuesta correcta. El dlgid esta definido en la BD
 				exit_code = FRAME_OK;
 				goto EXIT;
-			}
 
-			if ( u_gprs_check_response("DLGID") ) {	// Respuesta correcta
+			} else if ( u_gprs_check_response("STATUS:RECONF") ) {	// Respuesta correcta
 				pv_scan_config_dlgid();             // Configure el DLGID correcto y la SERVER_IP usada es la correcta.
 				exit_code = FRAME_OK;
 				goto EXIT;
-			}
 
-			if ( u_gprs_check_response("NOT_ALLOWED") ) {	// Datalogger esta usando un script incorrecto
+			} else if ( u_gprs_check_response("STATUS:UNDEF") ) {	// Datalogger esta usando un script incorrecto
 				xprintf_P( PSTR("GPRS_SCAN: SCRIPT ERROR !!.\r\n\0" ));
 				exit_code = FRAME_NOT_ALLOWED;
 				goto EXIT;
-			}
 
-			if ( u_gprs_check_response("NOTDEFINED") ) {	// Datalogger esta usando un script incorrecto
+			} else if ( u_gprs_check_response("NOTDEFINED") ) {	// Datalogger esta usando un script incorrecto
 				xprintf_P( PSTR("GPRS_SCAN: dlg not defined in BD\r\n\0" ));
 				exit_code = FRAME_ERROR;
 				goto EXIT;
-			}
 
-			if ( u_gprs_check_response("SCAN_ERR") ) {	// Datalogger no esta definido en el servidor usado
-				xprintf_P( PSTR("GPRS_SCAN: dlg not defined in BD\r\n\0" ));
+			} else {
+				// Frame no reconocido !!!
 				exit_code = FRAME_ERROR;
 				goto EXIT;
 			}
@@ -202,7 +200,7 @@ EXIT:
 //------------------------------------------------------------------------------------
 static void pv_scan_config_dlgid(void)
 {
-	// La linea recibida es del tipo: <h1>DLGID=TH001</h1>
+	// La linea recibida es del tipo: <h1>TYPE=CTL&PLOAD=CLASS:SCAN;STATUS:RECONF;DLGID:TEST01</h1>
 	// Es la respuesta del server a un frame de SCAN.
 	// Indica 2 cosas: - El server es el correcto por lo que debo salvar la IP
 	//                 - Me pasa el DLGID correcto.
@@ -239,6 +237,76 @@ char *delim = ",=:><";
 
 	u_save_params_in_NVMEE();
 
+}
+//------------------------------------------------------------------------------------
+static bool pv_scan_send_frame( void )
+{
+
+	// El socket puede estar cerrado por lo que reintento abrirlo hasta 3 veces.
+	// Una vez que envie el INIT, salgo.
+	// Al entrar, veo que el socket este cerrado.
+	// GET /cgi-bin/spx/SPY.pl?DLGID=TEST02&TYPE=CTL&VER=2.0.6&PLOAD=TYPE:SCAN;UID:304632333433180f000500 HTTP/1.1
+	// Host: www.spymovil.com
+	// Connection: close\r\r ( no mando el close )
+
+
+uint8_t intentos = 0;
+bool exit_flag = false;
+uint8_t timeout = 0;
+uint8_t await_loops = 0;
+t_socket_status socket_status = 0;
+
+	for ( intentos = 0; intentos < MAX_TRYES_OPEN_SOCKET; intentos++ ) {
+
+		socket_status = u_gprs_check_socket_status();
+
+		if (  socket_status == SOCK_OPEN ) {
+
+			u_gprs_flush_RX_buffer();
+			u_gprs_flush_TX_buffer();
+			//
+			u_gprs_tx_header("CTL");
+
+			xCom_printf_P( fdGPRS, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
+			// DEBUG & LOG
+			if ( systemVars.debug ==  DEBUG_GPRS ) {
+				xprintf_P(  PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
+			}
+
+			u_gprs_tx_tail();
+			xprintf_P( PSTR("GPRS_SCAN:: scanframe: Sent\r\n\0"));
+			vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
+			return(true);
+		}
+
+		// Doy el comando para abrirlo y espero
+		u_gprs_open_socket();
+
+		await_loops = ( 10 * 1000 / 3000 ) + 1;
+		// Y espero hasta 30s que abra.
+		for ( timeout = 0; timeout < await_loops; timeout++) {
+			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
+			socket_status = u_gprs_check_socket_status();
+
+			// Si el socket abrio, salgo para trasmitir el frame de init.
+			if ( socket_status == SOCK_OPEN ) {
+				break;
+			}
+
+			// Si el socket dio error, salgo para enviar de nuevo el comando.
+			if ( socket_status == SOCK_ERROR ) {
+				break;
+			}
+
+			// Si el socket dio falla, debo reiniciar la conexion.
+			if ( socket_status == SOCK_FAIL ) {
+				return(exit_flag);
+				break;
+			}
+		}
+	}
+
+	return(exit_flag);
 }
 //------------------------------------------------------------------------------------
 

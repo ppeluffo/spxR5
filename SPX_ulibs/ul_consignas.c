@@ -7,36 +7,8 @@
 
 #include "spx.h"
 
-extern bool doutputs_reinit;
 //------------------------------------------------------------------------------------
-bool consigna_write( char *tipo_consigna_str)
-{
-
-char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
-
-	memcpy(l_data, tipo_consigna_str, sizeof(l_data));
-	strupr(l_data);
-
-	if ( spx_io_board != SPX_IO5CH ) {
-		return(false);
-	}
-
-	if (!strcmp_P( l_data, PSTR("DIURNA\0")) ) {
-		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
-		DRV8814_set_consigna_diurna();
-		return(true);
-	}
-
-	if (!strcmp_P( l_data, PSTR("NOCTURNA\0")) ) {
-		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
-		DRV8814_set_consigna_nocturna();
-		return(true);
-	}
-
-	return(false);
-}
-//------------------------------------------------------------------------------------
-void tk_init_consigna(void)
+void consigna_init(void)
 {
 	// Configuracion inicial cuando las salidas estan en CONSIGNA.
 	// Solo es para SPX_IO5CH.
@@ -131,7 +103,59 @@ uint8_t consigna_a_aplicar = 99;
 	}
 }
 //------------------------------------------------------------------------------------
-void tk_consigna(void)
+bool consigna_config ( char *hhmm1, char *hhmm2 )
+{
+
+	if ( hhmm1 != NULL ) {
+		u_convert_int_to_time_t( atoi( hhmm1), &systemVars.doutputs_conf.consigna.hhmm_c_diurna );
+	}
+
+	if ( hhmm2 != NULL ) {
+		u_convert_int_to_time_t( atoi(hhmm2), &systemVars.doutputs_conf.consigna.hhmm_c_nocturna );
+	}
+
+	return(true);
+
+}
+//------------------------------------------------------------------------------------
+void consigna_config_defaults(void)
+{
+
+	systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour = 05;
+	systemVars.doutputs_conf.consigna.hhmm_c_diurna.min = 30;
+	systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour = 23;
+	systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min = 30;
+
+}
+//------------------------------------------------------------------------------------
+bool consigna_write( char *tipo_consigna_str)
+{
+
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
+
+	memcpy(l_data, tipo_consigna_str, sizeof(l_data));
+	strupr(l_data);
+
+	if ( spx_io_board != SPX_IO5CH ) {
+		return(false);
+	}
+
+	if (!strcmp_P( l_data, PSTR("DIURNA\0")) ) {
+		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
+		DRV8814_set_consigna_diurna();
+		return(true);
+	}
+
+	if (!strcmp_P( l_data, PSTR("NOCTURNA\0")) ) {
+		systemVars.doutputs_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
+		DRV8814_set_consigna_nocturna();
+		return(true);
+	}
+
+	return(false);
+}
+//------------------------------------------------------------------------------------
+void consigna_stk(void)
 {
 	// Las salidas estan configuradas para modo consigna.
 	// c/25s reviso si debo aplicar una o la otra y aplico
@@ -173,23 +197,6 @@ RtcTimeType_t rtcDateTime;
 		xprintf_P(PSTR("Set consigna nocturna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		return;
 	}
-
-}
-//------------------------------------------------------------------------------------
-bool consigna_config ( char *hhmm1, char *hhmm2 )
-{
-	//xprintf_P(PSTR("DEBUG CONSIGNAS [%s][%s]\r\n\0"), hhmm1, hhmm2);
-
-	if ( hhmm1 != NULL ) {
-		u_convert_int_to_time_t( atoi( hhmm1), &systemVars.doutputs_conf.consigna.hhmm_c_diurna );
-	}
-
-	if ( hhmm2 != NULL ) {
-		u_convert_int_to_time_t( atoi(hhmm2), &systemVars.doutputs_conf.consigna.hhmm_c_nocturna );
-	}
-
-	doutputs_reinit = true;
-	return(true);
 
 }
 //------------------------------------------------------------------------------------

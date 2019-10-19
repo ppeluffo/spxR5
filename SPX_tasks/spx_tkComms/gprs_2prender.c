@@ -11,7 +11,7 @@
  *
  */
 
-#include "gprs.h"
+#include <spx_tkComms/gprs.h>
 
 static void pv_gprs_readImei(void);
 static void pv_gprs_readCcid(void);

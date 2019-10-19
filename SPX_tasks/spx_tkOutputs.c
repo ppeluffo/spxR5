@@ -16,15 +16,10 @@
 #include "spx.h"
 #include "gprs.h"
 
-
-static void tkDoutputs_init(void);
-static void tk_doutputs_init_none(void);
-static void tk_doutputs_none(void);
-
-bool doutputs_reinit = false;
+static void tkOutputs_init(void);
 
 //------------------------------------------------------------------------------------
-void tkDoutputs(void * pvParameters)
+void tkOutputs(void * pvParameters)
 {
 
 ( void ) pvParameters;
@@ -40,7 +35,7 @@ void tkDoutputs(void * pvParameters)
 	ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
 
 	//pv_tkDoutputs_init(); // Lo paso a tkCTL
-	tkDoutputs_init();
+	tkOutputs_init();
 
 	// loop
 	for( ;; )
@@ -48,24 +43,20 @@ void tkDoutputs(void * pvParameters)
 
 		ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
 
-		// Si cambio la configuracion debo reiniciar las salidas
-		if ( doutputs_reinit ) {
-			doutputs_reinit = false;
-			tkDoutputs_init();
-		}
-
 		switch( systemVars.doutputs_conf.modo ) {
 		case OFF:
-			tk_doutputs_none();
+			// Es el caso en que no debo hacer nada con las salidas.
+			// Duermo 25s para entrar en pwrdown.
+			vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 			break;
 		case CONSIGNA:
-			tk_consigna();
+			consigna_stk();
 			break;
 		case PERFORACIONES:
-			tk_perforaciones();
+			perforaciones_stk();
 			break;
 		case PILOTOS:
-			tk_pilotos();
+			piloto_stk();
 			break;
 		}
 
@@ -73,9 +64,10 @@ void tkDoutputs(void * pvParameters)
 
 }
 //------------------------------------------------------------------------------------
-static void tkDoutputs_init(void)
+static void tkOutputs_init(void)
 {
 
+	// Inicializo los dispositivos
 	if ( spx_io_board == SPX_IO5CH ) {
 		DRV8814_init();
 	}
@@ -84,44 +76,28 @@ static void tkDoutputs_init(void)
 		MCP_init();
 	}
 
+	// Inicializo las funciones
 	switch( systemVars.doutputs_conf.modo ) {
 	case OFF:
-		tk_doutputs_init_none();
+		switch (spx_io_board) {
+		case SPX_IO5CH:
+			DRV8814_sleep_pin(0);
+			DRV8814_power_off();
+			break;
+		case SPX_IO8CH:
+			perforaciones_set_douts( 0x00 );	// Setup dout.
+			break;
+		}
 		break;
 	case CONSIGNA:
-		tk_init_consigna();
+		consigna_init();
 		break;
 	case PERFORACIONES:
-		tk_init_perforaciones();
+		perforaciones_init();
 		break;
 	case PILOTOS:
-		tk_init_pilotos();
+		piloto_init();
 		break;
 	}
-}
-//------------------------------------------------------------------------------------
-static void tk_doutputs_init_none(void)
-{
-	// Configuracion inicial cuando las salidas estan en NONE
-
-	if ( spx_io_board == SPX_IO5CH ) {
-		DRV8814_sleep_pin(0);
-		DRV8814_power_off();
-		return;
-	}
-
-	if ( spx_io_board == SPX_IO8CH ) {
-		perforaciones_set_douts( 0x00 );	// Setup dout.
-	}
-
-}
-//------------------------------------------------------------------------------------
-static void tk_doutputs_none(void)
-{
-	// Es el caso en que no debo hacer nada con las salidas.
-	// Duermo 25s para entrar en pwrdown.
-
-	vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
-
 }
 //------------------------------------------------------------------------------------

@@ -38,6 +38,7 @@ static void pv_ctl_check_terminal(void);
 #define MAX_TIMERS	2
 #define TIME_TO_NEXT_POLL	0
 #define TIME_TO_NEXT_DIAL	1
+#define TIME_TO_XBEE_LINK	2
 static uint32_t pv_timers[MAX_TIMERS] = { 0, 0 };
 
 static uint16_t watchdog_timers[NRO_WDGS] = { 0,0,0,0,0,0,0,0 };
@@ -51,15 +52,14 @@ static bool f_terminal_connected = false;;
 
 const char string_0[] PROGMEM = "CTL";
 const char string_1[] PROGMEM = "CMD";
-const char string_2[] PROGMEM = "CNT0";
-const char string_3[] PROGMEM = "CNT1";
-const char string_4[] PROGMEM = "DAT";
-const char string_5[] PROGMEM = "DOUT";
-const char string_6[] PROGMEM = "GRX";
-const char string_7[] PROGMEM = "GTX";
-const char string_8[] PROGMEM = "DIN";
+const char string_2[] PROGMEM = "DAT";
+const char string_3[] PROGMEM = "DOUT";
+const char string_4[] PROGMEM = "GRX";
+const char string_5[] PROGMEM = "GTX";
+const char string_6[] PROGMEM = "DIN";
+const char string_7[] PROGMEM = "XBEE";
 
-const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7, string_8 };
+const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6, string_7 };
 
 //------------------------------------------------------------------------------------
 void tkCtl(void * pvParameters)
@@ -104,7 +104,6 @@ static void pv_ctl_init_system(void)
 uint8_t wdg = 0;
 FAT_t l_fat;
 uint16_t recSize = 0;
-char data[3] = { '\0', '\0', '\0' };
 
 	memset( &l_fat, '\0', sizeof(FAT_t));
 
@@ -196,6 +195,11 @@ char data[3] = { '\0', '\0', '\0' };
 	}
 	xprintf_P( PSTR("------------------------------------------------\r\n\0"));
 
+	// Si tengo XBEE lo prendo
+	if ( systemVars.xbee != XBEE_OFF ) {
+		IO_set_XBEE_PWR();
+	}
+
 	// Habilito a arrancar al resto de las tareas
 	startTask = true;
 
@@ -222,13 +226,15 @@ static void pv_ctl_wink_led(void)
 	if ( ! ctl_terminal_connected() )
 		return;
 
+
+
 	// Prendo los leds
 	IO_set_LED_KA();
 	if ( u_gprs_modem_prendido() ) {
 		IO_set_LED_COMMS();
 	}
 
-	vTaskDelay( ( TickType_t)( 50 / portTICK_RATE_MS ) );
+	vTaskDelay( ( TickType_t)( 10 ) );
 	//taskYIELD();
 
 	// Apago
@@ -248,7 +254,7 @@ static void pv_ctl_check_wdg(void)
 
 		// Cada ciclo reseteo el wdg para que no expire.
 		WDT_Reset();
-		//return;
+		return;
 		// Si algun WDG no se borro, me reseteo
 		while ( xSemaphoreTake( sem_WDGS, ( TickType_t ) 5 ) != pdTRUE )
 			taskYIELD();

@@ -58,7 +58,7 @@
  *
  */
 
-#include "gprs.h"
+#include <spx_tkComms/gprs.h>
 
 #define WDG_GPRSRX_TIMEOUT 60
 
@@ -109,17 +109,12 @@ RESTART:
 			goto RESTART;								// descubrir la server IP correcta.
 		}
 
-		if ( st_gprs_init_frame_A() != bool_CONTINUAR ) { // Si no pude enviar exitosamente el INIT vuelvo a APAGAR.
+		// El modem prendio. Paso a reconfigurar con inits.
+		if ( st_gprs_inits() != bool_CONTINUAR ) {
 			goto RESTART;
 		}
 
-		if ( st_gprs_init_frame_B() != bool_CONTINUAR ) { // Si tengo una configuracion activa de PILOTOS mando esta
-			goto RESTART;								  // para reconfigurarla.
-		}
-
-		if ( st_gprs_data() != bool_CONTINUAR ) {		// Trasmito datos si hay. En modo DISCRETO termino y vuelvo a apagarme y esperar
-			goto RESTART;							// En modo CONTINUO me quedo en esperando datos y trasmitiendo
-		}
+		st_gprs_data();		// Estado que quedo con la interfase gprs up en envio de datos.
 
 	}
 }
@@ -177,7 +172,6 @@ BaseType_t xResult;
 	}
 }
 //------------------------------------------------------------------------------------
-
 /*
 ISR(PORTD_INT0_vect)
 {

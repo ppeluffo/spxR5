@@ -9,45 +9,82 @@
 #include "spx.h"
 
 //------------------------------------------------------------------------------------
-void range_config_defaults(void)
+void range_init()
 {
-	systemVars.rangeMeter_enabled = false;
+
+	// Inicializo el sistema de medida de ancho de pulsos
+    if ( spx_io_board == SPX_IO5CH ) {
+    	RMETER_init( SYSMAINCLK );
+     	xprintf_P( PSTR("RMETER init..\r\n\0"));
+
+    }
+
 }
 //------------------------------------------------------------------------------------
-bool range_config ( char *s_mode )
+void range_config_defaults(void)
 {
-
-char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
-
-	memcpy(l_data, s_mode, sizeof(l_data));
-	strupr(l_data);
-
+	snprintf_P( systemVars.range_name, PARAMNAME_LENGTH, PSTR("X\0"));
+}
+//------------------------------------------------------------------------------------
+bool range_config ( char *s_name )
+{
 
 	// Esta opcion es solo valida para IO5
 	if ( spx_io_board != SPX_IO5CH )
 		return(false);
 
-	if ( !strcmp_P( l_data, PSTR("ON\0"))) {
-		systemVars.rangeMeter_enabled = true;
-		return(true);
-	} else if ( !strcmp_P( l_data, PSTR("OFF\0"))) {
-		systemVars.rangeMeter_enabled = false;
-		return(true);
-	}
-	return(false);
+	snprintf_P( systemVars.range_name, PARAMNAME_LENGTH, PSTR("%s\0"), s_name );
+	return(true);
 
 }
 //------------------------------------------------------------------------------------
-int16_t range_read(void)
+bool range_read( int16_t *range )
 {
 
-int16_t range = -1;
+bool retS = false;
 
 	// Solo si el equipo es IO5CH y esta el range habilitado !!!
-	if ( ( spx_io_board == SPX_IO5CH )  && ( systemVars.rangeMeter_enabled ) ) {
-		( systemVars.debug == DEBUG_DATA ) ?  RMETER_ping( &range, true ) : RMETER_ping( &range, false );
+	if ( ( spx_io_board == SPX_IO5CH )  && ( strcmp_P( systemVars.range_name, PSTR("X\0")) != 0 ) ) {
+		( systemVars.debug == DEBUG_DATA ) ?  RMETER_ping( range, true ) : RMETER_ping( range, false );
+		retS = true;
 	}
-	return(range);
+	return(retS);
 }
 //------------------------------------------------------------------------------------
+void range_print(file_descriptor_t fd, uint16_t src )
+{
+
+	if ( strcmp_P( systemVars.range_name, PSTR("X\0")) != 0 ) {
+		xCom_printf_P(fd, PSTR(",%s=%d"),systemVars.range_name,src );
+	}
+}
+//------------------------------------------------------------------------------------
+uint8_t range_checksum(void)
+{
+
+uint8_t checksum = 0;
+char dst[32];
+char *p;
+
+	//	char range_name[PARAMNAME_LENGTH];
+
+	// Vacio el buffer temoral
+	memset(dst,'\0', sizeof(dst));
+	// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
+	snprintf_P(dst, sizeof(dst), PSTR("%s"), systemVars.range_name);
+
+	//xprintf_P( PSTR("DEBUG: RCKS = [%s]\r\n\0"), dst );
+	// Apunto al comienzo para recorrer el buffer
+	p = dst;
+	// Mientras no sea NULL calculo el checksum deol buffer
+	while (*p != '\0') {
+		checksum += *p++;
+	}
+	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
+
+	return(checksum);
+
+}
+//------------------------------------------------------------------------------------
+
 

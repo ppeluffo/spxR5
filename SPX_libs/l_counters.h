@@ -16,20 +16,12 @@
 
 // Las entradas de pulsos no solo se configuran para pulso sino tambien
 // para generar interrupciones.
-
-uint32_t counter1;
-
 //------------------------------------------------------------------------------------
 // API publica
 
-void COUNTERS_init( uint8_t cnt, TaskHandle_t taskHandle );
+void COUNTERS_init( uint8_t cnt );
 void COUNTERS_disable_interrupt( uint8_t cnt );
 void COUNTERS_enable_interrupt( uint8_t cnt );
-uint32_t COUNTERS_readCnt1(void);
-void COUNTERS_resetCnt1(void);
-void COUNTERS_set_counter1_HS(void);
-void COUNTERS_set_counter1_LS(void);
-bool COUNTERS_cnt1_in_HS(void);
 
 // API end
 //------------------------------------------------------------------------------------
@@ -43,7 +35,6 @@ bool COUNTERS_cnt1_in_HS(void);
 
 #define CNT_read_CNT1()	IO_read_PB2()
 #define CNT_read_CNT0()	IO_read_PA2()
-
 
 
 #endif /* SRC_SPX_LIBS_L_COUNTERS_H_ */

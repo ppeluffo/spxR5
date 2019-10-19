@@ -5,8 +5,8 @@
  *      Author: pablo
  */
 
+#include <spx_tkComms/gprs.h>
 #include "spx.h"
-#include "gprs.h"
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -248,12 +248,15 @@ void u_load_defaults( char *opt )
 	counters_config_defaults();
 	dinputs_config_defaults();
 	ainputs_config_defaults();
-	range_config_defaults();
 	psensor_config_defaults();
+	range_config_defaults();
 
-	doutputs_config_defaults(  opt );
 
+	outputs_config_defaults(  opt );
 	u_gprs_load_defaults( opt );
+
+
+	xbee_config_defaults();
 
 }
 //------------------------------------------------------------------------------------
@@ -342,51 +345,85 @@ void u_config_timerpoll ( char *s_timerpoll )
 	return;
 }
 //------------------------------------------------------------------------------------
-void u_df_print_range( dataframe_s *df )
+bool u_check_more_Rcds4Del ( FAT_t *fat )
 {
-	// Range
-	if ( ( spx_io_board == SPX_IO5CH ) && ( systemVars.rangeMeter_enabled ) ) {
-		xprintf_P(PSTR(",RANGE=%d"), df->range );
+	// Devuelve si aun quedan registros para borrar del FS
+
+	memset ( fat, '\0', sizeof( FAT_t));
+
+	FAT_read(fat);
+
+	if ( fat->rcds4del > 0 ) {
+		return(true);
+	} else {
+		return(false);
 	}
+
 }
 //------------------------------------------------------------------------------------
-void u_df_print_psensor( dataframe_s *df )
+bool u_check_more_Rcds4Tx(void)
 {
-	// Range
-	if ( systemVars.psensor_enabled ) {
-		xprintf_P(PSTR(",%s=%d"), systemVars.psensor_conf.name, df->psensor );
+
+	/* Veo si hay datos en memoria para trasmitir
+	 * Memoria vacia: rcds4wr = MAX, rcds4del = 0;
+	 * Memoria llena: rcds4wr = 0, rcds4del = MAX;
+	 * Memoria toda leida: rcds4rd = 0;
+	 */
+
+//	gprs_fat.wrPTR,gprs_fat.rdPTR, gprs_fat.delPTR,gprs_fat.rcds4wr,gprs_fat.rcds4rd,gprs_fat.rcds4del );
+
+bool retS = false;
+FAT_t *fat;
+
+	memset( fat, '\0', sizeof ( FAT_t));
+	FAT_read(&fat);
+
+	// Si hay registros para leer
+	if ( fat->rcds4rd > 0) {
+		retS = true;
+	} else {
+		retS = false;
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: bd EMPTY\r\n\0"));
+		}
 	}
+
+	return(retS);
 }
 //------------------------------------------------------------------------------------
-void u_format_memory(void)
+uint8_t u_base_checksum(void)
 {
-	// Nadie debe usar la memoria !!!
-	ctl_watchdog_kick(WDG_CMD, 0x8000 );
 
-	vTaskSuspend( xHandle_tkData );
-	ctl_watchdog_kick(WDG_DAT, 0x8000 );
+uint8_t checksum = 0;
+char dst[32];
+char *p;
 
-	vTaskSuspend( xHandle_tkCounter0 );
-	ctl_watchdog_kick(WDG_COUNT0, 0x8000 );
+	//	uint32_t timerDial
+	//	uint16_t timerPoll;
+	//	bool pwrs_enabled;
+	//	st_time_t hora_start;
+	//	st_time_t hora_fin;
 
-	vTaskSuspend( xHandle_tkCounter1 );
-	ctl_watchdog_kick(WDG_COUNT1, 0x8000 );
 
-	vTaskSuspend( xHandle_tkDoutputs );
-	ctl_watchdog_kick(WDG_DOUT, 0x8000 );
+	// calculate own checksum
+	// Vacio el buffer temoral
+	memset(dst,'\0', sizeof(dst));
+	// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
+	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
+		snprintf_P(dst, sizeof(dst), PSTR("%d,%d,%d,%02d,ON,%02d,%02d"), systemVars.gprs_conf.timerDial,systemVars.timerPoll, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+	} else {
+		snprintf_P(dst, sizeof(dst), PSTR("%d,%d,%d,%02d,OFF,%02d,%02d"), systemVars.gprs_conf.timerDial,systemVars.timerPoll, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+	}
+	//xprintf_P( PSTR("DEBUG: BCKS = [%s]\r\n\0"), dst );
+	// Apunto al comienzo para recorrer el buffer
+	p = dst;
+	// Mientras no sea NULL calculo el checksum deol buffer
+	while (*p != '\0') {
+		checksum ^= *p++;
+	}
+	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
-	vTaskSuspend( xHandle_tkGprsTx );
-	ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
-
-	vTaskSuspend( xHandle_tkDinputs );
-	ctl_watchdog_kick(WDG_DINPUTS, 0x8000 );
-
-	// Formateo
-	FF_format(true);
-
-	// Reset
-	CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
+	return(checksum);
 
 }
- //------------------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------------

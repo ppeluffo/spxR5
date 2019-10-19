@@ -7,20 +7,22 @@
 
 #include "spx.h"
 
-extern bool doutputs_reinit;
-
 //------------------------------------------------------------------------------------
-void doutputs_config_defaults( char *opt )
+void outputs_config_defaults( char *opt )
 {
 	// En el caso de SPX_IO8, configura la salida a que inicialmente este todo en off.
 
-uint8_t i;
+	consigna_config_defaults();
+	perforaciones_config_defaults();
+	piloto_config_defaults();
 
+	// Configuro el modo de las salidas
 	if ( spx_io_board == SPX_IO8CH ) {
 
 		if (!strcmp_P( opt, PSTR("UTE\0"))) {
 			systemVars.doutputs_conf.modo = OFF;
 		} else {
+			// Equipos de 8 canales OSE.
 			systemVars.doutputs_conf.modo = PERFORACIONES;
 		}
 
@@ -28,31 +30,9 @@ uint8_t i;
 		systemVars.doutputs_conf.modo = OFF;
 	}
 
-	systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour = 05;
-	systemVars.doutputs_conf.consigna.hhmm_c_diurna.min = 30;
-	systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour = 23;
-	systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min = 30;
-
-	systemVars.doutputs_conf.piloto.band = 0.2;
-	systemVars.doutputs_conf.piloto.max_steps = 6;
-	systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
-
-	for ( i = 0; i < MAX_PILOTO_PSLOTS; i++ ) {
-		systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour = i*3;
-		systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min = 0;
-		systemVars.doutputs_conf.piloto.pSlots[i].pout = 1.5;
-	}
-
-	systemVars.doutputs_conf.perforacion.control = CTL_BOYA;
-	systemVars.doutputs_conf.perforacion.outs = 0x00;
-
-
-	perforaciones_set_douts(0x00 );
-	doutputs_reinit = true;
-
 }
 //------------------------------------------------------------------------------------
-bool doutputs_config_mode( char *mode )
+bool outputs_config_mode( char *mode )
 {
 
 char l_data[10] = { '\0' } ;
@@ -90,12 +70,10 @@ char l_data[10] = { '\0' } ;
 		return(false);
 	}
 
-	// Debo re-inicializar las salidas
-	doutputs_reinit = true;
 	return ( true );
 }
 //------------------------------------------------------------------------------------
-bool doutputs_cmd_write_valve( char *param1, char *param2 )
+bool outputs_cmd_write_valve( char *param1, char *param2 )
 {
 	// write valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}
 	//             (open|close) (A|B) (ms)
@@ -225,7 +203,7 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 
 }
 //------------------------------------------------------------------------------------
-bool doutputs_cmd_write_outputs( char *param_pin, char *param_state )
+bool outputs_cmd_write_pin( char *param_pin, char *param_state )
 {
 	// Escribe un valor en las salidas.
 	//
@@ -304,6 +282,47 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 	return(false);
 
 
+
+}
+//------------------------------------------------------------------------------------
+uint8_t outputs_checksum(void)
+{
+
+uint8_t cks = 0;
+char dst[32];
+uint8_t checksum = 0;
+char *p;
+
+
+	memset(dst,'\0', sizeof(dst));
+	switch( systemVars.doutputs_conf.modo ) {
+	case OFF:
+		snprintf_P(dst, sizeof(dst), PSTR("OFF"));
+		p = dst;
+		while (*p != '\0') {
+			checksum += *p++;
+		}
+		break;
+	case CONSIGNA:
+		snprintf_P(dst, sizeof(dst), PSTR("CONS;%02d%02d;%02d%02d"),systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min  );
+		p = dst;
+		while (*p != '\0') {
+			checksum += *p++;
+		}
+		break;
+	case PERFORACIONES:
+		snprintf_P(dst, sizeof(dst), PSTR("PERF"));
+		p = dst;
+		while (*p != '\0') {
+			checksum += *p++;
+		}
+		break;
+	case PILOTOS:
+		cks = piloto_checksum();
+		break;
+	}
+
+	return(cks);
 
 }
 //------------------------------------------------------------------------------------

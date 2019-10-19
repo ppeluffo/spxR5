@@ -22,7 +22,7 @@
 uint8_t term_rxStorage[TERM_RXSTORAGE_SIZE];
 uint8_t term_txStorage[TERM_TXSTORAGE_SIZE];
 
-#define GPRS_RXSTORAGE_SIZE	1024
+#define GPRS_RXSTORAGE_SIZE	512
 #define GPRS_TXSTORAGE_SIZE	128
 uint8_t gprs_rxStorage[GPRS_RXSTORAGE_SIZE];
 uint8_t gprs_txStorage[GPRS_TXSTORAGE_SIZE];

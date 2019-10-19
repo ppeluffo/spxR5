@@ -14,13 +14,13 @@ uint8_t o_control = 0;
 uint16_t o_timer_boya = 0;
 uint16_t o_timer_sistema = 0;
 
-void perforaciones_RELOAD_TIMER_SISTEMA(void);
-void perforaciones_RELOAD_TIMER_BOYA(void);
-void perforaciones_STOP_TIMER_BOYA(void);
-void perforaciones_STOP_TIMER_SISTEMA(void);
+#define PERF_RELOAD_TIMER_SISTEMA() ( o_timer_sistema = TIMEOUT_O_TIMER_SISTEMA )
+#define PERF_RELOAD_TIMER_BOYA() 	( o_timer_boya = TIMEOUT_O_TIMER_BOYA )
+#define PERF_STOP_TIMER_BOYA()	 	( o_timer_boya = 0 )
+#define PERF_STOP_TIMER_SISTEMA() 	( o_timer_sistema = 0 )
 
 //------------------------------------------------------------------------------------
-void tk_init_perforaciones(void)
+void perforaciones_init(void)
 {
 	// Inicializa las salidas con el modo de trabajo PERFORACIONES.
 	// Puede ser en cualquiera de las ioboards
@@ -57,12 +57,12 @@ uint8_t data = 0;
 			// Modo BOYA
 			o_control = CTL_BOYA;
 			systemVars.doutputs_conf.perforacion.control = CTL_BOYA;
-			perforaciones_RELOAD_TIMER_BOYA();
+			PERF_RELOAD_TIMER_BOYA();
 		} else {
 			// Modo SISTEMA
 			o_control = CTL_SISTEMA;
 			systemVars.doutputs_conf.perforacion.control = CTL_SISTEMA;
-			perforaciones_RELOAD_TIMER_SISTEMA();
+			PERF_RELOAD_TIMER_SISTEMA();
 		}
 
 		// Pongo las salidas que ya tenia.
@@ -81,7 +81,14 @@ uint8_t data = 0;
 
 }
 //------------------------------------------------------------------------------------
-void tk_perforaciones(void)
+void perforaciones_config_defaults(void)
+{
+	systemVars.doutputs_conf.perforacion.control = CTL_BOYA;
+	systemVars.doutputs_conf.perforacion.outs = 0x00;
+	perforaciones_set_douts(0x00 );
+}
+//------------------------------------------------------------------------------------
+void perforaciones_stk(void)
 {
 	// Corre en los 2 ioboards. El control se hace a c/segundo por lo tanto en SPX_IO5
 	// no puede entrar en pwrsave !!!
@@ -98,7 +105,7 @@ void tk_perforaciones(void)
 		if ( o_timer_boya > 0 ) {
 			o_timer_boya--;
 			if ( o_timer_boya == 0 ) {
-				perforaciones_RELOAD_TIMER_BOYA();
+				PERF_RELOAD_TIMER_BOYA();
 				perforaciones_set_douts ( systemVars.doutputs_conf.perforacion.outs );
 				xprintf_P( PSTR("MODO BOYA: reload timer boya. DOUTS=0x%0X\r\n\0"), systemVars.doutputs_conf.perforacion.outs );
 			}
@@ -113,7 +120,7 @@ void tk_perforaciones(void)
 				// Expiro: Paso el control a modo BOYA y las salidas a 0x00
 				perforaciones_set_douts( 0x00 );
 				o_control = CTL_BOYA;			// Paso el control a las boyas.
-				perforaciones_RELOAD_TIMER_BOYA();	// Arranco el timer de las boyas
+				PERF_RELOAD_TIMER_BOYA();	// Arranco el timer de las boyas
 				systemVars.doutputs_conf.perforacion.control = CTL_BOYA;
 				xprintf_P( PSTR("OUTPUT CTL to BOYAS !!!. (set outputs to 0x00)\r\n\0"));
 			}
@@ -124,7 +131,7 @@ void tk_perforaciones(void)
 		// Paso a control de boyas
 		perforaciones_set_douts( 0x00 );
 		o_control = CTL_BOYA;			// Paso el control a las boyas.
-		perforaciones_RELOAD_TIMER_BOYA();	// Arranco el timer de las boyas
+		PERF_RELOAD_TIMER_BOYA();		// Arranco el timer de las boyas
 		systemVars.doutputs_conf.perforacion.control = CTL_BOYA;
 		xprintf_P( PSTR("ERROR Control outputs: Pasa a BOYA !!\r\n\0"));
 		break;
@@ -166,7 +173,7 @@ int8_t xBytes = 0;
 	xprintf_P( PSTR("perforaciones_set_douts (set outputs to 0x%02x)\r\n\0"),dout);
 }
 //------------------------------------------------------------------------------------
-void perforaciones_set_douts_from_gprs( uint8_t dout )
+void perforaciones_set_douts_online( uint8_t dout )
 {
 	// El GPRS recibio datos de setear la salida.
 	// El control debe ser de SISTEMA y reiniciar el timer_SISTEMA
@@ -176,33 +183,10 @@ void perforaciones_set_douts_from_gprs( uint8_t dout )
 	}
 
 	o_control = CTL_SISTEMA;
-	perforaciones_RELOAD_TIMER_SISTEMA();
+	PERF_RELOAD_TIMER_SISTEMA();
 	systemVars.doutputs_conf.perforacion.control = CTL_SISTEMA;
 
 	perforaciones_set_douts( dout );
-}
-//------------------------------------------------------------------------------------
-void perforaciones_RELOAD_TIMER_SISTEMA(void)
-{
-	o_timer_sistema = TIMEOUT_O_TIMER_SISTEMA;
-}
-//------------------------------------------------------------------------------------
-void perforaciones_RELOAD_TIMER_BOYA(void)
-{
-	o_timer_boya = TIMEOUT_O_TIMER_BOYA;
-
-}
-//------------------------------------------------------------------------------------
-void perforaciones_STOP_TIMER_BOYA(void)
-{
-	o_timer_boya = 0;
-
-}
-//------------------------------------------------------------------------------------
-void perforaciones_STOP_TIMER_SISTEMA(void)
-{
-	o_timer_sistema = 0;
-
 }
 //------------------------------------------------------------------------------------
 uint16_t perforaciones_read_clt_timer(void)
@@ -219,4 +203,3 @@ uint16_t perforaciones_read_clt_timer(void)
 	return(0);
 }
 //------------------------------------------------------------------------------------
-

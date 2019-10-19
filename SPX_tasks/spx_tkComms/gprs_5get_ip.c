@@ -5,7 +5,7 @@
  *      Author: pablo
  */
 
-#include "gprs.h"
+#include <spx_tkComms/gprs.h>
 
 static bool pv_gprs_netopen(void);
 static void pv_gprs_read_ip_assigned(void);

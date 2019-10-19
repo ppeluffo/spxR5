@@ -66,7 +66,7 @@ int8_t pv_get_pslot_actual(void);
 float l_pw[] = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.7 };
 
 //------------------------------------------------------------------------------------
-void tk_init_pilotos(void)
+void piloto_init(void)
 {
 	// Los pilotos se inicializan igual que las consignas ya que uso las 2 valvulas.
 	if ( spx_io_board != SPX_IO5CH ) {
@@ -88,7 +88,84 @@ void tk_init_pilotos(void)
 
 }
 //------------------------------------------------------------------------------------
-void tk_pilotos(void)
+void piloto_config_defaults(void)
+{
+uint8_t i;
+
+	systemVars.doutputs_conf.piloto.band = 0.2;
+	systemVars.doutputs_conf.piloto.max_steps = 6;
+	systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
+
+	for ( i = 0; i < MAX_PILOTO_PSLOTS; i++ ) {
+		systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour = i*3;
+		systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min = 0;
+		systemVars.doutputs_conf.piloto.pSlots[i].pout = 1.5;
+	}
+}
+//------------------------------------------------------------------------------------
+void piloto_config_slot( char *s_slot, char *s_pout )
+{
+	// Cambia la presion del slot indicado.
+	// Se usa para los casos en que por EPANET deba modificar una presion
+
+	systemVars.doutputs_conf.piloto.pSlots[atoi(s_slot)].pout = atof(s_pout);
+
+}
+//------------------------------------------------------------------------------------
+bool piloto_config( char *param1, char *param2, char *param3, char *param4 )
+{
+	// config piloto reg {CHICA|MEDIA|GRANDE}
+	// config piloto pband {pband}
+	// config piloto steps {steps}
+	// config piloto slot {idx} {hhmm} {pout}
+
+uint8_t idx;
+
+	if (!strcmp_P( strupr(param1), PSTR("REG\0"))) {
+		// Configuro tipo de valvula reguladora
+		if (!strcmp_P( strupr( param2), PSTR("CHICA\0"))) {
+			systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
+			return(true);
+		} else if (!strcmp_P( strupr(param2), PSTR("MEDIA\0"))) {
+			systemVars.doutputs_conf.piloto.tipo_valvula = VR_MEDIA;
+			return(true);
+		} else if (!strcmp_P( strupr(param2), PSTR("GRANDE\0"))) {
+			systemVars.doutputs_conf.piloto.tipo_valvula = VR_GRANDE;
+			return(true);
+		}
+
+	} else if (!strcmp_P( strupr(param1), PSTR("PBAND\0"))) {
+		// Banda de variabilidad de la presion regulada
+		if ( param2 != NULL ) {
+			systemVars.doutputs_conf.piloto.band = atof( param2);
+			return(true);
+		}
+
+	} else if (!strcmp_P( strupr(param1), PSTR("STEPS\0"))) {
+		// Maxima cantidad de pulsos para llegar a la presion dada
+		if ( param2 != NULL ) {
+			systemVars.doutputs_conf.piloto.max_steps = atoi( param2);
+			return(true);
+		}
+
+	} else if (!strcmp_P( strupr(param1), PSTR("SLOT\0"))) {
+		// Intervalos tiempo:presion.
+		idx = atoi(param2);
+		if ( idx < MAX_PILOTO_PSLOTS ) {
+			if ( param3 != NULL ) {
+				u_convert_int_to_time_t( atoi( param3), &systemVars.doutputs_conf.piloto.pSlots[idx].hhmm );
+			}
+			if ( param4 != NULL ) {
+				systemVars.doutputs_conf.piloto.pSlots[idx].pout = atof(param4);
+			}
+			return(true);
+		}
+	}
+
+	return(false);
+}
+//------------------------------------------------------------------------------------
+void piloto_stk(void)
 {
 
 espera_t espera = WAIT_NORMAL;
@@ -109,7 +186,7 @@ espera_t espera = WAIT_NORMAL;
 
 }
 //------------------------------------------------------------------------------------
-void pilotos_readCounters( uint8_t *VA_cnt, uint8_t *VB_cnt, uint8_t *VA_status, uint8_t *VB_status )
+void piloto_read( uint8_t *VA_cnt, uint8_t *VB_cnt, uint8_t *VA_status, uint8_t *VB_status )
 {
 	*VA_cnt = ldata.VA_cnt;
 	*VB_cnt = ldata.VB_cnt;
@@ -117,12 +194,36 @@ void pilotos_readCounters( uint8_t *VA_cnt, uint8_t *VB_cnt, uint8_t *VA_status,
 	*VB_status = ldata.VB_status;
 }
 //------------------------------------------------------------------------------------
-void pilotos_df_print( dataframe_s *df )
+uint8_t piloto_checksum(void)
 {
 
-	if ( systemVars.doutputs_conf.modo == PILOTOS ) {
-		xprintf_P(PSTR(",VAp=%d,VBp=%d"), df->plt_Vcounters[0], df->plt_Vcounters[1] );
+uint16_t i;
+uint8_t checksum = 0;
+char dst[32];
+char *p;
+
+
+	// modo, band, steps
+	memset(dst,'\0', sizeof(dst));
+	snprintf_P(dst, sizeof(dst), PSTR("PLT;%.03f;%d"), systemVars.doutputs_conf.piloto.band, systemVars.doutputs_conf.piloto.max_steps );
+	p = dst;
+	while (*p != '\0') {
+		checksum += *p++;
 	}
+	// pSlots
+	for(i=0;i<MAX_PILOTO_PSLOTS;i++) {
+		// Vacio el buffer temoral
+		memset(dst,'\0', sizeof(dst));
+		snprintf_P(dst, sizeof(dst), PSTR(";%02d%02d:%.03f"), systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[i].pout );
+		p = dst;
+		while (*p != '\0') {
+			checksum += *p++;
+		}
+	}
+	//
+	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
+	return(checksum);
+
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
@@ -301,7 +402,7 @@ int8_t counts;
 		vTaskDelay( waiting_ticks );
 
 		// Leo presiones
-		data_read_pAB( &ldata.pA, &ldata.pB );
+//		data_read_pAB( &ldata.pA, &ldata.pB );
 
 		pv_push_stack( &pres_baja_s, ldata.pB );
 
@@ -329,7 +430,6 @@ float pv_piloto_calcular_pwidth( float delta_P, float presion_alta )
 	// De las graficas vemos que en la zona lineal, un pulso de 0.1 corresponde aprox. a 90gr.
 	// Cada pulso de 0.1s genera un cambio del orden de 90-110 gr.
 
-float pw = 0.1;
 float dP;
 
 int pos;
@@ -457,65 +557,6 @@ uint16_t i;
 		ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
 		vTaskDelay( 30000 / portTICK_RATE_MS );
 	}
-
-}
-//------------------------------------------------------------------------------------
-bool piloto_config( char *param1, char *param2, char *param3, char *param4 )
-{
-	// config piloto { reg { CHICA | MEDIA | GRANDE },pband {pband},steps {steps},slot {idx} {hhmm} {pout} }\r\n\0"));
-
-uint8_t idx;
-
-	if (!strcmp_P( strupr(param1), PSTR("REG\0"))) {
-		// Configuro tipo de valvula reguladora
-		if (!strcmp_P( strupr( param2), PSTR("CHICA\0"))) {
-			systemVars.doutputs_conf.piloto.tipo_valvula = VR_CHICA;
-			return(true);
-		} else if (!strcmp_P( strupr(param2), PSTR("MEDIA\0"))) {
-			systemVars.doutputs_conf.piloto.tipo_valvula = VR_MEDIA;
-			return(true);
-		} else if (!strcmp_P( strupr(param2), PSTR("GRANDE\0"))) {
-			systemVars.doutputs_conf.piloto.tipo_valvula = VR_GRANDE;
-			return(true);
-		}
-
-	} else if (!strcmp_P( strupr(param1), PSTR("PBAND\0"))) {
-		// Banda de variabilidad de la presion regulada
-		if ( param2 != NULL ) {
-			systemVars.doutputs_conf.piloto.band = atof( param2);
-			return(true);
-		}
-
-	} else if (!strcmp_P( strupr(param1), PSTR("STEPS\0"))) {
-		// Maxima cantidad de pulsos para llegar a la presion dada
-		if ( param2 != NULL ) {
-			systemVars.doutputs_conf.piloto.max_steps = atoi( param2);
-			return(true);
-		}
-
-	} else if (!strcmp_P( strupr(param1), PSTR("SLOT\0"))) {
-		// Intervalos tiempo:presion.
-		idx = atoi(param2);
-		if ( idx < MAX_PILOTO_PSLOTS ) {
-			if ( param3 != NULL ) {
-				u_convert_int_to_time_t( atoi( param3), &systemVars.doutputs_conf.piloto.pSlots[idx].hhmm );
-			}
-			if ( param4 != NULL ) {
-				systemVars.doutputs_conf.piloto.pSlots[idx].pout = atof(param4);
-			}
-			return(true);
-		}
-	}
-
-	return(false);
-}
-//------------------------------------------------------------------------------------
-void piloto_config_online( char *slot, char *pout )
-{
-	// Cambia la presion del slot indicado.
-	// Se usa para los casos en que por EPANET deba modificar una presion
-
-	systemVars.doutputs_conf.piloto.pSlots[atoi(slot)].pout = atof(pout);
 
 }
 //------------------------------------------------------------------------------------

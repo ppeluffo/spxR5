@@ -10,7 +10,7 @@
  *  En este estado es donde entro en el modo tickless !!!.
  */
 
-#include "gprs.h"
+#include <spx_tkComms/gprs.h>
 
 static bool pv_tkGprs_check_inside_pwrSave(void);
 static void pv_tkGprs_calcular_tiempo_espera(void);
@@ -150,7 +150,7 @@ int8_t xBytes = 0;
 	// Estoy en modo PWR_DISCRETO con PWR SAVE ACTIVADO
 	if ( ( MODO_DISCRETO ) && ( systemVars.gprs_conf.pwrSave.pwrs_enabled == true )) {
 
-		// Cuando arranco siempre me conecto sin importat si estoy o no en pwr save !!
+		// Cuando arranco siempre me conecto sin importar si estoy o no en pwr save !!
 		if ( starting_flag_pws ) {
 			starting_flag_pws = false;
 			goto EXIT;

@@ -8,13 +8,8 @@
 
 #include "l_counters.h"
 
-BaseType_t xHigherPriorityTaskWokenDigital = false;
-TaskHandle_t countersTaskHandle0, countersTaskHandle1;
-
-bool counter1_in_HS = false;
-
 //------------------------------------------------------------------------------------
-void COUNTERS_init( uint8_t cnt, TaskHandle_t taskHandle )
+void COUNTERS_init( uint8_t cnt )
 {
 
 	switch ( cnt ) {
@@ -27,7 +22,6 @@ void COUNTERS_init( uint8_t cnt, TaskHandle_t taskHandle )
 //		PORTA.PIN2CTRL = PORT_ISC_FALLING_gc;	// Sensa falling edge
 		//PORTA.PIN2CTRL = PORT_OPC_TOTEM_gc | PORT_ISC_FALLING_gc;
 		COUNTERS_enable_interrupt(0);
-		countersTaskHandle0 = ( xTaskHandle ) taskHandle;
 		break;
 
 	case 1:
@@ -38,7 +32,6 @@ void COUNTERS_init( uint8_t cnt, TaskHandle_t taskHandle )
 //		PORTB.PIN2CTRL = PORT_ISC_FALLING_gc;
 //		PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge. Menos consumo con pulldown.
 		COUNTERS_enable_interrupt(1);
-		countersTaskHandle1 = ( xTaskHandle ) taskHandle;
 		// Por defecto cuenta en modo LS.
 		//counter1_in_HS = false;
 		break;
@@ -83,59 +76,5 @@ void COUNTERS_enable_interrupt( uint8_t cnt )
 		PORTB.INTFLAGS = PORT_INT0IF_bm;
 		break;
 	}
-}
-//------------------------------------------------------------------------------------
-uint32_t COUNTERS_readCnt1(void)
-{
-	return(counter1);
-}
-//------------------------------------------------------------------------------------
-void COUNTERS_resetCnt1(void)
-{
-	counter1 = 0;
-}
-//------------------------------------------------------------------------------------
-
-ISR ( PORTA_INT0_vect )
-{
-	// Esta ISR se activa cuando el contador D2 (PA2) genera un flaco se subida.
-	// Solo avisa a la tarea principal ( que esta dormida ) que se levante y cuente
-	// el pulso y haga el debounced.
-	// Dado que los ISR de los 2 contadores son los que despiertan a la tarea, debo
-	// indicarle de donde proviene el llamado
-	vTaskNotifyGiveFromISR( countersTaskHandle0 , &xHigherPriorityTaskWokenDigital );
-	//PORTA.INTFLAGS = PORT_INT0IF_bm;
-
-}
-//------------------------------------------------------------------------------------
-ISR( PORTB_INT0_vect )
-{
-	// Esta ISR se activa cuando el contador D1 (PB2) genera un flaco se subida.
-	// Solo avisa a la tarea principal ( que esta dormida ) que se levante y cuente
-	// el pulso y haga el debounced.
-	// Dado que los ISR de los 2 contadores son los que despiertan a la tarea, debo
-	// indicarle de donde proviene el llamado
-	if ( counter1_in_HS  ) {
-		counter1++;
-	} else {
-		vTaskNotifyGiveFromISR( countersTaskHandle1 , &xHigherPriorityTaskWokenDigital );
-	}
-	//PORTB.INTFLAGS = PORT_INT0IF_bm;
-
-}
-//------------------------------------------------------------------------------------
-void COUNTERS_set_counter1_HS(void)
-{
-	counter1_in_HS = true;
-}
-//------------------------------------------------------------------------------------
-void COUNTERS_set_counter1_LS(void)
-{
-	counter1_in_HS = false;
-}
-//------------------------------------------------------------------------------------
-bool COUNTERS_cnt1_in_HS(void)
-{
-	return(counter1_in_HS);
 }
 //------------------------------------------------------------------------------------

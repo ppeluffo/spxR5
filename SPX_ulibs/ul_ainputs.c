@@ -7,15 +7,55 @@
 
 #include "spx.h"
 
+static bool sensores_prendidos = false;
+static bool autocal_running = false;
+float battery;
+
+static uint16_t pv_ainputs_read_battery_raw(void);
+static uint16_t pv_ainputs_read_channel_raw(uint8_t channel_id );
+static void pv_ainputs_apagar_12Vsensors(void);
+static void pv_ainputs_prender_12V_sensors(void);
+static float pv_ainputs_read_channel ( uint8_t io_channel );
+static void pv_ainputs_read_battery(float *battery);
+static float pv_analog_convert_ieqv( float i_real, uint8_t io_channel );
+
 //------------------------------------------------------------------------------------
-void ainputs_prender_12V_sensors(void)
+void ainputs_init(void)
 {
-	IO_set_SENS_12V_CTL();
+	// Inicializo los INA con los que mido las entradas analogicas.
+	ainputs_awake();
+	ainputs_sleep();
+
 }
 //------------------------------------------------------------------------------------
-void ainputs_apagar_12Vsensors(void)
+void ainputs_awake(void)
 {
-	IO_clr_SENS_12V_CTL();
+	switch (spx_io_board) {
+	case SPX_IO5CH:
+		INA_config_avg128(INA_A );
+		INA_config_avg128(INA_B );
+		break;
+	case SPX_IO8CH:
+		INA_config_avg128(INA_A );
+		INA_config_avg128(INA_B );
+		INA_config_avg128(INA_C );
+		break;
+	}
+}
+//------------------------------------------------------------------------------------
+void ainputs_sleep(void)
+{
+	switch (spx_io_board) {
+	case SPX_IO5CH:
+		INA_config_sleep(INA_A );
+		INA_config_sleep(INA_B );
+		break;
+	case SPX_IO8CH:
+		INA_config_sleep(INA_A );
+		INA_config_sleep(INA_B );
+		INA_config_sleep(INA_C );
+		break;
+	}
 }
 //------------------------------------------------------------------------------------
 bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax )
@@ -29,8 +69,10 @@ bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_
 bool retS = false;
 bool change_ieqv = false;
 
+	xprintf_P( PSTR("DEBUG ANALOG CONFIG: A%d,name=%s,imin=%s,imax=%s,mmin=%s, mmax=%s\r\n\0"), channel, s_aname, s_imin, s_imax, s_mmin, s_mmax );
+
 	if ( u_control_string(s_aname) == 0 ) {
-		xprintf_P( PSTR("DEBUG ANALOG ERROR: A%d\r\n\0"), channel );
+		xprintf_P( PSTR("DEBUG ANALOG ERROR: A%d[%s]\r\n\0"), channel, s_aname );
 		return( false );
 	}
 
@@ -64,6 +106,16 @@ bool change_ieqv = false;
 
 		if ( s_mmin != NULL ) { systemVars.ainputs_conf.mmin[channel] = atoi(s_mmin); }
 		if ( s_mmax != NULL ) { systemVars.ainputs_conf.mmax[channel] = atof(s_mmax); }
+
+		// Si el nombre es X deshabilito todo
+		if ( strcmp ( systemVars.ainputs_conf.name[channel], "X" ) == 0 ) {
+			systemVars.ainputs_conf.imin[channel] = 0;
+			systemVars.ainputs_conf.imax[channel] = 0;
+			systemVars.ainputs_conf.mmin[channel] = 0;
+			systemVars.ainputs_conf.mmax[channel] = 0;
+			systemVars.ainputs_conf.ieq_min[channel] = 0;
+			systemVars.ainputs_conf.ieq_max[channel] = 0;
+		}
 
 		retS = true;
 	}
@@ -142,27 +194,27 @@ bool retS = false;
 	}
 
 	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
-	signal_tkData_poll_off();
-	ainputs_prender_12V_sensors();
+//	signal_tkData_poll_off();
+	pv_ainputs_prender_12V_sensors();
 	vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
 
 	// Leo el canal del ina.
 	ainputs_awake();
-	an_raw_val = ainputs_read_channel_raw( channel );
+	an_raw_val = pv_ainputs_read_channel_raw( channel );
 	ainputs_sleep();
 
 	// Habilito a la tkData a volver a polear
-	signal_tkData_poll_on();
+//	signal_tkData_poll_on();
 
 	// Convierto el raw_value a la magnitud
 	I = (float)( an_raw_val) * 20 / ( systemVars.ainputs_conf.inaspan[channel] + 1);
 	//xprintf_P( PSTR("ICAL: ch%d: ANRAW=%d, I=%.03f\r\n\0"), channel, an_raw_val, I );
 
-	if  (!strcmp_P( strupr(s_ieqv), PSTR("IMIN\0")) ) {
+	if  ( strcmp_P( strupr(s_ieqv), PSTR("IMIN\0")) == 0 ) {
 		systemVars.ainputs_conf.ieq_min[channel] = I;
 		xprintf_P( PSTR("ICALmin: ch%d: %d mA->%.03f\r\n\0"), channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.ieq_min[channel] );
 		retS = true;
-	} else if (!strcmp_P( strupr(s_ieqv), PSTR("IMAX\0")) ) {
+	} else if ( strcmp_P( strupr(s_ieqv), PSTR("IMAX\0")) == 0 ) {
 		systemVars.ainputs_conf.ieq_max[channel] = I;
 		xprintf_P( PSTR("ICALmax: ch%d: %d mA->%.03f\r\n\0"), channel, systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.ieq_max[channel] );
 		retS = true;
@@ -196,13 +248,14 @@ float offset = 0.0;
 	}
 
 	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
-	signal_tkData_poll_off();
-	ainputs_prender_12V_sensors();
+	autocal_running = true;
+
+	pv_ainputs_prender_12V_sensors();
 	vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
 
 	// Leo el canal del ina.
 	ainputs_awake();
-	an_raw_val = ainputs_read_channel_raw( channel );
+	an_raw_val = pv_ainputs_read_channel_raw( channel );
 	ainputs_sleep();
 //	xprintf_P( PSTR("ANRAW=%d\r\n\0"), an_raw_val );
 
@@ -212,7 +265,7 @@ float offset = 0.0;
 	D = systemVars.ainputs_conf.imax[channel] - systemVars.ainputs_conf.imin[channel];
 
 	// Habilito a la tkData a volver a polear
-	signal_tkData_poll_on();
+	autocal_running = false;
 
 	an_mag_val = 0.0;
 	if ( D != 0 ) {
@@ -255,7 +308,7 @@ uint8_t channel = 0;
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
 		systemVars.ainputs_conf.imin[channel] = 0;
 		systemVars.ainputs_conf.imax[channel] = 20;
-		systemVars.ainputs_conf.mmin[channel] = 0;
+		systemVars.ainputs_conf.mmin[channel] = 0.0;
 		systemVars.ainputs_conf.mmax[channel] = 6.0;
 		systemVars.ainputs_conf.offset[channel] = 0.0;
 		systemVars.ainputs_conf.inaspan[channel] = 3646;
@@ -268,7 +321,147 @@ uint8_t channel = 0;
 
 }
 //------------------------------------------------------------------------------------
-uint16_t ainputs_read_channel_raw(uint8_t channel_id )
+bool ainputs_read( float ain[], float *battery )
+{
+
+bool retS = false;
+
+	ainputs_awake();
+	//
+	if ( ! sensores_prendidos ) {
+		pv_ainputs_prender_12V_sensors();
+		sensores_prendidos = true;
+		// Normalmente espero 1s de settle time que esta bien para los sensores
+		// pero cuando hay un caudalimetro de corriente, necesita casi 5s
+		// vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+		vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
+	}
+
+	// Leo.
+	// Los canales de IO no son los mismos que los canales del INA !! ya que la bateria
+	// esta en el canal 1 del ina2
+	// Lectura general.
+	ain[0] = pv_ainputs_read_channel(0);
+	ain[1] = pv_ainputs_read_channel(1);
+	ain[2] = pv_ainputs_read_channel(2);
+	ain[3] = pv_ainputs_read_channel(3);
+	ain[4] = pv_ainputs_read_channel(4);
+
+	if ( spx_io_board == SPX_IO8CH ) {
+		ain[5] = pv_ainputs_read_channel(5);
+		ain[6] = pv_ainputs_read_channel(6);
+		ain[7] = pv_ainputs_read_channel(7);
+	}
+
+	if ( spx_io_board == SPX_IO5CH ) {
+		// Leo la bateria
+		// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
+		pv_ainputs_read_battery(battery);
+	} else {
+		*battery = 0.0;
+	}
+
+	// Apago los sensores y pongo a los INA a dormir si estoy con la board IO5.
+	// Sino dejo todo prendido porque estoy en modo continuo
+	//if ( (spx_io_board == SPX_IO5CH) && ( systemVars.timerPoll > 180 ) ) {
+	if ( spx_io_board == SPX_IO5CH ) {
+		pv_ainputs_apagar_12Vsensors();
+		sensores_prendidos = false;
+	}
+	//
+	ainputs_sleep();
+
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+void ainputs_print(file_descriptor_t fd, float src[] )
+{
+	// Imprime los canales configurados ( no X ) en un fd ( tty_gprs,tty_xbee,tty_term) en
+	// forma formateada.
+	// Los lee de una estructura array pasada como src
+
+uint8_t i = 0;
+
+	for ( i = 0; i < NRO_ANINPUTS; i++) {
+		if ( strcmp ( systemVars.ainputs_conf.name[i], "X" ) != 0 )
+			xCom_printf_P(fd, PSTR(",%s=%.02f"), systemVars.ainputs_conf.name[i], src[i] );
+	}
+
+}
+//------------------------------------------------------------------------------------
+void ainputs_battery_print( file_descriptor_t fd, float battery )
+{
+	// bateria
+	if ( spx_io_board == SPX_IO5CH ) {
+		xCom_printf_P(fd, PSTR(",bt=%.02f"), battery );
+	}
+}
+//------------------------------------------------------------------------------------
+bool ainputs_autocal_running(void)
+{
+	return(autocal_running);
+}
+//------------------------------------------------------------------------------------
+uint8_t ainputs_checksum(void)
+{
+ // https://portal.u-blox.com/s/question/0D52p00008HKDMyCAP/python-code-to-generate-checksums-so-that-i-may-validate-data-coming-off-the-serial-interface
+
+uint16_t i;
+uint8_t checksum = 0;
+char dst[32];
+char *p;
+
+	//	char name[MAX_ANALOG_CHANNELS][PARAMNAME_LENGTH];
+	//	uint8_t imin[MAX_ANALOG_CHANNELS];	// Coeficientes de conversion de I->magnitud (presion)
+	//	uint8_t imax[MAX_ANALOG_CHANNELS];
+	//	float mmin[MAX_ANALOG_CHANNELS];
+	//	float mmax[MAX_ANALOG_CHANNELS];
+
+	// A0:A0,0,20,0.000,6.000;A1:A1,0,20,0.000,6.000;A2:A2,0,20,0.000,6.000;A3:A3,0,20,0.000,6.000;A4:A4,0,20,0.000,6.000;
+
+	// calculate own checksum
+	for(i=0;i<NRO_ANINPUTS;i++) {
+		// Vacio el buffer temoral
+		memset(dst,'\0', sizeof(dst));
+		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
+		snprintf_P(dst, sizeof(dst), PSTR("A%d:%s,%d,%d,%.03f,%.03f;"), i, systemVars.ainputs_conf.name[i],systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i], systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
+		//xprintf_P( PSTR("DEBUG: ACKS = [%s]\r\n\0"), dst );
+		// Apunto al comienzo para recorrer el buffer
+		p = dst;
+		// Mientras no sea NULL calculo el checksum deol buffer
+		while (*p != '\0') {
+			checksum += *p++;
+		}
+		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
+	}
+
+	return(checksum);
+
+}
+//------------------------------------------------------------------------------------
+// FUNCIONES PRIVADAS
+//------------------------------------------------------------------------------------
+static void pv_ainputs_prender_12V_sensors(void)
+{
+	IO_set_SENS_12V_CTL();
+}
+//------------------------------------------------------------------------------------
+static void pv_ainputs_apagar_12Vsensors(void)
+{
+	IO_clr_SENS_12V_CTL();
+}
+//------------------------------------------------------------------------------------
+static uint16_t pv_ainputs_read_battery_raw(void)
+{
+	if ( spx_io_board != SPX_IO5CH ) {
+		return(-1);
+	}
+
+	return( pv_ainputs_read_channel_raw(99));
+}
+//------------------------------------------------------------------------------------
+static uint16_t pv_ainputs_read_channel_raw(uint8_t channel_id )
 {
 	// Como tenemos 2 arquitecturas de dataloggers, SPX_5CH y SPX_8CH,
 	// los canales estan mapeados en INA con diferentes id.
@@ -365,7 +558,7 @@ int8_t xBytes = 0;
 	xBytes = INA_read( ina_id, ina_reg, res ,2 );
 
 	if ( xBytes == -1 )
-		xprintf_P(PSTR("ERROR I2C: ainputs_read_channel_raw.\r\n\0"));
+		xprintf_P(PSTR("ERROR I2C: pv_ainputs_read_channel_raw.\r\n\0"));
 
 	an_raw_val = 0;
 	MSB = res[0];
@@ -379,7 +572,7 @@ int8_t xBytes = 0;
 	return( an_raw_val );
 }
 //------------------------------------------------------------------------------------
-float ainputs_read_channel ( uint8_t io_channel )
+static float pv_ainputs_read_channel ( uint8_t io_channel )
 {
 	// Lee un canal analogico y devuelve el valor convertido a la magnitud configurada.
 	// Es publico porque se utiliza tanto desde el modo comando como desde el modulo de poleo de las entradas.
@@ -394,7 +587,7 @@ float P = 0.0;
 uint16_t D = 0;
 
 	// Leo el valor del INA.
-	an_raw_val = ainputs_read_channel_raw( io_channel );
+	an_raw_val = pv_ainputs_read_channel_raw( io_channel );
 
 	// Convierto el raw_value a la magnitud
 	// Calculo la corriente medida en el canal
@@ -404,7 +597,7 @@ uint16_t D = 0;
 	}
 
 	// Convierto a la corriente equivalente por el ajuste de offset y span
-	I = analog_convert_ieqv (I, io_channel);
+	I = pv_analog_convert_ieqv (I, io_channel);
 	if ( systemVars.debug == DEBUG_DATA ) {
 		xprintf_P( PSTR("DEBUG ANALOG READ CHANNEL: A%d Ieqv=%.03f\r\n\0"), io_channel, I );
 	}
@@ -431,82 +624,19 @@ uint16_t D = 0;
 
 }
 //------------------------------------------------------------------------------------
-uint16_t ainputs_read_battery_raw(void)
+static void pv_ainputs_read_battery(float *battery)
 {
-	if ( spx_io_board != SPX_IO5CH ) {
-		return(-1);
-	}
-
-	return( ainputs_read_channel_raw(99));
-}
-//------------------------------------------------------------------------------------
-float ainputs_read_battery(void)
-{
-float battery_level = 0.0;
 
 	if ( spx_io_board != SPX_IO5CH ) {
-		return(-1);
+		*battery = -1;
 	}
 
 	// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
-	battery_level =  0.008 * ainputs_read_battery_raw();
+	*battery =  0.008 * pv_ainputs_read_battery_raw();
 
-	return(battery_level);
 }
 //------------------------------------------------------------------------------------
-void ainputs_awake(void)
-{
-	switch (spx_io_board) {
-	case SPX_IO5CH:
-		INA_config_avg128(INA_A );
-		INA_config_avg128(INA_B );
-		break;
-	case SPX_IO8CH:
-		INA_config_avg128(INA_A );
-		INA_config_avg128(INA_B );
-		INA_config_avg128(INA_C );
-		break;
-	}
-}
-//------------------------------------------------------------------------------------
-void ainputs_sleep(void)
-{
-	switch (spx_io_board) {
-	case SPX_IO5CH:
-		INA_config_sleep(INA_A );
-		INA_config_sleep(INA_B );
-		break;
-	case SPX_IO8CH:
-		INA_config_sleep(INA_A );
-		INA_config_sleep(INA_B );
-		INA_config_sleep(INA_C );
-		break;
-	}
-}
-//------------------------------------------------------------------------------------
-void ainputs_df_print( dataframe_s *df )
-{
-
-uint8_t channel = 0;
-
-	// Canales analogicos: Solo muestro los que tengo configurados.
-	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		if ( ! strcmp ( systemVars.ainputs_conf.name[channel], "X" ) )
-			continue;
-
-		xprintf_P(PSTR(",%s=%.02f"),systemVars.ainputs_conf.name[channel], df->ainputs[channel] );
-	}
-}
-//------------------------------------------------------------------------------------
-void ainputs_df_print_battery( dataframe_s *df )
-{
-	// bateria
-	if ( spx_io_board == SPX_IO5CH ) {
-		xprintf_P(PSTR(",bt=%.02f"), df->battery );
-	}
-}
-//------------------------------------------------------------------------------------
-float analog_convert_ieqv( float i_real, uint8_t io_channel )
+static float pv_analog_convert_ieqv( float i_real, uint8_t io_channel )
 {
 float Ieq = 0.0;
 
@@ -517,4 +647,3 @@ float Ieq = 0.0;
 	return(Ieq);
 }
 //------------------------------------------------------------------------------------
-

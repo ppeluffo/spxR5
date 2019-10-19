@@ -23,7 +23,15 @@
  *  18488618
  *  22923645
  *
+ * --------------------------------------------------------------------------------------------------
+ * Version 5.0.0
+ * - Al dar status no copia bien los datos.
+ * - El checksum toma todo como X.
+ * --------------------------------------------------------------------------------------------------
  *  Version 2.0.5 @ 20190812
+ *  REVISAR:
+ *  Semaforo de la FAT. ( xbee, gprs )
+ *
  *  - BUG timerpoll: Al reconfigurarse on-line, si estaba en modo continuo, luego del init pasa al modo data
  *  y hasta que no caiga el enlace y pase por 'esperar_apagado', no va a releer los parametros.
  *  La solucion es mandar una señal de redial.
@@ -158,28 +166,31 @@ int main( void )
 	}
 
 	frtos_open(fdGPRS, 115200);
+	frtos_open(fdXBEE, 9600);
 	frtos_open(fdI2C, 100 );
 
 	// Creo los semaforos
 	sem_SYSVars = xSemaphoreCreateMutexStatic( &SYSVARS_xMutexBuffer );
 	sem_WDGS = xSemaphoreCreateMutexStatic( &WDGS_xMutexBuffer );
 	sem_DATA = xSemaphoreCreateMutexStatic( &DATA_xMutexBuffer );
+	sem_XBEE = xSemaphoreCreateMutexStatic( &XBEE_xMutexBuffer );
 
 	xprintf_init();
 	FAT_init();
 
 	startTask = false;
 
+	dinputs_setup();
+	counters_setup();
+
 	// Creamos las tareas
 	xTaskCreate(tkCtl, "CTL", tkCtl_STACK_SIZE, NULL, tkCtl_TASK_PRIORITY,  &xHandle_tkCtl );
 	xTaskCreate(tkCmd, "CMD", tkCmd_STACK_SIZE, NULL, tkCmd_TASK_PRIORITY,  &xHandle_tkCmd);
-	xTaskCreate(tkCounter0, "CNT0", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter0);
-	xTaskCreate(tkCounter1, "CNT1", tkCounter_STACK_SIZE, NULL, tkCounter_TASK_PRIORITY,  &xHandle_tkCounter1);
-	xTaskCreate(tkData, "DATA", tkData_STACK_SIZE, NULL, tkData_TASK_PRIORITY,  &xHandle_tkData);
-	xTaskCreate(tkDoutputs, "DOUT", tkDoutputs_STACK_SIZE, NULL, tkDoutputs_TASK_PRIORITY,  &xHandle_tkDoutputs);
+	xTaskCreate(tkInputs, "IN", tkInputs_STACK_SIZE, NULL, tkInputs_TASK_PRIORITY,  &xHandle_tkInputs);
+	xTaskCreate(tkOutputs, "OUT", tkOutputs_STACK_SIZE, NULL, tkOutputs_TASK_PRIORITY,  &xHandle_tkOutputs);
 	xTaskCreate(tkGprsRx, "RX", tkGprs_rx_STACK_SIZE, NULL, tkGprs_rx_TASK_PRIORITY,  &xHandle_tkGprsRx );
 	xTaskCreate(tkGprsTx, "TX", tkGprs_tx_STACK_SIZE, NULL, tkGprs_tx_TASK_PRIORITY,  &xHandle_tkGprsTx );
-	xTaskCreate(tkDinputs, "DIN", tkDinputs_STACK_SIZE, NULL, tkDinputs_TASK_PRIORITY,  &xHandle_tkDinputs );
+	//xTaskCreate(tkXbee, "XBEE", tkXbee_STACK_SIZE, NULL, tkXbee_TASK_PRIORITY,  &xHandle_tkXbee );
 
 	/* Arranco el RTOS. */
 	vTaskStartScheduler();
@@ -235,5 +246,26 @@ static StackType_t uxIdleTaskStack[ configMINIMAL_STACK_SIZE ];
     Note that, as the array is necessarily of type StackType_t,
     configMINIMAL_STACK_SIZE is specified in words, not bytes. */
     *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+}
+//------------------------------------------------------------------------------------
+void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer, StackType_t **ppxTimerTaskStackBuffer, uint32_t *pulTimerTaskStackSize )
+{
+/* If the buffers to be provided to the Timer task are declared inside this
+function then they must be declared static - otherwise they will be allocated on
+the stack and so not exists after this function exits. */
+static StaticTask_t xTimerTaskTCB;
+static StackType_t uxTimerTaskStack[ configTIMER_TASK_STACK_DEPTH ];
+
+	/* Pass out a pointer to the StaticTask_t structure in which the Timer
+	task's state will be stored. */
+	*ppxTimerTaskTCBBuffer = &xTimerTaskTCB;
+
+	/* Pass out the array that will be used as the Timer task's stack. */
+	*ppxTimerTaskStackBuffer = uxTimerTaskStack;
+
+	/* Pass out the size of the array pointed to by *ppxTimerTaskStackBuffer.
+	Note that, as the array is necessarily of type StackType_t,
+	configMINIMAL_STACK_SIZE is specified in words, not bytes. */
+	*pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
 //------------------------------------------------------------------------------------
