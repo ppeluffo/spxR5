@@ -467,15 +467,15 @@ uint8_t i;
 		}
 		break;
 	case PERFORACIONES:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=DOUTPUTS:PERF"));
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;O0:PERF"));
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=DOUTPUTS:PERF"));
+			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;O0:PERF"));
 		}
 		break;
 	case PILOTOS:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=DOUTPUTS:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
+		xCom_printf_P( fdGPRS,PSTR("&&PLOAD=CLASS:OUTPUTS;O0:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=DOUTPUTS:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
+			xprintf_P( PSTR("&&PLOAD=CLASS:OUTPUTS;O0:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
 		}
 
 		for(i=0;i<MAX_PILOTO_PSLOTS;i++) {
@@ -990,7 +990,6 @@ char *tk_pmin = NULL;
 char *tk_pmax = NULL;
 char *tk_poffset = NULL;
 char *delim = ",=:;><";
-bool save_flag = false;
 
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PS0");
 	if ( p != NULL ) {
