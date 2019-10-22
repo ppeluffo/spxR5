@@ -16,10 +16,10 @@
 #include "spx.h"
 #include "gprs.h"
 
-static void tkOutputs_init(void);
+static void tkSistema_init(void);
 
 //------------------------------------------------------------------------------------
-void tkOutputs(void * pvParameters)
+void tkSistema(void * pvParameters)
 {
 
 ( void ) pvParameters;
@@ -28,20 +28,20 @@ void tkOutputs(void * pvParameters)
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
-	xprintf_P( PSTR("starting tkOutputs..\r\n\0"));
+	xprintf_P( PSTR("starting tkSistema..\r\n\0"));
 
 	// El setear una consigna toma 10s de carga de condensadores por lo que debemos
 	// evitar que se resetee por timeout del wdg.
-	ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
+	ctl_watchdog_kick( WDG_SYSTEM,  WDG_SYSTEM_TIMEOUT );
 
 	//pv_tkDoutputs_init(); // Lo paso a tkCTL
-	tkOutputs_init();
+	tkSistema_init();
 
 	// loop
 	for( ;; )
 	{
 
-		ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
+		ctl_watchdog_kick( WDG_SYSTEM,  WDG_SYSTEM_TIMEOUT );
 
 		switch( systemVars.doutputs_conf.modo ) {
 		case OFF:
@@ -64,7 +64,7 @@ void tkOutputs(void * pvParameters)
 
 }
 //------------------------------------------------------------------------------------
-static void tkOutputs_init(void)
+static void tkSistema_init(void)
 {
 
 	// Inicializo los dispositivos

@@ -98,7 +98,7 @@ void psensor_print(file_descriptor_t fd, uint16_t src )
 //	if ( ! strcmp ( systemVars.psensor_conf.name, "X" ) )
 //		return;
 
-	xCom_printf_P(fd, PSTR(",%s=%d"), systemVars.psensor_conf.name, src );
+	xCom_printf_P(fd, PSTR("%s:%d;"), systemVars.psensor_conf.name, src );
 }
 //------------------------------------------------------------------------------------
 uint8_t psensor_checksum(void)
@@ -107,6 +107,7 @@ uint8_t psensor_checksum(void)
 uint8_t checksum = 0;
 char dst[32];
 char *p;
+uint8_t j = 0;
 
 	//	char name[PARAMNAME_LENGTH];
 	//	uint16_t pmax;
@@ -117,7 +118,9 @@ char *p;
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 	// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-	snprintf_P(dst, sizeof(dst), PSTR("%s,%.03f,%.03f,%.03f"), systemVars.psensor_conf.name,systemVars.psensor_conf.pmin ,systemVars.psensor_conf.pmax ,systemVars.psensor_conf.poffset);
+	j += snprintf_P(&dst[j], sizeof(dst), PSTR("%s,%.03f,"), systemVars.psensor_conf.name,systemVars.psensor_conf.pmin );
+	j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.03f,%.03f"), systemVars.psensor_conf.pmax ,systemVars.psensor_conf.poffset);
+
 	//xprintf_P( PSTR("DEBUG: PCKS = [%s]\r\n\0"), dst );
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;

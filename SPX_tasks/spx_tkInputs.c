@@ -70,6 +70,13 @@ TickType_t xLastWakeTime = 0;
 			data_read_inputs(&dr, false);
 			data_print_inputs(fdTERM, &dr);
 			pv_data_guardar_en_BD();
+
+			// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
+			if ( ! MODO_DISCRETO ) {
+				while ( xTaskNotify(xHandle_tkGprsRx, TK_FRAME_READY , eSetBits ) != pdPASS ) {
+					vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+				}
+			}
 		}
 
 		// Calculo el tiempo para una nueva espera
@@ -133,8 +140,11 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
 {
 
 	// timeStamp.
-	xCom_printf_P(fd, PSTR("%04d%02d%02d,"),dr->rtc.year, dr->rtc.month, dr->rtc.day );
-	xCom_printf_P(fd, PSTR("%02d%02d%02d"), dr->rtc.hour, dr->rtc.min, dr->rtc.sec );
+	xCom_printf_P(fd, PSTR("DATE:%02d"),dr->rtc.year );
+	xCom_printf_P(fd, PSTR("%02d%02d;"),dr->rtc.month, dr->rtc.day );
+
+	xCom_printf_P(fd, PSTR("TIME:%02d"), dr->rtc.hour );
+	xCom_printf_P(fd, PSTR("%02d%02d;"), dr->rtc.min, dr->rtc.sec );
 
 	switch(spx_io_board) {
 	case SPX_IO5CH:
@@ -156,8 +166,10 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
 	}
 
 	// TAIL
-	xCom_printf_P(fd, PSTR("\r\n\0") );
-
+	// Esto es porque en gprs si mando un cr corto el socket !!!
+	if ( fd == fdTERM ) {
+		xCom_printf_P(fd, PSTR("\r\n\0") );
+	}
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS

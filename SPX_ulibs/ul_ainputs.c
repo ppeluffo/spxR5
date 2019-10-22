@@ -69,7 +69,7 @@ bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_
 bool retS = false;
 bool change_ieqv = false;
 
-	xprintf_P( PSTR("DEBUG ANALOG CONFIG: A%d,name=%s,imin=%s,imax=%s,mmin=%s, mmax=%s\r\n\0"), channel, s_aname, s_imin, s_imax, s_mmin, s_mmax );
+	//xprintf_P( PSTR("DEBUG ANALOG CONFIG: A%d,name=%s,imin=%s,imax=%s,mmin=%s, mmax=%s\r\n\0"), channel, s_aname, s_imin, s_imax, s_mmin, s_mmax );
 
 	if ( u_control_string(s_aname) == 0 ) {
 		xprintf_P( PSTR("DEBUG ANALOG ERROR: A%d[%s]\r\n\0"), channel, s_aname );
@@ -108,7 +108,7 @@ bool change_ieqv = false;
 		if ( s_mmax != NULL ) { systemVars.ainputs_conf.mmax[channel] = atof(s_mmax); }
 
 		// Si el nombre es X deshabilito todo
-		if ( strcmp ( systemVars.ainputs_conf.name[channel], "X" ) == 0 ) {
+/*		if ( strcmp ( systemVars.ainputs_conf.name[channel], "X" ) == 0 ) {
 			systemVars.ainputs_conf.imin[channel] = 0;
 			systemVars.ainputs_conf.imax[channel] = 0;
 			systemVars.ainputs_conf.mmin[channel] = 0;
@@ -116,7 +116,7 @@ bool change_ieqv = false;
 			systemVars.ainputs_conf.ieq_min[channel] = 0;
 			systemVars.ainputs_conf.ieq_max[channel] = 0;
 		}
-
+*/
 		retS = true;
 	}
 
@@ -385,7 +385,7 @@ uint8_t i = 0;
 
 	for ( i = 0; i < NRO_ANINPUTS; i++) {
 		if ( strcmp ( systemVars.ainputs_conf.name[i], "X" ) != 0 )
-			xCom_printf_P(fd, PSTR(",%s=%.02f"), systemVars.ainputs_conf.name[i], src[i] );
+			xCom_printf_P(fd, PSTR("%s:%.02f;"), systemVars.ainputs_conf.name[i], src[i] );
 	}
 
 }
@@ -394,7 +394,7 @@ void ainputs_battery_print( file_descriptor_t fd, float battery )
 {
 	// bateria
 	if ( spx_io_board == SPX_IO5CH ) {
-		xCom_printf_P(fd, PSTR(",bt=%.02f"), battery );
+		xCom_printf_P(fd, PSTR("bt:%.02f;"), battery );
 	}
 }
 //------------------------------------------------------------------------------------
@@ -411,6 +411,7 @@ uint16_t i;
 uint8_t checksum = 0;
 char dst[32];
 char *p;
+uint8_t j = 0;
 
 	//	char name[MAX_ANALOG_CHANNELS][PARAMNAME_LENGTH];
 	//	uint8_t imin[MAX_ANALOG_CHANNELS];	// Coeficientes de conversion de I->magnitud (presion)
@@ -425,7 +426,11 @@ char *p;
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-		snprintf_P(dst, sizeof(dst), PSTR("A%d:%s,%d,%d,%.03f,%.03f;"), i, systemVars.ainputs_conf.name[i],systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i], systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
+		j = 0;
+		j += snprintf_P( &dst[j], sizeof(dst), PSTR("A%d:%s,"), i, systemVars.ainputs_conf.name[i] );
+		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,%d,"), systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i] );
+		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.03f,%.03f;"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
+
 		//xprintf_P( PSTR("DEBUG: ACKS = [%s]\r\n\0"), dst );
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
@@ -433,9 +438,9 @@ char *p;
 		while (*p != '\0') {
 			checksum += *p++;
 		}
-		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
-	}
 
+	}
+	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 	return(checksum);
 
 }

@@ -8,9 +8,13 @@
 #include <spx_tkComms/gprs.h>
 
 //------------------------------------------------------------------------------------
-void u_gprs_open_socket(void)
+t_socket_status u_gprs_open_socket(void)
 {
 	// Envio el comando AT para abrir el socket.
+
+uint8_t timeout = 0;
+uint8_t await_loops = 0;
+t_socket_status socket_status = SOCK_FAIL;
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: try to open socket\r\n\0"));
@@ -23,6 +27,32 @@ void u_gprs_open_socket(void)
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
 	}
+
+	await_loops = ( 10 * 1000 / 3000 ) + 1;
+	// Y espero hasta 30s que abra.
+	for ( timeout = 0; timeout < await_loops; timeout++) {
+
+		vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
+
+		socket_status = u_gprs_check_socket_status();
+
+		// Si el socket abrio, salgo para trasmitir el frame de init.
+		if ( socket_status == SOCK_OPEN ) {
+			break;
+		}
+
+		// Si el socket dio error, salgo para enviar de nuevo el comando.
+		if ( socket_status == SOCK_ERROR ) {
+			break;
+		}
+
+		// Si el socket dio falla, debo reiniciar la conexion.
+		if ( socket_status == SOCK_FAIL ) {
+			break;
+		}
+	}
+
+	return(socket_status);
 }
 //------------------------------------------------------------------------------------
 void u_gprs_close_socket(void)
@@ -263,6 +293,9 @@ void u_gprs_config_timerdial ( char *s_timerdial )
 	// 15 minutos.
 	// Es una variable de 32 bits para almacenar los segundos de 24hs.
 
+
+	//xprintf_P( PSTR("DEBUG_A TDIAL CONFIG: [%s]\r\n\0"), s_timerdial );
+
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();
 
@@ -276,6 +309,7 @@ void u_gprs_config_timerdial ( char *s_timerdial )
 	}
 
 	xSemaphoreGive( sem_SYSVars );
+	//xprintf_P( PSTR("DEBUG_B TDIAL CONFIG: [%d]\r\n\0"), systemVars.gprs_conf.timerDial );
 	return;
 }
 //------------------------------------------------------------------------------------
@@ -321,7 +355,7 @@ void u_gprs_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime)
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();
 
-	//xprintf_P( PSTR("DEBUG: pwrsave modo=%s, startitme=%s, endtime=%s\r\n\0"), s_modo, s_startTime, s_endTime );
+	//xprintf_P( PSTR("DEBUG_A: PWRS modo=%s, startitme=%s, endtime=%s\r\n\0"), s_modo, s_startTime, s_endTime );
 
 	if (!strcmp_P( strupr(s_modo), PSTR( "OFF"))) {
 		systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
@@ -342,6 +376,8 @@ void u_gprs_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime)
 quit:
 
 	xSemaphoreGive( sem_SYSVars );
+
+	//xprintf_P( PSTR("DEBUG_B: PWRS modo=%d, startitme=%02d%02d, endtime=%02d%02d\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min );
 
 }
 //------------------------------------------------------------------------------------

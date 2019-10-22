@@ -55,7 +55,7 @@ void range_print(file_descriptor_t fd, uint16_t src )
 {
 
 	if ( strcmp_P( systemVars.range_name, PSTR("X\0")) != 0 ) {
-		xCom_printf_P(fd, PSTR(",%s=%d"),systemVars.range_name,src );
+		xCom_printf_P(fd, PSTR("%s:%d;"),systemVars.range_name,src );
 	}
 }
 //------------------------------------------------------------------------------------

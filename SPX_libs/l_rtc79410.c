@@ -107,8 +107,8 @@ int8_t xBytes = 0;
 		xprintf_P(PSTR("ERROR: I2C:RTC:RTC_start\r\n\0"));
 
 	// Si esta reseteado la reconfiguro
-	if ( ( rtc.year < 2018 ) || ( rtc.year > 2040) ){
-		RTC_str2rtc("1801010000", &rtc);
+	if ( rtc.year > 100 )  {
+		RTC_str2rtc("1901010000", &rtc);
 		xBytes = RTC_write_dtime(&rtc);
 		if ( xBytes == -1 )
 			xprintf_P(PSTR("ERROR: I2C:RTC:RTC_start\r\n\0"));
@@ -148,7 +148,7 @@ uint8_t rdBytes = 0;
 	rtc->hour = pv_bcd2dec(data[2] & 0x3F);
 	rtc->day = pv_bcd2dec(data[4] & 0x3F);
 	rtc->month = pv_bcd2dec(data[5] & 0x1F);
-	rtc->year = pv_bcd2dec(data[6]) + 2000;
+	rtc->year = pv_bcd2dec(data[6]);
 
 	return(true);
 }
@@ -191,7 +191,7 @@ uint8_t rdBytes  = 0;
 	data[3] = 0x09;								// RTCWKDAY:, VBAT enable
 	data[4] = pv_dec2bcd(rtc->day);				// RTCDATE
 	data[5] = pv_dec2bcd(rtc->month & 0x1F);	// RTCMONTH
-	data[6] = pv_dec2bcd(rtc->year - 2000);		// RTCYEAR
+	data[6] = pv_dec2bcd(rtc->year);			// RTCYEAR
 
 	rdBytes = RTC_write(0x00, (char *)&data, 7);
 	if ( rdBytes == -1 )
@@ -211,7 +211,7 @@ void RTC_rtc2str(char *str, RtcTimeType_t *rtc)
 {
 	// Convierte los datos del RTC a un string con formato DD/MM/YYYY hh:mm:ss
 
-	snprintf( str, 32 ,"%02d/%02d/%04d %02d:%02d:%02d",rtc->day, rtc->month, rtc->year, rtc->hour,rtc->min, rtc->sec );
+	snprintf( str, 32 ,"%02d/%02d/%04d %02d:%02d:%02d",rtc->day, rtc->month, ( 2000 + rtc->year ), rtc->hour,rtc->min, rtc->sec );
 
 }
 //------------------------------------------------------------------------------------
@@ -231,7 +231,7 @@ bool retS = false;
 		memcpy(dateTimeStr, str, 10);
 		// year
 		tmp[0] = dateTimeStr[0]; tmp[1] = dateTimeStr[1];	tmp[2] = '\0';
-		rtc->year = 2000 + atoi(tmp);
+		rtc->year = atoi(tmp);
 		// month
 		tmp[0] = dateTimeStr[2]; tmp[1] = dateTimeStr[3];	tmp[2] = '\0';
 		rtc->month = atoi(tmp);

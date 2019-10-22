@@ -113,6 +113,8 @@ bool st_gprs_inits(void)
 		}
 	}
 
+	return(bool_CONTINUAR);
+
 	// Configuracion OUTPUTS
 	if ( f_send_init_outputs ) {
 		if ( ! pv_send_frame_init(OUTPUTS) ) {
@@ -121,6 +123,22 @@ bool st_gprs_inits(void)
 	}
 
 	return(bool_CONTINUAR);
+}
+//------------------------------------------------------------------------------------
+void gprs_init_test(void)
+{
+	//xprintf_P( PSTR("Mensaje de prueba PAblo Tomas Peluffo Fleitas.\r\r\0"));
+	// nacido en PAndo el 30 de mayo del 1964
+	//xCom_printf_P( fdTERM, PSTR("PLOAD=CLASS:BASE;TDIAL:%d;TPOLL:%d;PWRS_MODO:ON;PWRS_START:0630;PWRS_END:1230\r\n\0"), systemVars.gprs_conf.timerDial,systemVars.timerPoll );
+	xprintf_P( PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
+	xprintf_P( PSTR("TPOLL:%d;"), systemVars.gprs_conf.timerDial );
+	xprintf_P( PSTR("PWRS_START:%02d:%02d;"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
+	xprintf_P( PSTR("PWRS_END:%02d:%02d"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+
+	xprintf_P( PSTR("\r\n"));
+//	xprintf_P(  PSTR("  TDIAL:%d;TPOLL:%d; pwrsave: ON, start[%02d:%02d], end[%02d:%02d]\r\n\0"), systemVars.gprs_conf.timerDial, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+
+//
 }
 //------------------------------------------------------------------------------------
 static bool pv_send_frame_init(init_frames_t tipo)
@@ -218,8 +236,6 @@ static bool pv_tx_frame_init(init_frames_t tipo)
 	//  Connection: close\r\r ( no mando el close )
 
 uint8_t intentos = 0;
-uint8_t timeout = 0;
-uint8_t await_loops = 0;
 t_socket_status socket_status = 0;
 
 	if ( systemVars.debug == DEBUG_GPRS  ) {
@@ -242,31 +258,13 @@ t_socket_status socket_status = 0;
 			return(true);
 		}
 
+		// Si el socket dio falla, debo reiniciar la conexion.
+		if ( socket_status == SOCK_FAIL ) {
+			return(false);
+		}
+
 		// El socket esta cerrado: Doy el comando para abrirlo y espero
 		u_gprs_open_socket();
-
-		await_loops = ( 10 * 1000 / 3000 ) + 1;
-		// Y espero hasta 30s que abra.
-		for ( timeout = 0; timeout < await_loops; timeout++) {
-			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			socket_status = u_gprs_check_socket_status();
-
-			// Si el socket abrio, salgo para trasmitir el frame de init.
-			if ( socket_status == SOCK_OPEN ) {
-				break;
-			}
-
-			// Si el socket dio error, salgo para enviar de nuevo el comando.
-			if ( socket_status == SOCK_ERROR ) {
-				break;
-			}
-
-			// Si el socket dio falla, debo reiniciar la conexion.
-			if ( socket_status == SOCK_FAIL ) {
-				return(false);
-				break;
-			}
-		}
 
 	}
 
@@ -317,34 +315,48 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, out_cks;
 	psens_cks = psensor_checksum();
 	out_cks = outputs_checksum();
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;SIMPWD:%s;IMEI:%s;SIMID:%s;CSQ:%d;WRST:%02X;BASE:0x%02X;AN:0x%02X;DG:0x%02X;CNT:0x%02X;RG:0x%02X;PSE:0x%02X;OUT:0x%02X\0" ),
-			NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS, systemVars.gprs_conf.simpwd, &buff_gprs_imei,&buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause,base_cks,an_cks,dig_cks,cnt_cks,range_cks,psens_cks,out_cks   );
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
+	xCom_printf_P( fdGPRS,PSTR("SIMPWD:%s;IMEI:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei );
+	xCom_printf_P( fdGPRS,PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
+	xCom_printf_P( fdGPRS,PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
+	xCom_printf_P( fdGPRS,PSTR("CNT:0x%02X;RG:0x%02X;PSE:0x%02X;OUT:0x%02X" ),cnt_cks,range_cks,psens_cks,out_cks );
 
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;SIMPWD:%s;IMEI:%s;SIMID:%s;CSQ:%d;WRST:%02X;BASE:0x%02X;AN:0x%02X;DG:0x%02X;CNT:0x%02X;RG:0x%02X;PSE:0x%02X;OUT:0x%02X\0" ),
-				NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS, systemVars.gprs_conf.simpwd, &buff_gprs_imei,&buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause,base_cks,an_cks,dig_cks,cnt_cks,range_cks,psens_cks,out_cks   );
+		xprintf_P( PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
+		xprintf_P( PSTR("SIMPWD:%s;IMEI:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei );
+		xprintf_P( PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
+		xprintf_P( PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
+		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;PSE:0x%02X;OUT:0x%02X" ),cnt_cks,range_cks,psens_cks,out_cks );
 	}
 }
 //------------------------------------------------------------------------------------
 static void pv_tx_init_payload_base(void)
 {
 
-	// PLOAD=CLASS:BASE;TDIAL:1800;TPOLL:60;PWRS_MODO:1;PWRS_START:930;PWRS_END:1240
-
-uint8_t l_pwrs_modo = 0;
-
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:BASE;"));
+	xCom_printf_P( fdGPRS,PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
+	xCom_printf_P( fdGPRS,PSTR("TPOLL:%d;"), systemVars.gprs_conf.timerDial );
 	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
-		l_pwrs_modo = 1;
+		xCom_printf_P( fdGPRS,PSTR("PWRS_MODO:ON;"));
+	} else {
+		xCom_printf_P( fdGPRS,PSTR("PWRS_MODO:OFF;"));
 	}
-
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:BASE;TDIAL:%d;TPOLL:%d;PWRS_MODO:%d;PWRS_START:%02d%02d;PWRS_END:%02d%02d\0"),
-		systemVars.gprs_conf.timerDial, systemVars.timerPoll, l_pwrs_modo, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+	xCom_printf_P( fdGPRS,PSTR("PWRS_START:%02d%02d;"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
+	xCom_printf_P( fdGPRS,PSTR("PWRS_END:%02d%02d;"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
 
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PLOAD=CLASS:BASE;TDIAL:%d;TPOLL:%d;PWRS_MODO:%d;PWRS_START:%02d%02d;PWRS_END:%02d%02d\0"),
-			systemVars.gprs_conf.timerDial,systemVars.timerPoll, l_pwrs_modo, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+		xprintf_P( PSTR("&PLOAD=CLASS:BASE;"));
+		xprintf_P( PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
+		xprintf_P( PSTR("TPOLL:%d;"), systemVars.gprs_conf.timerDial );
+		if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
+			xprintf_P( PSTR("PWRS_MODO:ON;"));
+		} else {
+			xprintf_P( PSTR("PWRS_MODO:OFF;"));
+		}
+		xprintf_P( PSTR("PWRS_START:%02d%02d;"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
+		xprintf_P( PSTR("PWRS_END:%02d%02d;"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
 
 	}
 
@@ -356,7 +368,6 @@ static void pv_tx_init_payload_analog(void)
 
 	//  PLOAD=CLASS:ANALOG;A0:PA,0,20,0.00,6.00;A1:PB,4,20,0.00,10.00;A2:X,4,20,0.00,10.00;A3:PC,4,20,0.00,10.00;A4:X,4,20,0.00,10.00
 
-
 uint8_t i;
 
 	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:ANALOG\0"));
@@ -365,15 +376,20 @@ uint8_t i;
 	}
 
 	for (i=0; i < NRO_ANINPUTS; i++) {
-		xCom_printf_P( fdGPRS,PSTR(";A%d:%s,%d,%d,%.03f,%.03f"), i, systemVars.ainputs_conf.name[i],systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i], systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
+		xCom_printf_P( fdGPRS,PSTR(";A%d:%s,"), i, systemVars.ainputs_conf.name[i] );
+		xCom_printf_P( fdGPRS,PSTR("%d,%d,"), systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i] );
+		xCom_printf_P( fdGPRS,PSTR("%.03f,%.03f"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR(";A%d:%s,%d,%d,%.03f,%.03f"), i, systemVars.ainputs_conf.name[i],systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i], systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
+			xprintf_P( PSTR(";A%d:%s,"), i, systemVars.ainputs_conf.name[i] );
+			xprintf_P( PSTR("%d,%d,"), systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i] );
+			xprintf_P( PSTR("%.03f,%.03f"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
 		}
 	}
+	xprintf_P( PSTR(";D%d:%s,%d"), i, systemVars.dinputs_conf.name[i],systemVars.dinputs_conf.modo_normal[i] );
 
 	xCom_printf_P( fdGPRS,PSTR("\0"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("\0"));
+		xprintf_P( PSTR("\r\n\0"));
 	}
 }
 //------------------------------------------------------------------------------------
@@ -389,9 +405,18 @@ uint8_t i;
 	}
 
 	for (i=0; i < NRO_DINPUTS; i++) {
-		xCom_printf_P( fdGPRS,PSTR(";D%d:%s,%d"), i, systemVars.dinputs_conf.name[i],systemVars.dinputs_conf.modo_normal[i] );
+		if ( systemVars.dinputs_conf.modo_normal[i] == true ) {
+			xCom_printf_P( fdGPRS,PSTR(";D%d:%s,NORMAL"), i, systemVars.dinputs_conf.name[i] );
+		} else {
+			xCom_printf_P( fdGPRS,PSTR(";D%d:%s,TIMER"), i, systemVars.dinputs_conf.name[i] );
+		}
+		xCom_printf_P( fdGPRS,PSTR("%d"), systemVars.dinputs_conf.modo_normal[i] );
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR(";D%d:%s,%d"), i, systemVars.dinputs_conf.name[i],systemVars.dinputs_conf.modo_normal[i] );
+			if ( systemVars.dinputs_conf.modo_normal[i] == true ) {
+				xprintf_P( PSTR(";D%d:%s,NORMAL"), i, systemVars.dinputs_conf.name[i] );
+			} else {
+				xprintf_P( PSTR(";D%d:%s,TIMER"), i, systemVars.dinputs_conf.name[i] );
+			}
 		}
 	}
 
@@ -413,9 +438,24 @@ uint8_t i;
 	}
 
 	for (i=0; i < NRO_COUNTERS; i++) {
-		xCom_printf_P( fdGPRS,PSTR(";C%d:%s,%.03f,%d,%d,%d"), i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i], systemVars.counters_conf.pwidth[i], systemVars.counters_conf.speed[i] );
+		xCom_printf_P( fdGPRS,PSTR(";C%d:%s,"), i, systemVars.counters_conf.name[i] );
+		xCom_printf_P( fdGPRS,PSTR("%.03f,%d,"), systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i] );
+		xCom_printf_P( fdGPRS,PSTR("%d,"), systemVars.counters_conf.pwidth[i] );
+		if ( systemVars.counters_conf.speed[i] == CNT_LOW_SPEED ) {
+			xCom_printf_P( fdGPRS,PSTR("LS"));
+		} else {
+			xCom_printf_P( fdGPRS,PSTR("HS"));
+		}
+
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR(";C%d:%s,%.03f,%d,%d,%d"), i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i], systemVars.counters_conf.pwidth[i], systemVars.counters_conf.speed[i] );
+			xprintf_P( PSTR(";C%d:%s,"), i, systemVars.counters_conf.name[i] );
+			xprintf_P( PSTR("%.03f,%d,"), systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i] );
+			xprintf_P( PSTR("%d,"), systemVars.counters_conf.pwidth[i] );
+			if ( systemVars.counters_conf.speed[i] == CNT_LOW_SPEED ) {
+				xprintf_P( PSTR("LS"));
+			} else {
+				xprintf_P( PSTR("HS"));
+			}
 		}
 	}
 
@@ -442,9 +482,14 @@ static void pv_tx_init_payload_psensor(void)
 
 	// PLOAD=CLASS:PSENSOR;PS0:CLORO,0,0.7,0.002
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:PSENSOR;PS0:%s,%.03f,%.03f,%.03f"), systemVars.psensor_conf.name,systemVars.psensor_conf.pmin ,systemVars.psensor_conf.pmax, systemVars.psensor_conf.poffset );
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:PSENSOR;"));
+	xCom_printf_P( fdGPRS,PSTR("PS0:%s,%.03f,"), systemVars.psensor_conf.name,systemVars.psensor_conf.pmin );
+	xCom_printf_P( fdGPRS,PSTR("%.03f,%.03f"), systemVars.psensor_conf.pmax, systemVars.psensor_conf.poffset );
+
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PLOAD=CLASS:PSENSOR;PS0:%s,%.03f,%.03f,%.03f"), systemVars.psensor_conf.name,systemVars.psensor_conf.pmin ,systemVars.psensor_conf.pmax, systemVars.psensor_conf.poffset );
+		xprintf_P( PSTR("&PLOAD=CLASS:PSENSOR;"));
+		xprintf_P( PSTR("PS0:%s,%.03f,"), systemVars.psensor_conf.name,systemVars.psensor_conf.pmin );
+		xprintf_P( PSTR("%.03f,%.03f"), systemVars.psensor_conf.pmax, systemVars.psensor_conf.poffset );
 	}
 }
 //------------------------------------------------------------------------------------
@@ -455,33 +500,33 @@ uint8_t i;
 
 	switch(systemVars.doutputs_conf.modo) {
 	case OFF:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;O0:OFF"));
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;MODO:OFF"));
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;O0:OFF"));
+			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;MODO:OFF"));
 		}
 		break;
 	case CONSIGNA:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;O0:CONSIGNA,%02d,%02d,%02d,%02d"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min  );
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;MODO:CONSIGNA;CHH1:%02d;CMM1:%02d;CHH2:%02d;CMM2:%02d"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min  );
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;O0:CONSIGNA,%02d,%02d,%02d,%02d"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min  );
+			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;MODO:CONSIGNA;CHH1:%02d;CMM1:%02d;CHH2:%02d;CMM2:%02d"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min  );
 		}
 		break;
 	case PERFORACIONES:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;O0:PERF"));
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;MODO:PERF"));
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;O0:PERF"));
+			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;MODO:PERF"));
 		}
 		break;
 	case PILOTOS:
-		xCom_printf_P( fdGPRS,PSTR("&&PLOAD=CLASS:OUTPUTS;O0:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;MODO:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&&PLOAD=CLASS:OUTPUTS;O0:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
+			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;MODO:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
 		}
 
 		for(i=0;i<MAX_PILOTO_PSLOTS;i++) {
-			xCom_printf_P( fdGPRS,PSTR("S%d:%02d,%02d,%.03f"), i, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[i].pout );
+			xCom_printf_P( fdGPRS,PSTR("SLOT%d:%02d,%02d,%.03f;"), i, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[i].pout );
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf_P( PSTR("S%d:%02d,%02d,%.03f"), i, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[i].pout );
+				xprintf_P( PSTR("SLOT%d:%02d,%02d,%.03f;"), i, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[i].pout );
 			}
 		}
 
@@ -559,7 +604,7 @@ uint8_t exit_code = FRAME_ERROR;
 				goto EXIT;
 			}
 
-			if ( u_gprs_check_response("COUNTERS") ) {
+			if ( u_gprs_check_response("COUNTER") ) {
 				// Borro la causa del reset
 				wdg_resetCause = 0x00;
 				pv_init_reconfigure_params_counters();
@@ -859,7 +904,7 @@ char str_base[8];
 static void pv_init_reconfigure_params_digital(void)
 {
 
-	//	PLOAD=CLASS:DIGITAL;D0:DIN0,0;D1:DIN1,0;
+	//	PLOAD=CLASS:DIGITAL;D0:DIN0,NORMAL;D1:DIN1,TIMER;
 
 char *p = NULL;
 char localStr[32] = { 0 };
@@ -902,6 +947,7 @@ char str_base[8];
 static void pv_init_reconfigure_params_counters(void)
 {
 	//	PLOAD=CLASS:COUNTER;C0:CNT0,1.0,15,1000,0;C1:X,1.0,10,100,1;
+	//  PLOAD=CLASS:COUNTER;C0:CNT0,1.0,15,1000,0;C1:X,1.0,10,100,1;
 
 char *p = NULL;
 char localStr[32] = { 0 };
@@ -916,7 +962,7 @@ bool save_flag = false;
 uint8_t ch;
 char str_base[8];
 
-	// A?
+	// C?
 	for (ch=0; ch < NRO_COUNTERS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("C%d\0"), ch );

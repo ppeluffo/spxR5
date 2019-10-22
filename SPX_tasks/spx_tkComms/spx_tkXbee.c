@@ -901,9 +901,9 @@ uint8_t channel = 0;
 		return;
 	}
 
-	xCom_printf_P( fdXBEE, PSTR("&CTL=%d&LINE=%04d%02d%02d,%02d%02d%02d\0"), fat.rdPTR, dr.rtc.year, dr.rtc.month, dr.rtc.day, dr.rtc.hour, dr.rtc.min, dr.rtc.sec );
+	xCom_printf_P( fdXBEE, PSTR("&CTL=%d&LINE=%04d%02d%02d,%02d%02d%02d\0"), fat.rdPTR, (2000 + dr.rtc.year ), dr.rtc.month, dr.rtc.day, dr.rtc.hour, dr.rtc.min, dr.rtc.sec );
 	if ( systemVars.debug ==  DEBUG_XBEE ) {
-		xprintf_P( PSTR("&CTL=%d&LINE=%04d%02d%02d,%02d%02d%02d\0"), fat.rdPTR, dr.rtc.year, dr.rtc.month, dr.rtc.day, dr.rtc.hour, dr.rtc.min, dr.rtc.sec );
+		xprintf_P( PSTR("&CTL=%d&LINE=%04d%02d%02d,%02d%02d%02d\0"), fat.rdPTR, (2000 + dr.rtc.year ), dr.rtc.month, dr.rtc.day, dr.rtc.hour, dr.rtc.min, dr.rtc.sec );
 	}
 	// Canales analogicos: Solo muestro los que tengo configurados.
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {

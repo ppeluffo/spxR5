@@ -187,7 +187,7 @@ int main( void )
 	xTaskCreate(tkCtl, "CTL", tkCtl_STACK_SIZE, NULL, tkCtl_TASK_PRIORITY,  &xHandle_tkCtl );
 	xTaskCreate(tkCmd, "CMD", tkCmd_STACK_SIZE, NULL, tkCmd_TASK_PRIORITY,  &xHandle_tkCmd);
 	xTaskCreate(tkInputs, "IN", tkInputs_STACK_SIZE, NULL, tkInputs_TASK_PRIORITY,  &xHandle_tkInputs);
-	xTaskCreate(tkOutputs, "OUT", tkOutputs_STACK_SIZE, NULL, tkOutputs_TASK_PRIORITY,  &xHandle_tkOutputs);
+	xTaskCreate(tkSistema, "SYS", tkSistema_STACK_SIZE, NULL, tkSistema_TASK_PRIORITY,  &xHandle_tkSistema);
 	xTaskCreate(tkGprsRx, "RX", tkGprs_rx_STACK_SIZE, NULL, tkGprs_rx_TASK_PRIORITY,  &xHandle_tkGprsRx );
 	xTaskCreate(tkGprsTx, "TX", tkGprs_tx_STACK_SIZE, NULL, tkGprs_tx_TASK_PRIORITY,  &xHandle_tkGprsTx );
 	//xTaskCreate(tkXbee, "XBEE", tkXbee_STACK_SIZE, NULL, tkXbee_TASK_PRIORITY,  &xHandle_tkXbee );

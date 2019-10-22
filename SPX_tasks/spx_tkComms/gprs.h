@@ -18,7 +18,7 @@
 #define MAX_INIT_TRYES			4	// Intentos de procesar un frame de INIT
 #define MAX_IPSCAN_TRYES		4	// Intentos de abrir un socket para descrubrir la IP en un SCAN
 #define MAX_TRYES_OPEN_SOCKET	4 	// Intentos de abrir un socket
-#define MAX_RCDS_WINDOW_SIZE	8	// Maximos registros enviados en un bulk de datos
+#define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 #define MAX_TX_WINDOW_TRYES		4	// Intentos de enviar el mismo paquete de datos
 
 // Datos del buffer local de recepcion de datos del GPRS.
@@ -75,7 +75,7 @@ void u_gprs_modem_pwr_on(uint8_t pwr_time );
 void u_gprs_modem_pwr_sw(void);
 void u_gprs_flush_RX_buffer(void);
 void u_gprs_flush_TX_buffer(void);
-void u_gprs_open_socket(void);
+t_socket_status u_gprs_open_socket(void);
 void u_gprs_close_socket(void);
 t_socket_status u_gprs_check_socket_status(void);
 void u_gprs_print_RX_response(void);

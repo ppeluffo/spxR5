@@ -23,7 +23,7 @@ uint8_t consigna_a_aplicar = 99;
 
 	if ( spx_io_board != SPX_IO5CH ) {
 		xprintf_P(PSTR("DOUTPUTS Init ERROR: Consigna only in IO_5CH.\r\n\0"));
-		systemVars.doutputs_conf.modo = OFF;
+		systemVars.sysmodo_conf.modo = OFF;
 		return;
 	}
 

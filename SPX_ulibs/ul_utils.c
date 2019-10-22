@@ -332,6 +332,8 @@ void u_config_timerpoll ( char *s_timerpoll )
 	// Se utiliza desde el modo comando como desde el modo online
 	// El tiempo de poleo debe estar entre 15s y 3600s
 
+	//xprintf_P( PSTR("DEBUG_A TPOLL CONFIG: [%s]\r\n\0"), s_timerpoll );
+
 	systemVars.timerPoll = atoi(s_timerpoll);
 
 	if ( systemVars.timerPoll < 15 )
@@ -340,7 +342,8 @@ void u_config_timerpoll ( char *s_timerpoll )
 	if ( systemVars.timerPoll > 3600 )
 		systemVars.timerPoll = 300;
 
-	u_gprs_redial();
+	//xprintf_P( PSTR("DEBUG_B TPOLL CONFIG: [%d]\r\n\0"), systemVars.timerPoll );
+	//u_gprs_redial();
 
 	return;
 }
@@ -397,29 +400,26 @@ uint8_t u_base_checksum(void)
 uint8_t checksum = 0;
 char dst[32];
 char *p;
-
-	//	uint32_t timerDial
-	//	uint16_t timerPoll;
-	//	bool pwrs_enabled;
-	//	st_time_t hora_start;
-	//	st_time_t hora_fin;
-
+uint8_t i = 0;
 
 	// calculate own checksum
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
-	// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
+	i = snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.gprs_conf.timerDial );
 	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
-		snprintf_P(dst, sizeof(dst), PSTR("%d,%d,%d,%02d,ON,%02d,%02d"), systemVars.gprs_conf.timerDial,systemVars.timerPoll, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+		i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,ON,"), systemVars.timerPoll );
 	} else {
-		snprintf_P(dst, sizeof(dst), PSTR("%d,%d,%d,%02d,OFF,%02d,%02d"), systemVars.gprs_conf.timerDial,systemVars.timerPoll, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+		i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,OFF,"), systemVars.timerPoll );
 	}
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min );
+
 	//xprintf_P( PSTR("DEBUG: BCKS = [%s]\r\n\0"), dst );
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
-		checksum ^= *p++;
+		checksum += *p++;
 	}
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 

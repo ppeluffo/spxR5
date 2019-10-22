@@ -65,7 +65,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.0.6"
-#define SPX_FW_DATE "@ 20191018"
+#define SPX_FW_DATE "@ 20191022"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -100,7 +100,7 @@
 #define tkCtl_STACK_SIZE		512
 #define tkCmd_STACK_SIZE		512
 #define tkInputs_STACK_SIZE		512
-#define tkOutputs_STACK_SIZE	512
+#define tkSistema_STACK_SIZE	512
 #define tkGprs_rx_STACK_SIZE	512
 #define tkGprs_tx_STACK_SIZE	1024
 #define tkXbee_STACK_SIZE		512
@@ -108,7 +108,7 @@
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkInputs_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
-#define tkOutputs_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define tkSistema_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkGprs_rx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkGprs_tx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkXbee_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
@@ -136,14 +136,14 @@ typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 typedef enum { CTL_BOYA, CTL_SISTEMA } doutputs_control_t;
-typedef enum { OFF = 0, CONSIGNA, PERFORACIONES, PILOTOS  } doutputs_modo_t;
+typedef enum { OFF = 0, CONSIGNA, PERFORACIONES, PILOTOS  } sys_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
 typedef enum { CLOSE = 0, OPEN } t_valve_status;
 typedef enum { VR_CHICA = 0, VR_MEDIA, VR_GRANDE } t_valvula_reguladora;
 typedef enum { XBEE_OFF = 0, XBEE_MASTER, XBEE_SLAVE } t_xbee;
 typedef enum { LINK_DOWN = 0, LINK_UP } t_link;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkOutputs, xHandle_tkGprsRx, xHandle_tkGprsTx, xHandle_tkXbee;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkSistema, xHandle_tkGprsRx, xHandle_tkGprsTx, xHandle_tkXbee;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -167,7 +167,7 @@ StaticSemaphore_t XBEE_xMutexBuffer;
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
 void tkInputs(void * pvParameters);
-void tkOutputs(void * pvParameters);
+void tkSistema(void * pvParameters);
 void tkGprsRx(void * pvParameters);
 void tkGprsTx(void * pvParameters);
 void tkXbee(void * pvParameters);
@@ -199,7 +199,7 @@ typedef struct {
 // Estructura de un registro de IO8CH
 typedef struct {
 	float ainputs[IO8_ANALOG_CHANNELS];			// 4 * 8 = 32
-	uint16_t dinputs[IO8_DINPUTS_CHANNELS];		// 2 * 4 =  8
+	uint16_t dinputs[IO8_DINPUTS_CHANNELS];		// 2 * 8 = 16
 	float counters[IO8_COUNTER_CHANNELS];		// 4 * 2 =  8
 } st_io8_t; 									// ----- = 56
 
@@ -212,7 +212,7 @@ typedef union u_dataframe {
 typedef struct {
 	u_dataframe_t df;	// 56
 	RtcTimeType_t rtc;	//  7
-} st_dataRecord_t;		// 64
+} st_dataRecord_t;		// 63
 
 // Estructura de datos de un dataframe ( considera todos los canales que se pueden medir )
 typedef struct {
@@ -224,7 +224,8 @@ typedef struct {
 	float battery;
 	RtcTimeType_t rtc;
 	uint8_t plt_Vcounters[2];
-} dataframe_s;
+} dataframe_s;		//65
+
 
 // Estructuras para las consignas
 typedef struct {
@@ -296,7 +297,7 @@ typedef struct {
 	st_consigna_t consigna;
 	st_pilotos_t piloto;
 	st_perforacion_t perforacion;
-} doutputs_conf_t;
+} sysmodo_conf_t;
 
 typedef struct {
 	char dlgId[DLGID_LENGTH];
@@ -329,7 +330,7 @@ typedef struct {
 	counters_conf_t counters_conf;	// Estructura con la configuracion de los contadores
 	dinputs_conf_t dinputs_conf;	// Estructura con la configuracion de las entradas digitales
 	ainputs_conf_t ainputs_conf;	// Estructura con la configuracion de las entradas analogicas
-	doutputs_conf_t doutputs_conf;	//
+	sysmodo_conf_t sysmodo_conf;	//
 	gprs_conf_t	gprs_conf;
 	psensor_conf_t psensor_conf;
 
@@ -342,6 +343,9 @@ typedef struct {
 systemVarsType systemVars;
 
 // UTILS
+
+void gprs_init_test(void);
+
 void initMCU(void);
 void u_configure_systemMainClock(void);
 void u_configure_RTC32(void);
@@ -472,7 +476,7 @@ uint8_t wdg_resetCause;
 #define WDG_CTL			0
 #define WDG_CMD			1
 #define WDG_DIN			2
-#define WDG_DOUT		3
+#define WDG_SYSTEM		3
 #define WDG_GPRSRX		4
 #define WDG_GPRSTX		5
 #define WDG_DINPUTS		6
@@ -480,6 +484,6 @@ uint8_t wdg_resetCause;
 
 #define NRO_WDGS		8
 
-#define WDG_DOUT_TIMEOUT	100
+#define WDG_SYSTEM_TIMEOUT	100
 
 #endif /* SRC_SPX_H_ */

@@ -231,11 +231,11 @@ st_dataRecord_t dr;
 
 		// RangeMeter: PULSE WIDTH
 		xprintf_P( PSTR("  range: %s\r\n\0"), systemVars.range_name );
-		// Psensor
-		xprintf_P( PSTR("  psensor: %s (%d,%d)\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax);
 
 		// Psensor
-		if ( strcmp ( systemVars.psensor_conf.name, "X" ) != 0 ) {
+		if ( strcmp ( systemVars.psensor_conf.name, "X" ) == 0 ) {
+			xprintf_P( PSTR("  psensor: %s\r\n\0"), systemVars.psensor_conf.name );
+		} else {
 			xprintf_P( PSTR("  psensor: %s (%.03f,%.03f, %.03f)\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.poffset);
 		}
 	}
@@ -318,18 +318,12 @@ st_dataRecord_t dr;
 	}
 
 	// contadores( Solo hay 2 )
-	// Counter0
-	if ( systemVars.counters_conf.speed[0] == CNT_LOW_SPEED ) {
-		xprintf_P( PSTR("  c0 [%s,magpp=%.03f,pw=%d,T=%d (LS)]\r\n\0"),systemVars.counters_conf.name[0], systemVars.counters_conf.magpp[0], systemVars.counters_conf.pwidth[0], systemVars.counters_conf.period[0] );
-	} else {
-		xprintf_P( PSTR("  c0 [%s,magpp=%.03f,pw=%d,T=%d (HS)]\r\n\0"),systemVars.counters_conf.name[0], systemVars.counters_conf.magpp[0], systemVars.counters_conf.pwidth[0], systemVars.counters_conf.period[0] );
-	}
-
-	// Counter1
-	if ( systemVars.counters_conf.speed[1] == CNT_LOW_SPEED ) {
-		xprintf_P( PSTR("  c1 [%s,magpp=%.03f,pw=%d,T=%d (LS)]\r\n\0"),systemVars.counters_conf.name[1], systemVars.counters_conf.magpp[1], systemVars.counters_conf.pwidth[1], systemVars.counters_conf.period[1] );
-	} else {
-		xprintf_P( PSTR("  c1 [%s,magpp=%.03f,pw=%d,T=%d (HS)]\r\n\0"),systemVars.counters_conf.name[1], systemVars.counters_conf.magpp[1], systemVars.counters_conf.pwidth[1], systemVars.counters_conf.period[1	] );
+	for ( channel = 0; channel <  NRO_COUNTERS; channel++) {
+		if ( systemVars.counters_conf.speed[channel] == CNT_LOW_SPEED ) {
+			xprintf_P( PSTR("  c%d [%s,magpp=%.03f,pw=%d,T=%d (LS)]\r\n\0"),channel,systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
+		} else {
+			xprintf_P( PSTR("  c%d [%s,magpp=%.03f,pw=%d,T=%d (HS)]\r\n\0"),channel,systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
+		}
 	}
 
 	// Muestro los datos
@@ -352,8 +346,8 @@ static void cmdResetFunction(void)
 		vTaskSuspend( xHandle_tkInputs );
 		ctl_watchdog_kick(WDG_DIN, 0x8000 );
 
-		vTaskSuspend( xHandle_tkOutputs );
-		ctl_watchdog_kick(WDG_DOUT, 0x8000 );
+		vTaskSuspend( xHandle_tkSistema );
+		ctl_watchdog_kick(WDG_SYSTEM, 0x8000 );
 
 		vTaskSuspend( xHandle_tkGprsTx );
 		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
@@ -529,6 +523,8 @@ uint8_t cks;
 	// CHECKSUM
 	// read checksum
 	if (!strcmp_P( strupr(argv[1]), PSTR("CHECKSUM\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		cks = u_base_checksum();
+		xprintf_P( PSTR("Base Checksum = [0x%02x]\r\n\0"), cks );
 		cks = ainputs_checksum();
 		xprintf_P( PSTR("Analog Checksum = [0x%02x]\r\n\0"), cks );
 		cks = dinputs_checksum();
@@ -541,6 +537,20 @@ uint8_t cks;
 		xprintf_P( PSTR("Range Checksum = [0x%02x]\r\n\0"), cks );
 		cks = outputs_checksum();
 		xprintf_P( PSTR("Outputs Checksum = [0x%02x]\r\n\0"), cks );
+		return;
+	}
+
+
+	if (!strcmp_P( strupr(argv[1]), PSTR("TEST\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		//xprintf_P( PSTR("PLOAD=CLASS:BASE;TDIAL:%d;TPOLL:%d;PWRS_MODO:ON;PWRS_START:0630;PWRS_END:1230\r\r\0"), systemVars.gprs_conf.timerDial,systemVars.timerPoll );
+		xprintf_P( PSTR("st_io5_t = %d\r\n\0"), sizeof(st_io5_t) );
+		xprintf_P( PSTR("st_io8_t = %d\r\n\0"), sizeof(st_io8_t) );
+		xprintf_P( PSTR("u_dataframe_t = %d\r\n\0"), sizeof(u_dataframe_t) );
+		xprintf_P( PSTR("st_dataRecord_t = %d\r\n\0"), sizeof(st_dataRecord_t) );
+		xprintf_P( PSTR("dataframe_s = %d\r\n\0"), sizeof(dataframe_s) );
+		xprintf_P( PSTR("RtcTimeType_t = %d\r\n\0"), sizeof(RtcTimeType_t) );
+
+		//gprs_init_test();
 		return;
 	}
 
@@ -1013,7 +1023,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
-		xprintf_P( PSTR("  digital {0..%d} dname {timer}\r\n\0"), ( NRO_DINPUTS - 1 ) );
+		xprintf_P( PSTR("  digital {0..%d} dname {normal,timer}\r\n\0"), ( NRO_DINPUTS - 1 ) );
 		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
 		xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
 
@@ -1066,10 +1076,10 @@ static void cmdKillFunction(void)
 		return;
 	}
 
-	// KILL DOUTPUTS
-	if (!strcmp_P( strupr(argv[1]), PSTR("DOUTPUTS\0"))) {
-		vTaskSuspend( xHandle_tkOutputs );
-		ctl_watchdog_kick(WDG_DOUT, 0x8000 );
+	// KILL SISTEMA
+	if (!strcmp_P( strupr(argv[1]), PSTR("SISTEMA\0"))) {
+		vTaskSuspend( xHandle_tkSistema );
+		ctl_watchdog_kick(WDG_SYSTEM, 0x8000 );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -1163,9 +1173,9 @@ UBaseType_t uxHighWaterMark;
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkInputs );
 	xprintf_P( PSTR("DAT: %03d,%03d,[%03d]\r\n\0"),tkInputs_STACK_SIZE,uxHighWaterMark, (tkInputs_STACK_SIZE - uxHighWaterMark));
 
-	// tkDout
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkOutputs );
-	xprintf_P( PSTR("DOUT: %03d,%03d,[%03d]\r\n\0"), tkOutputs_STACK_SIZE,uxHighWaterMark, ( tkOutputs_STACK_SIZE - uxHighWaterMark));
+	// tkSistema
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkSistema );
+	xprintf_P( PSTR("SIST: %03d,%03d,[%03d]\r\n\0"), tkSistema_STACK_SIZE,uxHighWaterMark, ( tkSistema_STACK_SIZE - uxHighWaterMark));
 
 	// tkGprsTX
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkGprsTx );
@@ -1221,7 +1231,7 @@ st_dataRecord_t dr;
 		}
 
 		// Imprimo el registro
-		xprintf_P( PSTR("CTL=%d\0"), l_fat.rdPTR);
+		xprintf_P( PSTR("CTL:%d;\0"), l_fat.rdPTR);
 		data_print_inputs(fdTERM, &dr);
 
 		xprintf_P(PSTR( "\r\n"));

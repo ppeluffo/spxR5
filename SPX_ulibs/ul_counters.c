@@ -166,11 +166,11 @@ void counters_print(file_descriptor_t fd, float cnt[] )
 	// Los lee de una estructura array pasada como src
 
 	if ( strcmp ( systemVars.counters_conf.name[0], "X" ) ) {
-		xCom_printf_P(fd, PSTR(",%s=%.03f"),systemVars.counters_conf.name[0], cnt[0] );
+		xCom_printf_P(fd, PSTR("%s:%.03f;"),systemVars.counters_conf.name[0], cnt[0] );
 	}
 
 	if ( strcmp ( systemVars.counters_conf.name[1], "X" ) ) {
-		xCom_printf_P(fd, PSTR(",%s=%.03f"),systemVars.counters_conf.name[1], cnt[1] );
+		xCom_printf_P(fd, PSTR("%s:%.03f;"),systemVars.counters_conf.name[1], cnt[1] );
 	}
 
 }
@@ -241,13 +241,13 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 		}
 
 		// Si el nombre es X deshabilito todo
-		if ( strcmp ( systemVars.counters_conf.name[channel], "X" ) == 0 ) {
+/*		if ( strcmp ( systemVars.counters_conf.name[channel], "X" ) == 0 ) {
 			systemVars.counters_conf.magpp[channel] = 0;
 			systemVars.counters_conf.pwidth[channel] = 0;
 			systemVars.counters_conf.period[channel] = 0;
 			systemVars.counters_conf.speed[channel] = 0;
 		}
-
+*/
 		retS = true;
 	}
 
@@ -299,6 +299,7 @@ uint16_t i;
 uint8_t checksum = 0;
 char dst[32];
 char *p;
+uint8_t j = 0;
 
 	//	char name[MAX_COUNTER_CHANNELS][PARAMNAME_LENGTH];
 	//	float magpp[MAX_COUNTER_CHANNELS];
@@ -312,8 +313,14 @@ char *p;
 	for(i=0;i< MAX_COUNTER_CHANNELS;i++) {
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
-		snprintf_P(dst, sizeof(dst), PSTR("C%d:%s,%.03f,%d,%d,%d;"), i, systemVars.counters_conf.name[i],systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i], systemVars.counters_conf.pwidth[i], systemVars.counters_conf.speed[i] );
-
+		j = 0;
+		j += snprintf_P(&dst[j], sizeof(dst), PSTR("C%d:%s,"), i, systemVars.counters_conf.name[i]);
+		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.03f,%d,"),systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i]);
+		if ( systemVars.counters_conf.speed[i] == CNT_LOW_SPEED ) {
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,LS;"), systemVars.counters_conf.pwidth[i] );
+		} else {
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,HS;"), systemVars.counters_conf.pwidth[i] );
+		}
 		//xprintf_P( PSTR("DEBUG: CCKS = [%s]\r\n\0"), dst );
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
@@ -321,9 +328,9 @@ char *p;
 		while (*p != '\0') {
 			checksum += *p++;
 		}
-		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
-	}
 
+	}
+	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 	return(checksum);
 
 }

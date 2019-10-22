@@ -77,7 +77,7 @@ bool dinputs_config_channel( uint8_t channel,char *s_aname ,char *s_tmodo )
 
 bool retS = false;
 
-	xprintf_P( PSTR("DEBUG DIGITAL CONFIG: D%d,name=%s,modo=%s\r\n\0"), channel, s_aname, s_tmodo );
+	//xprintf_P( PSTR("DEBUG DIGITAL CONFIG: D%d,name=%s,modo=%s\r\n\0"), channel, s_aname, s_tmodo );
 
 
 	if ( u_control_string(s_aname) == 0 ) {
@@ -91,11 +91,16 @@ bool retS = false;
 
 	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
 		snprintf_P( systemVars.dinputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
-		systemVars.dinputs_conf.modo_normal[channel] = true;
-		if ( ( s_tmodo != NULL ) && ( !strcmp_P( strupr(s_tmodo), PSTR("TIMER\0")))) {
-			systemVars.dinputs_conf.modo_normal[channel] = false;
-		}
 
+		systemVars.dinputs_conf.modo_normal[channel] = true;
+		if ( s_tmodo != NULL ) {
+			if  ( !strcmp_P( strupr(s_tmodo), PSTR("NORMAL\0"))) {
+				systemVars.dinputs_conf.modo_normal[channel] = true;
+			}
+			if  ( !strcmp_P( strupr(s_tmodo), PSTR("TIMER\0"))) {
+				systemVars.dinputs_conf.modo_normal[channel] = false;
+			}
+		}
 		// En caso que sea X, el valor es siempre NORMAL
 		if ( strcmp ( systemVars.dinputs_conf.name[channel], "X" ) == 0 ) {
 			systemVars.dinputs_conf.modo_normal[channel] = true;
@@ -271,7 +276,7 @@ uint8_t i = 0;
 		if ( ! strcmp ( systemVars.dinputs_conf.name[i], "X" ) )
 			continue;
 
-		xCom_printf_P(fd, PSTR(",%s=%d"), systemVars.dinputs_conf.name[i], src[i] );
+		xCom_printf_P(fd, PSTR("%s:%d;"), systemVars.dinputs_conf.name[i], src[i] );
 	}
 
 }
@@ -283,6 +288,7 @@ uint16_t i;
 uint8_t checksum = 0;
 char dst[32];
 char *p;
+uint8_t j = 0;
 
 	//	char name[MAX_DINPUTS_CHANNELS][PARAMNAME_LENGTH];
 	//	bool modo_normal[MAX_DINPUTS_CHANNELS];
@@ -293,17 +299,22 @@ char *p;
 	for(i=0;i<NRO_DINPUTS;i++) {
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
+		j = 0;
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-		snprintf_P(dst, sizeof(dst), PSTR("D%d:%s,%d;"), i, systemVars.dinputs_conf.name[i],systemVars.dinputs_conf.modo_normal[i] );
-		//xprintf_P( PSTR("DEBUG: DCKS = [%s]\r\n\0"), dst );
+		if ( systemVars.dinputs_conf.modo_normal[i] == true ) {
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("D%d:%s,NORMAL;"), i, systemVars.dinputs_conf.name[i] );
+		} else {
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("D%d:%s,TIMER;"), i, systemVars.dinputs_conf.name[i] );
+		}
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
 			checksum += *p++;
 		}
-		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 	}
+	//xprintf_P( PSTR("DEBUG: DCKS = [%s]\r\n\0"), dst );
+	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 	return(checksum);
 

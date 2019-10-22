@@ -554,7 +554,7 @@ uint16_t i;
 
 	// Espero de a 1 minuto
 	for (i = 1; i<= wait_loops; i++) {
-		ctl_watchdog_kick( WDG_DOUT,  WDG_DOUT_TIMEOUT );
+		ctl_watchdog_kick( WDG_SYSTEM,  WDG_SYSTEM_TIMEOUT );
 		vTaskDelay( 30000 / portTICK_RATE_MS );
 	}
 
