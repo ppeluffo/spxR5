@@ -7,6 +7,7 @@
 
 #include <spx_tkComms/gprs.h>
 #include "spx.h"
+#include "ul_consigna.h"
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -252,6 +253,10 @@ void u_load_defaults( char *opt )
 	range_config_defaults();
 	u_gprs_load_defaults( opt );
 
+	// Modo de operacion
+	systemVars.aplicacion = APP_OFF;
+	consigna_config_defaults();
+
 }
 //------------------------------------------------------------------------------------
 uint8_t u_save_params_in_NVMEE(void)
@@ -399,12 +404,24 @@ uint8_t i = 0;
 	// calculate own checksum
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
-	i = snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.gprs_conf.timerDial );
+
+	switch(systemVars.aplicacion) {
+	case APP_OFF:
+		i = snprintf_P( &dst[i], sizeof(dst), PSTR("OFF,"));
+		break;
+	case APP_CONSIGNA:
+		i = snprintf_P( &dst[i], sizeof(dst), PSTR("CONSIGNA,"));
+		break;
+	}
+
+	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.gprs_conf.timerDial );
+
 	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
 		i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,ON,"), systemVars.timerPoll );
 	} else {
 		i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,OFF,"), systemVars.timerPoll );
 	}
+
 	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
 	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min );
 
@@ -418,6 +435,22 @@ uint8_t i = 0;
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 	return(checksum);
+
+}
+//------------------------------------------------------------------------------------
+bool u_config_aplicacion( char *modo )
+{
+	if (!strcmp_P( strupr(modo), PSTR("OFF\0"))) {
+		systemVars.aplicacion = APP_OFF;
+		return(true);
+	}
+
+	if (!strcmp_P( strupr(modo), PSTR("CONSIGNA\0"))) {
+		systemVars.aplicacion = APP_CONSIGNA;
+		return(true);
+	}
+
+	return(false);
 
 }
 //------------------------------------------------------------------------------------

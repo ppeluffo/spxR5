@@ -430,4 +430,3 @@ void u_gprs_tx_tail(void)
 	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 }
 //------------------------------------------------------------------------------------
-

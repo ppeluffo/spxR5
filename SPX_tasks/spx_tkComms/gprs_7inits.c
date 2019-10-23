@@ -115,7 +115,7 @@ bool st_gprs_inits(void)
 	if ( f_reset ) {
 		xprintf_P( PSTR("GPRS: reset for reload config...\r\n\0"));
 		vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
-		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
+//		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
 	}
 
 	return(bool_CONTINUAR);
@@ -329,6 +329,17 @@ static void pv_tx_init_payload_base(void)
 	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:BASE;"));
 	xCom_printf_P( fdGPRS,PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
 	xCom_printf_P( fdGPRS,PSTR("TPOLL:%d;"), systemVars.gprs_conf.timerDial );
+	switch(systemVars.aplicacion) {
+	case APP_OFF:
+		xCom_printf_P( fdGPRS,PSTR("APP:OFF;"));
+		break;
+	case APP_CONSIGNA:
+		xCom_printf_P( fdGPRS,PSTR("APP:CONSIGNA;"));
+		break;
+	default:
+		xCom_printf_P( fdGPRS,PSTR("APP:OFF;"));
+	}
+
 	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
 		xCom_printf_P( fdGPRS,PSTR("PWRS_MODO:ON;"));
 	} else {
@@ -342,6 +353,16 @@ static void pv_tx_init_payload_base(void)
 		xprintf_P( PSTR("&PLOAD=CLASS:BASE;"));
 		xprintf_P( PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
 		xprintf_P( PSTR("TPOLL:%d;"), systemVars.gprs_conf.timerDial );
+		switch(systemVars.aplicacion) {
+		case APP_OFF:
+			xprintf_P( PSTR("APP:OFF;"));
+			break;
+		case APP_CONSIGNA:
+			xprintf_P( PSTR("APP:CONSIGNA;"));
+			break;
+		default:
+			xprintf_P( PSTR("APP:OFF;"));
+		}
 		if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
 			xprintf_P( PSTR("PWRS_MODO:ON;"));
 		} else {
@@ -703,7 +724,7 @@ int8_t xBytes = 0;
 static void pv_init_reconfigure_params_base(void)
 {
 
-	//	TYPE=INIT&PLOAD=CLASS:BASE;TPOLL:60;TDIAL:60;PWRS:1,2330,630
+	//	TYPE=INIT&PLOAD=CLASS:BASE;APP:CONSIGNA;TPOLL:60;TDIAL:60;PWRS:1,2330,630
 
 char *p = NULL;
 char localStr[32] = { 0 };
@@ -714,6 +735,26 @@ char *tk_pws_start = NULL;
 char *tk_pws_end = NULL;
 char *delim = ",=:;><";
 bool save_flag = false;
+
+	// APLICACION
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "APP");
+	if ( p != NULL ) {
+
+		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+		memset( &localStr, '\0', sizeof(localStr) );
+		memcpy(localStr,p,sizeof(localStr));
+
+		stringp = localStr;
+		token = strsep(&stringp,delim);		// APLICACION
+		token = strsep(&stringp,delim);		// CONSIGNA
+		u_config_aplicacion(token);
+		save_flag = true;
+		f_reset = true;
+
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: Reconfig APLICACION\r\n\0"));
+		}
+	}
 
 	// TDIAL
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "TDIAL");

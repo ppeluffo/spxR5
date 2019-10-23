@@ -183,6 +183,21 @@ st_dataRecord_t dr;
 		break;
 	}
 
+	// MODO DE OPERACION:
+	xprintf_P( PSTR(">Aplicacion:\r\n\0"));
+	switch (systemVars.aplicacion ) {
+	case APP_OFF:
+		xprintf_P( PSTR("  modo: OFF\r\n\0"));
+		break;
+	case APP_CONSIGNA:
+		if ( systemVars.aplicacion_conf.consigna.c_aplicada == CONSIGNA_DIURNA ) {
+			xprintf_P( PSTR("  modo: Consignas: (c_dia=%02d:%02d, c_noche=%02d:%02d) (DIURNA)\r\n"), systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min );
+		} else {
+			xprintf_P( PSTR("  modo: Consignas: (c_dia=%02d:%02d, c_noche=%02d:%02d) (NOCTURNA)\r\n"), systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min );
+		}
+		break;
+	}
+
 	// CONFIG
 	xprintf_P( PSTR(">Config:\r\n\0"));
 
@@ -308,6 +323,14 @@ static void cmdWriteFunction(void)
 {
 
 	FRTOS_CMD_makeArgv();
+
+	// CONSIGNA
+	// write consigna (diurna|nocturna)
+	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		consigna_write( argv[2] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
 
 	// ANALOG
 	// write analog wakeup/sleep
@@ -562,6 +585,22 @@ static void cmdConfigFunction(void)
 bool retS = false;
 
 	FRTOS_CMD_makeArgv();
+
+	// APLICACION
+	// aplicacion {none|cons | perf | plt
+	if (!strcmp_P( strupr(argv[1]), PSTR("APLICACION\0")) ) {
+		retS = u_config_aplicacion( argv[2] );
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
+	// CONSIGNA
+	// config consigna {hhmm1} {hhmm2}
+	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
+		retS = consigna_config( argv[2], argv[3]);
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
 
 	// COUNTERS
 	// config counter {0..1} cname magPP pulseWidth period speed
@@ -879,6 +918,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
 			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
 			xprintf_P( PSTR("  psensor {name} {pmin} {pmax} {poffset}\r\n\0"));
+			xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));
 		}
 
 		if ( spx_io_board == SPX_IO8CH ) {
@@ -894,8 +934,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
 		xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
 
-		xprintf_P( PSTR("  outmode { off | perf | plt | cons }\r\n\0"));
-		xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));
+		xprintf_P( PSTR("  aplicacion { off,consigna }\r\n\0"));
 		xprintf_P( PSTR("  piloto reg {CHICA|MEDIA|GRANDE}\r\n\0"));
 		xprintf_P( PSTR("         pband {pband}\r\n\0"));
 		xprintf_P( PSTR("         steps {steps}\r\n\0"));

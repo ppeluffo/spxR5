@@ -61,11 +61,13 @@
 #include "l_bytes.h"
 #include "l_psensor.h"
 
+#include "SPX_ulibs/ul_consigna.h"
+
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.0.6"
-#define SPX_FW_DATE "@ 20191022"
+#define SPX_FW_REV "2.0.6.a"
+#define SPX_FW_DATE "@ 20191023"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -90,8 +92,6 @@
 #define IO8_COUNTER_CHANNELS	2
 #define IO8_DOUTPUTS_CHANNELS	8
 
-#define MAX_PILOTO_PSLOTS		5
-
 #define CHAR32	32
 #define CHAR64	64
 #define CHAR128	128
@@ -102,13 +102,14 @@
 #define tkInputs_STACK_SIZE		512
 #define tkGprs_rx_STACK_SIZE	512
 #define tkGprs_tx_STACK_SIZE	1024
-
+#define tkSistema_STACK_SIZE	512
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkInputs_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
 #define tkGprs_rx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkGprs_tx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define tkSistema_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 
 
 #define TDIAL_MIN_DISCRETO 900
@@ -133,9 +134,11 @@ typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
+typedef enum { APP_OFF = 0, APP_CONSIGNA } aplicacion_t;
 
+typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkGprsRx, xHandle_tkGprsTx;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkGprsRx, xHandle_tkGprsTx, xHandle_tkSistema;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -157,6 +160,7 @@ void tkCmd(void * pvParameters);
 void tkInputs(void * pvParameters);
 void tkGprsRx(void * pvParameters);
 void tkGprsTx(void * pvParameters);
+void tkSistema(void * pvParameters);
 
 
 #define DLGID_LENGTH		12
@@ -212,7 +216,6 @@ typedef struct {
 	RtcTimeType_t rtc;
 	uint8_t plt_Vcounters[2];
 } dataframe_s;		//65
-
 
 // Estructuras para las consignas
 typedef struct {
@@ -276,6 +279,17 @@ typedef struct {
 } psensor_conf_t;
 
 typedef struct {
+	st_time_t hhmm_c_diurna;
+	st_time_t hhmm_c_nocturna;
+	consigna_t c_aplicada;
+} st_consigna_t;
+
+
+typedef struct {
+	st_consigna_t consigna;
+} aplicacion_conf_t;
+
+typedef struct {
 
 	// Variables de trabajo.
 
@@ -289,6 +303,9 @@ typedef struct {
 	ainputs_conf_t ainputs_conf;	// Estructura con la configuracion de las entradas analogicas
 	gprs_conf_t	gprs_conf;
 	psensor_conf_t psensor_conf;
+
+	aplicacion_t aplicacion;				// Modo de operacion del datalogger
+	aplicacion_conf_t aplicacion_conf;
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -314,6 +331,7 @@ void u_config_timerpoll ( char *s_timerpoll );
 bool u_check_more_Rcds4Del ( FAT_t *fat );
 bool u_check_more_Rcds4Tx(void);
 uint8_t u_base_checksum(void);
+bool u_config_aplicacion( char *modo );
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -392,9 +410,9 @@ uint8_t wdg_resetCause;
 #define WDG_GPRSRX		3
 #define WDG_GPRSTX		4
 #define WDG_DINPUTS		5
+#define WDG_SYS			6
+#define NRO_WDGS		7
 
-#define NRO_WDGS		6
-
-#define WDG_SYSTEM_TIMEOUT	100
+#define WDG_SYS_TIMEOUT	100
 
 #endif /* SRC_SPX_H_ */
