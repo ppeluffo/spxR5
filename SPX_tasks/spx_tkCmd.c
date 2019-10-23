@@ -110,8 +110,6 @@ static void cmdStatusFunction(void)
 
 FAT_t l_fat;
 uint8_t channel = 0;
-uint8_t olatb = 0 ;
-uint8_t VA_cnt, VB_cnt, VA_status, VB_status;
 st_dataRecord_t dr;
 
 	memset( &l_fat, '\0', sizeof(FAT_t));
@@ -240,69 +238,6 @@ st_dataRecord_t dr;
 		}
 	}
 
-
-	// XBEE
-	switch(systemVars.xbee) {
-	case XBEE_OFF:
-		xprintf_P( PSTR("  xbee: OFF\r\n"));
-		break;
-	case XBEE_MASTER:
-		xprintf_P( PSTR("  xbee: master\r\n"));
-		break;
-	case XBEE_SLAVE:
-		xprintf_P( PSTR("  xbee: slave\r\n"));
-		break;
-	}
-
-	// doutputs
-	switch( systemVars.doutputs_conf.modo) {
-	case OFF:
-		xprintf_P( PSTR("  doutputs modo: OFF\r\n"));
-		break;
-	case CONSIGNA:
-		// Consignas
-		xprintf_P( PSTR("  doutputs modo: CONSIGNA\r\n"));
-		if ( systemVars.doutputs_conf.consigna.c_aplicada == CONSIGNA_DIURNA ) {
-			xprintf_P( PSTR("  consignas: (DIURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
-		} else {
-			xprintf_P( PSTR("  consignas: (NOCTURNA) (c_dia=%02d:%02d, c_noche=%02d:%02d)\r\n"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min );
-		}
-		break;
-	case PERFORACIONES:
-		xprintf_P( PSTR("  doutputs modo: PERFORACION\r\n"));
-		MCP_read( 0x15, (char *)&olatb, 1 );
-		xprintf_P( PSTR("  out_value=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), systemVars.doutputs_conf.perforacion.outs, systemVars.doutputs_conf.perforacion.outs, BYTE_TO_BINARY( systemVars.doutputs_conf.perforacion.outs ), olatb );
-		if ( systemVars.doutputs_conf.perforacion.control == CTL_BOYA ) {
-			xprintf_P( PSTR("  out_control=BOYA, timer=%d\r\n\0"), perforaciones_read_clt_timer() );
-		} else {
-			xprintf_P( PSTR("  out_control=SISTEMA, timer=%d\r\n\0"), perforaciones_read_clt_timer() );
-		}
-		break;
-	case PILOTOS:
-		piloto_read(&VA_cnt, &VB_cnt, &VA_status, &VB_status );
-		xprintf_P( PSTR("  doutputs modo: PILOTO\r\n"));
-		//xprintf_P( PSTR("  pout_ref=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.pout );
-		xprintf_P( PSTR("  pband=%.02f\r\n\0"), systemVars.doutputs_conf.piloto.band );
-		xprintf_P( PSTR("  max_steps=%d, VAp=%d, VBp=%d\r\n\0"), systemVars.doutputs_conf.piloto.max_steps, VA_cnt, VB_cnt );
-		switch(systemVars.doutputs_conf.piloto.tipo_valvula) {
-		case VR_CHICA:
-			xprintf_P( PSTR("  VReg: chica\r\n"));
-			break;
-		case VR_MEDIA:
-			xprintf_P( PSTR("  VReg: media\r\n"));
-			break;
-		case VR_GRANDE:
-			xprintf_P( PSTR("  VReg: grande\r\n"));
-			break;
-		}
-		xprintf_P( PSTR("  Slots: "));
-		for ( channel = 0; channel < MAX_PILOTO_PSLOTS; channel++ ) {
-			xprintf_P( PSTR("[%d]%02d:%02d->%.02f "), channel, systemVars.doutputs_conf.piloto.pSlots[channel].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[channel].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[channel].pout );
-		}
-		xprintf_P( PSTR("\r\n\0"));
-		break;
-	}
-
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
 		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %04d | %.02f | %.03f | %.03f | %s]\r\n\0"),channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.mmin[channel], systemVars.ainputs_conf.mmax[channel], systemVars.ainputs_conf.inaspan[channel], systemVars.ainputs_conf.offset[channel] , systemVars.ainputs_conf.ieq_min[channel] , systemVars.ainputs_conf.ieq_max[channel], systemVars.ainputs_conf.name[channel] );
@@ -345,9 +280,6 @@ static void cmdResetFunction(void)
 
 		vTaskSuspend( xHandle_tkInputs );
 		ctl_watchdog_kick(WDG_DIN, 0x8000 );
-
-		vTaskSuspend( xHandle_tkSistema );
-		ctl_watchdog_kick(WDG_SYSTEM, 0x8000 );
 
 		vTaskSuspend( xHandle_tkGprsTx );
 		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
@@ -452,22 +384,6 @@ static void cmdWriteFunction(void)
 		return;
 	}
 
-	// OUTPIN
-	// write outpin {0..7} {set | clear}
-	if (!strcmp_P( strupr(argv[1]), PSTR("OUTPIN\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		outputs_cmd_write_pin( argv[2], argv[3] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
-		return;
-	}
-
-	// PERFOUT ( Perforaciones )
-	// write perfout VAL
-	if (!strcmp_P( strupr(argv[1]), PSTR("PERFOUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		perforaciones_set_douts( atoi(argv[2]) );
-		pv_snprintfP_OK();
-		return;
-	}
-
-
 	// RANGE
 	// write range {run | stop}
 	if (!strcmp_P( strupr(argv[1]), PSTR("RANGE\0")) && ( tipo_usuario == USER_TECNICO) ) {
@@ -480,22 +396,6 @@ static void cmdWriteFunction(void)
 		}
 
 		xprintf_P( PSTR("cmd ERROR: ( write range {run|stop} )\r\n\0"));
-		return;
-	}
-
-	// CONSIGNA
-	// write consigna (diurna|nocturna)
-	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		consigna_write( argv[2] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
-		return;
-	}
-
-	// VALVE
-	// write valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}
-	//             (open|close) (A|B) (ms)
-	//              power {on|off}
-	if (!strcmp_P( strupr(argv[1]), PSTR("VALVE\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		outputs_cmd_write_valve( argv[2], argv[3] ) ?  pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
@@ -535,8 +435,6 @@ uint8_t cks;
 		xprintf_P( PSTR("Psensor Checksum = [0x%02x]\r\n\0"), cks );
 		cks = range_checksum();
 		xprintf_P( PSTR("Range Checksum = [0x%02x]\r\n\0"), cks );
-		cks = outputs_checksum();
-		xprintf_P( PSTR("Outputs Checksum = [0x%02x]\r\n\0"), cks );
 		return;
 	}
 
@@ -664,37 +562,6 @@ static void cmdConfigFunction(void)
 bool retS = false;
 
 	FRTOS_CMD_makeArgv();
-
-	// XBEE
-	// config xbee {off,master,slave}
-	if (!strcmp_P( strupr(argv[1]), PSTR("XBEE\0")) ) {
-		retS = xbee_config( argv[2]);
-		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-	// OUTMODE
-	// outmode {none|cons | perf | plt
-	if (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
-		retS = outputs_config_mode( argv[2]);
-		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-
-	// CONSIGNA
-	// config consigna {hhmm1} {hhmm2}
-	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
-		retS = consigna_config( argv[2], argv[3]);
-		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-
-	// PILOTO
-	// config piloto { reg { CHICA | MEDIA | GRANDE },pout {pout},pband {pband},steps {steps},slot {idx} {hhmm} {pout} }\r\n\0"));
-	if (!strcmp_P( strupr(argv[1]), PSTR("PILOTO\0")) ) {
-		retS = piloto_config( argv[2], argv[3], argv[4], argv[5]);
-		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
 
 	// COUNTERS
 	// config counter {0..1} cname magPP pulseWidth period speed
@@ -1076,14 +943,6 @@ static void cmdKillFunction(void)
 		return;
 	}
 
-	// KILL SISTEMA
-	if (!strcmp_P( strupr(argv[1]), PSTR("SISTEMA\0"))) {
-		vTaskSuspend( xHandle_tkSistema );
-		ctl_watchdog_kick(WDG_SYSTEM, 0x8000 );
-		pv_snprintfP_OK();
-		return;
-	}
-
 	// KILL GPRSTX
 	if (!strcmp_P( strupr(argv[1]), PSTR("GPRSTX\0"))) {
 		vTaskSuspend( xHandle_tkGprsTx );
@@ -1172,10 +1031,6 @@ UBaseType_t uxHighWaterMark;
 	// tkData
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkInputs );
 	xprintf_P( PSTR("DAT: %03d,%03d,[%03d]\r\n\0"),tkInputs_STACK_SIZE,uxHighWaterMark, (tkInputs_STACK_SIZE - uxHighWaterMark));
-
-	// tkSistema
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkSistema );
-	xprintf_P( PSTR("SIST: %03d,%03d,[%03d]\r\n\0"), tkSistema_STACK_SIZE,uxHighWaterMark, ( tkSistema_STACK_SIZE - uxHighWaterMark));
 
 	// tkGprsTX
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkGprsTx );
@@ -1393,9 +1248,9 @@ uint8_t data = 0;
 
 		// Si estoy escribiendo el registro OLATB que refleja las salidas
 		// debo dejar actualizado el valor que puse
-		if ( atoi( argv[2]) == MCP_OLATB ) {
-			perforaciones_set_douts(data);
-		}
+//		if ( atoi( argv[2]) == MCP_OLATB ) {
+//			perforaciones_set_douts(data);
+//		}
 
 		( xBytes > 0 ) ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
 		return;
@@ -1456,14 +1311,8 @@ uint8_t ch = 0;
 //	} else if  (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0")) ) {
 //		xprintf_P( PSTR("RANGEMETER=%d\r\n\0"), systemVars.rangeMeter_enabled );
 
-	} else if  (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
-		xprintf_P( PSTR("OUTMODE=%d\r\n\0"), systemVars.doutputs_conf.modo );
-
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0")) ) {
 		xprintf_P( PSTR("PWRSAVE=%d,%d,%d\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled, systemVars.gprs_conf.pwrSave.hora_start, systemVars.gprs_conf.pwrSave.hora_fin  );
-
-	} else if  (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
-		xprintf_P( PSTR("CONSIGNA=%d,%d\r\n\0"), systemVars.doutputs_conf.consigna.hhmm_c_diurna,systemVars.doutputs_conf.consigna.hhmm_c_nocturna  );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) && ( argv[2] != NULL )) {
 		ch = atoi( argv[2]);
@@ -1547,9 +1396,6 @@ static void cmdPokeFunction(void)
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0")) ) {
 		range_config(argv[2]);
-
-	} else if  (!strcmp_P( strupr(argv[1]), PSTR("OUTMODE\0")) ) {
-		outputs_config_mode( argv[2] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0")) ) {
 		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );

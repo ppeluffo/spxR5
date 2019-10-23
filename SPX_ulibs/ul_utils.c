@@ -250,13 +250,7 @@ void u_load_defaults( char *opt )
 	ainputs_config_defaults();
 	psensor_config_defaults();
 	range_config_defaults();
-
-
-	outputs_config_defaults(  opt );
 	u_gprs_load_defaults( opt );
-
-
-	xbee_config_defaults();
 
 }
 //------------------------------------------------------------------------------------

@@ -17,9 +17,10 @@ bool f_send_init_digital = false;
 bool f_send_init_counters = false;
 bool f_send_init_range = false;
 bool f_send_init_psensor = false;
-bool f_send_init_outputs = false;
 
-typedef enum { GLOBAL=0, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR, OUTPUTS } init_frames_t;
+bool f_reset = false;
+
+typedef enum { GLOBAL=0, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR } init_frames_t;
 
 static bool pv_send_frame_init(init_frames_t tipo);
 static bool pv_tx_frame_init(init_frames_t tipo);
@@ -31,7 +32,6 @@ static void pv_tx_init_payload_digital(void);
 static void pv_tx_init_payload_counters(void);
 static void pv_tx_init_payload_range(void);
 static void pv_tx_init_payload_psensor(void);
-static void pv_tx_init_payload_outputs(void);
 
 static t_frame_responses pv_init_process_response(void);
 static void pv_init_reconfigure_params_global(void);
@@ -41,7 +41,6 @@ static void pv_init_reconfigure_params_digital(void);
 static void pv_init_reconfigure_params_counters(void);
 static void pv_init_reconfigure_params_range(void);
 static void pv_init_reconfigure_params_psensor(void);
-static void pv_init_reconfigure_params_outputs(void);
 
 //------------------------------------------------------------------------------------
 bool st_gprs_inits(void)
@@ -63,7 +62,6 @@ bool st_gprs_inits(void)
 	f_send_init_counters = false;
 	f_send_init_range = false;
 	f_send_init_psensor = false;
-	f_send_init_outputs = false;
 
 	// El resultado del frame GLOBAL es el que prende las flags de que
 	// otras inits deben enviarse.
@@ -113,13 +111,11 @@ bool st_gprs_inits(void)
 		}
 	}
 
-	return(bool_CONTINUAR);
-
-	// Configuracion OUTPUTS
-	if ( f_send_init_outputs ) {
-		if ( ! pv_send_frame_init(OUTPUTS) ) {
-			return(bool_RESTART);
-		}
+	// Alguna configuracion requiere que me resetee para tomarla.
+	if ( f_reset ) {
+		xprintf_P( PSTR("GPRS: reset for reload config...\r\n\0"));
+		vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
+		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
 	}
 
 	return(bool_CONTINUAR);
@@ -297,15 +293,12 @@ static void pv_tx_init_payload(init_frames_t tipo)
 	case PSENSOR:
 		pv_tx_init_payload_psensor();
 		break;
-	case OUTPUTS:
-		pv_tx_init_payload_outputs();
-		break;
 	}
 }
 //------------------------------------------------------------------------------------
 static void pv_tx_init_payload_global(void)
 {
-uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, out_cks;
+uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks;
 
 	base_cks = u_base_checksum();
 	an_cks = ainputs_checksum();
@@ -313,13 +306,12 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, out_cks;
 	cnt_cks = counters_checksum();
 	range_cks = range_checksum();
 	psens_cks = psensor_checksum();
-	out_cks = outputs_checksum();
 
 	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
 	xCom_printf_P( fdGPRS,PSTR("SIMPWD:%s;IMEI:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei );
 	xCom_printf_P( fdGPRS,PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
 	xCom_printf_P( fdGPRS,PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
-	xCom_printf_P( fdGPRS,PSTR("CNT:0x%02X;RG:0x%02X;PSE:0x%02X;OUT:0x%02X" ),cnt_cks,range_cks,psens_cks,out_cks );
+	xCom_printf_P( fdGPRS,PSTR("CNT:0x%02X;RG:0x%02X;PSE:0x%02X" ),cnt_cks,range_cks,psens_cks );
 
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
@@ -327,7 +319,7 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, out_cks;
 		xprintf_P( PSTR("SIMPWD:%s;IMEI:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei );
 		xprintf_P( PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
 		xprintf_P( PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
-		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;PSE:0x%02X;OUT:0x%02X" ),cnt_cks,range_cks,psens_cks,out_cks );
+		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;PSE:0x%02X" ),cnt_cks,range_cks,psens_cks );
 	}
 }
 //------------------------------------------------------------------------------------
@@ -385,7 +377,6 @@ uint8_t i;
 			xprintf_P( PSTR("%.03f,%.03f"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
 		}
 	}
-	xprintf_P( PSTR(";D%d:%s,%d"), i, systemVars.dinputs_conf.name[i],systemVars.dinputs_conf.modo_normal[i] );
 
 	xCom_printf_P( fdGPRS,PSTR("\0"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
@@ -493,51 +484,6 @@ static void pv_tx_init_payload_psensor(void)
 	}
 }
 //------------------------------------------------------------------------------------
-static void pv_tx_init_payload_outputs(void)
-{
-
-uint8_t i;
-
-	switch(systemVars.doutputs_conf.modo) {
-	case OFF:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;MODO:OFF"));
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;MODO:OFF"));
-		}
-		break;
-	case CONSIGNA:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;MODO:CONSIGNA;CHH1:%02d;CMM1:%02d;CHH2:%02d;CMM2:%02d"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min  );
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;MODO:CONSIGNA;CHH1:%02d;CMM1:%02d;CHH2:%02d;CMM2:%02d"), systemVars.doutputs_conf.consigna.hhmm_c_diurna.hour, systemVars.doutputs_conf.consigna.hhmm_c_diurna.min, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.hour, systemVars.doutputs_conf.consigna.hhmm_c_nocturna.min  );
-		}
-		break;
-	case PERFORACIONES:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;MODO:PERF"));
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;MODO:PERF"));
-		}
-		break;
-	case PILOTOS:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:OUTPUTS;MODO:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:OUTPUTS;MODO:PILOTO;STEPS:%d;BAND:%.03f;"), systemVars.doutputs_conf.piloto.max_steps, systemVars.doutputs_conf.piloto.band );
-		}
-
-		for(i=0;i<MAX_PILOTO_PSLOTS;i++) {
-			xCom_printf_P( fdGPRS,PSTR("SLOT%d:%02d,%02d,%.03f;"), i, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[i].pout );
-			if ( systemVars.debug ==  DEBUG_GPRS ) {
-				xprintf_P( PSTR("SLOT%d:%02d,%02d,%.03f;"), i, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.hour, systemVars.doutputs_conf.piloto.pSlots[i].hhmm.min, systemVars.doutputs_conf.piloto.pSlots[i].pout );
-			}
-		}
-
-		xCom_printf_P( fdGPRS,PSTR("\0"));
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("\0"));
-		}
-		break;
-	}
-}
-//------------------------------------------------------------------------------------
 static t_frame_responses pv_init_process_response(void)
 {
 
@@ -624,14 +570,6 @@ uint8_t exit_code = FRAME_ERROR;
 				// Borro la causa del reset
 				wdg_resetCause = 0x00;
 				pv_init_reconfigure_params_psensor();
-				exit_code = FRAME_OK;
-				goto EXIT;
-			}
-
-			if ( u_gprs_check_response("OUTPUTS") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				pv_init_reconfigure_params_outputs();
 				exit_code = FRAME_OK;
 				goto EXIT;
 			}
@@ -757,14 +695,6 @@ int8_t xBytes = 0;
 		f_send_init_psensor = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
 			xprintf_P( PSTR("GPRS: Reconfig PSENSOR\r\n\0"));
-		}
-	}
-
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "OUTPUTS");
-	if ( p != NULL ) {
-		f_send_init_outputs = true;
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: Reconfig OUTPUTS\r\n\0"));
 		}
 	}
 
@@ -991,6 +921,9 @@ char str_base[8];
 		u_save_params_in_NVMEE();
 	}
 
+	// Necesito resetearme para tomar la nueva configuracion.
+	f_reset = true;
+
 }
 //------------------------------------------------------------------------------------
 static void pv_init_reconfigure_params_range(void)
@@ -1057,11 +990,6 @@ char *delim = ",=:;><";
 		u_save_params_in_NVMEE();
 
 	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_params_outputs(void)
-{
 
 }
 //------------------------------------------------------------------------------------

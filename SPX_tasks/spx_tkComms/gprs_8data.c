@@ -334,9 +334,6 @@ static void pv_process_response_MEMFORMAT(void)
 	vTaskSuspend( xHandle_tkInputs );
 	ctl_watchdog_kick(WDG_DIN, 0x8000 );
 
-	vTaskSuspend( xHandle_tkSistema );
-	ctl_watchdog_kick(WDG_SYSTEM, 0x8000 );
-
 	vTaskSuspend( xHandle_tkGprsTx );
 	ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
 

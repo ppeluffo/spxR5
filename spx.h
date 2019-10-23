@@ -100,18 +100,16 @@
 #define tkCtl_STACK_SIZE		512
 #define tkCmd_STACK_SIZE		512
 #define tkInputs_STACK_SIZE		512
-#define tkSistema_STACK_SIZE	512
 #define tkGprs_rx_STACK_SIZE	512
 #define tkGprs_tx_STACK_SIZE	1024
-#define tkXbee_STACK_SIZE		512
+
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkInputs_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
-#define tkSistema_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkGprs_rx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkGprs_tx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
-#define tkXbee_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+
 
 #define TDIAL_MIN_DISCRETO 900
 
@@ -133,17 +131,11 @@
 typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_OUTPUTS, DEBUG_PILOTO, DEBUG_XBEE } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
-typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
-typedef enum { CTL_BOYA, CTL_SISTEMA } doutputs_control_t;
-typedef enum { OFF = 0, CONSIGNA, PERFORACIONES, PILOTOS  } sys_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
-typedef enum { CLOSE = 0, OPEN } t_valve_status;
-typedef enum { VR_CHICA = 0, VR_MEDIA, VR_GRANDE } t_valvula_reguladora;
-typedef enum { XBEE_OFF = 0, XBEE_MASTER, XBEE_SLAVE } t_xbee;
-typedef enum { LINK_DOWN = 0, LINK_UP } t_link;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkSistema, xHandle_tkGprsRx, xHandle_tkGprsTx, xHandle_tkXbee;
+
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkGprsRx, xHandle_tkGprsTx;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -160,17 +152,12 @@ xSemaphoreHandle sem_DATA;
 StaticSemaphore_t DATA_xMutexBuffer;
 #define MSTOTAKEDATASEMPH ((  TickType_t ) 10 )
 
-xSemaphoreHandle sem_XBEE;
-StaticSemaphore_t XBEE_xMutexBuffer;
-#define MSTOTAKEXBEESEMPH ((  TickType_t ) 10 )
-
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
 void tkInputs(void * pvParameters);
-void tkSistema(void * pvParameters);
 void tkGprsRx(void * pvParameters);
 void tkGprsTx(void * pvParameters);
-void tkXbee(void * pvParameters);
+
 
 #define DLGID_LENGTH		12
 #define PARAMNAME_LENGTH	5
@@ -234,29 +221,6 @@ typedef struct {
 } st_time_t;
 
 typedef struct {
-	st_time_t hhmm_c_diurna;
-	st_time_t hhmm_c_nocturna;
-	consigna_t c_aplicada;
-} st_consigna_t;
-
-typedef struct {		// Elemento de piloto: presion, hora.
-	st_time_t hhmm;
-	float pout;
-} st_piloto_data_t;
-
-typedef struct {
-	float band;										// Banda de variacion de la presion de trabajo ( configurable )
-	uint8_t max_steps;								// Maxima cantida de pasos para llegar a la presion ( configurable )
-	t_valvula_reguladora tipo_valvula;
-	st_piloto_data_t pSlots [MAX_PILOTO_PSLOTS];	// lista de presiones y horas en que se pone c/u.
-} st_pilotos_t;
-
-typedef struct {
-	uint8_t outs;
-	uint8_t	control;
-} st_perforacion_t;
-
-typedef struct {
 	bool pwrs_enabled;
 	st_time_t hora_start;
 	st_time_t hora_fin;
@@ -291,13 +255,6 @@ typedef struct {
 	float ieq_max[MAX_ANALOG_CHANNELS];
 } ainputs_conf_t;
 
-// Configuracion de salidas
-typedef struct {
-	uint8_t modo;
-	st_consigna_t consigna;
-	st_pilotos_t piloto;
-	st_perforacion_t perforacion;
-} sysmodo_conf_t;
 
 typedef struct {
 	char dlgId[DLGID_LENGTH];
@@ -330,11 +287,9 @@ typedef struct {
 	counters_conf_t counters_conf;	// Estructura con la configuracion de los contadores
 	dinputs_conf_t dinputs_conf;	// Estructura con la configuracion de las entradas digitales
 	ainputs_conf_t ainputs_conf;	// Estructura con la configuracion de las entradas analogicas
-	sysmodo_conf_t sysmodo_conf;	//
 	gprs_conf_t	gprs_conf;
 	psensor_conf_t psensor_conf;
 
-	uint8_t xbee;
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
 
@@ -428,61 +383,17 @@ uint8_t ainputs_checksum(void);
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );
 void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr);
 
-// OUTPUTS
-void outputs_config_defaults( char *opt );
-bool outputs_config_mode( char *mode );
-bool outputs_cmd_write_valve( char *param1, char *param2 );
-bool outputs_cmd_write_pin( char *param_pin, char *param_state );
-uint8_t outputs_checksum(void);
-
-// OUTPUTS: Consignas
-void consigna_init(void);
-bool consigna_config ( char *hhmm1, char *hhmm2 );
-void consigna_config_defaults(void);
-bool consigna_write( char *tipo_consigna_str);
-void consigna_stk(void);
-
-
-// OUTPUTS: Perforaciones
-void perforaciones_init(void);
-void perforaciones_config_defaults(void);
-void perforaciones_stk(void);
-void perforaciones_set_douts( uint8_t dout );
-void perforaciones_set_douts_online( uint8_t dout );
-uint16_t perforaciones_read_clt_timer(void);
-
-
-// OUTPUTS: Piloto
-void piloto_init(void);
-void piloto_config_defaults(void);
-void piloto_read( uint8_t *VA_cnt, uint8_t *VB_cnt, uint8_t *VA_status, uint8_t *VB_status );
-bool piloto_config( char *param1, char *param2, char *param3, char *param4 );
-void piloto_config_slot( char *s_slot, char *s_pout );
-void piloto_stk(void);
-uint8_t piloto_checksum(void);
-
-
-// XBEE
-void xbee_config_defaults(void);
-bool xbee_config ( char *s_mode );
-void pub_xbee_tx_DATAFRAME(void);
-void pub_xbee_clear_txframe_flag(void);
-char *pub_xbee_get_buffer_ptr(void);
-void pub_xbee_tx_ACK( char *msg );
-
 // WATCHDOG
 uint8_t wdg_resetCause;
 
 #define WDG_CTL			0
 #define WDG_CMD			1
 #define WDG_DIN			2
-#define WDG_SYSTEM		3
-#define WDG_GPRSRX		4
-#define WDG_GPRSTX		5
-#define WDG_DINPUTS		6
-#define WDG_XBEE		7
+#define WDG_GPRSRX		3
+#define WDG_GPRSTX		4
+#define WDG_DINPUTS		5
 
-#define NRO_WDGS		8
+#define NRO_WDGS		6
 
 #define WDG_SYSTEM_TIMEOUT	100
 

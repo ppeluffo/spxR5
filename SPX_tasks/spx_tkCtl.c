@@ -41,7 +41,7 @@ static void pv_ctl_check_terminal(void);
 #define TIME_TO_XBEE_LINK	2
 static uint32_t pv_timers[MAX_TIMERS] = { 0, 0 };
 
-static uint16_t watchdog_timers[NRO_WDGS] = { 0,0,0,0,0,0,0,0 };
+static uint16_t watchdog_timers[NRO_WDGS] = { 0,0,0,0,0,0,0 };
 static bool f_terminal_connected = false;;
 
 // Timpo que espera la tkControl entre round-a-robin
@@ -194,11 +194,6 @@ uint16_t recSize = 0;
 
 	}
 	xprintf_P( PSTR("------------------------------------------------\r\n\0"));
-
-	// Si tengo XBEE lo prendo
-	if ( systemVars.xbee != XBEE_OFF ) {
-		IO_set_XBEE_PWR();
-	}
 
 	// Habilito a arrancar al resto de las tareas
 	startTask = true;
