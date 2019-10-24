@@ -17,10 +17,11 @@ bool f_send_init_digital = false;
 bool f_send_init_counters = false;
 bool f_send_init_range = false;
 bool f_send_init_psensor = false;
+bool f_send_init_aplicacion = false;
 
 bool f_reset = false;
 
-typedef enum { GLOBAL=0, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR } init_frames_t;
+typedef enum { GLOBAL=0, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR, APLICACION } init_frames_t;
 
 static bool pv_send_frame_init(init_frames_t tipo);
 static bool pv_tx_frame_init(init_frames_t tipo);
@@ -32,6 +33,7 @@ static void pv_tx_init_payload_digital(void);
 static void pv_tx_init_payload_counters(void);
 static void pv_tx_init_payload_range(void);
 static void pv_tx_init_payload_psensor(void);
+static void pv_tx_init_payload_aplicacion(void);
 
 static t_frame_responses pv_init_process_response(void);
 static void pv_init_reconfigure_params_global(void);
@@ -41,6 +43,7 @@ static void pv_init_reconfigure_params_digital(void);
 static void pv_init_reconfigure_params_counters(void);
 static void pv_init_reconfigure_params_range(void);
 static void pv_init_reconfigure_params_psensor(void);
+static void pv_init_reconfigure_params_aplicacion(void);
 
 //------------------------------------------------------------------------------------
 bool st_gprs_inits(void)
@@ -62,6 +65,7 @@ bool st_gprs_inits(void)
 	f_send_init_counters = false;
 	f_send_init_range = false;
 	f_send_init_psensor = false;
+	f_send_init_aplicacion = false;
 
 	// El resultado del frame GLOBAL es el que prende las flags de que
 	// otras inits deben enviarse.
@@ -107,6 +111,13 @@ bool st_gprs_inits(void)
 	// Configuracion PSENSOR
 	if ( f_send_init_psensor ) {
 		if ( ! pv_send_frame_init(PSENSOR) ) {
+			return(bool_RESTART);
+		}
+	}
+
+	// APLICACION:
+	if ( f_send_init_aplicacion ) {
+		if ( ! pv_send_frame_init(APLICACION) ) {
 			return(bool_RESTART);
 		}
 	}
@@ -293,12 +304,15 @@ static void pv_tx_init_payload(init_frames_t tipo)
 	case PSENSOR:
 		pv_tx_init_payload_psensor();
 		break;
+	case APLICACION:
+		pv_tx_init_payload_aplicacion();
+		break;
 	}
 }
 //------------------------------------------------------------------------------------
 static void pv_tx_init_payload_global(void)
 {
-uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks;
+uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 
 	base_cks = u_base_checksum();
 	an_cks = ainputs_checksum();
@@ -306,12 +320,14 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks;
 	cnt_cks = counters_checksum();
 	range_cks = range_checksum();
 	psens_cks = psensor_checksum();
+	app_cks = u_aplicacion_checksum();
 
 	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
 	xCom_printf_P( fdGPRS,PSTR("SIMPWD:%s;IMEI:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei );
 	xCom_printf_P( fdGPRS,PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
 	xCom_printf_P( fdGPRS,PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
-	xCom_printf_P( fdGPRS,PSTR("CNT:0x%02X;RG:0x%02X;PSE:0x%02X" ),cnt_cks,range_cks,psens_cks );
+	xCom_printf_P( fdGPRS,PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
+	xCom_printf_P( fdGPRS,PSTR("PSE:0x%02X;APP:0x%02X" ), psens_cks, app_cks );
 
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
@@ -320,6 +336,9 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks;
 		xprintf_P( PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
 		xprintf_P( PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
 		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;PSE:0x%02X" ),cnt_cks,range_cks,psens_cks );
+		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
+		xprintf_P( PSTR("PSE:0x%02X;APP:0x%02X" ), psens_cks, app_cks );
+
 	}
 }
 //------------------------------------------------------------------------------------
@@ -505,6 +524,43 @@ static void pv_tx_init_payload_psensor(void)
 	}
 }
 //------------------------------------------------------------------------------------
+static void pv_tx_init_payload_aplicacion(void)
+{
+	switch(systemVars.aplicacion) {
+	case APP_OFF:
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:OFF;"));
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:OFF;"));
+		}
+		break;
+
+	case APP_CONSIGNA:
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;"));
+		xCom_printf_P( fdGPRS,PSTR("AP0:CONSIGNA,%02d%02d,"),systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min  );
+		xCom_printf_P( fdGPRS,PSTR("%02d%02d"),systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min  );
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:APP;"));
+			xprintf_P( PSTR("AP0:CONSIGNA,%02d%02d,"),systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min  );
+			xprintf_P( PSTR("%02d%02d"),systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min  );
+		}
+		break;
+
+	case APP_PERFORACION:
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:PERFORACION;"));
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:PERFORACION;"));
+		}
+		break;
+
+	case APP_TANQUE:
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:TANQUE;"));
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:TANQUE;"));
+		}
+		break;
+	}
+}
+//------------------------------------------------------------------------------------
 static t_frame_responses pv_init_process_response(void)
 {
 
@@ -595,6 +651,14 @@ uint8_t exit_code = FRAME_ERROR;
 				goto EXIT;
 			}
 
+			if ( u_gprs_check_response("APP") ) {
+				// Borro la causa del reset
+				wdg_resetCause = 0x00;
+				pv_init_reconfigure_params_aplicacion();
+				exit_code = FRAME_OK;
+				goto EXIT;
+			}
+
 			if ( u_gprs_check_response("SRV_ERR") ) {	// El servidor no pudo procesar el frame. Problema del server
 				// Borro la causa del reset
 				wdg_resetCause = 0x00;
@@ -622,7 +686,7 @@ static void pv_init_reconfigure_params_global(void)
 {
 	// Recibimos un frame que trae la fecha y hora y parametros que indican
 	// que otras flags de configuraciones debemos prender.
-	// GLOBAL;CLOCK:1910120345;BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;OUTS
+	// GLOBAL;CLOCK:1910120345;BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;APLICACION
 
 char *p = NULL;
 char localStr[32] = { 0 };
@@ -716,6 +780,14 @@ int8_t xBytes = 0;
 		f_send_init_psensor = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
 			xprintf_P( PSTR("GPRS: Reconfig PSENSOR\r\n\0"));
+		}
+	}
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "APLICACION");
+	if ( p != NULL ) {
+		f_send_init_aplicacion = true;
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: Reconfig APLICACION\r\n\0"));
 		}
 	}
 
@@ -1034,3 +1106,77 @@ char *delim = ",=:;><";
 
 }
 //------------------------------------------------------------------------------------
+static void pv_init_reconfigure_params_aplicacion(void)
+{
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:OFF;
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:CONSIGNA,1230,0940;
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:PERFORACION;
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:TANQUE
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_cons_dia = NULL;
+char *tk_cons_noche = NULL;
+char *delim = ",=:;><";
+
+	// AP0:OFF
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:OFF");
+	if ( p != NULL ) {
+		systemVars.aplicacion = APP_OFF;
+		u_save_params_in_NVMEE();
+		f_reset = true;
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: Reconfig APLICACION:OFF\r\n\0"));
+		}
+		return;
+	}
+
+	// CONSIGNA
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:CONSIGNA");
+	if ( p != NULL ) {
+		systemVars.aplicacion = APP_CONSIGNA;
+
+		memset( &localStr, '\0', sizeof(localStr) );
+		memcpy(localStr,p,sizeof(localStr));
+
+		stringp = localStr;
+		tk_cons_dia = strsep(&stringp,delim);	// AP0:CONSIGNA
+		tk_cons_dia = strsep(&stringp,delim);	// 1230
+		tk_cons_noche = strsep(&stringp,delim); // 0940
+		consigna_config(tk_cons_dia, tk_cons_noche );
+		u_save_params_in_NVMEE();
+		f_reset = true;
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA\r\n\0"));
+		}
+		return;
+	}
+
+	// AP0:PERFORACION
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:PERFORACION");
+	if ( p != NULL ) {
+		systemVars.aplicacion = APP_PERFORACION;
+		u_save_params_in_NVMEE();
+		f_reset = true;
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: Reconfig APLICACION:PERFORACION\r\n\0"));
+		}
+		return;
+	}
+
+	// AP0:TANQUE
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:TANQUE");
+	if ( p != NULL ) {
+		systemVars.aplicacion = APP_TANQUE;
+		u_save_params_in_NVMEE();
+		f_reset = true;
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: Reconfig APLICACION:TANQUE\r\n\0"));
+		}
+		return;
+	}
+
+}
+//------------------------------------------------------------------------------------
+

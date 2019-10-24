@@ -111,6 +111,7 @@ static void cmdStatusFunction(void)
 FAT_t l_fat;
 uint8_t channel = 0;
 st_dataRecord_t dr;
+uint8_t olatb = 0 ;
 
 	memset( &l_fat, '\0', sizeof(FAT_t));
 
@@ -195,6 +196,22 @@ st_dataRecord_t dr;
 		} else {
 			xprintf_P( PSTR("  modo: Consignas: (c_dia=%02d:%02d, c_noche=%02d:%02d) (NOCTURNA)\r\n"), systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min );
 		}
+		break;
+	case APP_PERFORACION:
+		xprintf_P( PSTR("  modo: Perforacion\r\n\0"));
+		MCP_read( 0x15, (char *)&olatb, 1 );
+		xprintf_P( PSTR("  outs=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), systemVars.aplicacion_conf.perforacion.outs, systemVars.aplicacion_conf.perforacion.outs, BYTE_TO_BINARY( systemVars.aplicacion_conf.perforacion.outs ), olatb );
+		switch( perforacion_read_control_mode()) {
+		case PERF_CTL_BOYA:
+			xprintf_P( PSTR("  control=BOYA, timer=%d\r\n\0"), perforacion_read_timer_activo() );
+			break;
+		case PERF_CTL_SISTEMA:
+			xprintf_P( PSTR("  control=SISTEMA, timer=%d\r\n\0"), perforacion_read_timer_activo() );
+			break;
+		}
+		break;
+	case APP_TANQUE:
+		xprintf_P( PSTR("  modo: TANQUE\r\n\0"));
 		break;
 	}
 
@@ -293,6 +310,9 @@ static void cmdResetFunction(void)
 		// Nadie debe usar la memoria !!!
 		ctl_watchdog_kick(WDG_CMD, 0x8000 );
 
+		vTaskSuspend( xHandle_tkAplicacion );
+		ctl_watchdog_kick(WDG_APP, 0x8000 );
+
 		vTaskSuspend( xHandle_tkInputs );
 		ctl_watchdog_kick(WDG_DIN, 0x8000 );
 
@@ -323,6 +343,21 @@ static void cmdWriteFunction(void)
 {
 
 	FRTOS_CMD_makeArgv();
+
+	// OUTPIN
+	// write outpin {0..7} {set | clear}
+	if (!strcmp_P( strupr(argv[1]), PSTR("OUTPUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		u_write_output_pins( argv[2], argv[3] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
+	// OUTPUTS
+	// outputs (val dec.)
+	if (!strcmp_P( strupr(argv[1]), PSTR("DOUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		perforacion_set_douts( atoi(argv[2]) );
+		pv_snprintfP_OK();
+		return;
+	}
 
 	// CONSIGNA
 	// write consigna (diurna|nocturna)
@@ -458,6 +493,8 @@ uint8_t cks;
 		xprintf_P( PSTR("Psensor Checksum = [0x%02x]\r\n\0"), cks );
 		cks = range_checksum();
 		xprintf_P( PSTR("Range Checksum = [0x%02x]\r\n\0"), cks );
+		cks = u_aplicacion_checksum();
+		xprintf_P( PSTR("App Checksum = [0x%02x]\r\n\0"), cks );
 		return;
 	}
 
@@ -587,7 +624,7 @@ bool retS = false;
 	FRTOS_CMD_makeArgv();
 
 	// APLICACION
-	// aplicacion {none|cons | perf | plt
+	// aplicacion { off,consigna,perforacion,piloto, tanque}
 	if (!strcmp_P( strupr(argv[1]), PSTR("APLICACION\0")) ) {
 		retS = u_config_aplicacion( argv[2] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
@@ -856,7 +893,7 @@ static void cmdHelpFunction(void)
 
 			if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  mcp {regAddr} {data}, mcpinit\r\n\0"));
-				xprintf_P( PSTR("  perfout VAL\r\n\0"));
+				xprintf_P( PSTR("  outputs (val dec.)\r\n\0"));
 				xprintf_P( PSTR("  outpin {0..7} {set | clear}\r\n\0"));
 			}
 
@@ -934,7 +971,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
 		xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
 
-		xprintf_P( PSTR("  aplicacion { off,consigna }\r\n\0"));
+		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion, tanque}\r\n\0"));
 		xprintf_P( PSTR("  piloto reg {CHICA|MEDIA|GRANDE}\r\n\0"));
 		xprintf_P( PSTR("         pband {pband}\r\n\0"));
 		xprintf_P( PSTR("         steps {steps}\r\n\0"));
@@ -996,6 +1033,14 @@ static void cmdKillFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("GPRSRX\0"))) {
 		vTaskSuspend( xHandle_tkGprsRx );
 		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
+		pv_snprintfP_OK();
+		return;
+	}
+
+	// KILL APPlicacion
+	if (!strcmp_P( strupr(argv[1]), PSTR("APP\0"))) {
+		vTaskSuspend( xHandle_tkAplicacion );
+		ctl_watchdog_kick(WDG_APP, 0x8000 );
 		pv_snprintfP_OK();
 		return;
 	}

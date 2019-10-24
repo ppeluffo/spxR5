@@ -15,6 +15,6 @@ bool consigna_config ( char *hhmm1, char *hhmm2 );
 void consigna_config_defaults(void);
 bool consigna_write( char *tipo_consigna_str);
 void consigna_stk(void);
-
+uint8_t consigna_checksum(void);
 
 #endif /* SRC_SPX_ULIBS_UL_CONSIGNA_H_ */

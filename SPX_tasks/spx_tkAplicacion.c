@@ -9,10 +9,10 @@
 #include "spx.h"
 #include "gprs.h"
 
-void sistema_off_stk(void);
+void aplicacion_off_stk(void);
 
 //------------------------------------------------------------------------------------
-void tkSistema(void * pvParameters)
+void tkAplicacion(void * pvParameters)
 {
 
 ( void ) pvParameters;
@@ -21,7 +21,7 @@ void tkSistema(void * pvParameters)
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
-	xprintf_P( PSTR("starting tkSistema..\r\n\0"));
+	xprintf_P( PSTR("starting tkAplicacion..\r\n\0"));
 
 	// Inicializo los dispositivos
 	switch (spx_io_board ) {
@@ -40,17 +40,25 @@ void tkSistema(void * pvParameters)
 	case APP_OFF:
 		// Es el caso en que no debo hacer nada con las salidas.
 		// Duermo 25s para entrar en pwrdown.
-		sistema_off_stk();
+		aplicacion_off_stk();
 		break;
 	case APP_CONSIGNA:
 		consigna_stk();
 		break;
+	case APP_PERFORACION:
+		perforacion_stk();
+		break;
+	case APP_TANQUE:
+		// Es el caso en que no debo hacer nada con las salidas.
+		// Duermo 25s para entrar en pwrdown.
+		aplicacion_off_stk();
+		break;
 	}
 
-	sistema_off_stk();
+	aplicacion_off_stk();
 }
 //------------------------------------------------------------------------------------
-void sistema_off_stk(void)
+void aplicacion_off_stk(void)
 {
 	// Cuando no hay una funcion especifica habilidada en el datalogger
 	// ( solo monitoreo ), debemos dormir para que pueda entrar en
@@ -58,7 +66,7 @@ void sistema_off_stk(void)
 
 	for( ;; )
 	{
-		ctl_watchdog_kick( WDG_SYS,  WDG_SYS_TIMEOUT );
+		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 	}
 }

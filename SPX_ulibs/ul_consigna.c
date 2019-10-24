@@ -22,7 +22,7 @@ RtcTimeType_t rtcDateTime;
 
 	for (;;) {
 
-		ctl_watchdog_kick( WDG_SYS,  WDG_SYS_TIMEOUT );
+		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 
 		vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 
@@ -206,5 +206,34 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 	}
 
 	return(false);
+}
+//------------------------------------------------------------------------------------
+uint8_t consigna_checksum(void)
+{
+
+uint8_t checksum = 0;
+char dst[32];
+char *p;
+uint8_t i = 0;
+
+	// calculate own checksum
+	// Vacio el buffer temoral
+	memset(dst,'\0', sizeof(dst));
+
+	i = snprintf_P( &dst[i], sizeof(dst), PSTR("CONSIGNA,"));
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min );
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min );
+
+	//xprintf_P( PSTR("DEBUG: CONS = [%s]\r\n\0"), dst );
+	// Apunto al comienzo para recorrer el buffer
+	p = dst;
+	// Mientras no sea NULL calculo el checksum deol buffer
+	while (*p != '\0') {
+		checksum += *p++;
+	}
+	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
+
+	return(checksum);
+
 }
 //------------------------------------------------------------------------------------

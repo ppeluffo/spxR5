@@ -19,6 +19,7 @@ static void pv_tx_data_payload( void );
 static bool pv_procesar_respuesta_server(void);
 static void pv_process_response_RESET(void);
 static void pv_process_response_MEMFORMAT(void);
+static void pv_process_response_PERF_OUTS(void);
 static uint8_t pv_process_response_OK(void);
 
 FAT_t gprs_fat;
@@ -288,6 +289,11 @@ bool exit_flag = false;
 				pv_process_response_MEMFORMAT();
 			}
 
+			if ( u_gprs_check_response ("PERF_OUTS\0")) {
+				// El sever mando actualizacion de las salidas
+				pv_process_response_PERF_OUTS();
+			}
+
 			if ( u_gprs_check_response ("RX_OK\0")) {
 				// Datos procesados por el server.
 				pv_process_response_OK();
@@ -308,7 +314,7 @@ static void pv_process_response_RESET(void)
 {
 	// El server me pide que me resetee de modo de mandar un nuevo init y reconfigurarme
 
-	xprintf_P( PSTR("GPRS: Config RESET...\r\n\0"));
+	xprintf_P( PSTR("GPRS: RESET...\r\n\0"));
 
 	vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 	// RESET
@@ -320,7 +326,7 @@ static void pv_process_response_MEMFORMAT(void)
 {
 	// El server me pide que me reformatee la memoria y me resetee
 
-	xprintf_P( PSTR("GPRS: Config MFORMAT...\r\n\0"));
+	xprintf_P( PSTR("GPRS: MFORMAT...\r\n\0"));
 
 	vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 	//
@@ -330,6 +336,9 @@ static void pv_process_response_MEMFORMAT(void)
 
 	// Nadie debe usar la memoria !!!
 	ctl_watchdog_kick(WDG_CMD, 0x8000 );
+
+	vTaskSuspend( xHandle_tkAplicacion );
+	ctl_watchdog_kick(WDG_APP, 0x8000 );
 
 	vTaskSuspend( xHandle_tkInputs );
 	ctl_watchdog_kick(WDG_DIN, 0x8000 );
@@ -349,6 +358,42 @@ static void pv_process_response_MEMFORMAT(void)
 
 }
 //------------------------------------------------------------------------------------
+static void pv_process_response_PERF_OUTS(void)
+{
+	// Recibi algo del estilo PERF_OUTS:245
+	// Es la respuesta del server para activar las salidas en perforaciones o modo remoto.
+
+	// Extraigo el valor de las salidas y las seteo.
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_douts = NULL;
+char *delim = ",=:><";
+char *p = NULL;
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PERF_OUTS");
+	if ( p == NULL ) {
+		return;
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_douts = strsep(&stringp,delim);	// PERF_OUTS
+	tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
+
+	// Actualizo el status a travez de una funcion propia del modulo de outputs
+	perforacion_set_douts_from_gprs( atoi( tk_douts ));
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: PERF_OUTS\r\n\0"));
+	}
+
+}
+//------------------------------------------------------------------------------------
+
 static uint8_t pv_process_response_OK(void)
 {
 	// Retorno la cantidad de registros procesados ( y borrados )

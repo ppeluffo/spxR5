@@ -405,16 +405,7 @@ uint8_t i = 0;
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 
-	switch(systemVars.aplicacion) {
-	case APP_OFF:
-		i = snprintf_P( &dst[i], sizeof(dst), PSTR("OFF,"));
-		break;
-	case APP_CONSIGNA:
-		i = snprintf_P( &dst[i], sizeof(dst), PSTR("CONSIGNA,"));
-		break;
-	}
-
-	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.gprs_conf.timerDial );
+	i = snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.gprs_conf.timerDial );
 
 	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
 		i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,ON,"), systemVars.timerPoll );
@@ -438,6 +429,36 @@ uint8_t i = 0;
 
 }
 //------------------------------------------------------------------------------------
+uint8_t u_aplicacion_checksum(void)
+{
+
+uint8_t checksum = 0;
+char dst[32];
+char *p;
+
+	switch(systemVars.aplicacion) {
+	case APP_OFF:
+		memset(dst,'\0', sizeof(dst));
+		snprintf_P(dst, sizeof(dst), PSTR("OFF"));
+		p = dst;
+		while (*p != '\0') {
+			checksum += *p++;
+		}
+		return(checksum);
+		break;
+
+	case APP_CONSIGNA:
+		return( consigna_checksum() );
+		break;
+	case APP_PERFORACION:
+		return( perforacion_checksum() );
+		break;
+	}
+
+	return(0x00);
+
+}
+//------------------------------------------------------------------------------------
 bool u_config_aplicacion( char *modo )
 {
 	if (!strcmp_P( strupr(modo), PSTR("OFF\0"))) {
@@ -445,8 +466,18 @@ bool u_config_aplicacion( char *modo )
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(modo), PSTR("CONSIGNA\0"))) {
+	if (!strcmp_P( strupr(modo), PSTR("CONSIGNA\0")) &&  ( spx_io_board = SPX_IO5CH ) ) {
 		systemVars.aplicacion = APP_CONSIGNA;
+		return(true);
+	}
+
+	if (!strcmp_P( strupr(modo), PSTR("PERFORACION\0")) &&  ( spx_io_board = SPX_IO8CH ) ) {
+		systemVars.aplicacion = APP_PERFORACION;
+		return(true);
+	}
+
+	if (!strcmp_P( strupr(modo), PSTR("TANQUE\0")) &&  ( spx_io_board = SPX_IO5CH ) ) {
+		systemVars.aplicacion = APP_TANQUE;
 		return(true);
 	}
 
@@ -454,3 +485,85 @@ bool u_config_aplicacion( char *modo )
 
 }
 //------------------------------------------------------------------------------------
+bool u_write_output_pins( char *param_pin, char *param_state )
+{
+	// Escribe un valor en las salidas.
+	//
+
+uint8_t pin = 0;
+int8_t ret_code = 0;
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
+
+	memcpy(l_data, param_state, sizeof(l_data));
+	strupr(l_data);
+
+	if ( spx_io_board == SPX_IO8CH ) {
+		// Tenemos 8 salidas que las manejamos con el MCP
+		pin = atoi(param_pin);
+		if ( pin > 7 )
+			return(false);
+
+		if (!strcmp_P( l_data, PSTR("SET\0"))) {
+			ret_code = IO_set_DOUT(pin);
+			if ( ret_code == -1 ) {
+				// Error de bus
+				xprintf_P( PSTR("wOUTPUT_PIN: I2C bus error(1)\n\0"));
+				return(false);
+			}
+			return(true);
+		}
+
+		if (!strcmp_P( l_data, PSTR("CLEAR\0"))) {
+			ret_code = IO_clr_DOUT(pin);
+			if ( ret_code == -1 ) {
+				// Error de bus
+				xprintf_P( PSTR("wOUTPUT_PIN: I2C bus error(2)\n\0"));
+				return(false);
+			}
+			return(true);
+		}
+
+	} else if ( spx_io_board == SPX_IO5CH ) {
+		// Las salidas las manejamos con el DRV8814
+		// Las manejo de modo que solo muevo el pinA y el pinB queda en GND para c/salida
+		pin = atoi(param_pin);
+		if ( pin > 2 )
+			return(false);
+
+		DRV8814_power_on();
+		// Espero 10s que se carguen los condensasores
+		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+
+		if (!strcmp_P( l_data, PSTR("SET\0"))) {
+			switch(pin) {
+			case 0:
+				DRV8814_vopen( 'A', 100);
+				break;
+			case 1:
+				DRV8814_vopen( 'B', 100);
+				break;
+			}
+			return(true);
+		}
+
+		if (!strcmp_P( l_data, PSTR("CLEAR\0"))) {
+			switch(pin) {
+			case 0:
+				DRV8814_vclose( 'A', 100);
+				break;
+			case 1:
+				DRV8814_vclose( 'B', 100);
+				break;
+			}
+			return(true);
+		}
+
+		DRV8814_power_off();
+
+	}
+	return(false);
+
+}
+//------------------------------------------------------------------------------------
+
+
