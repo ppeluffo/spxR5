@@ -5,7 +5,7 @@
  *      Author: pablo
  */
 
-#include <spx_tkComms/gprs.h>
+#include "gprs.h"
 #include "spx.h"
 #include "ul_consigna.h"
 

@@ -19,8 +19,10 @@
  *  Para ver el uso de memoria usamos
  *  avr-nm -n spxR4.elf | more
  *
+ *  https://e2019.uy/buscar
  *  http://www.CABRERA/MONS/ENRIQUE/Montevideo/Padron/2354U
  *  18488618
+ *  CMA 37384 515 111
  *  22923645
  *
  * --------------------------------------------------------------------------------------------------

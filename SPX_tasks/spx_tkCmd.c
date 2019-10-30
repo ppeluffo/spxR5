@@ -460,6 +460,9 @@ static void cmdWriteFunction(void)
 	// GPRS
 	// write gprs pwr|sw|rts {on|off}
 	// write gprs cmd {atcmd}
+	// write gprs sms nbr msg
+	// write gprs qsms nbr msg
+
 	if (!strcmp_P( strupr(argv[1]), PSTR("GPRS\0")) && ( tipo_usuario == USER_TECNICO) ) {
 		pv_cmd_rwGPRS(WR_CMD);
 		return;
@@ -501,14 +504,18 @@ uint8_t cks;
 
 	if (!strcmp_P( strupr(argv[1]), PSTR("TEST\0")) && ( tipo_usuario == USER_TECNICO) ) {
 		//xprintf_P( PSTR("PLOAD=CLASS:BASE;TDIAL:%d;TPOLL:%d;PWRS_MODO:ON;PWRS_START:0630;PWRS_END:1230\r\r\0"), systemVars.gprs_conf.timerDial,systemVars.timerPoll );
+		/*
 		xprintf_P( PSTR("st_io5_t = %d\r\n\0"), sizeof(st_io5_t) );
 		xprintf_P( PSTR("st_io8_t = %d\r\n\0"), sizeof(st_io8_t) );
 		xprintf_P( PSTR("u_dataframe_t = %d\r\n\0"), sizeof(u_dataframe_t) );
 		xprintf_P( PSTR("st_dataRecord_t = %d\r\n\0"), sizeof(st_dataRecord_t) );
 		xprintf_P( PSTR("dataframe_s = %d\r\n\0"), sizeof(dataframe_s) );
 		xprintf_P( PSTR("RtcTimeType_t = %d\r\n\0"), sizeof(RtcTimeType_t) );
+		*/
 
 		//gprs_init_test();
+
+		psensor_test_read();
 		return;
 	}
 
@@ -598,7 +605,7 @@ uint8_t cks;
 
 
 	// GPRS
-	// read gprs (rsp,cts,dcd,ri)
+	// read gprs (rsp,cts,dcd,ri, sms)
 	if (!strcmp_P( strupr(argv[1]), PSTR("GPRS\0")) && ( tipo_usuario == USER_TECNICO) ) {
 		pv_cmd_rwGPRS(RD_CMD);
 		return;
@@ -912,6 +919,7 @@ static void cmdHelpFunction(void)
 
 			xprintf_P( PSTR("  gprs (pwr|sw|cts|dtr) {on|off}\r\n\0"));
 			xprintf_P( PSTR("       cmd {atcmd}, redial\r\n\0"));
+			xprintf_P( PSTR("       sms,qsms {nbr,msg}\r\n\0"));
 
 		}
 		return;
@@ -930,7 +938,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  mcp {regAddr}\r\n\0"));
 			}
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
-			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri)\r\n\0"));
+			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri,sms)\r\n\0"));
 		}
 		return;
 
@@ -976,7 +984,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("         pband {pband}\r\n\0"));
 		xprintf_P( PSTR("         steps {steps}\r\n\0"));
 		xprintf_P( PSTR("         slot {idx} {hhmm} {pout}\r\n\0"));
-		xprintf_P( PSTR("  default {SPY|OSE|UTE}\r\n\0"));
+		xprintf_P( PSTR("  default {SPY|OSE|UTE|CLARO}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
 	}
 
@@ -1186,8 +1194,21 @@ uint8_t pin = 0;
 
 	if ( cmd_mode == WR_CMD ) {
 
-		// write gprs (pwr|sw|rts|dtr) {on|off}
+		// write gprs sms nbr msg
+		// write gprs qsms nbr msg
+		if (!strcmp_P( strupr(argv[1]), PSTR("SMS\0"))) {
+			u_gprs_send_sms( argv[3], argv[4] );
+			pv_snprintfP_OK();
+			return;
+		}
 
+		if (!strcmp_P( strupr(argv[1]), PSTR("QSMS\0")) ) {
+			u_gprs_quick_send_sms( argv[3], argv[4] );
+			pv_snprintfP_OK();
+			return;
+		}
+
+		// write gprs (pwr|sw|rts|dtr) {on|off}
 		if (!strcmp_P( strupr(argv[2]), PSTR("PWR\0")) ) {
 			if (!strcmp_P( strupr(argv[3]), PSTR("ON\0")) ) {
 				IO_set_GPRS_PWR(); pv_snprintfP_OK(); return;
@@ -1255,45 +1276,52 @@ uint8_t pin = 0;
 		return;
 	}
 
+
 	if ( cmd_mode == RD_CMD ) {
 		// read gprs (rsp,cts,dcd,ri)
 
-			// ATCMD
-			// read gprs rsp
-			if (!strcmp_P(strupr(argv[2]), PSTR("RSP\0"))) {
-				u_gprs_print_RX_Buffer();
-				//p = pub_gprs_rxbuffer_getPtr();
-				//xprintf_P( PSTR("rx->%s\r\n\0"),p );
-				return;
-			}
-
-			// DCD
-			if (!strcmp_P( strupr(argv[2]), PSTR("DCD\0")) ) {
-				pin = IO_read_DCD();
-				xprintf_P( PSTR("DCD=%d\r\n\0"),pin);
-				pv_snprintfP_OK();
-				return;
-			}
-
-			// RI
-			if (!strcmp_P( strupr(argv[2]), PSTR("RI\0")) ) {
-				pin = IO_read_RI();
-				xprintf_P( PSTR("RI=%d\r\n\0"),pin);
-				pv_snprintfP_OK();
-				return;
-			}
-
-			// RTS
-			if (!strcmp_P( strupr(argv[2]), PSTR("RTS\0")) ) {
-				pin = IO_read_RTS();
-				xprintf_P( PSTR("RTS=%d\r\n\0"),pin);
-				pv_snprintfP_OK();
-				return;
-			}
-
-
-			pv_snprintfP_ERR();
+		// SMS
+		// read gprs sms
+		if (!strcmp_P(strupr(argv[2]), PSTR("SMS\0"))) {
+			u_gprs_read_sms();
 			return;
+		}
+
+		// ATCMD RSP
+		// read gprs rsp
+		if (!strcmp_P(strupr(argv[2]), PSTR("RSP\0"))) {
+			u_gprs_print_RX_Buffer();
+			//p = pub_gprs_rxbuffer_getPtr();
+			//xprintf_P( PSTR("rx->%s\r\n\0"),p );
+			return;
+		}
+
+		// DCD
+		if (!strcmp_P( strupr(argv[2]), PSTR("DCD\0")) ) {
+			pin = IO_read_DCD();
+			xprintf_P( PSTR("DCD=%d\r\n\0"),pin);
+			pv_snprintfP_OK();
+			return;
+		}
+
+		// RI
+		if (!strcmp_P( strupr(argv[2]), PSTR("RI\0")) ) {
+			pin = IO_read_RI();
+			xprintf_P( PSTR("RI=%d\r\n\0"),pin);
+			pv_snprintfP_OK();
+			return;
+		}
+
+		// RTS
+		if (!strcmp_P( strupr(argv[2]), PSTR("RTS\0")) ) {
+			pin = IO_read_RTS();
+			xprintf_P( PSTR("RTS=%d\r\n\0"),pin);
+			pv_snprintfP_OK();
+			return;
+		}
+
+		pv_snprintfP_ERR();
+		return;
 	}
 
 }

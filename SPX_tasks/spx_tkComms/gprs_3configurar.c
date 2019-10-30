@@ -13,6 +13,9 @@ static bool pv_gprs_CGATT(void);
 //static void pg_gprs_APN(void);
 static void pg_gprs_CIPMODE(void);
 static void pg_gprs_DCDMODE(void);
+static void pg_gprs_CMGF(void);
+static void pg_gprs_CFGRI(void);
+static void pg_gprs_CMGD(void);
 
 // La tarea no puede demorar mas de 180s.
 #define WDG_GPRS_TO_CONFIG	180
@@ -62,8 +65,15 @@ bool exit_flag = bool_RESTART;
 	//pv_gprs_CNSMOD();
 	//pv_gprs_CCINFO();
 	//pv_gprs_CNTI();
+
 	pg_gprs_CIPMODE();	// modo transparente.
 	pg_gprs_DCDMODE();	// UART para utilizar las 7 lineas
+
+	// Configuro para mandar SMS en modo TEXTO
+	pg_gprs_CMGF();
+	// Configuro el RI para que sea ON y al llegar un SMS sea OFF
+	pg_gprs_CFGRI();
+//	pg_gprs_CMGD();
 
 //	pg_gprs_APN();		// Configuro el APN.
 // !! Lo paso al modulo de scan_apn
@@ -236,6 +246,61 @@ static void pg_gprs_DCDMODE(void)
 		u_gprs_print_RX_Buffer();
 	}
 
+
+}
+//------------------------------------------------------------------------------------
+static void pg_gprs_CMGF(void)
+{
+	// Configura para mandar SMS en modo texto
+
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CMGF=1\r\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pg_gprs_CFGRI(void)
+{
+	// Configura para que RI sea ON y al recibir un SMS haga un pulso
+
+uint8_t pin;
+
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CFGRI=1,1\r\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+	// Reseteo el RI
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CRIRS\r\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+	// Leo el RI
+	pin = IO_read_RI();
+	xprintf_P( PSTR("RI=%d\r\n\0"),pin);
+
+}
+//------------------------------------------------------------------------------------
+static void pg_gprs_CMGD(void)
+{
+	// Borro todos los mensajes SMS de la memoria
+
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CMGD=,4\r\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
 
 }
 //------------------------------------------------------------------------------------

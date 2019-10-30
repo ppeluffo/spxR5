@@ -159,6 +159,10 @@ char l_data[10] = { 0 };
 		snprintf_P( systemVars.gprs_conf.apn, APN_LENGTH, PSTR("STG1.VPNANTEL\0") );
 		strncpy_P(systemVars.gprs_conf.server_ip_address, PSTR("172.27.0.26\0"),16);
 
+	} else if (!strcmp_P( l_data, PSTR("CLARO\0"))) {
+		snprintf_P( systemVars.gprs_conf.apn, APN_LENGTH, PSTR("ipgrs.claro.com.uy\0") );
+		strncpy_P(systemVars.gprs_conf.server_ip_address, PSTR("190.64.69.34\0"),16);
+
 	} else {
 		snprintf_P( systemVars.gprs_conf.apn, APN_LENGTH, PSTR("DEFAULT\0") );
 		strncpy_P(systemVars.gprs_conf.server_ip_address, PSTR("DEFAULT\0"),16);
@@ -166,7 +170,7 @@ char l_data[10] = { 0 };
 
 	snprintf_P( systemVars.gprs_conf.dlgId, DLGID_LENGTH, PSTR("DEFAULT\0") );
 	//strncpy_P(systemVars.gprs_conf.serverScript, PSTR("/cgi-bin/PY/spy.py\0"),SCRIPT_LENGTH);
-	strncpy_P(systemVars.gprs_conf.serverScript, PSTR("/cgi-bin/PTMP01/spy.py\0"),SCRIPT_LENGTH);
+	strncpy_P(systemVars.gprs_conf.serverScript, PSTR("/cgi-bin/SPY/spy.py\0"),SCRIPT_LENGTH);
 	strncpy_P(systemVars.gprs_conf.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
     strncpy_P(systemVars.gprs_conf.simpwd, PSTR("DEFAULT\0"),PASSWD_LENGTH);
 
@@ -196,6 +200,26 @@ bool retS = false;
 
 	if ( strstr( pv_gprsRxCbuffer.buffer, rsp) != NULL ) {
 		retS = true;
+	}
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+bool u_gprs_check_response_with_to( const char *rsp, uint8_t timeout )
+{
+	// Espera una respuesta durante un tiempo dado.
+	// Hay que tener cuidado que no expire el watchdog por eso lo kickeo aqui. !!!!
+
+bool retS = false;
+
+	while ( timeout > 0 ) {
+		timeout--;
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+		// Veo si tengo la respuesta correcta.
+		if ( strstr( pv_gprsRxCbuffer.buffer, rsp) != NULL ) {
+			retS = true;
+			break;
+		}
 	}
 	return(retS);
 }
@@ -428,5 +452,178 @@ void u_gprs_tx_tail(void)
 	}
 
 	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
+}
+//------------------------------------------------------------------------------------
+void u_gprs_send_sms( char *dst_nbr, char *msg )
+{
+
+uint8_t ctlz = 0x1A;
+
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CMGF=1\r"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+	xCom_printf_P( fdGPRS,PSTR("AT+CMGS=\"%s\"\r"), dst_nbr);
+
+	// Espero el prompt > para enviar el mensaje.
+	if ( ! u_gprs_check_response_with_to( ">", 10 ) ) {
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			u_gprs_print_RX_Buffer();
+		}
+		xprintf_P( PSTR("ERROR: Sent SMS Fail !!\r\n" ));
+		return;
+	}
+
+	//xprintf_P( PSTR("\r\n Prompt OK.\r\n0" ));
+
+	// Envio el mensaje:
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("%s\r %c"), msg, ctlz  );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: sms_txt:%s\r\n"), msg);
+	}
+
+	// Espero el OK
+	if ( ! u_gprs_check_response_with_to( "OK", 10 ) ) {
+		xprintf_P( PSTR("ERROR: Sent SMS Fail !!\r\n" ));
+	} else {
+		xprintf_P( PSTR("Sent SMS OK !!\r\n" ));
+	}
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+}
+//------------------------------------------------------------------------------------
+void u_gprs_quick_send_sms( char *dst_nbr, char *msg )
+{
+
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CMGF=1\r"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CMGSO=\"%s\",\"%s\"\r"), dst_nbr, msg);
+	xprintf_P( PSTR("AT+CMGSO=\"%s\",\"%s\"\r\n"), dst_nbr, msg);
+
+	// Espero el OK
+	if ( ! u_gprs_check_response_with_to( "OK", 10 ) ) {
+		xprintf_P( PSTR("ERROR: Sent SMS Fail !!\r\n" ));
+	} else {
+		xprintf_P( PSTR("Sent SMS OK !!\r\n" ));
+	}
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+}
+//------------------------------------------------------------------------------------
+void u_gprs_read_sms(void)
+{
+	// Leo todos los mensaejes que hay en la memoria y los borro
+	// El comando AT+CMGL="ALL" lista todos los mensajes.
+	// Filtro por el primer +CMGL: index,
+	// Leo y borro con AT+CMGRD=index
+	// Cuando no tengo mas mensajes, el comando AT+CMGL no me devuelve nada mas.
+
+uint8_t msg_index;
+
+	while ( u_gprs_sms_pendiente(&msg_index) ) {
+		// Veo si hay mensajes pendientes
+		u_gprs_read_and_delete_sms_by_index(msg_index);
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	}
+
+}
+//------------------------------------------------------------------------------------
+void u_gprs_read_and_delete_sms_by_index( uint8_t msg_index )
+{
+	// Leo y borro con AT+CMGRD=index
+	// Filtro el mensaje y lo imprimo.
+	// +CMGRD: "REC READ","+59899394959","","19/10/30,16:11:24-12"
+	// Msg3
+	//
+	// OK
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_msg= NULL;
+char *delim = ",:";
+
+
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CMGRD=%d\r"), msg_index);
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "+CMGRD:");
+	if ( p != NULL ) {
+		memset(localStr,'\0',sizeof(localStr));
+		memcpy(localStr,p,sizeof(localStr));
+		stringp = localStr;
+		tk_msg = strsep(&stringp,delim);		// +CMGRD:
+		tk_msg = strsep(&stringp,delim);		// "REC READ"
+		xprintf_P( PSTR("DEBUG: SMS_STATUS: %s\r\n"), tk_msg );
+		tk_msg = strsep(&stringp,delim);		// "+59899394959"
+		xprintf_P( PSTR("DEBUG: SMS_ORIGIN: %s\r\n"), tk_msg );
+		tk_msg = strsep(&stringp,delim);		// ""
+		xprintf_P( PSTR("DEBUG: SMS_MID: %s\r\n"), tk_msg );
+		tk_msg = strsep(&stringp,delim);		// "19/10/30,16:11:24-12"
+		xprintf_P( PSTR("DEBUG: SMS_DATE: %s\r\n"), tk_msg );
+		tk_msg = strsep(&stringp,delim);		// Msg3
+		xprintf_P( PSTR("DEBUG: SMS_MSG: %s\r\n"), tk_msg );
+
+	}
+
+}
+//------------------------------------------------------------------------------------
+bool u_gprs_sms_pendiente( uint8_t *first_msg_index )
+{
+	// Envio el comando AT+CMGL="ALL" y espero por una respuesta
+	// del tipo +CMGL:
+	// Si no la recibo no hay mensajes pendientes.
+	// +CMGL: 1,"REC READ","+59899394959","","19/10/30,15:39:26-12"
+	// Va 2
+	// +CMGL: 0,"REC UNREAD","+59899394959","","19/10/30,15:45:38-12"
+	// Otro
+
+bool retS = false;
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_idx= NULL;
+char *delim = ",:";
+
+
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CMGL=\"ALL\"\r"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+	retS = u_gprs_check_response_with_to( "+CMGL:", 5 );
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+	if ( retS ) {
+		// Hay al menos un mensaje pendiente. Decodifico su indice
+		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "+CMGL:");
+		if ( p != NULL ) {
+			memset(localStr,'\0',sizeof(localStr));
+			memcpy(localStr,p,sizeof(localStr));
+			stringp = localStr;
+			tk_idx = strsep(&stringp,delim);		// +CMGL:
+			tk_idx = strsep(&stringp,delim);		//  0
+			*first_msg_index = atoi(tk_idx);
+		}
+	}
+
+	return(retS);
 }
 //------------------------------------------------------------------------------------

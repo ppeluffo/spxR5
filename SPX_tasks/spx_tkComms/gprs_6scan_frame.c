@@ -22,10 +22,11 @@ static bool  pv_scan_send_frame( void );
 const char server_ip_0[] PROGMEM = "192.168.0.9\0";		// SPYMOVIL
 const char server_ip_1[] PROGMEM = "172.27.0.26\0";		// OSE
 const char server_ip_2[] PROGMEM = "192.168.1.9\0";		// UTE
+const char server_ip_3[] PROGMEM = "190.64.69.34\0";	// SPYMOVIL PUBLICA (CLARO)
 
-const char * const server_ip_list[] PROGMEM = { server_ip_0, server_ip_1, server_ip_2 };
+const char * const server_ip_list[] PROGMEM = { server_ip_0, server_ip_1, server_ip_2, server_ip_3 };
 
-#define MAXIP	3
+#define MAXIP	4
 
 //------------------------------------------------------------------------------------
 bool st_gprs_scan_frame(void)

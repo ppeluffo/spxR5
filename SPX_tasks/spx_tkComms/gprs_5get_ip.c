@@ -17,9 +17,10 @@ static bool pv_scan_apn( void );
 
 const char apn_0[] PROGMEM = "SPYMOVIL.VPNANTEL";	// SPYMOVIL | UTE | TAHONA
 const char apn_1[] PROGMEM = "STG1.VPNANTEL";		// OSE
-const char * const apn_names[] PROGMEM = { apn_1, apn_0 };
+const char apn_2[] PROGMEM = "ipgrs.claro.com.uy";	// CLARO
+const char * const apn_names[] PROGMEM = { apn_1, apn_0, apn_2 };
 
-#define MAXAPN	2
+#define MAXAPN	3
 
 //------------------------------------------------------------------------------------
 bool st_gprs_get_ip(void)

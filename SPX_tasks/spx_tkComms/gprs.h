@@ -21,6 +21,8 @@
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 #define MAX_TX_WINDOW_TRYES		4	// Intentos de enviar el mismo paquete de datos
 
+#define CTRL_Z 26
+
 // Datos del buffer local de recepcion de datos del GPRS.
 // Es del mismo tamanio que el ringBuffer asociado a la uart RX.
 // Es lineal, no ringBuffer !!! ( para poder usar las funciones de busqueda de strings )
@@ -70,6 +72,7 @@ bool st_gprs_data(void);
 
 void u_gprs_rxbuffer_flush(void);
 bool u_gprs_check_response( const char *rsp );
+bool u_gprs_check_response_with_to( const char *rsp, uint8_t timeout );
 void u_gprs_modem_pwr_off(void);
 void u_gprs_modem_pwr_on(uint8_t pwr_time );
 void u_gprs_modem_pwr_sw(void);
@@ -97,5 +100,11 @@ void u_gprs_tx_tail(void);
 
 uint32_t u_gprs_read_timeToNextDial(void);
 void u_gprs_set_timeToNextDial( uint32_t time_to_dial );
+
+void u_gprs_send_sms( char *dst_nbr, char *msg );
+void u_gprs_quick_send_sms( char *dst_nbr, char *msg );
+void u_gprs_read_sms(void);
+bool u_gprs_sms_pendiente( uint8_t *first_msg_index );
+void u_gprs_read_and_delete_sms_by_index( uint8_t msg_index );
 
 #endif /* SRC_SPXR3_TKGPRS_SPXR3_TKGPRS_H_ */

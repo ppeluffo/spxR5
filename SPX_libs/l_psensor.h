@@ -13,10 +13,13 @@
 #include "l_i2c.h"
 #include "l_printf.h"
 
+#define BUSADDRESS_DHL_SENSOR	0x41
+
 //--------------------------------------------------------------------------------
 // API START
 
 int8_t PSENS_raw_read( char *data );
+int8_t TEST_PSENS_raw_read( char *data );
 
 // API END
 //--------------------------------------------------------------------------------

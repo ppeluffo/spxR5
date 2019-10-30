@@ -46,7 +46,7 @@ bool psensor_config ( char *s_pname, char *s_pmin, char *s_pmax, char *s_poffset
 
 }
 //------------------------------------------------------------------------------------
-bool  psensor_read( int16_t *psens )
+bool psensor_read( int16_t *psens )
 {
 
 char buffer[2] = { 0 };
@@ -73,6 +73,7 @@ void psensor_test_read (void)
 	// Funcion de testing del sensor de presion I2C
 	// La direccion es fija 0x50 y solo se leen 2 bytes.
 
+	/*
 int8_t xBytes = 0;
 char buffer[2] = { 0 };
 int16_t pcounts = 0;
@@ -88,6 +89,29 @@ float hcl;
 		hcl = systemVars.psensor_conf.pmax * (pcounts - 1638)/13107;
 
 		xprintf_P( PSTR( "I2C_PSENSOR=0x%04x,pcount=%d,Hmt=%0.3f\r\n\0"),pcounts,pcounts,hcl);
+	 */
+
+int8_t xBytes = 0;
+char buffer[7] = { 0 };
+uint8_t i;
+
+	xBytes = TEST_PSENS_raw_read( buffer );
+	if ( xBytes == -1 )
+		xprintf_P(PSTR("ERROR: I2C: TEST_PSENS_test_read\r\n\0"));
+		return;
+
+
+	if ( xBytes > 0 ) {
+
+		//pcounts = ( buffer[0]<<8 ) + buffer[1];
+		// hcl = systemVars.psensor_conf.pmax * (pcounts - 1638)/13107;
+
+		xprintf_P( PSTR( "I2C_TEST_PSENSOR="));
+		for ( i=0; i < 7; i++ )
+			xprintf_P( PSTR("b%d[0x%02X] "), buffer[i]);
+
+		xprintf_P(PSTR("\r\n"));
+	}
 
 }
 //------------------------------------------------------------------------------------
