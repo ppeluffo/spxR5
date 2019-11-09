@@ -6,6 +6,7 @@
  */
 
 #include <SPX_ulibs/ul_consigna.h>
+#include <SPX_ulibs/ul_alarmas_ose.h>
 #include "spx.h"
 #include "gprs.h"
 
@@ -52,6 +53,9 @@ void tkAplicacion(void * pvParameters)
 		// Es el caso en que no debo hacer nada con las salidas.
 		// Duermo 25s para entrar en pwrdown.
 		aplicacion_off_stk();
+		break;
+	case APP_ALARMAS:
+		alarmas_stk();
 		break;
 	}
 

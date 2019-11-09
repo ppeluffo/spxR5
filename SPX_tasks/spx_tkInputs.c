@@ -19,7 +19,6 @@
 #include "spx.h"
 
 st_dataRecord_t dr;
-FAT_t data_fat;
 
 //------------------------------------------------------------------------------------
 // PROTOTIPOS
@@ -54,6 +53,7 @@ TickType_t xLastWakeTime = 0;
     dinputs_init();
     counters_init();
     psensor_init();
+    tempsensor_init();
     range_init();
 
 	// loop
@@ -112,6 +112,7 @@ int8_t xBytes = 0;
 
 		if ( strcmp( systemVars.psensor_conf.name, "X" ) != 0 ) {
 			psensor_read( &dst->df.io5.psensor );
+			tempsensor_read( &dst->df.io5.temp );
 		}
 
 		range_read( &dst->df.io5.range );
@@ -153,6 +154,7 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
 		counters_print( fd, dr->df.io5.counters );
 		if ( strcmp( systemVars.psensor_conf.name, "X" ) != 0 ) {
 			psensor_print( fd, dr->df.io5.psensor );
+			tempsensor_print( fd, dr->df.io5.temp );
 		}
 
 		range_print( fd, dr->df.io5.range );
@@ -198,7 +200,7 @@ FAT_t fat;
 		xprintf_P(PSTR("DATA: WR ERROR (%d)\r\n\0"),FF_errno() );
 		// Stats de memoria
 		FAT_read(&fat);
-		xprintf_P( PSTR("DATA: MEM [wr=%d,rd=%d,del=%d]\0"), data_fat.wrPTR,data_fat.rdPTR, data_fat.delPTR );
+		xprintf_P( PSTR("DATA: MEM [wr=%d,rd=%d,del=%d]\0"), fat.wrPTR,fat.rdPTR,fat.delPTR );
 	}
 
 }

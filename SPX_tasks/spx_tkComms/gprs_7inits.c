@@ -558,6 +558,13 @@ static void pv_tx_init_payload_aplicacion(void)
 			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:TANQUE;"));
 		}
 		break;
+
+	case APP_ALARMAS:
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:ALARMAS;"));
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:ALARMAS;"));
+		}
+		break;
 	}
 }
 //------------------------------------------------------------------------------------
@@ -692,7 +699,7 @@ char *p = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
-char *delim = ",=:;><";
+char *delim = ":;><";
 char rtcStr[12];
 uint8_t i = 0;
 char c = '\0';
@@ -805,7 +812,7 @@ char *token = NULL;
 char *tk_pws_modo = NULL;
 char *tk_pws_start = NULL;
 char *tk_pws_end = NULL;
-char *delim = ",=:;><";
+char *delim = ",:;><";
 bool save_flag = false;
 
 	// APLICACION
@@ -817,7 +824,7 @@ bool save_flag = false;
 		memcpy(localStr,p,sizeof(localStr));
 
 		stringp = localStr;
-		token = strsep(&stringp,delim);		// APLICACION
+		token = strsep(&stringp,delim);		// APP
 		token = strsep(&stringp,delim);		// CONSIGNA
 		u_config_aplicacion(token);
 		save_flag = true;
@@ -1089,11 +1096,11 @@ char *delim = ",=:;><";
 		memcpy(localStr,p,sizeof(localStr));
 
 		stringp = localStr;
-		tk_name = strsep(&stringp,delim);
-		tk_name = strsep(&stringp,delim);
-		tk_pmin = strsep(&stringp,delim);
-		tk_pmax  = strsep(&stringp,delim);
-		tk_poffset  = strsep(&stringp,delim);
+		tk_name = strsep(&stringp,delim);		// PS0
+		tk_name = strsep(&stringp,delim);		// CLORO
+		tk_pmin = strsep(&stringp,delim);		// 0.000
+		tk_pmax  = strsep(&stringp,delim);		// 100.00
+		tk_poffset  = strsep(&stringp,delim);	// 1.000
 		psensor_config(tk_name, tk_pmin, tk_pmax, tk_poffset );
 
 		if ( systemVars.debug == DEBUG_GPRS ) {
@@ -1141,7 +1148,8 @@ char *delim = ",=:;><";
 		memcpy(localStr,p,sizeof(localStr));
 
 		stringp = localStr;
-		tk_cons_dia = strsep(&stringp,delim);	// AP0:CONSIGNA
+		tk_cons_dia = strsep(&stringp,delim);	// AP0
+		tk_cons_dia = strsep(&stringp,delim);	// CONSIGNA
 		tk_cons_dia = strsep(&stringp,delim);	// 1230
 		tk_cons_noche = strsep(&stringp,delim); // 0940
 		consigna_config(tk_cons_dia, tk_cons_noche );
@@ -1173,6 +1181,18 @@ char *delim = ",=:;><";
 		f_reset = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
 			xprintf_P( PSTR("GPRS: Reconfig APLICACION:TANQUE\r\n\0"));
+		}
+		return;
+	}
+
+	// AP0:ALARMAS
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:ALARMAS");
+	if ( p != NULL ) {
+		systemVars.aplicacion = APP_ALARMAS;
+		u_save_params_in_NVMEE();
+		f_reset = true;
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: Reconfig APLICACION:ALARMAS\r\n\0"));
 		}
 		return;
 	}

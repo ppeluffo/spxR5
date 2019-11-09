@@ -28,6 +28,7 @@
 #include "avr_compiler.h"
 #include "clksys_driver.h"
 #include <inttypes.h>
+#include <l_bps120.h>
 
 #include "TC_driver.h"
 #include "pmic_driver.h"
@@ -59,15 +60,14 @@
 #include "l_printf.h"
 #include "l_rangeMeter.h"
 #include "l_bytes.h"
-#include "l_psensor.h"
-
 #include "SPX_ulibs/ul_consigna.h"
 #include "SPX_ulibs/ul_perforacion.h"
+#include "SPX_ulibs/ul_alarmas_ose.h"
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.0.6.c"
-#define SPX_FW_DATE "@ 20191029"
+#define SPX_FW_REV "2.0.6.f"
+#define SPX_FW_DATE "@ 20191108"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -129,12 +129,12 @@
 #define SGN_XBEE_FRAME_READY	0x09	//
 #define SGN_XBEE_ACK			0x0A	//
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_OUTPUTS, DEBUG_PILOTO, DEBUG_XBEE } t_debug;
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_OUTPUTS, DEBUG_PILOTO, DEBUG_ALARMAS, DEBUG_XBEE } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
-typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_TANQUE } aplicacion_t;
+typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_TANQUE, APP_ALARMAS } aplicacion_t;
 
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { PERF_CTL_BOYA, PERF_CTL_SISTEMA } perforacion_control_t;
@@ -183,9 +183,10 @@ typedef struct {
 	float counters[IO5_COUNTER_CHANNELS];		// 4 * 2 =  8
 	int16_t range;								// 2 * 1 =  2
 	int16_t psensor;							// 2 * 1 =  2
+	float temp;									// 4 * 1 =  4
 	float battery;								// 4 * 1 =  4
 	uint8_t plt_Vcounters[2];					// 2 * 1 =  2
-} st_io5_t;										// ----- = 42
+} st_io5_t;										// ----- = 46
 
 // Estructura de un registro de IO8CH
 typedef struct {
@@ -288,9 +289,24 @@ typedef struct {
 	uint8_t	control;
 } st_perforacion_t;
 
+//---------------------------------------------------------------------------
+
+typedef struct {
+	float lim_inf;
+	float lim_sup;
+} st_niveles_alarma_t;
+
+typedef struct {
+	st_niveles_alarma_t alarma1;
+	st_niveles_alarma_t alarma2;
+	st_niveles_alarma_t alarma3;
+} st_alarma_t;
+
+#define NRO_CANALES_ALM	6
 typedef struct {
 	st_consigna_t consigna;
 	st_perforacion_t perforacion;
+	st_alarma_t alarmas[NRO_CANALES_ALM];
 } aplicacion_conf_t;
 
 typedef struct {
@@ -337,7 +353,8 @@ bool u_check_more_Rcds4Tx(void);
 uint8_t u_base_checksum(void);
 uint8_t u_aplicacion_checksum(void);
 bool u_config_aplicacion( char *modo );
-bool u_write_output_pins( char *param_pin, char *param_state );
+bool u_write_output_pins( uint8_t pin, uint8_t val );
+bool u_set_douts( uint8_t dout );
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -385,6 +402,12 @@ bool psensor_read( int16_t *psens );
 void psensor_test_read (void);
 void psensor_print(file_descriptor_t fd, uint16_t src );
 uint8_t psensor_checksum(void);
+
+// TEMPSENSOR
+void tempsensor_init(void);
+bool tempsensor_read( float *temp );
+void tempsensor_test_read (void);
+void tempsensor_print(file_descriptor_t fd, float temp );
 
 // AINPUTS
 void ainputs_init(void);

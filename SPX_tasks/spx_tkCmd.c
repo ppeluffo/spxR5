@@ -174,10 +174,13 @@ uint8_t olatb = 0 ;
 		xprintf_P( PSTR("  state: ip\r\n"));
 		break;
 	case G_INITS:
-		xprintf_P( PSTR("  state: link up:inits\r\n"));
+		xprintf_P( PSTR("  state: link up: inits\r\n"));
 		break;
 	case G_DATA:
-		xprintf_P( PSTR("  state: link up:data\r\n"));
+		xprintf_P( PSTR("  state: link up: data\r\n"));
+		break;
+	case G_DATA_AWAITING:
+		xprintf_P( PSTR("  state: link up: data awaiting\r\n"));
 		break;
 	default:
 		xprintf_P( PSTR("  state: ERROR\r\n"));
@@ -213,6 +216,16 @@ uint8_t olatb = 0 ;
 	case APP_TANQUE:
 		xprintf_P( PSTR("  modo: TANQUE\r\n\0"));
 		break;
+	case APP_ALARMAS:
+		xprintf_P( PSTR("  modo: ALARMAS\r\n\0"));
+		for ( channel=0; channel<NRO_CANALES_ALARMA; channel++) {
+			xprintf_P( PSTR("  ch%d: alm1:(%.02f,%.02f),"),channel, systemVars.aplicacion_conf.alarmas[channel].alarma1.lim_inf, systemVars.aplicacion_conf.alarmas[channel].alarma1.lim_sup);
+			xprintf_P( PSTR("  alm2:(%.02f,%.02f),"),systemVars.aplicacion_conf.alarmas[channel].alarma2.lim_inf, systemVars.aplicacion_conf.alarmas[channel].alarma2.lim_sup);
+			xprintf_P( PSTR("  alm3:(%.02f,%.02f) \r\n\0"), systemVars.aplicacion_conf.alarmas[channel].alarma3.lim_inf, systemVars.aplicacion_conf.alarmas[channel].alarma3.lim_sup);
+		}
+		xprintf_P( PSTR("  manteniemiento: %d\r\n\0"), alarma_read_status_mantenimiento());
+		xprintf_P( PSTR("  sensor puerta: %d\r\n\0"), alarma_read_status_sensor_puerta());
+		break;
 	}
 
 	// CONFIG
@@ -234,6 +247,9 @@ uint8_t olatb = 0 ;
 		break;
 	case DEBUG_PILOTO:
 		xprintf_P( PSTR("  debug: piloto\r\n\0") );
+		break;
+	case DEBUG_ALARMAS:
+		xprintf_P( PSTR("  debug: alarmas\r\n\0") );
 		break;
 	default:
 		xprintf_P( PSTR("  debug: ???\r\n\0") );
@@ -342,12 +358,33 @@ static void cmdResetFunction(void)
 static void cmdWriteFunction(void)
 {
 
+uint8_t pin = 0;
+int8_t state = -1;
+char l_data[10] = { '\0' };
+
 	FRTOS_CMD_makeArgv();
+
+	// ALARMA
+	// write alarma (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena)
+	if (!strcmp_P( strupr(argv[1]), PSTR("ALARMA\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		alarma_servicio_tecnico( argv[2], argv[3]);
+		return;
+	}
 
 	// OUTPIN
 	// write outpin {0..7} {set | clear}
 	if (!strcmp_P( strupr(argv[1]), PSTR("OUTPUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		u_write_output_pins( argv[2], argv[3] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		memcpy(l_data, argv[3], sizeof(l_data));
+		strupr(l_data);
+		pin = atoi(argv[2]);
+		if (!strcmp_P( l_data, PSTR("SET\0"))) {
+			state = 1;
+		}
+		if (!strcmp_P( l_data, PSTR("CLEAR\0"))) {
+			state = 0;
+		}
+
+		u_write_output_pins( pin,state ) ?  pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
@@ -493,7 +530,7 @@ uint8_t cks;
 		cks = counters_checksum();
 		xprintf_P( PSTR("Counters Checksum = [0x%02x]\r\n\0"), cks );
 		cks = psensor_checksum();
-		xprintf_P( PSTR("Psensor Checksum = [0x%02x]\r\n\0"), cks );
+		xprintf_P( PSTR("Pensor Checksum = [0x%02x]\r\n\0"), cks );
 		cks = range_checksum();
 		xprintf_P( PSTR("Range Checksum = [0x%02x]\r\n\0"), cks );
 		cks = u_aplicacion_checksum();
@@ -516,6 +553,7 @@ uint8_t cks;
 		//gprs_init_test();
 
 		psensor_test_read();
+		tempsensor_test_read();
 		return;
 	}
 
@@ -630,14 +668,21 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
+	// ALARMA
+	// config alarma ch,{ALARMA1,2,3},{inf|sup},val
+	if (!strcmp_P( strupr(argv[1]), PSTR("ALARMA\0")) ) {
+		retS = alarma_config( argv[2], argv[3], argv[4], argv[5] );
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
 	// APLICACION
-	// aplicacion { off,consigna,perforacion,piloto, tanque}
+	// aplicacion { off,consigna,perforacion,piloto, tanque, alarmas }
 	if (!strcmp_P( strupr(argv[1]), PSTR("APLICACION\0")) ) {
 		retS = u_config_aplicacion( argv[2] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
-
 	// CONSIGNA
 	// config consigna {hhmm1} {hhmm2}
 	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
@@ -674,6 +719,9 @@ bool retS = false;
 			retS = true;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("PILOTO\0"))) {
 			systemVars.debug = DEBUG_PILOTO;
+			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("ALARMAS\0"))) {
+			systemVars.debug = DEBUG_ALARMAS;
 			retS = true;
 		} else {
 			retS = false;
@@ -902,6 +950,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  mcp {regAddr} {data}, mcpinit\r\n\0"));
 				xprintf_P( PSTR("  outputs (val dec.)\r\n\0"));
 				xprintf_P( PSTR("  outpin {0..7} {set | clear}\r\n\0"));
+				xprintf_P( PSTR("  alarma (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena) \r\n\0"));
 			}
 
 			if ( spx_io_board == SPX_IO5CH ) {
@@ -970,7 +1019,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
 		}
 
-		xprintf_P( PSTR("  debug {none,counter,data, gprs, outputs, piloto }\r\n\0"));
+		xprintf_P( PSTR("  debug {none,counter,data, gprs, outputs, piloto, alarmas }\r\n\0"));
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
@@ -979,7 +1028,8 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
 		xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
 
-		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion, tanque}\r\n\0"));
+		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion, tanque, alarmas}\r\n\0"));
+		xprintf_P( PSTR("  alarma ch,{ALARMA1,2,3}, {inf|sup} val\r\n\0"));
 		xprintf_P( PSTR("  piloto reg {CHICA|MEDIA|GRANDE}\r\n\0"));
 		xprintf_P( PSTR("         pband {pband}\r\n\0"));
 		xprintf_P( PSTR("         steps {steps}\r\n\0"));
@@ -1195,14 +1245,14 @@ uint8_t pin = 0;
 	if ( cmd_mode == WR_CMD ) {
 
 		// write gprs sms nbr msg
-		// write gprs qsms nbr msg
-		if (!strcmp_P( strupr(argv[1]), PSTR("SMS\0"))) {
+		if (!strcmp_P( strupr(argv[2]), PSTR("SMS\0"))) {
 			u_gprs_send_sms( argv[3], argv[4] );
 			pv_snprintfP_OK();
 			return;
 		}
 
-		if (!strcmp_P( strupr(argv[1]), PSTR("QSMS\0")) ) {
+		// write gprs qsms nbr msg
+		if (!strcmp_P( strupr(argv[2]), PSTR("QSMS\0")) ) {
 			u_gprs_quick_send_sms( argv[3], argv[4] );
 			pv_snprintfP_OK();
 			return;
@@ -1280,10 +1330,18 @@ uint8_t pin = 0;
 	if ( cmd_mode == RD_CMD ) {
 		// read gprs (rsp,cts,dcd,ri)
 
+		// SMSCOUNT
+		// read gprs smscount
+		if (!strcmp_P(strupr(argv[2]), PSTR("SMSCOUNT\0"))) {
+			xprintf_P( PSTR("SMS count = %d\r\n"), u_gprs_read_sms_awaiting() );
+			return;
+		}
+
+
 		// SMS
 		// read gprs sms
 		if (!strcmp_P(strupr(argv[2]), PSTR("SMS\0"))) {
-			u_gprs_read_sms();
+			u_gprs_read_and_process_all_sms();
 			return;
 		}
 

@@ -15,11 +15,13 @@ const char str_i2c_dev_3[] PROGMEM = "MCP";
 const char str_i2c_dev_4[] PROGMEM = "INA_A";
 const char str_i2c_dev_5[] PROGMEM = "INA_B";
 const char str_i2c_dev_6[] PROGMEM = "INA_C";
-const char str_i2c_dev_7[] PROGMEM = "PSENS";
+const char str_i2c_dev_7[] PROGMEM = "BPS120";
+const char str_i2c_dev_8[] PROGMEM = "ADT7410";
 
-const char * const I2C_names[] PROGMEM = { str_i2c_dev_0, str_i2c_dev_1, str_i2c_dev_2, str_i2c_dev_3, str_i2c_dev_4, str_i2c_dev_5, str_i2c_dev_6, str_i2c_dev_7 };
+const char * const I2C_names[] PROGMEM = { str_i2c_dev_0, str_i2c_dev_1, str_i2c_dev_2, str_i2c_dev_3, str_i2c_dev_4, str_i2c_dev_5, str_i2c_dev_6, str_i2c_dev_7, str_i2c_dev_8 };
 
 uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address );
+
 char buffer[10] = { 0 };
 
 //------------------------------------------------------------------------------------
@@ -50,7 +52,7 @@ uint8_t i2c_error_code = 0;
 	//    Largo: 1 byte indica el largo. El FRTOS espera 1 byte.
 	if ( i2c_bus_address == BUSADDR_EEPROM_M2402 ) {
 		dev_address_length = 2;	// Las direccione de la EEprom son de 16 bits
-	} else if ( i2c_bus_address == BUSADDR_PSENS ) {
+	} else if ( i2c_bus_address == BUSADDR_BPS120 ) {
 		dev_address_length = 0;	//
 	} else{
 		dev_address_length = 1;
@@ -216,8 +218,11 @@ uint8_t pv_i2_addr_2_idx( uint8_t i2c_bus_address )
 	case BUSADDR_INA_C:
 		return(6);
 		break;
-	case BUSADDR_PSENS:
+	case BUSADDR_BPS120:
 		return(7);
+		break;
+	case BUSADDR_ADT7410:
+		return(8);
 		break;
 	default:
 		return(0);

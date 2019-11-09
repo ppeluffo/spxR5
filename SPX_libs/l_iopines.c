@@ -121,6 +121,7 @@ void PORT_ConfigureInterrupt1( PORT_t * port, PORT_INT1LVL_t intLevel,uint8_t pi
 int8_t IO_read_DIN( uint8_t pin)
 {
 
+	// Se aplica tanto a IO5 como IO8.
 	// Los pines pueden ser 0 o 1. Cualquier otro valor es error
 
 uint8_t data = 0;

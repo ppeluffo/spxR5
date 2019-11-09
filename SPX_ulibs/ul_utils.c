@@ -8,6 +8,7 @@
 #include "gprs.h"
 #include "spx.h"
 #include "ul_consigna.h"
+#include "ul_alarmas_ose.h"
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -256,6 +257,7 @@ void u_load_defaults( char *opt )
 	// Modo de operacion
 	systemVars.aplicacion = APP_OFF;
 	consigna_config_defaults();
+	alarma_config_defaults();
 
 }
 //------------------------------------------------------------------------------------
@@ -372,16 +374,14 @@ bool u_check_more_Rcds4Tx(void)
 	 * Memoria toda leida: rcds4rd = 0;
 	 */
 
-//	gprs_fat.wrPTR,gprs_fat.rdPTR, gprs_fat.delPTR,gprs_fat.rcds4wr,gprs_fat.rcds4rd,gprs_fat.rcds4del );
-
 bool retS = false;
-FAT_t *fat;
+FAT_t fat;
 
-	memset( fat, '\0', sizeof ( FAT_t));
-	FAT_read(&fat);
+	memset( &fat, '\0', sizeof ( FAT_t));
+	FAT_read( &fat );
 
 	// Si hay registros para leer
-	if ( fat->rcds4rd > 0) {
+	if ( fat.rcds4rd > 0) {
 		retS = true;
 	} else {
 		retS = false;
@@ -450,8 +450,16 @@ char *p;
 	case APP_CONSIGNA:
 		return( consigna_checksum() );
 		break;
+
 	case APP_PERFORACION:
 		return( perforacion_checksum() );
+		break;
+
+	case APP_TANQUE:
+		break;
+
+	case APP_ALARMAS:
+		return( alarmas_checksum() );
 		break;
 	}
 
@@ -466,18 +474,23 @@ bool u_config_aplicacion( char *modo )
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(modo), PSTR("CONSIGNA\0")) &&  ( spx_io_board = SPX_IO5CH ) ) {
+	if (!strcmp_P( strupr(modo), PSTR("CONSIGNA\0")) &&  ( spx_io_board == SPX_IO5CH ) ) {
 		systemVars.aplicacion = APP_CONSIGNA;
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(modo), PSTR("PERFORACION\0")) &&  ( spx_io_board = SPX_IO8CH ) ) {
+	if (!strcmp_P( strupr(modo), PSTR("PERFORACION\0")) &&  ( spx_io_board == SPX_IO8CH ) ) {
 		systemVars.aplicacion = APP_PERFORACION;
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(modo), PSTR("TANQUE\0")) &&  ( spx_io_board = SPX_IO5CH ) ) {
+	if (!strcmp_P( strupr(modo), PSTR("TANQUE\0")) &&  ( spx_io_board == SPX_IO5CH ) ) {
 		systemVars.aplicacion = APP_TANQUE;
+		return(true);
+	}
+
+	if (!strcmp_P( strupr(modo), PSTR("ALARMAS\0")) &&  ( spx_io_board == SPX_IO8CH ) ) {
+		systemVars.aplicacion = APP_ALARMAS;
 		return(true);
 	}
 
@@ -485,48 +498,53 @@ bool u_config_aplicacion( char *modo )
 
 }
 //------------------------------------------------------------------------------------
-bool u_write_output_pins( char *param_pin, char *param_state )
+bool u_write_output_pins( uint8_t pin, uint8_t val )
 {
-	// Escribe un valor en las salidas.
-	//
 
-uint8_t pin = 0;
 int8_t ret_code = 0;
-char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
+bool retS = false;
 
-	memcpy(l_data, param_state, sizeof(l_data));
-	strupr(l_data);
+
+	if ( ( val != 0) || ( val != 1 ))
+		retS = false;
+		goto exit;
+
 
 	if ( spx_io_board == SPX_IO8CH ) {
 		// Tenemos 8 salidas que las manejamos con el MCP
-		pin = atoi(param_pin);
-		if ( pin > 7 )
-			return(false);
+		if ( pin > 7 ) {
+			retS = false;
+			goto exit;
+		}
 
-		if (!strcmp_P( l_data, PSTR("SET\0"))) {
+		if ( val == 0) {
 			ret_code = IO_set_DOUT(pin);
 			if ( ret_code == -1 ) {
 				// Error de bus
 				xprintf_P( PSTR("wOUTPUT_PIN: I2C bus error(1)\n\0"));
-				return(false);
+				retS = false;
+				goto exit;
 			}
-			return(true);
+			retS = true;
+			goto exit;
+
 		}
 
-		if (!strcmp_P( l_data, PSTR("CLEAR\0"))) {
+		if ( val == 1) {
 			ret_code = IO_clr_DOUT(pin);
 			if ( ret_code == -1 ) {
 				// Error de bus
 				xprintf_P( PSTR("wOUTPUT_PIN: I2C bus error(2)\n\0"));
-				return(false);
+				retS = false;
+				goto exit;
 			}
-			return(true);
+			retS = true;
+			goto exit;
 		}
 
 	} else if ( spx_io_board == SPX_IO5CH ) {
 		// Las salidas las manejamos con el DRV8814
 		// Las manejo de modo que solo muevo el pinA y el pinB queda en GND para c/salida
-		pin = atoi(param_pin);
 		if ( pin > 2 )
 			return(false);
 
@@ -534,7 +552,7 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 		// Espero 10s que se carguen los condensasores
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
-		if (!strcmp_P( l_data, PSTR("SET\0"))) {
+		if ( val == 1) {
 			switch(pin) {
 			case 0:
 				DRV8814_vopen( 'A', 100);
@@ -543,10 +561,10 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 				DRV8814_vopen( 'B', 100);
 				break;
 			}
-			return(true);
+			retS = true;
 		}
 
-		if (!strcmp_P( l_data, PSTR("CLEAR\0"))) {
+		if ( val == 0) {
 			switch(pin) {
 			case 0:
 				DRV8814_vclose( 'A', 100);
@@ -555,15 +573,50 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 				DRV8814_vclose( 'B', 100);
 				break;
 			}
-			return(true);
+			retS = true;
 		}
 
 		DRV8814_power_off();
 
 	}
-	return(false);
 
+exit:
+
+	return(retS);
 }
 //------------------------------------------------------------------------------------
+bool u_set_douts( uint8_t dout )
+{
+	// Funcion para setear el valor de las salidas desde el resto del programa.
+	// La usamos desde tkGprs cuando en un frame nos indican cambiar las salidas.
+	// Como el cambio depende de quien tiene el control y del timer, aqui vemos si
+	// se cambia o se ignora.
 
+uint8_t data = 0;
+int8_t xBytes = 0;
+bool retS = false;
 
+	// Solo es para IO8CH
+	if ( spx_io_board != SPX_IO8CH ) {
+		return(false);
+	}
+
+	// Vemos que no se halla desconfigurado
+	MCP_check();
+
+	// Guardo el valor recibido
+	data = dout;
+	MCP_update_olatb( dout );
+
+	// Invierto el byte antes de escribirlo !!!
+	data = twiddle_bits(data);
+	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("SET DOUTS ERROR: MCP write\r\n\0"));
+	} else {
+		retS = true;
+	}
+
+	return(retS);
+}
+//------------------------------------------------------------------------------------

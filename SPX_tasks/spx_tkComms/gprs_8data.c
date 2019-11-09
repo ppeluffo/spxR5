@@ -25,6 +25,14 @@ static uint8_t pv_process_response_OK(void);
 FAT_t gprs_fat;
 st_dataRecord_t gprs_dr;
 
+typedef enum { SST_MONITOREO_DATOS = 0, SST_TXMIT_DATOS, SST_NO_DATOS, SST_ESPERA, SST_EXIT } data_state_t;
+data_state_t data_state;
+
+static void sst_monitoreo_datos(void);
+static bool sst_txmit_datos(void);
+static bool sst_no_datos(void);
+static bool sst_espera(void);
+
 //------------------------------------------------------------------------------------
 bool st_gprs_data(void)
 {
@@ -45,12 +53,13 @@ bool st_gprs_data(void)
 	// Mientras estoy trasmitiendo datos no atiendo las señales; solo durante la espera en modo
 	// continuo.
 
-uint8_t sleep_time = 0;
 bool exit_flag = bool_RESTART;
 
 	GPRS_stateVars.state = G_DATA;
 
 	xprintf_P( PSTR("GPRS: data.\r\n\0"));
+
+	data_state = SST_MONITOREO_DATOS;
 
 	//
 	while ( 1 ) {
@@ -60,48 +69,146 @@ bool exit_flag = bool_RESTART;
 
 		ctl_watchdog_kick(WDG_GPRSTX, WDG_GPRS_DATA );
 
-		if ( pv_hay_datos_para_trasmitir() ) {	// Si hay datos, intento trasmitir
+		switch (data_state ) {
+		case SST_MONITOREO_DATOS:
+			sst_monitoreo_datos();
+			break;
+		case SST_TXMIT_DATOS:
+			exit_flag = sst_txmit_datos();
+			break;
+		case SST_NO_DATOS:
+			exit_flag = sst_no_datos();
+			break;
+		case SST_ESPERA:
+			exit_flag = sst_espera();
+			break;
+		case SST_EXIT:
+			goto EXIT;
+		default:
+			data_state = SST_EXIT;
+		}
 
-			if ( ! pv_procesar_frame() ) {		// Si por cualquier cosa no pude transmitir un frame
-				exit_flag = bool_RESTART;		// salgo a apagarme.
-				goto EXIT;
-			}
-
-		} else {
-			// No hay datos para trasmitir
-
-			// Modo discreto, Salgo a apagarme y esperar
-			if ( MODO_DISCRETO ) {
-				exit_flag = bool_CONTINUAR ;
-				goto EXIT;
-
-			} else {
-				// MODO CONTINUO
-				sleep_time = 90;
-				while( sleep_time-- > 0 ) {
-					vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-
-					// PROCESO LAS SEÑALES
-					if ( GPRS_stateVars.signal_redial) {
-						// Salgo a discar inmediatamente.
-						GPRS_stateVars.signal_redial = false;
-						exit_flag = bool_RESTART;
-						goto EXIT;
-					}
-
-					if ( GPRS_stateVars.signal_frameReady) {
-						GPRS_stateVars.signal_frameReady = false;
-						break;	// Salgo del while de espera.
-					}
-				} // while
-			} // else
-		} // else
-	} // while
+	}
 
 	// Exit area:
 EXIT:
 	// No espero mas y salgo del estado prender.
 	return(exit_flag);
+}
+//------------------------------------------------------------------------------------
+static void sst_monitoreo_datos(void)
+{
+
+	xprintf_P( PSTR("DEBUG GPRS: sst_monitoreo_datos.\r\n\0"));
+	GPRS_stateVars.state = G_DATA;
+
+	while ( data_state == SST_MONITOREO_DATOS ) {
+
+		if ( pv_hay_datos_para_trasmitir() ) {
+			data_state = SST_TXMIT_DATOS;
+		} else {
+			data_state = SST_NO_DATOS;
+		}
+
+	}
+	return;
+}
+//------------------------------------------------------------------------------------
+static bool sst_txmit_datos(void)
+{
+
+bool retS = bool_CONTINUAR;
+
+	xprintf_P( PSTR("DEBUG GPRS: sst_txmit_datos.\r\n\0"));
+	GPRS_stateVars.state = G_DATA;
+
+	while ( data_state == SST_TXMIT_DATOS ) {
+
+		if ( pv_procesar_frame() ) {
+			data_state = SST_MONITOREO_DATOS;
+		} else {
+			data_state = SST_EXIT;
+			retS = bool_RESTART;
+		}
+
+	}
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+static bool sst_no_datos(void)
+{
+
+bool retS = bool_CONTINUAR;
+
+	xprintf_P( PSTR("DEBUG GPRS: sst_no_datos.\r\n\0"));
+	GPRS_stateVars.state = G_DATA;
+
+	while ( data_state == SST_NO_DATOS ) {
+
+		if ( MODO_DISCRETO ) {
+			data_state = SST_EXIT;
+			retS = bool_CONTINUAR;
+		} else {
+			data_state = SST_ESPERA;
+		}
+	}
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+static bool sst_espera(void)
+{
+
+uint8_t sleep_time = 90;
+bool retS = bool_CONTINUAR;
+//t_socket_status socket_status = 0;
+
+	xprintf_P( PSTR("DEBUG GPRS: sst_espera.\r\n\0"));
+	GPRS_stateVars.state = G_DATA_AWAITING;
+
+	while ( data_state == SST_ESPERA ) {
+
+		while( sleep_time-- > 0 ) {
+
+			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+			// PROCESO LAS SEÑALES
+			if ( GPRS_stateVars.signal_redial) {
+				// Salgo a discar inmediatamente.
+				GPRS_stateVars.signal_redial = false;
+				data_state = SST_EXIT;
+				retS = bool_RESTART;
+				break;
+			}
+
+			if ( GPRS_stateVars.signal_frameReady) {
+				GPRS_stateVars.signal_frameReady = false;
+				data_state = SST_MONITOREO_DATOS;
+				break;
+			}
+
+			// EXPIRO EL TIEMPO
+			if ( sleep_time == 1 ) {
+				data_state = SST_MONITOREO_DATOS;
+				break;
+			}
+
+			/*
+			// VEO SI HAY SMS
+			if ( u_gprs_read_sms_awaiting() ) {
+				// Si estoy con el socket conectado lo bajo. !!!
+				socket_status = u_gprs_check_socket_status();
+				while ( socket_status != SOCK_CLOSED ) {
+					u_gprs_close_socket();
+					vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+					socket_status = u_gprs_check_socket_status();
+				}
+				u_gprs_read_and_process_all_sms();
+			}
+			*/
+		}
+	}
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 static bool pv_hay_datos_para_trasmitir(void)
@@ -393,7 +500,6 @@ char *p = NULL;
 
 }
 //------------------------------------------------------------------------------------
-
 static uint8_t pv_process_response_OK(void)
 {
 	// Retorno la cantidad de registros procesados ( y borrados )

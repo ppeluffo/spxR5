@@ -3,6 +3,9 @@
  *
  *  Created on: 19 set. 2019
  *      Author: pablo
+ *
+ *  Rutinas para leer la presion del sensor integrado de presion.
+ *
  */
 
 #include "spx.h"
@@ -49,14 +52,15 @@ bool psensor_config ( char *s_pname, char *s_pmin, char *s_pmax, char *s_poffset
 bool psensor_read( int16_t *psens )
 {
 
+	// El sensor que usamos para leer la presion es el bps120.
 char buffer[2] = { 0 };
 int8_t xBytes = 0;
 int16_t pcounts;
 bool retS = false;
 
-	xBytes = PSENS_raw_read( buffer );
+	xBytes = bps120_raw_read( buffer );
 	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: PSENSOR\r\n\0"));
+		xprintf_P(PSTR("ERROR: psensor_read\r\n\0"));
 		return(false);
 	}
 
@@ -73,49 +77,25 @@ void psensor_test_read (void)
 	// Funcion de testing del sensor de presion I2C
 	// La direccion es fija 0x50 y solo se leen 2 bytes.
 
-	/*
 int8_t xBytes = 0;
 char buffer[2] = { 0 };
 int16_t pcounts = 0;
 float hcl;
 
 
-	xBytes = PSENS_raw_read( buffer );
+	xBytes = bps120_raw_read( buffer );
 	if ( xBytes == -1 )
-		xprintf_P(PSTR("ERROR: I2C: PSENS_test_read\r\n\0"));
+		xprintf_P(PSTR("ERROR: I2C: psensor_test_read\r\n\0"));
 
-	if ( xBytes > 0 )
+	if ( xBytes > 0 ) {
 		pcounts = ( buffer[0]<<8 ) + buffer[1];
 		hcl = systemVars.psensor_conf.pmax * (pcounts - 1638)/13107;
 
 		xprintf_P( PSTR( "I2C_PSENSOR=0x%04x,pcount=%d,Hmt=%0.3f\r\n\0"),pcounts,pcounts,hcl);
-	 */
-
-int8_t xBytes = 0;
-char buffer[7] = { 0 };
-uint8_t i;
-
-	xBytes = TEST_PSENS_raw_read( buffer );
-	if ( xBytes == -1 )
-		xprintf_P(PSTR("ERROR: I2C: TEST_PSENS_test_read\r\n\0"));
-		return;
-
-
-	if ( xBytes > 0 ) {
-
-		//pcounts = ( buffer[0]<<8 ) + buffer[1];
-		// hcl = systemVars.psensor_conf.pmax * (pcounts - 1638)/13107;
-
-		xprintf_P( PSTR( "I2C_TEST_PSENSOR="));
-		for ( i=0; i < 7; i++ )
-			xprintf_P( PSTR("b%d[0x%02X] "), buffer[i]);
-
-		xprintf_P(PSTR("\r\n"));
 	}
 
 }
 //------------------------------------------------------------------------------------
-
 void psensor_print(file_descriptor_t fd, uint16_t src )
 {
 

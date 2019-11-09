@@ -36,7 +36,7 @@ struct {
 char buff_gprs_imei[IMEIBUFFSIZE];
 char buff_gprs_ccid[IMEIBUFFSIZE];
 
-typedef enum { G_ESPERA_APAGADO = 0, G_PRENDER, G_CONFIGURAR, G_MON_SQE, G_SCAN_APN, G_GET_IP, G_SCAN_FRAME, G_INITS, G_DATA } t_gprs_states;
+typedef enum { G_ESPERA_APAGADO = 0, G_PRENDER, G_CONFIGURAR, G_MON_SQE, G_SCAN_APN, G_GET_IP, G_SCAN_FRAME, G_INITS, G_DATA, G_DATA_AWAITING } t_gprs_states;
 typedef enum { SOCK_CLOSED = 0, SOCK_OPEN, SOCK_ERROR, SOCK_FAIL } t_socket_status;
 typedef enum { FRAME_ERROR = 0, FRAME_SOCK_CLOSE, FRAME_OK, FRAME_NOT_ALLOWED, FRAME_ERR404, FRAME_RETRY, FRAME_SRV_ERR } t_frame_responses;
 typedef enum { INIT_FRAME_A = 0, INIT_FRAME_B, SCAN_FRAME } t_frames;
@@ -45,6 +45,7 @@ struct {
 	bool modem_prendido;
 	bool signal_redial;
 	bool signal_frameReady;
+	bool signal_resetRI;
 	bool monitor_sqe;
 	uint8_t state;
 	uint8_t	dcd;
@@ -54,6 +55,7 @@ struct {
 	int32_t waiting_time;
 	char dlg_ip_address[IP_LENGTH];
 	char server_ip_address[IP_LENGTH];
+	uint8_t sms_awaiting;
 
 } GPRS_stateVars;
 
@@ -103,8 +105,12 @@ void u_gprs_set_timeToNextDial( uint32_t time_to_dial );
 
 void u_gprs_send_sms( char *dst_nbr, char *msg );
 void u_gprs_quick_send_sms( char *dst_nbr, char *msg );
-void u_gprs_read_sms(void);
+void u_gprs_read_and_process_all_sms(void);
 bool u_gprs_sms_pendiente( uint8_t *first_msg_index );
-void u_gprs_read_and_delete_sms_by_index( uint8_t msg_index );
+char *u_gprs_read_and_delete_sms_by_index( uint8_t msg_index );
+void u_gprs_process_sms( char *sms_msg);
+uint8_t u_gprs_read_sms_awaiting(void);
+void u_gprs_config_ri_pin(void);
+
 
 #endif /* SRC_SPXR3_TKGPRS_SPXR3_TKGPRS_H_ */
