@@ -7,10 +7,11 @@
 
 #include <spx_tkComms/gprs.h>
 
+static bool sst_apn_configurada(void);
+static bool sst_apn_en_default(void);
+
 static bool pv_gprs_netopen(void);
 static void pv_gprs_read_ip_assigned(void);
-static void pg_gprs_APN(void);
-static bool pv_scan_apn( void );
 
 // La tarea no puede demorar mas de 180s.
 #define WDG_GPRS_TO_IP	180
@@ -41,20 +42,11 @@ bool exit_flag = bool_RESTART;
 
 		// El scan_apn usa pv_gprs_netopen por lo que si es existoso
 		// el datalogger queda con una ip asignada.
-		exit_flag = pv_scan_apn();
+		exit_flag = sst_apn_en_default();
 
 	} else {
 
-		// El APN no esta en default por lo tanto lo activo.
-		pg_gprs_APN();
-
-		if ( pv_gprs_netopen() ) {
-			exit_flag = bool_CONTINUAR;
-		} else {
-			// Aqui es que luego de tantos reintentos no consegui la IP.
-			exit_flag = bool_RESTART;
-			xprintf_P( PSTR("GPRS: ERROR: ip no asignada !!.\r\n\0") );
-		}
+		exit_flag = sst_apn_configurada();
 	}
 
 	return(exit_flag);
@@ -62,6 +54,88 @@ bool exit_flag = bool_RESTART;
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
+//------------------------------------------------------------------------------------
+static bool sst_apn_configurada(void)
+{
+	// El APN no esta en default por lo tanto lo activo.
+
+	xprintf_P( PSTR("GPRS: Set APN\r\n\0") );
+
+	//Defino el PDP indicando cual es el APN.
+	// AT+CGDCONT
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), systemVars.gprs_conf.apn);
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+	// Como puedo tener varios PDP definidos, indico cual va a ser el que se deba activar
+	// al usar el comando NETOPEN.
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+	// Intento pedir una IP.
+	if ( pv_gprs_netopen() ) {
+		return(bool_CONTINUAR);
+	}
+
+	// Aqui es que luego de tantos reintentos no consegui la IP.
+	xprintf_P( PSTR("GPRS: ERROR: ip no asignada !!.\r\n\0") );
+	return(bool_RESTART);
+}
+//------------------------------------------------------------------------------------
+static bool sst_apn_en_default(void)
+{
+	// Toma APNs de una lista e intenta conectarse a la red para detectar
+	// cual sim es compatible con el APN.
+	// Cuando lo encuentra, lo graba en el systemVars.
+
+uint8_t apn_id = 0;
+char apn[APN_LENGTH];
+
+	memset( &apn, '\0', APN_LENGTH );
+	while ( apn_id < MAXAPN ) {
+		strcpy_P( apn, (PGM_P)pgm_read_word(&(apn_names[apn_id++])));			// Tomo un APN de la lista de posibles.
+		xprintf_P( PSTR("GPRS: scan APN: %s\r\n\0"), apn);
+
+		u_gprs_flush_RX_buffer();
+		xCom_printf_P( fdGPRS,PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);	// Lo configuro en el modem
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			u_gprs_print_RX_Buffer();
+		}
+
+		u_gprs_flush_RX_buffer();
+		xCom_printf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));						// Lo marco como actuvo
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			u_gprs_print_RX_Buffer();
+		}
+
+		// Pruebo abrir el socket con el APN dado.
+		if ( pv_gprs_netopen() ) {
+			// El APN funciono. Lo grabo en el systemVars y salgo porque tengo la IP asignada
+			xprintf_P( PSTR("GPRS:APN SCAN SUCCESS !!.\r\n\0") );
+			strcpy(systemVars.gprs_conf.apn, apn );
+			u_save_params_in_NVMEE();
+			pv_gprs_read_ip_assigned();
+			return(bool_CONTINUAR);
+		}
+	}
+
+	// Ya probe con todos los APN y ninguno funciono.
+	xprintf_P( PSTR("GPRS:APN SCAN Failed !!.\r\n\0") );
+	// No tengo un APN que me sirva.
+	// Espero 1 hora para lo que reconfiguro el timerDial
+	systemVars.gprs_conf.timerDial = 3600;
+
+	return( bool_RESTART);
+}
 //------------------------------------------------------------------------------------
 static bool pv_gprs_netopen(void)
 {
@@ -165,81 +239,6 @@ char c = '\0';
 	GPRS_stateVars.dlg_ip_address[i++] = '\0';
 
 	xprintf_P( PSTR("GPRS: ip address=[%s]\r\n\0"), GPRS_stateVars.dlg_ip_address);
-
-}
-//------------------------------------------------------------------------------------
-static void pg_gprs_APN(void)
-{
-	//Defino el PDP indicando cual es el APN.
-
-	xprintf_P( PSTR("GPRS: Set APN\r\n\0") );
-
-	// AT+CGDCONT
-	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), systemVars.gprs_conf.apn);
-	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		u_gprs_print_RX_Buffer();
-	}
-
-	// Como puedo tener varios PDP definidos, indico cual va a ser el que se deba activar
-	// al usar el comando NETOPEN.
-	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));
-	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		u_gprs_print_RX_Buffer();
-	}
-
-
-}
-//------------------------------------------------------------------------------------
-static bool pv_scan_apn( void )
-{
-	// Toma APNs de una lista e intenta conectarse a la red para detectar
-	// cual sim es compatible con el APN.
-	// Cuando lo encuentra, lo graba en el systemVars.
-
-uint8_t apn_id = 0;
-char apn[APN_LENGTH];
-
-	memset( &apn, '\0', APN_LENGTH );
-	while ( apn_id < MAXAPN ) {
-		strcpy_P( apn, (PGM_P)pgm_read_word(&(apn_names[apn_id++])));			// Tomo un APN de la lista de posibles.
-		xprintf_P( PSTR("GPRS: scan APN: %s\r\n\0"), apn);
-
-		u_gprs_flush_RX_buffer();
-		xCom_printf_P( fdGPRS,PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);	// Lo configuro en el modem
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			u_gprs_print_RX_Buffer();
-		}
-
-		u_gprs_flush_RX_buffer();
-		xCom_printf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));						// Lo marco como actuvo
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			u_gprs_print_RX_Buffer();
-		}
-
-		// Pruebo abrir el socket con el APN dado.
-		if ( pv_gprs_netopen() ) {
-			// El APN funciono. Lo grabo en el systemVars y salgo porque tengo la IP asignada
-			xprintf_P( PSTR("GPRS:APN SCAN SUCCESS !!.\r\n\0") );
-			strcpy(systemVars.gprs_conf.apn, apn );
-			u_save_params_in_NVMEE();
-			pv_gprs_read_ip_assigned();
-			return(bool_CONTINUAR);
-		}
-	}
-
-	// Ya probe con todos los APN y ninguno funciono.
-	xprintf_P( PSTR("GPRS:APN SCAN Failed !!.\r\n\0") );
-	// No tengo un APN que me sirva.
-	// Espero 1 hora para lo que reconfiguro el timerDial
-	systemVars.gprs_conf.timerDial = 3600;
-
-	return( bool_RESTART);
 
 }
 //------------------------------------------------------------------------------------

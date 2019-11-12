@@ -23,7 +23,7 @@ bool f_reset = false;
 
 typedef enum { GLOBAL=0, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR, APLICACION } init_frames_t;
 
-static bool pv_send_frame_init(init_frames_t tipo);
+static bool pv_process_frame_init(init_frames_t tipo);
 static bool pv_tx_frame_init(init_frames_t tipo);
 static void pv_tx_init_payload(init_frames_t tipo);
 static void pv_tx_init_payload_global(void);
@@ -45,6 +45,15 @@ static void pv_init_reconfigure_params_range(void);
 static void pv_init_reconfigure_params_psensor(void);
 static void pv_init_reconfigure_params_aplicacion(void);
 
+bool pv_process_frame_init_GLOBAL(void);
+bool pv_process_frame_init_BASE(void);
+bool pv_process_frame_init_ANALOG(void);
+bool pv_process_frame_init_DIGITAL(void);
+bool pv_process_frame_init_COUNTERS(void);
+bool pv_process_frame_init_RANGE(void);
+bool pv_process_frame_init_PSENSOR(void);
+bool pv_process_frame_init_APLICACION(void);
+
 //------------------------------------------------------------------------------------
 bool st_gprs_inits(void)
 {
@@ -59,6 +68,62 @@ bool st_gprs_inits(void)
 
 	GPRS_stateVars.state = G_INITS;
 
+	// El resultado del frame GLOBAL es el que prende las flags de que
+	// otras inits deben enviarse.
+	if ( ! pv_process_frame_init_GLOBAL() ) {
+		return(bool_RESTART);
+	}
+
+	// Configuracion BASE
+	if ( ! pv_process_frame_init_BASE() ) {
+		return(bool_RESTART);
+	}
+
+	// Configuracion ANALOG
+	if ( ! pv_process_frame_init_ANALOG() ) {
+		return(bool_RESTART);
+	}
+
+	// Configuracion DIGITAL
+	if ( ! pv_process_frame_init_DIGITAL() ) {
+		return(bool_RESTART);
+	}
+
+	// Configuracion COUNTERS
+	if ( ! pv_process_frame_init_COUNTERS() ) {
+		return(bool_RESTART);
+	}
+
+	// Configuracion RANGE
+	if ( ! pv_process_frame_init_RANGE() ) {
+		return(bool_RESTART);
+	}
+
+	// Configuracion PSENSOR
+	if ( ! pv_process_frame_init_PSENSOR() ) {
+		return(bool_RESTART);
+	}
+
+	// APLICACION:
+	if ( ! pv_process_frame_init_APLICACION() ) {
+		return(bool_RESTART);
+	}
+
+	// Alguna configuracion requiere que me resetee para tomarla.
+	if ( f_reset ) {
+		xprintf_P( PSTR("GPRS: reset for reload config...\r\n\0"));
+		vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
+		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
+	}
+
+	return(bool_CONTINUAR);
+}
+//------------------------------------------------------------------------------------
+bool pv_process_frame_init_GLOBAL(void)
+{
+
+bool retS = false;
+
 	f_send_init_base = false;
 	f_send_init_analog = false;
 	f_send_init_digital = false;
@@ -67,88 +132,105 @@ bool st_gprs_inits(void)
 	f_send_init_psensor = false;
 	f_send_init_aplicacion = false;
 
-	// El resultado del frame GLOBAL es el que prende las flags de que
-	// otras inits deben enviarse.
-	if ( ! pv_send_frame_init(GLOBAL) ) {
-		return(bool_RESTART);
-	}
+	retS = pv_process_frame_init(GLOBAL);
+	return(retS);
 
-	// Configuracion BASE
-	if ( f_send_init_base ) {
-		if ( ! pv_send_frame_init(BASE) ) {
-			return(bool_RESTART);
-		}
-	}
-
-	// Configuracion ANALOG
-	if ( f_send_init_analog ) {
-		if ( ! pv_send_frame_init(ANALOG) ) {
-			return(bool_RESTART);
-		}
-	}
-
-	// Configuracion DIGITAL
-	if ( f_send_init_digital ) {
-		if ( ! pv_send_frame_init(DIGITAL) ) {
-			return(bool_RESTART);
-		}
-	}
-
-	// Configuracion COUNTERS
-	if ( f_send_init_counters ) {
-		if ( ! pv_send_frame_init(COUNTERS) ) {
-			return(bool_RESTART);
-		}
-	}
-
-	// Configuracion RANGE
-	if ( f_send_init_range ) {
-		if ( ! pv_send_frame_init(RANGE) ) {
-			return(bool_RESTART);
-		}
-	}
-
-	// Configuracion PSENSOR
-	if ( f_send_init_psensor ) {
-		if ( ! pv_send_frame_init(PSENSOR) ) {
-			return(bool_RESTART);
-		}
-	}
-
-	// APLICACION:
-	if ( f_send_init_aplicacion ) {
-		if ( ! pv_send_frame_init(APLICACION) ) {
-			return(bool_RESTART);
-		}
-	}
-
-	// Alguna configuracion requiere que me resetee para tomarla.
-	if ( f_reset ) {
-		xprintf_P( PSTR("GPRS: reset for reload config...\r\n\0"));
-		vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
-//		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
-	}
-
-	return(bool_CONTINUAR);
 }
 //------------------------------------------------------------------------------------
-void gprs_init_test(void)
+bool pv_process_frame_init_BASE(void)
 {
-	//xprintf_P( PSTR("Mensaje de prueba PAblo Tomas Peluffo Fleitas.\r\r\0"));
-	// nacido en PAndo el 30 de mayo del 1964
-	//xCom_printf_P( fdTERM, PSTR("PLOAD=CLASS:BASE;TDIAL:%d;TPOLL:%d;PWRS_MODO:ON;PWRS_START:0630;PWRS_END:1230\r\n\0"), systemVars.gprs_conf.timerDial,systemVars.timerPoll );
-	xprintf_P( PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
-	xprintf_P( PSTR("TPOLL:%d;"), systemVars.gprs_conf.timerDial );
-	xprintf_P( PSTR("PWRS_START:%02d:%02d;"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
-	xprintf_P( PSTR("PWRS_END:%02d:%02d"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
 
-	xprintf_P( PSTR("\r\n"));
-//	xprintf_P(  PSTR("  TDIAL:%d;TPOLL:%d; pwrsave: ON, start[%02d:%02d], end[%02d:%02d]\r\n\0"), systemVars.gprs_conf.timerDial, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+bool retS = true;
 
-//
+	if ( f_send_init_base ) {
+		f_send_init_base = false;
+		retS = pv_process_frame_init(BASE);
+	}
+	return(retS);
+
 }
 //------------------------------------------------------------------------------------
-static bool pv_send_frame_init(init_frames_t tipo)
+bool pv_process_frame_init_ANALOG(void)
+{
+
+bool retS = true;
+
+	if ( f_send_init_analog ) {
+		f_send_init_analog = false;
+		retS = pv_process_frame_init(ANALOG);
+	}
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+bool pv_process_frame_init_DIGITAL(void)
+{
+
+bool retS = true;
+
+	if ( f_send_init_digital ) {
+		f_send_init_digital = false;
+		retS = pv_process_frame_init(DIGITAL);
+	}
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+bool pv_process_frame_init_COUNTERS(void)
+{
+
+bool retS = true;
+
+	if ( f_send_init_counters ) {
+		f_send_init_counters = false;
+		retS = pv_process_frame_init(COUNTERS);
+	}
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+bool pv_process_frame_init_RANGE(void)
+{
+
+bool retS = true;
+
+	if ( f_send_init_range ) {
+		f_send_init_range = false;
+		retS = pv_process_frame_init(RANGE);
+	}
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+bool pv_process_frame_init_PSENSOR(void)
+{
+
+bool retS = true;
+
+	if ( f_send_init_psensor ) {
+		f_send_init_psensor = false;
+		retS = pv_process_frame_init(PSENSOR);
+	}
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+bool pv_process_frame_init_APLICACION(void)
+{
+
+	return(true);
+
+bool retS = true;
+
+	if ( f_send_init_aplicacion ) {
+		f_send_init_aplicacion = false;
+		retS = pv_process_frame_init(APLICACION);
+	}
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+static bool pv_process_frame_init(init_frames_t tipo)
 {
 	// Debo mandar el frame de init al server, esperar la respuesta, analizarla
 	// y reconfigurarme.
@@ -347,17 +429,7 @@ static void pv_tx_init_payload_base(void)
 
 	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:BASE;"));
 	xCom_printf_P( fdGPRS,PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
-	xCom_printf_P( fdGPRS,PSTR("TPOLL:%d;"), systemVars.gprs_conf.timerDial );
-	switch(systemVars.aplicacion) {
-	case APP_OFF:
-		xCom_printf_P( fdGPRS,PSTR("APP:OFF;"));
-		break;
-	case APP_CONSIGNA:
-		xCom_printf_P( fdGPRS,PSTR("APP:CONSIGNA;"));
-		break;
-	default:
-		xCom_printf_P( fdGPRS,PSTR("APP:OFF;"));
-	}
+	xCom_printf_P( fdGPRS,PSTR("TPOLL:%d;"), systemVars.timerPoll );
 
 	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
 		xCom_printf_P( fdGPRS,PSTR("PWRS_MODO:ON;"));
@@ -371,17 +443,7 @@ static void pv_tx_init_payload_base(void)
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P( PSTR("&PLOAD=CLASS:BASE;"));
 		xprintf_P( PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
-		xprintf_P( PSTR("TPOLL:%d;"), systemVars.gprs_conf.timerDial );
-		switch(systemVars.aplicacion) {
-		case APP_OFF:
-			xprintf_P( PSTR("APP:OFF;"));
-			break;
-		case APP_CONSIGNA:
-			xprintf_P( PSTR("APP:CONSIGNA;"));
-			break;
-		default:
-			xprintf_P( PSTR("APP:OFF;"));
-		}
+		xprintf_P( PSTR("TPOLL:%d;"), systemVars.timerPoll );
 		if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
 			xprintf_P( PSTR("PWRS_MODO:ON;"));
 		} else {
@@ -814,26 +876,6 @@ char *tk_pws_start = NULL;
 char *tk_pws_end = NULL;
 char *delim = ",:;><";
 bool save_flag = false;
-
-	// APLICACION
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "APP");
-	if ( p != NULL ) {
-
-		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
-		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
-
-		stringp = localStr;
-		token = strsep(&stringp,delim);		// APP
-		token = strsep(&stringp,delim);		// CONSIGNA
-		u_config_aplicacion(token);
-		save_flag = true;
-		f_reset = true;
-
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: Reconfig APLICACION\r\n\0"));
-		}
-	}
 
 	// TDIAL
 	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "TDIAL");

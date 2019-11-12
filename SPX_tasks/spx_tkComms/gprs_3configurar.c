@@ -82,6 +82,9 @@ bool exit_flag = bool_RESTART;
 
 EXIT:
 
+	u_gprs_sms_txcheckpoint();
+	u_gprs_sms_rxcheckpoint();
+
 	return(exit_flag);
 
 }

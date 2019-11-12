@@ -193,21 +193,21 @@ bool retS = bool_CONTINUAR;
 				break;
 			}
 
-			/*
-			// VEO SI HAY SMS
-			if ( u_gprs_read_sms_awaiting() ) {
-				// Si estoy con el socket conectado lo bajo. !!!
-				socket_status = u_gprs_check_socket_status();
-				while ( socket_status != SOCK_CLOSED ) {
-					u_gprs_close_socket();
-					vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-					socket_status = u_gprs_check_socket_status();
+			// SMS for TX
+			if ( GPRS_stateVars.sms_for_tx ) {
+				// Si el socket esta abierto lo cierro
+				if ( u_gprs_close_socket() ) {
+					u_gprs_sms_txcheckpoint();
 				}
-				u_gprs_read_and_process_all_sms();
 			}
-			*/
+
 		}
 	}
+
+	// SMS RX ?
+	// Al final del ciclo de espera chequeo por sms recibidos.
+	u_gprs_sms_rxcheckpoint();
+
 	return(retS);
 }
 //------------------------------------------------------------------------------------

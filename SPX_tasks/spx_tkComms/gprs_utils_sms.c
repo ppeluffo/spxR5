@@ -7,13 +7,109 @@
 
 #include <spx_tkComms/gprs.h>
 
-StaticTimer_t sms_xTimerBuffers;
-TimerHandle_t sms_xTimer;
-static void pv_sms_TimerCallback( TimerHandle_t xTimer );
+#define SMS_NRO_LENGTH		10
+#define SMS_MSG_LENGTH		20
+#define SMS_QUEUE_LENGTH	10
+
+typedef struct {
+	char nro[SMS_NRO_LENGTH];
+	char msg[SMS_MSG_LENGTH];
+} t_sms;
+
+struct {
+	t_sms queue[SMS_QUEUE_LENGTH];
+	int8_t ptr;
+} s_sms;
+
+
+//------------------------------------------------------------------------------------
+void u_sms_init(void)
+{
+	//
+	GPRS_stateVars.sms_for_tx = false;
+	memset(&s_sms, '\0', sizeof(s_sms));
+	s_sms.ptr = -1;
+
+}
 //------------------------------------------------------------------------------------
 // ENVIO DE SMS
 //------------------------------------------------------------------------------------
-void u_gprs_send_sms( char *dst_nbr, char *msg )
+bool u_sms_send(char *dst_nbr, char *msg )
+{
+	// Funcion publica que la usa el resto del programa para trasmitir mensajes SMS
+
+	if ( s_sms.ptr == SMS_QUEUE_LENGTH ) {
+		// La cola de mensajes esta llena.
+		GPRS_stateVars.sms_for_tx = true;
+		return(false);
+	}
+
+	// Pongo el mensaje en la cola.
+	// Avanzo el puntero y almaceno
+	// El puntero apunta siempre a una posicion libre.
+
+	s_sms.ptr++;
+	memcpy( s_sms.queue[s_sms.ptr].nro, dst_nbr, SMS_NRO_LENGTH );
+	s_sms.queue[s_sms.ptr].nro[SMS_NRO_LENGTH - 1] = '\0';
+	memcpy(s_sms.queue[s_sms.ptr].msg, msg, SMS_MSG_LENGTH );
+	s_sms.queue[s_sms.ptr].msg[SMS_MSG_LENGTH - 1] = '\0';
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("SMS ptr = %d\r\n"), s_sms.ptr );
+	}
+	// Aviso al gprs que hay mensajes para trasmitir
+	GPRS_stateVars.sms_for_tx = true;
+	return(true);
+
+}
+//------------------------------------------------------------------------------------
+void u_gprs_sms_txcheckpoint(void)
+{
+	// Funcion que la tarea de gprsTx utiliza en determinados puntos para ver
+	// si hay SMS pendientes de envio y entonces enviarlos.
+	// Envia todos los sms que hay en la cola y la va vaciando.
+	// Los manda del modo quick.
+	// Por las dudas debe verificar que el modem este en modo comando.
+
+	xprintf_P( PSTR("DEBUG SMS txcheckpoint\r\n" ));
+
+	if ( ! GPRS_stateVars.sms_for_tx )
+		return;
+
+	// CMGF: Selecciono el modo de mandar sms: 1-> texto
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CMGF=1\r"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+	while ( s_sms.ptr > 0 ) {
+		// Hay mensajes pendientes.
+
+		// Mando el mensaje
+		u_gprs_flush_RX_buffer();
+		xCom_printf_P( fdGPRS,PSTR("AT+CMGSO=\"%s\",\"%s\"\r"), s_sms.queue[s_sms.ptr].nro, s_sms.queue[s_sms.ptr].msg);
+		xprintf_P( PSTR("AT+CMGSO=\"%s\",\"%s\"\r\n"), s_sms.queue[s_sms.ptr].nro, s_sms.queue[s_sms.ptr].msg );
+
+		// Espero el OK
+		if ( ! u_gprs_check_response_with_to( "OK", 10 ) ) {
+			xprintf_P( PSTR("ERROR: Sent SMS Fail !!\r\n" ));
+			return;
+		}
+
+		// Mensajes trasmitido OK.
+		xprintf_P( PSTR("Sent SMS OK !!\r\n" ));
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			u_gprs_print_RX_Buffer();
+		}
+		// Borro el mensaje de la lista
+		memset( s_sms.queue[s_sms.ptr].nro, '\0', SMS_NRO_LENGTH );
+		memset(s_sms.queue[s_sms.ptr].msg, '\0', SMS_MSG_LENGTH );
+		s_sms.ptr--;
+	}
+	// No hay mas mensajes pendientes.
+	GPRS_stateVars.sms_for_tx = false;
+}
+//------------------------------------------------------------------------------------
+ void u_gprs_send_sms( char *dst_nbr, char *msg )
 {
 	// Envio un mensaje sms.
 	// Si el modem esta conectado, lo paso a offline
@@ -88,6 +184,7 @@ void u_gprs_quick_send_sms( char *dst_nbr, char *msg )
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	}
 
+
 	if ( u_gprs_check_socket_status() == SOCK_OPEN ) {
 		if ( systemVars.debug == DEBUG_GPRS ) {
 			xprintf_P( PSTR("GPRS: SMS socket open\r\n" ));
@@ -123,7 +220,7 @@ void u_gprs_quick_send_sms( char *dst_nbr, char *msg )
 //------------------------------------------------------------------------------------
 // LECTURA DE SMS
 //------------------------------------------------------------------------------------
-void u_gprs_read_and_process_all_sms(void)
+void u_gprs_sms_rxcheckpoint(void)
 {
 	// Leo todos los mensaejes que hay en la memoria, los proceso y los borro
 	// El comando AT+CMGL="ALL" lista todos los mensajes.
@@ -134,15 +231,14 @@ void u_gprs_read_and_process_all_sms(void)
 uint8_t msg_index;
 char *sms_msg;
 
-	while ( u_gprs_sms_pendiente(&msg_index) ) {
+	xprintf_P( PSTR("DEBUG SMS rxcheckpoint\r\n" ));
+
+	while ( u_gprs_sms_received(&msg_index) ) {
 		// Veo si hay mensajes pendientes
 		sms_msg = u_gprs_read_and_delete_sms_by_index(msg_index);
 		u_gprs_process_sms(sms_msg);
-
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	}
-
-	GPRS_stateVars.sms_awaiting = 0;
 
 }
 //------------------------------------------------------------------------------------
@@ -160,7 +256,6 @@ char *p = NULL;
 char *stringp = NULL;
 char *tk_msg= NULL;
 char *delim = "\r";
-
 
 	u_gprs_flush_RX_buffer();
 	xCom_printf_P( fdGPRS,PSTR("AT+CMGRD=%d\r"), msg_index);
@@ -188,8 +283,10 @@ char *delim = "\r";
 
 }
 //------------------------------------------------------------------------------------
-bool u_gprs_sms_pendiente( uint8_t *first_msg_index )
+bool u_gprs_sms_received( uint8_t *first_msg_index )
 {
+	// Funcion que la tarea gprsTX utiliza para saber si el modem ha
+	// recibido un SMS.
 	// Envio el comando AT+CMGL="ALL" y espero por una respuesta
 	// del tipo +CMGL:
 	// Si no la recibo no hay mensajes pendientes.
@@ -239,70 +336,3 @@ void u_gprs_process_sms( char *sms_msg)
 	xprintf_P( PSTR("DEBUG: SMS_PROCESS: %s\r\n"), sms_msg );
 }
 //------------------------------------------------------------------------------------
-// DETECCION DE ENTRADA DE SMS
-//------------------------------------------------------------------------------------
-void u_gprs_config_sms(void)
-{
-	/*
-	Esta funcion configura lo relativo a SMS.
-	Cuando recibo un SMS, el RI se va a 0.
-	Para resetear el RI debo dar el comando AT+CRIRS.
-	El problema es que en este momento sube con lo que queda armado para detectar otro
-	sms, pero por unos 10s oscila mucho.
-	Lo que hacemos es que una vez que detecte el flanco que llego un SMS, genero la indicacion
-	y arranco un timer que va a ser el que luego de 15s resetee el pin RI.
-	*/
-
-	// Configuro el timer para 10s y one-shot
-	sms_xTimer = xTimerCreateStatic ("SMS",
-			pdMS_TO_TICKS( 10000 ),
-			pdFALSE,
-			( void * ) 0,
-			pv_sms_TimerCallback,
-			&sms_xTimerBuffers
-			);
-
-}
-//------------------------------------------------------------------------------------
-static void pv_sms_TimerCallback( TimerHandle_t xTimer )
-{
-	// Funcion de callback del timer del SMS.
-	// Se ejecuta 10s luego de haber arrancado el timer.
-	// Resetea el pin RI
-
-	 GPRS_stateVars.signal_resetRI = true;
-
-}
-//------------------------------------------------------------------------------------
-void u_gprs_config_ri_pin(void)
-{
-	PORTD.PIN7CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
-	PORTD.INT0MASK = PIN7_bm;									// El pin 7 ( RI) interrumpe INT0
-	PORTD.INTCTRL = PORT_INT0LVL0_bm;							// Enable interrupts
-	PORTD.INTFLAGS = PORT_INT0IF_bm;							// Clear interrupts flag.
-	GPRS_stateVars.sms_awaiting = 0;
-}
-//------------------------------------------------------------------------------------
-ISR ( PORTD_INT0_vect )
-{
-	// Esta ISR se activa cuando el pin RI (PD7) genera un flaco de bajada.
-	GPRS_stateVars.sms_awaiting++;
-	PORTD.INTFLAGS = PORT_INT0IF_bm;			// Clear interrupts flag.
-
-}
-//------------------------------------------------------------------------------------
-uint8_t u_gprs_read_sms_awaiting(void)
-{
-	return(GPRS_stateVars.sms_awaiting);
-}
-//------------------------------------------------------------------------------------
-void u_gprs_resetRI()
-{
-	/*
-	 * Manda el comando de reseteo y rearme del RI.
-	 * Debo estar en modo comando y sino debo esperar
-	 *
-	 */
-}
-
-

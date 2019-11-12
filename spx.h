@@ -66,8 +66,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.0.6.f"
-#define SPX_FW_DATE "@ 20191108"
+#define SPX_FW_REV "2.0.6.g"
+#define SPX_FW_DATE "@ 20191112"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -335,9 +335,6 @@ typedef struct {
 systemVarsType systemVars;
 
 // UTILS
-
-void gprs_init_test(void);
-
 void initMCU(void);
 void u_configure_systemMainClock(void);
 void u_configure_RTC32(void);
@@ -355,6 +352,7 @@ uint8_t u_aplicacion_checksum(void);
 bool u_config_aplicacion( char *modo );
 bool u_write_output_pins( uint8_t pin, uint8_t val );
 bool u_set_douts( uint8_t dout );
+bool u_sms_send(char *dst_nbr, char *msg );
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );

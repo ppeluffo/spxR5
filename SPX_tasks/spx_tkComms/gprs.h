@@ -45,7 +45,6 @@ struct {
 	bool modem_prendido;
 	bool signal_redial;
 	bool signal_frameReady;
-	bool signal_resetRI;
 	bool monitor_sqe;
 	uint8_t state;
 	uint8_t	dcd;
@@ -55,7 +54,7 @@ struct {
 	int32_t waiting_time;
 	char dlg_ip_address[IP_LENGTH];
 	char server_ip_address[IP_LENGTH];
-	uint8_t sms_awaiting;
+	bool sms_for_tx;
 
 } GPRS_stateVars;
 
@@ -81,7 +80,7 @@ void u_gprs_modem_pwr_sw(void);
 void u_gprs_flush_RX_buffer(void);
 void u_gprs_flush_TX_buffer(void);
 t_socket_status u_gprs_open_socket(void);
-void u_gprs_close_socket(void);
+bool u_gprs_close_socket(void);
 t_socket_status u_gprs_check_socket_status(void);
 void u_gprs_print_RX_response(void);
 void u_gprs_print_RX_Buffer(void);
@@ -105,12 +104,12 @@ void u_gprs_set_timeToNextDial( uint32_t time_to_dial );
 
 void u_gprs_send_sms( char *dst_nbr, char *msg );
 void u_gprs_quick_send_sms( char *dst_nbr, char *msg );
-void u_gprs_read_and_process_all_sms(void);
-bool u_gprs_sms_pendiente( uint8_t *first_msg_index );
+void u_gprs_sms_txcheckpoint(void);
+
+void u_gprs_sms_rxcheckpoint(void);
+bool u_gprs_sms_received( uint8_t *first_msg_index );
 char *u_gprs_read_and_delete_sms_by_index( uint8_t msg_index );
 void u_gprs_process_sms( char *sms_msg);
-uint8_t u_gprs_read_sms_awaiting(void);
-void u_gprs_config_ri_pin(void);
 
 
 #endif /* SRC_SPXR3_TKGPRS_SPXR3_TKGPRS_H_ */

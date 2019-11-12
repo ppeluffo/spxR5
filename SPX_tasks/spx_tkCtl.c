@@ -34,6 +34,7 @@ static void pv_ctl_check_wdg(void);
 static void pv_ctl_ticks(void);
 static void pv_ctl_daily_reset(void);
 static void pv_ctl_check_terminal(void);
+static void pv_ctl_RI(void);
 
 #define MAX_TIMERS	2
 #define TIME_TO_NEXT_POLL	0
@@ -84,6 +85,7 @@ void tkCtl(void * pvParameters)
 		pv_ctl_check_terminal();
 		pv_ctl_wink_led();
 		pv_ctl_daily_reset();
+		pv_ctl_RI();
 
 		// Para entrar en tickless.
 		// Cada 5s hago un chequeo de todo. En particular esto determina el tiempo
@@ -312,6 +314,15 @@ static uint32_t ticks_to_reset = 86400 / TKCTL_DELAY_S ; // ticks en 1 dia.
 	CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
 
 
+}
+//------------------------------------------------------------------------------------
+static void pv_ctl_RI(void)
+{
+	// Esta funcion monitorea el estado del pin RI.
+	// Corre c/5s.
+	if ( IO_read_RI() == 0 ) {
+
+	}
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PUBLICAS

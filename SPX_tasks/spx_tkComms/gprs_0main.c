@@ -204,9 +204,6 @@ static void pv_gprs_init_system(void)
 //	PORTD.INT0MASK = PIN6_bm;
 //	PORTD.INTCTRL = PORT_INT0LVL0_bm;
 
-	// La entrada de SMS es atendida por interrupcion
-	u_gprs_config_ri_pin();
-
 }
 //------------------------------------------------------------------------------------
 static void pv_gprs_rxbuffer_poke(char c)

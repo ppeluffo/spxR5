@@ -55,7 +55,7 @@ t_socket_status socket_status = SOCK_FAIL;
 	return(socket_status);
 }
 //------------------------------------------------------------------------------------
-void u_gprs_close_socket(void)
+bool u_gprs_close_socket(void)
 {
 	// Envio el comando AT para cerrar el socket.
 
@@ -77,7 +77,7 @@ uint8_t intentos = 4;
 		if ( IO_read_DCD() == 1 ) {
 			if ( systemVars.debug == DEBUG_GPRS ) {
 				xprintf_P( PSTR("GPRS: socket close(DCD=1)\r\n\0"));
-				return;
+				return(true);
 			}
 		}
 
@@ -87,11 +87,13 @@ uint8_t intentos = 4;
 		u_gprs_flush_RX_buffer();
 		//xCom_printf_P( fdGPRS, PSTR("AT+NETCLOSE\r"));
 		xCom_printf_P( fdGPRS, PSTR("AT+CIPCLOSE=0\r\n\0"));
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		vTaskDelay( (portTickType)( 500 / portTICK_RATE_MS ) );
 		if ( systemVars.debug == DEBUG_GPRS ) {
 			u_gprs_print_RX_Buffer();
 		}
 	}
+
+	return(false);
 
 	/*
 	while ( intentos-- > 0 ) {

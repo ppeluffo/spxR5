@@ -1246,7 +1246,8 @@ uint8_t pin = 0;
 
 		// write gprs sms nbr msg
 		if (!strcmp_P( strupr(argv[2]), PSTR("SMS\0"))) {
-			u_gprs_send_sms( argv[3], argv[4] );
+			//u_gprs_send_sms( argv[3], argv[4] );
+			u_sms_send( argv[3], argv[4] );
 			pv_snprintfP_OK();
 			return;
 		}
@@ -1257,6 +1258,7 @@ uint8_t pin = 0;
 			pv_snprintfP_OK();
 			return;
 		}
+
 
 		// write gprs (pwr|sw|rts|dtr) {on|off}
 		if (!strcmp_P( strupr(argv[2]), PSTR("PWR\0")) ) {
@@ -1330,18 +1332,10 @@ uint8_t pin = 0;
 	if ( cmd_mode == RD_CMD ) {
 		// read gprs (rsp,cts,dcd,ri)
 
-		// SMSCOUNT
-		// read gprs smscount
-		if (!strcmp_P(strupr(argv[2]), PSTR("SMSCOUNT\0"))) {
-			xprintf_P( PSTR("SMS count = %d\r\n"), u_gprs_read_sms_awaiting() );
-			return;
-		}
-
-
 		// SMS
 		// read gprs sms
 		if (!strcmp_P(strupr(argv[2]), PSTR("SMS\0"))) {
-			u_gprs_read_and_process_all_sms();
+			u_gprs_sms_rxcheckpoint();
 			return;
 		}
 
