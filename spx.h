@@ -66,8 +66,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.0.6.g"
-#define SPX_FW_DATE "@ 20191112"
+#define SPX_FW_REV "2.0.6.h"
+#define SPX_FW_DATE "@ 20191113"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -129,7 +129,7 @@
 #define SGN_XBEE_FRAME_READY	0x09	//
 #define SGN_XBEE_ACK			0x0A	//
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_OUTPUTS, DEBUG_PILOTO, DEBUG_ALARMAS, DEBUG_XBEE } t_debug;
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_APLICACION } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
@@ -289,6 +289,14 @@ typedef struct {
 	uint8_t	control;
 } st_perforacion_t;
 
+#define NRO_PERFXTANQUE		10
+#define SMS_NRO_LENGTH		10
+
+typedef struct {
+	float low_level;
+	float high_level;
+	char sms_perforaciones[NRO_PERFXTANQUE][SMS_NRO_LENGTH];
+} st_tanque_t;
 //---------------------------------------------------------------------------
 
 typedef struct {
@@ -303,11 +311,17 @@ typedef struct {
 } st_alarma_t;
 
 #define NRO_CANALES_ALM	6
+
+//---------------------------------------------------------------------------
+
 typedef struct {
 	st_consigna_t consigna;
 	st_perforacion_t perforacion;
 	st_alarma_t alarmas[NRO_CANALES_ALM];
+	st_tanque_t tanque;
+
 } aplicacion_conf_t;
+
 
 typedef struct {
 
@@ -427,6 +441,16 @@ uint8_t ainputs_checksum(void);
 // TKDATA
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );
 void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr);
+
+// TANQUE
+void tanque_stk(void);
+bool tanque_config ( char *param1, char *param2, char *param3 );
+void tanque_config_defaults(void);
+uint8_t tanque_checksum(void);
+void tanque_set_params_from_gprs( char *tk_sms, char *tk_link );
+bool tanque_read_sms_enable_flag(void);
+uint16_t tanque_perf_link_status(void);
+
 
 // WATCHDOG
 uint8_t wdg_resetCause;

@@ -68,8 +68,8 @@ void st_alarm_normal(void)
 bool alarm_fired = false;
 
 // Entry:
-	if ( systemVars.debug == DEBUG_ALARMAS ) {
-		xprintf_P(PSTR("ALARMAS: Ingreso en modo Normal.\r\n\0"));
+	if ( systemVars.debug == DEBUG_APLICACION ) {
+		xprintf_P(PSTR("APP_ALARMAS: Ingreso en modo Normal.\r\n\0"));
 	}
 
 // Loop:
@@ -121,8 +121,8 @@ void st_alarm_mantenimiento(void)
 
 
 // Entry:
-	if ( systemVars.debug == DEBUG_ALARMAS ) {
-		xprintf_P(PSTR("ALARMAS: Ingreso en modo Mantenimiento.\r\n\0"));
+	if ( systemVars.debug == DEBUG_APLICACION ) {
+		xprintf_P(PSTR("APP_ALARMAS: Ingreso en modo Mantenimiento.\r\n\0"));
 	}
 	// Al entrar en mantenimiento apago todas las posibles señales activas.
 	// Solo debe flashear la luz verde.
@@ -174,8 +174,8 @@ void st_alarm_standby(void)
 int16_t timer_en_standby;
 
 // Entry:
-	if ( systemVars.debug == DEBUG_ALARMAS ) {
-		xprintf_P(PSTR("ALARMAS: Ingreso en modo Standby.\r\n\0"));
+	if ( systemVars.debug == DEBUG_APLICACION ) {
+		xprintf_P(PSTR("APP_ALARMAS: Ingreso en modo Standby.\r\n\0"));
 	}
 	// Debo permancer 30 minutos.
 	timer_en_standby = TIME_IN_STANDBY;

@@ -52,7 +52,7 @@ void tkAplicacion(void * pvParameters)
 	case APP_TANQUE:
 		// Es el caso en que no debo hacer nada con las salidas.
 		// Duermo 25s para entrar en pwrdown.
-		aplicacion_off_stk();
+		tanque_stk();
 		break;
 	case APP_ALARMAS:
 		alarmas_stk();

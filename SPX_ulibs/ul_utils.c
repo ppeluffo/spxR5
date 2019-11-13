@@ -258,6 +258,7 @@ void u_load_defaults( char *opt )
 	systemVars.aplicacion = APP_OFF;
 	consigna_config_defaults();
 	alarma_config_defaults();
+	tanque_config_defaults();
 
 }
 //------------------------------------------------------------------------------------

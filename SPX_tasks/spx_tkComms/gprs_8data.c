@@ -20,6 +20,7 @@ static bool pv_procesar_respuesta_server(void);
 static void pv_process_response_RESET(void);
 static void pv_process_response_MEMFORMAT(void);
 static void pv_process_response_PERF_OUTS(void);
+static void pv_process_response_TANQUE(void);
 static uint8_t pv_process_response_OK(void);
 
 FAT_t gprs_fat;
@@ -159,7 +160,7 @@ bool retS = bool_CONTINUAR;
 static bool sst_espera(void)
 {
 
-uint8_t sleep_time = 90;
+uint8_t sleep_time = 60;
 bool retS = bool_CONTINUAR;
 //t_socket_status socket_status = 0;
 
@@ -401,6 +402,11 @@ bool exit_flag = false;
 				pv_process_response_PERF_OUTS();
 			}
 
+			if ( u_gprs_check_response ("TQS\0")) {
+				// El sever mando actualizacion de los datos aun tanque
+				pv_process_response_TANQUE();
+			}
+
 			if ( u_gprs_check_response ("RX_OK\0")) {
 				// Datos procesados por el server.
 				pv_process_response_OK();
@@ -496,6 +502,49 @@ char *p = NULL;
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: PERF_OUTS\r\n\0"));
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_process_response_TANQUE(void)
+{
+	// Recibi algo del estilo TQS:0,245
+	// Es la respuesta del server a un frame de datos de un tanque.
+	// El primer dato puede ser 0 o 1.
+	// Si es 0 hay que deshabilitar el SMS
+	// Si es 1 hay que habilitarlo
+	// El segundo dato es un numero que indica el estado de los enlaces
+	// de las perforaciones. 0 indica caido, 1 indica activo.
+	//
+
+	// Extraigo el valor de las salidas y las seteo.
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_sms = NULL;
+char *tk_link = NULL;
+char *delim = ",=:><";
+char *p = NULL;
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "TQS");
+	if ( p == NULL ) {
+		return;
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_sms = strsep(&stringp,delim);	// TQS
+	tk_sms = strsep(&stringp,delim);	// Str. con el valor 0,1 del enable del sms
+	tk_link = strsep(&stringp,delim);	// Str. con el valor del estado de los links de las perforaciones
+
+	// Actualizo el status a travez de una funcion propia del modulo de outputs
+	tanque_set_params_from_gprs( tk_sms, tk_link );
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: TQS\r\n\0"));
 	}
 
 }

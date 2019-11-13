@@ -112,6 +112,7 @@ FAT_t l_fat;
 uint8_t channel = 0;
 st_dataRecord_t dr;
 uint8_t olatb = 0 ;
+uint8_t i;
 
 	memset( &l_fat, '\0', sizeof(FAT_t));
 
@@ -215,6 +216,16 @@ uint8_t olatb = 0 ;
 		break;
 	case APP_TANQUE:
 		xprintf_P( PSTR("  modo: TANQUE\r\n\0"));
+		xprintf_P( PSTR("  low_level: %0.3f, high_level: %0.03f \r\n\0"), systemVars.aplicacion_conf.tanque.low_level, systemVars.aplicacion_conf.tanque.high_level  );
+		if ( tanque_read_sms_enable_flag() ) {
+			xprintf_P( PSTR("  sms: Enabled\r\n\0"));
+		} else {
+			xprintf_P( PSTR("  sms: Disabled\r\n\0"));
+		}
+		xprintf_P( PSTR("  links: %d\r\n\0"), tanque_perf_link_status());
+		for ( i = 0; i < NRO_PERFXTANQUE; i++ ) {
+			xprintf_P( PSTR("  sms%02d: %s\r\n\0"), i, systemVars.aplicacion_conf.tanque.sms_perforaciones[i]);
+		}
 		break;
 	case APP_ALARMAS:
 		xprintf_P( PSTR("  modo: ALARMAS\r\n\0"));
@@ -245,11 +256,8 @@ uint8_t olatb = 0 ;
 	case DEBUG_GPRS:
 		xprintf_P( PSTR("  debug: gprs\r\n\0") );
 		break;
-	case DEBUG_PILOTO:
-		xprintf_P( PSTR("  debug: piloto\r\n\0") );
-		break;
-	case DEBUG_ALARMAS:
-		xprintf_P( PSTR("  debug: alarmas\r\n\0") );
+	case DEBUG_APLICACION:
+		xprintf_P( PSTR("  debug: aplicacion\r\n\0") );
 		break;
 	default:
 		xprintf_P( PSTR("  debug: ???\r\n\0") );
@@ -668,6 +676,15 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
+	// TANQUE
+	// config tanque sms {id} nro
+	// config tanque nivelB,nivelA valor
+	if (!strcmp_P( strupr(argv[1]), PSTR("TANQUE\0")) ) {
+		retS = tanque_config( argv[2], argv[3], argv[4] );
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
 	// ALARMA
 	// config alarma ch,{ALARMA1,2,3},{inf|sup},val
 	if (!strcmp_P( strupr(argv[1]), PSTR("ALARMA\0")) ) {
@@ -714,14 +731,8 @@ bool retS = false;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("GPRS\0"))) {
 			systemVars.debug = DEBUG_GPRS;
 			retS = true;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("OUTPUTS\0"))) {
-			systemVars.debug = DEBUG_OUTPUTS;
-			retS = true;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("PILOTO\0"))) {
-			systemVars.debug = DEBUG_PILOTO;
-			retS = true;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("ALARMAS\0"))) {
-			systemVars.debug = DEBUG_ALARMAS;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("APLICACION\0"))) {
+			systemVars.debug = DEBUG_APLICACION;
 			retS = true;
 		} else {
 			retS = false;
@@ -1019,7 +1030,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
 		}
 
-		xprintf_P( PSTR("  debug {none,counter,data, gprs, outputs, piloto, alarmas }\r\n\0"));
+		xprintf_P( PSTR("  debug {none,counter,data,gprs,aplicacion }\r\n\0"));
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
@@ -1034,6 +1045,8 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("         pband {pband}\r\n\0"));
 		xprintf_P( PSTR("         steps {steps}\r\n\0"));
 		xprintf_P( PSTR("         slot {idx} {hhmm} {pout}\r\n\0"));
+		xprintf_P( PSTR("  tanque sms {id} nro\r\n\0"));
+		xprintf_P( PSTR("         {nivelB,nivelA} valor\r\n\0"));
 		xprintf_P( PSTR("  default {SPY|OSE|UTE|CLARO}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
 	}
