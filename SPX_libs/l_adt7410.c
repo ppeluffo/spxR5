@@ -20,7 +20,7 @@ uint8_t times = 3;
 
 		// Leo 2 bytes del sensor de presion.
 		// El resultado es de 14 bits.
-		rcode =  I2C_read( BUSADDR_ADT7410, 0, data, 0x02 );
+		rcode =  I2C_read( BUSADDR_ADT7410, 0, data, 0x04 );
 
 		if ( rcode == -1 ) {
 			// Hubo error: trato de reparar el bus y reintentar la operacion

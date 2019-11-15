@@ -18,7 +18,7 @@ static void pv_cmd_print_stack_watermarks(void);
 static void pv_cmd_read_memory(void);
 static void pv_cmd_rwGPRS(uint8_t cmd_mode );
 static void pv_cmd_rwMCP(uint8_t cmd_mode );
-static void pv_cmd_I2Cscan(void);
+static void pv_cmd_I2Cscan(bool busscan);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -568,7 +568,14 @@ uint8_t cks;
 	// I2Cscan
 	// read i2cscan busaddr
 	if (!strcmp_P( strupr(argv[1]), PSTR("I2CSCAN\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		pv_cmd_I2Cscan();
+		pv_cmd_I2Cscan(false);
+		return;
+	}
+
+	// I2Cscanbus
+	// read i2cscanbus
+	if (!strcmp_P( strupr(argv[1]), PSTR("I2CSCANBUS\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_I2Cscan(true);
 		return;
 	}
 
@@ -993,7 +1000,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  id\r\n\0"));
 			xprintf_P( PSTR("  (ee,nvmee,rtcram) {pos} {lenght}\r\n\0"));
 			xprintf_P( PSTR("  ina (id) {conf|chXshv|chXbusv|mfid|dieid}\r\n\0"));
-			xprintf_P( PSTR("  i2cscan {busaddr}\r\n\0"));
+			xprintf_P( PSTR("  i2cscan {busaddr}, i2cscanbus\r\n\0"));
 			if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  mcp {regAddr}\r\n\0"));
 			}
@@ -1595,20 +1602,34 @@ static void cmdPokeFunction(void)
 
 }
 //------------------------------------------------------------------------------------
-static void pv_cmd_I2Cscan(void)
+static void pv_cmd_I2Cscan(bool busscan)
 {
 
 bool retS = false;
 uint8_t i2c_address;
 
-	i2c_address = atoi(argv[2]);
-	retS = I2C_scan_device(i2c_address);
-	if (retS) {
-		xprintf_P( PSTR("I2C device found at 0x%02x\r\n\0"), i2c_address );
-	} else {
-		xprintf_P( PSTR("I2C device NOT found at 0x%02x\r\n\0"), i2c_address );
+
+	// Scan de una direccion
+	if ( busscan == false ) {
+		i2c_address = atoi(argv[2]);
+		retS = I2C_scan_device(i2c_address);
+		if (retS) {
+			xprintf_P( PSTR("I2C device found at 0x%02x\r\n\0"), i2c_address );
+		} else {
+			xprintf_P( PSTR("I2C device NOT found at 0x%02x\r\n\0"), i2c_address );
+		}
+		return;
 	}
-	return;
+
+	// Scan de todo el bus.00..FF.
+	// Solo muestro las direcciones donde encuentro un device.
+	for ( i2c_address = 0x00; i2c_address < 0xFF; i2c_address++ ) {
+		retS = I2C_scan_device(i2c_address);
+		if (retS) {
+			xprintf_P( PSTR("I2C device found at 0x%02x\r\n\0"), i2c_address );
+		};
+	}
+
 }
 //------------------------------------------------------------------------------------
 

@@ -28,7 +28,6 @@
 #include "avr_compiler.h"
 #include "clksys_driver.h"
 #include <inttypes.h>
-#include <l_bps120.h>
 
 #include "TC_driver.h"
 #include "pmic_driver.h"
@@ -60,6 +59,8 @@
 #include "l_printf.h"
 #include "l_rangeMeter.h"
 #include "l_bytes.h"
+#include "l_bps120.h"
+#include "l_adt7410.h"
 #include "SPX_ulibs/ul_consigna.h"
 #include "SPX_ulibs/ul_perforacion.h"
 #include "SPX_ulibs/ul_alarmas_ose.h"
@@ -417,7 +418,7 @@ uint8_t psensor_checksum(void);
 
 // TEMPSENSOR
 void tempsensor_init(void);
-bool tempsensor_read( float *temp );
+bool tempsensor_read( float *tempC );
 void tempsensor_test_read (void);
 void tempsensor_print(file_descriptor_t fd, float temp );
 

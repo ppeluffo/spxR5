@@ -17,7 +17,6 @@
 // API START
 
 int8_t adt7410_raw_read( char *data );
-int8_t TEST_adt7410_raw_read( char *data );
 
 // API END
 //--------------------------------------------------------------------------------
