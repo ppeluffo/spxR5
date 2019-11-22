@@ -27,7 +27,10 @@ void counters_setup(void)
 	// y el periodo.
 	// Se deben crear antes que las tarea y que arranque el scheduler
 
-	counter_xTimer0A = xTimerCreateStatic ("CNT0",
+	// Counter de debounce de pulsos en linea A
+	// Mide el tiempo minimo que el pulso está arriba
+	// Mide el pulse_width
+	counter_xTimer0A = xTimerCreateStatic ("CNT0A",
 			pdMS_TO_TICKS( 10 ),
 			pdFALSE,
 			( void * ) 0,
@@ -35,24 +38,29 @@ void counters_setup(void)
 			&counter_xTimerBuffer0A
 			);
 
-	counter_xTimer0B = xTimerCreateStatic ("CNT0",
-			pdMS_TO_TICKS( 100 ),
-			pdFALSE,
-			( void * ) 0,
-			pv_counters_TimerCallback0B,
-			&counter_xTimerBuffer0B
-			);
-
+	// Mide el periodo del pulso en la linea A.
 	counter_xTimer1A = xTimerCreateStatic ("CNT1A",
-			pdMS_TO_TICKS( 10 ),
+			pdMS_TO_TICKS( 90 ),
 			pdFALSE,
 			( void * ) 0,
 			pv_counters_TimerCallback1A,
 			&counter_xTimerBuffer1A
 			);
 
-	counter_xTimer1B = xTimerCreateStatic ("CNT1A",
-			pdMS_TO_TICKS( 100 ),
+
+	// Counter de debounce de pulsos en linea B
+	// Mide el tiempo minimo que el pulso está arriba
+	counter_xTimer0B = xTimerCreateStatic ("CNT0B",
+			pdMS_TO_TICKS( 10 ),
+			pdFALSE,
+			( void * ) 0,
+			pv_counters_TimerCallback0B,
+			&counter_xTimerBuffer0B
+			);
+
+
+	counter_xTimer1B = xTimerCreateStatic ("CNT1B",
+			pdMS_TO_TICKS( 90 ),
 			pdFALSE,
 			( void * ) 0,
 			pv_counters_TimerCallback1B,
@@ -67,16 +75,22 @@ void counters_init(void)
 	// Esto lo debo hacer aqui porque ya lei el systemVars y tengo los valores.
 	// Esto arranca el timer por lo que hay que apagarlos
 
+	// CNT0 (PA)
+	// Pulse-width
 	xTimerChangePeriod( counter_xTimer0A, systemVars.counters_conf.pwidth[0], 10 );
 	xTimerStop(counter_xTimer0A, 10);
 
-	xTimerChangePeriod( counter_xTimer0B, systemVars.counters_conf.pwidth[0], 10 );
-	xTimerStop(counter_xTimer0B, 100);
-
-	xTimerChangePeriod( counter_xTimer1A, systemVars.counters_conf.pwidth[1], 10 );
+	// Period
+	xTimerChangePeriod( counter_xTimer1A, ( systemVars.counters_conf.period[0] - systemVars.counters_conf.pwidth[0]) , 10 );
 	xTimerStop(counter_xTimer1A, 10);
 
-	xTimerChangePeriod( counter_xTimer1B, systemVars.counters_conf.period[1], 10 );
+	// CNT1 (PB)
+	// Pulse-width
+	xTimerChangePeriod( counter_xTimer0B, systemVars.counters_conf.pwidth[1], 10 );
+	xTimerStop(counter_xTimer0B, 10);
+
+	// Period
+	xTimerChangePeriod( counter_xTimer1B, ( systemVars.counters_conf.period[1] - systemVars.counters_conf.pwidth[1]) , 10 );
 	xTimerStop(counter_xTimer1B, 10);
 
 	COUNTERS_init(0);
@@ -89,15 +103,27 @@ void counters_init(void)
 //------------------------------------------------------------------------------------
 static void pv_counters_TimerCallback0A( TimerHandle_t xTimer )
 {
-	// Funcion de callback de la entrada de contador 1.
-	// Aqui es que expiro el tiempo de debounce. Leo la entrada y si esta
-	// aun en 1, incremento el contador y habilito la interrupción nuevamente.
+	// Funcion de callback de la entrada de contador A.
+	// Controla el pulse_width de la entrada A
+	// Leo la entrada y si esta aun en 1, incremento el contador y
+	// prendo el timer xTimer1X que termine el debounce.
 	if ( CNT_read_CNT0() == 1 ) {
 		pv_cnt0++;
-		xTimerStart( counter_xTimer0B, 1 );
+		xTimerStart( counter_xTimer1A, 1 );
 		return;
 	}
 
+	// No se cumplio el pulse_width minimo. No cuento el pulso y rearmo el sistema
+	// para poder volver a interrumpir
+	PORTA.INT0MASK = PIN2_bm;
+	PORTA.INTCTRL = PORT_INT0LVL0_bm;
+	PORTA.INTFLAGS = PORT_INT0IF_bm;
+
+}
+//------------------------------------------------------------------------------------
+static void pv_counters_TimerCallback1A( TimerHandle_t xTimer )
+{
+	// Se cumplio es period de la linea A (CNT0)
 	// Habilito a volver a interrumpir
 	PORTA.INT0MASK = PIN2_bm;
 	PORTA.INTCTRL = PORT_INT0LVL0_bm;
@@ -108,19 +134,9 @@ static void pv_counters_TimerCallback0A( TimerHandle_t xTimer )
 static void pv_counters_TimerCallback0B( TimerHandle_t xTimer )
 {
 
-	// Habilito a volver a interrumpir
-	PORTA.INT0MASK = PIN2_bm;
-	PORTA.INTCTRL = PORT_INT0LVL0_bm;
-	PORTA.INTFLAGS = PORT_INT0IF_bm;
+	//IO_clr_LED_KA();
 
-}
-//------------------------------------------------------------------------------------
-static void pv_counters_TimerCallback1A( TimerHandle_t xTimer )
-{
-
-	IO_clr_LED_KA();
-
-	// Mido PW
+	// Mido el pulse_width de la linea B (CNT1)
 	if ( CNT_read_CNT1() == 1 ) {
 		pv_cnt1++;
 		xTimerStart( counter_xTimer1B, 1 );
@@ -283,12 +299,12 @@ ISR( PORTB_INT0_vect )
 		pv_cnt1++;
 	} else {
 		// Aseguro arrancar el timer
-		while ( xTimerStartFromISR( counter_xTimer1A, &xHigherPriorityTaskWoken1 ) != pdPASS )
+		while ( xTimerStartFromISR( counter_xTimer0B, &xHigherPriorityTaskWoken1 ) != pdPASS )
 			;
 		PORTB.INT0MASK = 0x00;
 		PORTB.INTCTRL = 0x00;
 		//PORTF.OUTTGL = 0x80;	// Toggle A2
-		IO_set_LED_KA();
+		//IO_set_LED_KA();
 	}
 }
 //------------------------------------------------------------------------------------

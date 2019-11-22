@@ -63,12 +63,12 @@
 #include "l_adt7410.h"
 #include "SPX_ulibs/ul_consigna.h"
 #include "SPX_ulibs/ul_perforacion.h"
-#include "SPX_ulibs/ul_alarmas_ose.h"
+#include "SPX_ulibs/ul_plantapot.h"
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.0.6.h"
-#define SPX_FW_DATE "@ 20191113"
+#define SPX_FW_REV "2.0.6.k"
+#define SPX_FW_DATE "@ 20191121"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -134,9 +134,9 @@ typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_APLI
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
+typedef enum { DIN_NORMAL = 0, DIN_TIMER  } dinputs_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
-typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_TANQUE, APP_ALARMAS } aplicacion_t;
-
+typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_TANQUE, APP_PLANTAPOT } aplicacion_t;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { PERF_CTL_BOYA, PERF_CTL_SISTEMA } perforacion_control_t;
 
@@ -165,13 +165,12 @@ void tkGprsTx(void * pvParameters);
 void tkAplicacion(void * pvParameters);
 
 #define DLGID_LENGTH		12
-#define PARAMNAME_LENGTH	5
 #define IP_LENGTH			24
 #define APN_LENGTH			32
 #define PORT_LENGTH			7
 #define SCRIPT_LENGTH		64
 #define PASSWD_LENGTH		15
-#define PARAMNAME_LENGTH	5
+#define PARAMNAME_LENGTH	7
 
 uint8_t NRO_COUNTERS;
 uint8_t NRO_ANINPUTS;
@@ -183,11 +182,11 @@ typedef struct {
 	uint16_t dinputs[IO5_DINPUTS_CHANNELS];		// 2 * 2 =  4
 	float counters[IO5_COUNTER_CHANNELS];		// 4 * 2 =  8
 	int16_t range;								// 2 * 1 =  2
-	int16_t psensor;							// 2 * 1 =  2
+	float psensor;								// 4 * 1 =  4
 	float temp;									// 4 * 1 =  4
 	float battery;								// 4 * 1 =  4
 	uint8_t plt_Vcounters[2];					// 2 * 1 =  2
-} st_io5_t;										// ----- = 46
+} st_io5_t;										// ----- = 48
 
 // Estructura de un registro de IO8CH
 typedef struct {
@@ -206,18 +205,6 @@ typedef struct {
 	u_dataframe_t df;	// 56
 	RtcTimeType_t rtc;	//  7
 } st_dataRecord_t;		// 63
-
-// Estructura de datos de un dataframe ( considera todos los canales que se pueden medir )
-typedef struct {
-	float ainputs[MAX_ANALOG_CHANNELS];
-	uint8_t dinputsA[MAX_DINPUTS_CHANNELS];
-	float counters[MAX_COUNTER_CHANNELS];
-	int16_t range;
-	int16_t psensor;
-	float battery;
-	RtcTimeType_t rtc;
-	uint8_t plt_Vcounters[2];
-} dataframe_s;		//65
 
 // Estructuras para las consignas
 typedef struct {
@@ -243,7 +230,7 @@ typedef struct {
 // Configuracion de canales digitales
 typedef struct {
 	char name[MAX_DINPUTS_CHANNELS][PARAMNAME_LENGTH];
-	bool modo_normal[MAX_DINPUTS_CHANNELS];
+	dinputs_modo_t wrk_modo[MAX_DINPUTS_CHANNELS];
 } dinputs_conf_t;
 
 // Configuracion de canales analogicos
@@ -254,7 +241,6 @@ typedef struct {
 	float mmax[MAX_ANALOG_CHANNELS];
 	char name[MAX_ANALOG_CHANNELS][PARAMNAME_LENGTH];
 	float offset[MAX_ANALOG_CHANNELS];
-	uint16_t inaspan[MAX_ANALOG_CHANNELS];
 	uint8_t pwr_settle_time;
 	float ieq_min[MAX_ANALOG_CHANNELS];
 	float ieq_max[MAX_ANALOG_CHANNELS];
@@ -274,9 +260,8 @@ typedef struct {
 // Configuracion del sensor i2c de presion
 typedef struct {
 	char name[PARAMNAME_LENGTH];
-	float pmax;
-	float pmin;
-	float poffset;
+	float span;
+	float offset;
 } psensor_conf_t;
 
 typedef struct {
@@ -409,11 +394,11 @@ uint8_t range_checksum(void);
 
 // PSENSOR
 void psensor_init(void);
-bool psensor_config ( char *s_pname, char *s_pmin, char *s_pmax, char *s_poffset  );
+bool psensor_config ( char *s_pname, char *s_offset, char *s_span );
 void psensor_config_defaults(void);
-bool psensor_read( int16_t *psens );
+bool psensor_read( float *presion );
 void psensor_test_read (void);
-void psensor_print(file_descriptor_t fd, uint16_t src );
+void psensor_print(file_descriptor_t fd, float presion );
 uint8_t psensor_checksum(void);
 
 // TEMPSENSOR
@@ -426,11 +411,9 @@ void tempsensor_print(file_descriptor_t fd, float temp );
 void ainputs_init(void);
 void ainputs_awake(void);
 void ainputs_sleep(void);
-bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax );
+bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax,char *s_offset );
 void ainputs_config_defaults(void);
-bool ainputs_config_offset( char *s_channel, char *s_offset );
-void ainputs_config_timepwrsensor ( char *s_sensortime );
-void ainputs_config_span ( char *s_channel, char *s_span );
+void ainputs_config_timepwrsensor ( char *s_timepwrsensor );
 bool ainputs_config_autocalibrar( char *s_channel, char *s_mag_val );
 bool ainputs_config_ical( char *s_channel, char *s_ieqv );
 bool ainputs_read( float ain[], float *battery );

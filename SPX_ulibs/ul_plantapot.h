@@ -12,7 +12,7 @@
 #include "spx.h"
 
 #define TIMER_POLEO_ENTRADAS	30
-#define NRO_CANALES_ALARMA		6
+#define NRO_CANALES_MONITOREO	6
 
 #define TIME_IN_STANDBY			1800
 
@@ -36,7 +36,7 @@
 #define NRO_NIVEL_ALARMAS 4
 
 typedef enum { ALARMA_NIVEL_0 = 0, ALARMA_NIVEL_1, ALARMA_NIVEL_2, ALARMA_NIVEL_3 } nivel_alarma_t;
-typedef enum {st_alm_NORMAL = 0, st_alm_ALARMADO, st_alm_STANDBY, st_alm_MANTENIMIENTO } t_alarm_states;
+typedef enum {st_ppot_NORMAL = 0, st_ppot_ALARMADO, st_ppot_STANDBY, st_ppot_MANTENIMIENTO } t_ppot_states;
 typedef enum { act_OFF = 0, act_ON,act_FLASH } t_dev_action;
 
 #define TIMEOUT_ALARMA_NIVEL_0	-1
@@ -51,7 +51,7 @@ typedef struct {
 	int16_t timer;					// Tiempo en que el canal se encuentra en la banda de alarma
 } channel_t;
 
-channel_t l_alarm_input_channels[NRO_CANALES_ALARMA];		// Lista con los canales de entrada que se monitorean
+channel_t l_ppot_input_channels[NRO_CANALES_MONITOREO];		// Lista con los canales de entrada que se monitorean
 
 struct {
 	bool llave_mantenimiento;
@@ -59,20 +59,20 @@ struct {
 } alarmVars;
 
 
-void alarmas_stk(void);
+void plantapot_stk(void);
 
 // Acciones
-void alarma_luz_verde( t_dev_action action);
-void alarma_luz_roja( t_dev_action action);
-void alarma_luz_amarilla( t_dev_action action);
-void alarma_luz_naranja( t_dev_action action);
-void alarma_sirena(t_dev_action action);
+void action_luz_verde( t_dev_action action);
+void action_luz_roja( t_dev_action action);
+void action_luz_amarilla( t_dev_action action);
+void action_luz_naranja( t_dev_action action);
+void action_sirena(t_dev_action action);
 uint8_t alarmas_checksum(void);
 bool alarma_config( char *canal_str, char *alarm_str, char *limit_str, char *value_str );
-void alarma_config_defaults(void);
-uint8_t alarma_read_status_sensor_puerta(void);
-uint8_t alarma_read_status_mantenimiento(void);
-void alarma_servicio_tecnico( char * action, char * device );
+void ppot_config_defaults(void);
+uint8_t ppot_read_status_sensor_puerta(void);
+uint8_t ppot_read_status_mantenimiento(void);
+void ppot_servicio_tecnico( char * action, char * device );
 
 
 #endif /* SRC_SPX_ULIBS_UL_ALARMAS_OSE_H_ */

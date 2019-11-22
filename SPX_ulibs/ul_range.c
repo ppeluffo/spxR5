@@ -54,7 +54,8 @@ bool retS = false;
 void range_print(file_descriptor_t fd, uint16_t src )
 {
 
-	if ( strcmp_P( systemVars.range_name, PSTR("X\0")) != 0 ) {
+	// Solo si el equipo es IO5CH y esta el range habilitado !!!
+	if ( ( spx_io_board == SPX_IO5CH )  && ( strcmp_P( systemVars.range_name, PSTR("X\0")) != 0 ) ) {
 		xCom_printf_P(fd, PSTR("%s:%d;"),systemVars.range_name,src );
 	}
 }

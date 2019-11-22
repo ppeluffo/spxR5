@@ -6,7 +6,7 @@
  */
 
 #include <SPX_ulibs/ul_consigna.h>
-#include <SPX_ulibs/ul_alarmas_ose.h>
+#include <SPX_ulibs/ul_plantapot.h>
 #include "spx.h"
 #include "gprs.h"
 
@@ -54,8 +54,8 @@ void tkAplicacion(void * pvParameters)
 		// Duermo 25s para entrar en pwrdown.
 		tanque_stk();
 		break;
-	case APP_ALARMAS:
-		alarmas_stk();
+	case APP_PLANTAPOT:
+		plantapot_stk();
 		break;
 	}
 

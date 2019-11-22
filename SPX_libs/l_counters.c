@@ -16,8 +16,8 @@ void COUNTERS_init( uint8_t cnt )
 	case 0:
 		CNT_config_CNT0();
 		//PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
-		//PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	// Sensa rising edge. Menos consumo con pulldown.
-		PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
+		PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	// Sensa rising edge. Menos consumo con pulldown.
+//		PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
 //		PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge. Menos consumo con pulldown.
 //		PORTA.PIN2CTRL = PORT_ISC_FALLING_gc;	// Sensa falling edge
 		//PORTA.PIN2CTRL = PORT_OPC_TOTEM_gc | PORT_ISC_FALLING_gc;
@@ -27,8 +27,8 @@ void COUNTERS_init( uint8_t cnt )
 	case 1:
 		CNT_config_CNT1();
 		//	PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
-		//PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;		// Sensa rising edge. Menos consumo con pulldown.
-		PORTB.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
+		PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;		// Sensa rising edge. Menos consumo con pulldown.
+//		PORTB.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
 //		PORTB.PIN2CTRL = PORT_ISC_FALLING_gc;
 //		PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge. Menos consumo con pulldown.
 		COUNTERS_enable_interrupt(1);

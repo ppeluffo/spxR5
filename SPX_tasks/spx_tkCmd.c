@@ -227,15 +227,15 @@ uint8_t i;
 			xprintf_P( PSTR("  sms%02d: %s\r\n\0"), i, systemVars.aplicacion_conf.tanque.sms_perforaciones[i]);
 		}
 		break;
-	case APP_ALARMAS:
-		xprintf_P( PSTR("  modo: ALARMAS\r\n\0"));
-		for ( channel=0; channel<NRO_CANALES_ALARMA; channel++) {
+	case APP_PLANTAPOT:
+		xprintf_P( PSTR("  modo: PLANTAPOT\r\n\0"));
+		for ( channel=0; channel<NRO_CANALES_MONITOREO; channel++) {
 			xprintf_P( PSTR("  ch%d: alm1:(%.02f,%.02f),"),channel, systemVars.aplicacion_conf.alarmas[channel].alarma1.lim_inf, systemVars.aplicacion_conf.alarmas[channel].alarma1.lim_sup);
 			xprintf_P( PSTR("  alm2:(%.02f,%.02f),"),systemVars.aplicacion_conf.alarmas[channel].alarma2.lim_inf, systemVars.aplicacion_conf.alarmas[channel].alarma2.lim_sup);
 			xprintf_P( PSTR("  alm3:(%.02f,%.02f) \r\n\0"), systemVars.aplicacion_conf.alarmas[channel].alarma3.lim_inf, systemVars.aplicacion_conf.alarmas[channel].alarma3.lim_sup);
 		}
-		xprintf_P( PSTR("  manteniemiento: %d\r\n\0"), alarma_read_status_mantenimiento());
-		xprintf_P( PSTR("  sensor puerta: %d\r\n\0"), alarma_read_status_sensor_puerta());
+		xprintf_P( PSTR("  manteniemiento: %d\r\n\0"), ppot_read_status_mantenimiento());
+		xprintf_P( PSTR("  sensor puerta: %d\r\n\0"), ppot_read_status_sensor_puerta());
 		break;
 	}
 
@@ -288,20 +288,29 @@ uint8_t i;
 
 		// Psensor
 		if ( strcmp ( systemVars.psensor_conf.name, "X" ) == 0 ) {
-			xprintf_P( PSTR("  psensor: %s\r\n\0"), systemVars.psensor_conf.name );
+			xprintf_P( PSTR("  psensor: X\r\n\0"));
 		} else {
-			xprintf_P( PSTR("  psensor: %s (%.03f,%.03f, %.03f)\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.poffset);
+			xprintf_P( PSTR("  psensor: %s (offset=%.01f, span=%.01f )\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.offset, systemVars.psensor_conf.span );
 		}
 	}
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %04d | %.02f | %.03f | %.03f | %s]\r\n\0"),channel, systemVars.ainputs_conf.imin[channel], systemVars.ainputs_conf.imax[channel], systemVars.ainputs_conf.mmin[channel], systemVars.ainputs_conf.mmax[channel], systemVars.ainputs_conf.inaspan[channel], systemVars.ainputs_conf.offset[channel] , systemVars.ainputs_conf.ieq_min[channel] , systemVars.ainputs_conf.ieq_max[channel], systemVars.ainputs_conf.name[channel] );
+		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %.02f | %.03f | %.03f | %s]\r\n\0"),
+				channel,
+				systemVars.ainputs_conf.imin[channel],
+				systemVars.ainputs_conf.imax[channel],
+				systemVars.ainputs_conf.mmin[channel],
+				systemVars.ainputs_conf.mmax[channel],
+				systemVars.ainputs_conf.offset[channel] ,
+				systemVars.ainputs_conf.ieq_min[channel] ,
+				systemVars.ainputs_conf.ieq_max[channel],
+				systemVars.ainputs_conf.name[channel] );
 	}
 
 	// dinputs
 	for ( channel = 0; channel <  NRO_DINPUTS; channel++) {
-		if ( systemVars.dinputs_conf.modo_normal[channel] == true ) {
+		if ( systemVars.dinputs_conf.wrk_modo[channel] == DIN_NORMAL ) {
 			xprintf_P( PSTR("  d%d (N),%s \r\n\0"),channel, systemVars.dinputs_conf.name[channel]);
 		} else {
 			xprintf_P( PSTR("  d%d (T),%s \r\n\0"),channel, systemVars.dinputs_conf.name[channel]);
@@ -317,7 +326,10 @@ uint8_t i;
 		}
 	}
 
+
 	// Muestro los datos
+	// CONFIG
+	xprintf_P( PSTR(">Frame:\r\n\0"));
 	data_read_inputs(&dr, true );
 	data_print_inputs(fdTERM, &dr);
 }
@@ -372,10 +384,10 @@ char l_data[10] = { '\0' };
 
 	FRTOS_CMD_makeArgv();
 
-	// ALARMA
-	// write alarma (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena)
-	if (!strcmp_P( strupr(argv[1]), PSTR("ALARMA\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		alarma_servicio_tecnico( argv[2], argv[3]);
+	// PPOT
+	// write ppot (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena)
+	if (!strcmp_P( strupr(argv[1]), PSTR("PPOT\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		ppot_servicio_tecnico( argv[2], argv[3]);
 		return;
 	}
 
@@ -723,30 +735,6 @@ bool retS = false;
 		return;
 	}
 
-	// DEBUG
-	// config debug
-	if (!strcmp_P( strupr(argv[1]), PSTR("DEBUG\0"))) {
-		if (!strcmp_P( strupr(argv[2]), PSTR("NONE\0"))) {
-			systemVars.debug = DEBUG_NONE;
-			retS = true;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("COUNTER\0"))) {
-			systemVars.debug = DEBUG_COUNTER;
-			retS = true;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("DATA\0"))) {
-			systemVars.debug = DEBUG_DATA;
-			retS = true;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("GPRS\0"))) {
-			systemVars.debug = DEBUG_GPRS;
-			retS = true;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("APLICACION\0"))) {
-			systemVars.debug = DEBUG_APLICACION;
-			retS = true;
-		} else {
-			retS = false;
-		}
-		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
-		return;
-	}
 
 	// DEFAULT
 	// config default
@@ -764,21 +752,15 @@ bool retS = false;
 		return;
 	}
 
-	// TIMERPOLL
-	// config timerpoll
-	if (!strcmp_P( strupr(argv[1]), PSTR("TIMERPOLL\0")) ) {
-		u_config_timerpoll( argv[2] );
-		pv_snprintfP_OK();
+	// Parametros ENTRADAS DIGITALES------------------------------------------------------------------------
+	// DIGITAL
+	// config digital {0..N} dname {timer}
+	if (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) ) {
+		dinputs_config_channel( atoi(argv[2]), argv[3], argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
-	// OFFSET
-	// config offset {ch} {mag}
-	if (!strcmp_P( strupr(argv[1]), PSTR("OFFSET\0")) ) {
-		ainputs_config_offset( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-
+	// Parametros ENTRADAS ANALOGICAS------------------------------------------------------------------------
 	// AUTOCAL
 	// config autocal {ch} {mag}
 	if (!strcmp_P( strupr(argv[1]), PSTR("AUTOCAL\0")) ) {
@@ -793,75 +775,14 @@ bool retS = false;
 		return;
 	}
 
-	// TIMRPWRSENSOR
-	// config sensortime
-	if (!strcmp_P( strupr(argv[1]), PSTR("TIMEPWRSENSOR\0")) ) {
-		ainputs_config_timepwrsensor( argv[2] );
-		pv_snprintfP_OK();
-		return;
-	}
-
-	// INASPAN
-	// config inaspan
-	if (!strcmp_P( strupr(argv[1]), PSTR("INASPAN\0"))) {
-		ainputs_config_span( argv[2], argv[3] );
-		pv_snprintfP_OK();
-		return;
-	}
-
 	// ANALOG
-	// config analog {0..n} aname imin imax mmin mmax
+	// config analog {0..n} aname imin imax mmin mmax offset
 	if (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) ) {
-		ainputs_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		ainputs_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7], argv[8] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
-	// DIGITAL
-	// config digital {0..N} dname {timer}
-	if (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) ) {
-		dinputs_config_channel( atoi(argv[2]), argv[3], argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-
-	// PSENSOR
-	// config psensor pmin pmax poffset
-	if (!strcmp_P( strupr(argv[1]), PSTR("PSENSOR\0")) ) {
-		psensor_config( argv[2], argv[3], argv[4], argv[5] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-
-	// RANGEMETER
-	// config rangemeter {on|off}
-	if ( !strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) {
-
-		if ( range_config(argv[2]) ) {
-			pv_snprintfP_OK();
-			return;
-		} else {
-			pv_snprintfP_ERR();
-			return;
-		}
-
-		pv_snprintfP_ERR();
-		return;
-	}
-
-
-	// TIMERDIAL
-	// config timerdial
-	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0"))) ) {
-		u_gprs_config_timerdial( argv[2] );
-		pv_snprintfP_OK();
-		return;
-	}
-
-	// PWRSAVE
-	if (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0"))) {
-		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
-		pv_snprintfP_OK();
-		return;
-	}
-
+	// Parametros COMUNICACIONES ---------------------------------------------------------------------------------
 	// APN
 	if (!strcmp_P( strupr(argv[1]), PSTR("APN\0"))) {
 		if ( argv[2] == NULL ) {
@@ -932,6 +853,86 @@ bool retS = false;
 		return;
 	}
 
+	// Parametros BASE --------------------------------------------------------------------------------------------
+	// DEBUG
+	// config debug
+	if (!strcmp_P( strupr(argv[1]), PSTR("DEBUG\0"))) {
+		if (!strcmp_P( strupr(argv[2]), PSTR("NONE\0"))) {
+			systemVars.debug = DEBUG_NONE;
+			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("COUNTER\0"))) {
+			systemVars.debug = DEBUG_COUNTER;
+			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("DATA\0"))) {
+			systemVars.debug = DEBUG_DATA;
+			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("GPRS\0"))) {
+			systemVars.debug = DEBUG_GPRS;
+			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("APLICACION\0"))) {
+			systemVars.debug = DEBUG_APLICACION;
+			retS = true;
+		} else {
+			retS = false;
+		}
+		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		return;
+	}
+
+	// PSENSOR
+	// config psensor name offset span
+	if (!strcmp_P( strupr(argv[1]), PSTR("PSENSOR\0")) ) {
+		psensor_config( argv[2], argv[3], argv[4] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
+	// RANGEMETER
+	// config rangemeter {name}
+	if ( !strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0"))) {
+
+		if ( range_config(argv[2]) ) {
+			pv_snprintfP_OK();
+			return;
+		} else {
+			pv_snprintfP_ERR();
+			return;
+		}
+
+		pv_snprintfP_ERR();
+		return;
+	}
+
+	// TIMEPWRSENSOR
+	// config timepwrsensor
+	if (!strcmp_P( strupr(argv[1]), PSTR("TIMEPWRSENSOR\0")) ) {
+		ainputs_config_timepwrsensor( argv[2] );
+		pv_snprintfP_OK();
+		return;
+	}
+
+	// TIMERPOLL
+	// config timerpoll
+	if (!strcmp_P( strupr(argv[1]), PSTR("TIMERPOLL\0")) ) {
+		u_config_timerpoll( argv[2] );
+		pv_snprintfP_OK();
+		return;
+	}
+
+	// TIMERDIAL
+	// config timerdial
+	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0"))) ) {
+		u_gprs_config_timerdial( argv[2] );
+		pv_snprintfP_OK();
+		return;
+	}
+
+	// PWRSAVE
+	if (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0"))) {
+		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
+		pv_snprintfP_OK();
+		return;
+	}
+
 	// DLGID
 	if (!strcmp_P( strupr(argv[1]), PSTR("DLGID\0"))) {
 		if ( argv[2] == NULL ) {
@@ -968,7 +969,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  mcp {regAddr} {data}, mcpinit\r\n\0"));
 				xprintf_P( PSTR("  outputs (val dec.)\r\n\0"));
 				xprintf_P( PSTR("  outpin {0..7} {set | clear}\r\n\0"));
-				xprintf_P( PSTR("  alarma (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena) \r\n\0"));
+				xprintf_P( PSTR("  ppot (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena) \r\n\0"));
 			}
 
 			if ( spx_io_board == SPX_IO5CH ) {
@@ -1025,28 +1026,23 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
 
-		if ( spx_io_board == SPX_IO5CH ) {
-			xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
-			xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
-			xprintf_P( PSTR("  rangemeter {on|off}\r\n\0"));
-			xprintf_P( PSTR("  psensor {name} {pmin} {pmax} {poffset}\r\n\0"));
-			xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));
-		}
-
-		if ( spx_io_board == SPX_IO8CH ) {
-			xprintf_P( PSTR("  timerpoll {val}, sensortime {val}\r\n\0"));
-		}
+		xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
+		xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
+		xprintf_P( PSTR("  rangemeter {name}\r\n\0"));
+		xprintf_P( PSTR("  psensor {name} {offset} {span}\r\n\0"));
 
 		xprintf_P( PSTR("  debug {none,counter,data,gprs,aplicacion }\r\n\0"));
-		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax\r\n\0"),( NRO_ANINPUTS - 1 ) );
-		xprintf_P( PSTR("  offset {ch} {mag}, inaspan {ch} {mag}\r\n\0"));
+
+		xprintf_P( PSTR("  digital {0..%d} dname {normal,timer}\r\n\0"), ( NRO_DINPUTS - 1 ) );
+
+		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
+
+		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax offset\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
-		xprintf_P( PSTR("  digital {0..%d} dname {normal,timer}\r\n\0"), ( NRO_DINPUTS - 1 ) );
-		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
-		xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
+		//xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
 
-		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion, tanque, alarmas}\r\n\0"));
+		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque,plantapot}\r\n\0"));
 		xprintf_P( PSTR("  alarma ch,{ALARMA1,2,3}, {inf|sup} val\r\n\0"));
 		xprintf_P( PSTR("  piloto reg {CHICA|MEDIA|GRANDE}\r\n\0"));
 		xprintf_P( PSTR("         pband {pband}\r\n\0"));
@@ -1054,6 +1050,8 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("         slot {idx} {hhmm} {pout}\r\n\0"));
 		xprintf_P( PSTR("  tanque sms {id} nro\r\n\0"));
 		xprintf_P( PSTR("         {nivelB,nivelA} valor\r\n\0"));
+		xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));
+
 		xprintf_P( PSTR("  default {SPY|OSE|UTE|CLARO}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
 	}
@@ -1506,10 +1504,6 @@ uint8_t ch = 0;
 		ch = atoi( argv[2]);
 		xprintf_P( PSTR("OFFSET=%d,%.02f\r\n\0"), ch,systemVars.ainputs_conf.offset[ch] );
 
-	} else if  (!strcmp_P( strupr(argv[1]), PSTR("INASPAN\0")) && ( argv[2] != NULL )) {
-		ch = atoi( argv[2]);
-		xprintf_P( PSTR("INASPAN=%d,%d\r\n\0"), ch,systemVars.ainputs_conf.inaspan[ch] );
-
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) && ( argv[2] != NULL )) {
 		ch = atoi( argv[2]);
 		xprintf_P( PSTR("DIGITAL=%d,%s\r\n\0"), ch,systemVars.dinputs_conf.name[ch] );
@@ -1587,17 +1581,11 @@ static void cmdPokeFunction(void)
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
 		counters_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
 
-	} else if  (!strcmp_P( strupr(argv[1]), PSTR("OFFSET\0")) ) {
-		ainputs_config_offset( argv[2], argv[3] );
-
-	} else if  (!strcmp_P( strupr(argv[1]), PSTR("INASPAN\0")) ) {
-		ainputs_config_span( argv[2], argv[3] );
-
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("DIGITAL\0")) ) {
 		dinputs_config_channel( atoi(argv[2]), argv[3], argv[4] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) ) {
-		ainputs_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
+		ainputs_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7], argv[8] );
 	}
 
 }

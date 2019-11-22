@@ -12,18 +12,32 @@
 
 
 //------------------------------------------------------------------------------------
-int8_t bps120_raw_read( char *data )
+int8_t bps120_raw_read( float *presion )
 {
+
+		// EL sensor BOURNS bps120 mide presion diferencial.
+		// Por lo tanto retorna PRESION de acuerdo a la funcion de transferencia
+		// con la pMax la de la hoja de datos.
+		// De acuerdo a la hoja de datos, la funcion de transferencia es:
+		// p(psi) = (pmax - pmin ) * ( counts - 0.1Max) / ( 0.8Max) + pmin
+		// pmin = 0
+		// Max = 16384 ( 14 bits )
+		// 0.1xMax = 1638
+		// 0.8xMax = 13107
+		// counts es el valor leido del sensor.
+		// PMAX = 1.0 psi
+		// PMIN = 0 psi
 
 int8_t rcode = 0;
 uint8_t times = 3;
-
+char buffer[2] = { 0 };
+int16_t pcounts;
 
 	while ( times-- > 0 ) {
 
 		// Leo 2 bytes del sensor de presion.
 		// El resultado es de 14 bits.
-		rcode =  I2C_read( BUSADDR_BPS120, 0, data, 0x02 );
+		rcode =  I2C_read( BUSADDR_BPS120, 0, &buffer[0], 0x02 );
 
 		if ( rcode == -1 ) {
 			// Hubo error: trato de reparar el bus y reintentar la operacion
@@ -34,9 +48,16 @@ uint8_t times = 3;
 			I2C_reinit_devices();
 		} else {
 			// No hubo error: salgo normalmente
+			pcounts = ( buffer[0]<<8 ) + buffer[1];
+			// Aplico la funcion de transferencia.
+			*presion = ( 1 * (pcounts - 1638)/13107 );
+			//xprintf_P(PSTR("BPS120: [0x%X][0x%X]\r\n\0"), buffer[0], buffer[1] );
+			//xprintf_P(PSTR("BPS120: pcounts=%d\r\n\0"), pcounts );
+			//xprintf_P(PSTR("BPS120: presion=%.02f\r\n\0"), *presion );
 			break;
 		}
 	}
+
 	return( rcode );
 }
 //------------------------------------------------------------------------------------

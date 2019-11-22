@@ -3,9 +3,22 @@
  *
  *  Created on: 8 mar. 2019
  *      Author: pablo
+ *
+ *  Funcionamiento:
+ *  Al leer los INA con la funcion pv_ainputs_read_channel_raw() nos devuelve el valor
+ *  del conversor A/D interno del INA.
+ *  De acuerdo a las hojas de datos ( sección 8.6.2.2 tenemos que 1LSB corresponde a 40uV ) de mod
+ *  que si el valor row lo multiplicamos por 40/1000 tenemos los miliVolts que el ina esta midiendo.
+ *
  */
 
 #include "spx.h"
+
+// Factor por el que hay que multitplicar el valor raw de los INA para tener
+// una corriente con una resistencia de 7.32 ohms.
+// Surge que 1LSB corresponde a 40uV y que la resistencia que ponemos es de 7.32 ohms
+// 1000 / 7.32 / 40 = 183 ;
+#define INA_FACTOR  183
 
 static bool sensores_prendidos = false;
 static bool autocal_running = false;
@@ -17,7 +30,6 @@ static void pv_ainputs_apagar_12Vsensors(void);
 static void pv_ainputs_prender_12V_sensors(void);
 static float pv_ainputs_read_channel ( uint8_t io_channel );
 static void pv_ainputs_read_battery(float *battery);
-static float pv_analog_convert_ieqv( float i_real, uint8_t io_channel );
 
 //------------------------------------------------------------------------------------
 void ainputs_init(void)
@@ -58,7 +70,7 @@ void ainputs_sleep(void)
 	}
 }
 //------------------------------------------------------------------------------------
-bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax )
+bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_imax,char *s_mmin,char *s_mmax,char *s_offset )
 {
 
 	// Configura los canales analogicos. Es usada tanto desde el modo comando como desde el modo online por gprs.
@@ -67,7 +79,6 @@ bool ainputs_config_channel( uint8_t channel,char *s_aname,char *s_imin,char *s_
 
 
 bool retS = false;
-bool change_ieqv = false;
 
 	//xprintf_P( PSTR("DEBUG ANALOG CONFIG: A%d,name=%s,imin=%s,imax=%s,mmin=%s, mmax=%s\r\n\0"), channel, s_aname, s_imin, s_imax, s_mmin, s_mmax );
 
@@ -86,67 +97,44 @@ bool change_ieqv = false;
 		if ( s_imin != NULL ) {
 			if ( systemVars.ainputs_conf.imin[channel] != atoi(s_imin) ) {
 				systemVars.ainputs_conf.imin[channel] = atoi(s_imin);
-				change_ieqv = true;
+				systemVars.ainputs_conf.ieq_min[channel] = systemVars.ainputs_conf.imin[channel];
 			}
 		}
 
 		if ( s_imax != NULL ) {
 			if ( systemVars.ainputs_conf.imax[channel] != atoi(s_imax) ) {
 				systemVars.ainputs_conf.imax[channel] = atoi(s_imax);
-				change_ieqv = true;
+				systemVars.ainputs_conf.ieq_max[channel] = systemVars.ainputs_conf.imax[channel];
 			}
 		}
 
-		// Ajusto los ieqv
-		if ( change_ieqv ) {
-			systemVars.ainputs_conf.ieq_min[channel] = systemVars.ainputs_conf.imin[channel];
-			systemVars.ainputs_conf.ieq_max[channel] = systemVars.ainputs_conf.imax[channel];
-			//xprintf_P( PSTR("DEBUG ANALOG Modifico IEQV\r\n\0"), channel );
+		if ( s_offset != NULL ) {
+			if ( systemVars.ainputs_conf.offset[channel] != atof(s_offset) ) {
+				systemVars.ainputs_conf.offset[channel] = atof(s_offset);
+			}
 		}
 
-		if ( s_mmin != NULL ) { systemVars.ainputs_conf.mmin[channel] = atoi(s_mmin); }
-		if ( s_mmax != NULL ) { systemVars.ainputs_conf.mmax[channel] = atof(s_mmax); }
-
-		// Si el nombre es X deshabilito todo
-/*		if ( strcmp ( systemVars.ainputs_conf.name[channel], "X" ) == 0 ) {
-			systemVars.ainputs_conf.imin[channel] = 0;
-			systemVars.ainputs_conf.imax[channel] = 0;
-			systemVars.ainputs_conf.mmin[channel] = 0;
-			systemVars.ainputs_conf.mmax[channel] = 0;
-			systemVars.ainputs_conf.ieq_min[channel] = 0;
-			systemVars.ainputs_conf.ieq_max[channel] = 0;
+		if ( s_mmin != NULL ) {
+			systemVars.ainputs_conf.mmin[channel] = atoi(s_mmin);
 		}
-*/
+
+		if ( s_mmax != NULL ) {
+			systemVars.ainputs_conf.mmax[channel] = atof(s_mmax);
+		}
+
 		retS = true;
 	}
 
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-bool ainputs_config_offset( char *s_channel, char *s_offset )
-{
-	// Configuro el parametro offset de un canal analogico.
-
-uint8_t channel = 0;
-float offset = 0.0;
-
-	channel = atoi(s_channel);
-	if ( ( channel >=  0) && ( channel < NRO_ANINPUTS ) ) {
-		offset = atof(s_offset);
-		systemVars.ainputs_conf.offset[channel] = offset;
-		return(true);
-	}
-
-	return(false);
-}
-//------------------------------------------------------------------------------------
-void ainputs_config_timepwrsensor ( char *s_sensortime )
+void ainputs_config_timepwrsensor ( char *s_timepwrsensor )
 {
 	// Configura el tiempo de espera entre que prendo  la fuente de los sensores y comienzo el poleo.
 	// Se utiliza solo desde el modo comando.
 	// El tiempo de espera debe estar entre 1s y 15s
 
-	systemVars.ainputs_conf.pwr_settle_time = atoi(s_sensortime);
+	systemVars.ainputs_conf.pwr_settle_time = atoi(s_timepwrsensor);
 
 	if ( systemVars.ainputs_conf.pwr_settle_time < 1 )
 		systemVars.ainputs_conf.pwr_settle_time = 1;
@@ -157,29 +145,16 @@ void ainputs_config_timepwrsensor ( char *s_sensortime )
 	return;
 }
 //------------------------------------------------------------------------------------
-void ainputs_config_span ( char *s_channel, char *s_span )
-{
-	// Configura el factor de correccion del span de canales delos INA.
-	// Esto es debido a que las resistencias presentan una tolerancia entonces con
-	// esto ajustamos que con 20mA den la excursión correcta.
-	// Solo de configura desde modo comando.
-
-uint8_t channel = 0;
-uint16_t span = 0;
-
-	channel = atoi(s_channel);
-	if ( ( channel >=  0) && ( channel < NRO_ANINPUTS ) ) {
-		span = atoi(s_span);
-		systemVars.ainputs_conf.inaspan[channel] = span;
-	}
-	return;
-
-}
-//------------------------------------------------------------------------------------
 bool ainputs_config_ical( char *s_channel, char *s_ieqv )
 {
-	// Para un canal dado, pongo una corriente de referecia en 4 o 20mA y
+	// Para un canal dado, pongo una corriente de referecia en IMIN y en IMAX (4 o 20mA) y
 	// la mido. Este sera el valor equivalente.
+	// Por ej. si la corriente que tengo como minima es 4mA, pongo con el calibrador 4mA
+	// y leo: El valor de la corriente medida, por ej. 3.96 es la corriente real que mido que corresponde
+	// a los 4mA que esta poniendo el calibrador.
+	// Lo mismo con la corriente maxima.
+	// Estas corrientes equiv_min, max son las corrientes que mide el INA con una fuente calibrada externa
+	// y me van a dar la pauta para los ajustes.
 
 
 uint8_t channel = 0;
@@ -194,6 +169,9 @@ bool retS = false;
 	}
 
 	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
+	autocal_running = true;
+
+	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
 //	signal_tkData_poll_off();
 	pv_ainputs_prender_12V_sensors();
 	vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
@@ -204,11 +182,14 @@ bool retS = false;
 	ainputs_sleep();
 
 	// Habilito a la tkData a volver a polear
+	autocal_running = false;
+
+	// Habilito a la tkData a volver a polear
 //	signal_tkData_poll_on();
 
 	// Convierto el raw_value a la magnitud
-	I = (float)( an_raw_val) * 20 / ( systemVars.ainputs_conf.inaspan[channel] + 1);
-	//xprintf_P( PSTR("ICAL: ch%d: ANRAW=%d, I=%.03f\r\n\0"), channel, an_raw_val, I );
+	I = (float)( an_raw_val ) / INA_FACTOR;
+	xprintf_P( PSTR("ICAL: ch%d: ANRAW=%d, I=%.03f\r\n\0"), channel, an_raw_val, I );
 
 	if  ( strcmp_P( strupr(s_ieqv), PSTR("IMIN\0")) == 0 ) {
 		systemVars.ainputs_conf.ieq_min[channel] = I;
@@ -260,7 +241,7 @@ float offset = 0.0;
 //	xprintf_P( PSTR("ANRAW=%d\r\n\0"), an_raw_val );
 
 	// Convierto el raw_value a la magnitud
-	I = (float)( an_raw_val) * 20 / ( systemVars.ainputs_conf.inaspan[channel] + 1);
+	I = (float)( an_raw_val ) / INA_FACTOR;
 	P = 0;
 	D = systemVars.ainputs_conf.imax[channel] - systemVars.ainputs_conf.imin[channel];
 
@@ -307,14 +288,15 @@ uint8_t channel = 0;
 
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
 		systemVars.ainputs_conf.imin[channel] = 0;
+		systemVars.ainputs_conf.ieq_min[channel] = 0.0;
+
 		systemVars.ainputs_conf.imax[channel] = 20;
+		systemVars.ainputs_conf.ieq_max[channel] = 20.0;
+
 		systemVars.ainputs_conf.mmin[channel] = 0.0;
 		systemVars.ainputs_conf.mmax[channel] = 6.0;
-		systemVars.ainputs_conf.offset[channel] = 0.0;
-		systemVars.ainputs_conf.inaspan[channel] = 3646;
 
-		systemVars.ainputs_conf.ieq_min[channel] = 0.0;
-		systemVars.ainputs_conf.ieq_max[channel] = 20.0;
+		systemVars.ainputs_conf.offset[channel] = 0.0;
 
 		snprintf_P( systemVars.ainputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("A%d\0"),channel );
 	}
@@ -429,7 +411,8 @@ uint8_t j = 0;
 		j = 0;
 		j += snprintf_P( &dst[j], sizeof(dst), PSTR("A%d:%s,"), i, systemVars.ainputs_conf.name[i] );
 		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,%d,"), systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i] );
-		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.03f,%.03f;"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
+		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.02f,%.02f,"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
+		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.02f"), systemVars.ainputs_conf.offset[i] );
 
 		//xprintf_P( PSTR("DEBUG: ACKS = [%s]\r\n\0"), dst );
 		// Apunto al comienzo para recorrer el buffer
@@ -486,7 +469,7 @@ uint8_t MSB = 0;
 uint8_t LSB = 0;
 char res[3] = { '\0','\0', '\0' };
 int8_t xBytes = 0;
-//float vshunt;
+float vshunt;
 
 	//xprintf_P( PSTR("in->ACH: ch=%d, ina=%d, reg=%d, MSB=0x%x, LSB=0x%x, ANV=(0x%x)%d, VSHUNT = %.02f(mV)\r\n\0") ,channel_id, ina_id, ina_reg, MSB, LSB, an_raw_val, an_raw_val, vshunt );
 
@@ -571,7 +554,7 @@ int8_t xBytes = 0;
 	an_raw_val = ( MSB << 8 ) + LSB;
 	an_raw_val = an_raw_val >> 3;
 
-	//vshunt = (float) an_raw_val * 40 / 1000;
+	vshunt = (float) an_raw_val * 40 / 1000;
 	//xprintf_P( PSTR("out->ACH: ch=%d, ina=%d, reg=%d, MSB=0x%x, LSB=0x%x, ANV=(0x%x)%d, VSHUNT = %.02f(mV)\r\n\0") ,channel_id, ina_id, ina_reg, MSB, LSB, an_raw_val, an_raw_val, vshunt );
 
 	return( an_raw_val );
@@ -579,10 +562,24 @@ int8_t xBytes = 0;
 //------------------------------------------------------------------------------------
 static float pv_ainputs_read_channel ( uint8_t io_channel )
 {
-	// Lee un canal analogico y devuelve el valor convertido a la magnitud configurada.
-	// Es publico porque se utiliza tanto desde el modo comando como desde el modulo de poleo de las entradas.
-	// Hay que corregir la correspondencia entre el canal leido del INA y el canal fisico del datalogger
-	// io_channel. Esto lo hacemos en AINPUTS_read_ina.
+	/*
+	Lee un canal analogico y devuelve el valor convertido a la magnitud configurada.
+	Es publico porque se utiliza tanto desde el modo comando como desde el modulo de poleo de las entradas.
+	Hay que corregir la correspondencia entre el canal leido del INA y el canal fisico del datalogger
+	io_channel. Esto lo hacemos en AINPUTS_read_ina.
+
+	la funcion read_channel_raw me devuelve el valor raw del conversor A/D.
+	Este corresponde a 40uV por bit por lo tanto multiplico el valor raw por 40/1000 y obtengo el valor en mV.
+	Como la resistencia es de 7.32, al dividirla en 7.32 tengo la corriente medida.
+	Para pasar del valor raw a la corriente debo hacer:
+	- Pasar de raw a voltaje: V = raw * 40 / 1000 ( en mV)
+	- Pasar a corriente: I = V / 7.32 ( en mA)
+	- En un solo paso haria: I = raw / 3660
+	  3660 = 40 / 1000 / 7.32.
+	  Este valor 3660 lo llamamos INASPAN y es el valor por el que debo multiplicar el valor raw para que con una
+	  resistencia shunt de 7.32 tenga el valor de la corriente medida. !!!!
+	*/
+
 
 uint16_t an_raw_val = 0;
 float an_mag_val = 0.0;
@@ -590,36 +587,40 @@ float I = 0.0;
 float M = 0.0;
 float P = 0.0;
 uint16_t D = 0;
+float Icorr = 0.0;	// Corriente corregida por span y offset
 
-	// Leo el valor del INA.
+	// Leo el valor del INA.(raw)
 	an_raw_val = pv_ainputs_read_channel_raw( io_channel );
 
-	// Convierto el raw_value a la magnitud
-	// Calculo la corriente medida en el canal
-	I = (float)( an_raw_val) * 20 / ( systemVars.ainputs_conf.inaspan[io_channel] + 1);
+	// Convierto el raw_value a corriente
+	I = (float) an_raw_val / INA_FACTOR;
 	if ( systemVars.debug == DEBUG_DATA ) {
-		xprintf_P( PSTR("DEBUG ANALOG READ CHANNEL: A%d I=%.03f\r\n\0"), io_channel, I );
+		xprintf_P( PSTR("DEBUG ANALOG READ CHANNEL: A%d (RAW=%d), I=%.03f\r\n\0"), io_channel, an_raw_val, I );
 	}
 
-	// Convierto a la corriente equivalente por el ajuste de offset y span
-	I = pv_analog_convert_ieqv (I, io_channel);
+	// Corrijo la corriente por los efectos del offset en 0(4) y el span en 20.
+	M = ( systemVars.ainputs_conf.imax[io_channel] - systemVars.ainputs_conf.imin[io_channel] ) / ( systemVars.ainputs_conf.ieq_max[io_channel] - systemVars.ainputs_conf.ieq_min[io_channel] );
+	Icorr = systemVars.ainputs_conf.imin[io_channel] + M * ( I - systemVars.ainputs_conf.ieq_min[io_channel] );
 	if ( systemVars.debug == DEBUG_DATA ) {
-		xprintf_P( PSTR("DEBUG ANALOG READ CHANNEL: A%d Ieqv=%.03f\r\n\0"), io_channel, I );
+		xprintf_P( PSTR("DEBUG ANALOG READ CHANNEL: A%d Icorregida =%.03f\r\n\0"), io_channel, Icorr );
 	}
 
 	// Calculo la magnitud
 	P = 0;
 	D = systemVars.ainputs_conf.imax[io_channel] - systemVars.ainputs_conf.imin[io_channel];
-
 	an_mag_val = 0.0;
 	if ( D != 0 ) {
 		// Pendiente
 		P = (float) ( systemVars.ainputs_conf.mmax[io_channel]  -  systemVars.ainputs_conf.mmin[io_channel] ) / D;
 		// Magnitud
-		M = (float) (systemVars.ainputs_conf.mmin[io_channel] + ( I - systemVars.ainputs_conf.imin[io_channel] ) * P);
+		M = (float) (systemVars.ainputs_conf.mmin[io_channel] + ( Icorr - systemVars.ainputs_conf.imin[io_channel] ) * P);
 
 		// Al calcular la magnitud, al final le sumo el offset.
 		an_mag_val = M + systemVars.ainputs_conf.offset[io_channel];
+		// Corrijo el 0 porque sino al imprimirlo con 2 digitos puede dar negativo
+		if ( fabs(an_mag_val) < 0.01 )
+			an_mag_val = 0.0;
+
 	} else {
 		// Error: denominador = 0.
 		an_mag_val = -999.0;
@@ -639,16 +640,5 @@ static void pv_ainputs_read_battery(float *battery)
 	// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
 	*battery =  0.008 * pv_ainputs_read_battery_raw();
 
-}
-//------------------------------------------------------------------------------------
-static float pv_analog_convert_ieqv( float i_real, uint8_t io_channel )
-{
-float Ieq = 0.0;
-
-	Ieq = ( systemVars.ainputs_conf.imax[io_channel] - systemVars.ainputs_conf.imin[io_channel] );
-	Ieq *= ( i_real - systemVars.ainputs_conf.ieq_min[io_channel] );
-	Ieq /= ( systemVars.ainputs_conf.ieq_max[io_channel] - systemVars.ainputs_conf.ieq_min[io_channel] );
-	Ieq += systemVars.ainputs_conf.imin[io_channel];
-	return(Ieq);
 }
 //------------------------------------------------------------------------------------

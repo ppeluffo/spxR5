@@ -3,15 +3,29 @@
  *
  *  Created on: 4 abr. 2019
  *      Author: pablo
+ *
+ *  Funcionamiento:
+ *  Los canales digitales pueden funcionar midiendo el nivel o midiendo el tiempo que una entrada
+ *  está en un nivel dado.
+ *  Para esto cuando se configura se elige el modo NORMAL o TIMER.
+ *  Cuando se reinicia el equipo, si alguno de los canales esta en modo TIMER se activa un
+ *  timer con frecuencia 10hz cuya funcion de callback lee las entradas digitales (todas)
+ *  por medio de la funcion pv_dinputs_poll().
+ *  Esta funcion si una entrada está en 1 lógico, incrementa el contador correspondiente.
+ *
+ *
+ *
  */
 
 #include "spx.h"
 #include "timers.h"
 
-static uint16_t din[MAX_DINPUTS_CHANNELS];
+static uint16_t pv_din[MAX_DINPUTS_CHANNELS];
 
 StaticTimer_t dinputs_xTimerBuffers;
 TimerHandle_t dinputs_xTimer;
+
+uint16_t ticks;
 
 static bool pv_dinputs_poll(void);
 static void pv_dinputs_TimerCallback( TimerHandle_t xTimer );
@@ -40,7 +54,7 @@ void dinputs_init(void)
 	// de entradas digitales.
 
 bool start_timer = false;
-uint8_t i;
+uint8_t channel;
 
 	switch (spx_io_board ) {
 	case SPX_IO5CH:
@@ -54,13 +68,14 @@ uint8_t i;
 
 	// Si alguna de las entradas esta en modo timer debemos arrancar el timer.
 	// Si no solo esperamos para usar el tickless.
-	for (i=0; i < NRO_DINPUTS; i++) {
-		if ( ! systemVars.dinputs_conf.modo_normal[i] ) {
+	for (channel=0; channel < NRO_DINPUTS; channel++) {
+		if ( systemVars.dinputs_conf.wrk_modo[channel] == DIN_TIMER ) {
 			start_timer = true;
 		}
-
 	}
+
 	if ( start_timer ) {
+		ticks = 0;
 		xTimerStart( dinputs_xTimer, 0 );
 		xprintf_P(PSTR("tkDada: dinputs timer started...\r\n\0"));
 	} else {
@@ -92,18 +107,19 @@ bool retS = false;
 	if ( ( channel >=  0) && ( channel < NRO_DINPUTS ) ) {
 		snprintf_P( systemVars.dinputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_aname );
 
-		systemVars.dinputs_conf.modo_normal[channel] = true;
+		systemVars.dinputs_conf.wrk_modo[channel] = DIN_NORMAL;
 		if ( s_tmodo != NULL ) {
 			if  ( !strcmp_P( strupr(s_tmodo), PSTR("NORMAL\0"))) {
-				systemVars.dinputs_conf.modo_normal[channel] = true;
+				systemVars.dinputs_conf.wrk_modo[channel] = DIN_NORMAL;
 			}
 			if  ( !strcmp_P( strupr(s_tmodo), PSTR("TIMER\0"))) {
-				systemVars.dinputs_conf.modo_normal[channel] = false;
+				systemVars.dinputs_conf.wrk_modo[channel] = DIN_TIMER;
 			}
 		}
+
 		// En caso que sea X, el valor es siempre NORMAL
 		if ( strcmp ( systemVars.dinputs_conf.name[channel], "X" ) == 0 ) {
-			systemVars.dinputs_conf.modo_normal[channel] = true;
+			systemVars.dinputs_conf.wrk_modo[channel] = DIN_NORMAL;
 		}
 
 		retS = true;
@@ -116,11 +132,11 @@ void dinputs_config_defaults(void)
 {
 	// Realiza la configuracion por defecto de los canales digitales.
 
-uint8_t i = 0;
+uint8_t channel = 0;
 
-	for ( i = 0; i < NRO_DINPUTS; i++ ) {
-		snprintf_P( systemVars.dinputs_conf.name[i], PARAMNAME_LENGTH, PSTR("D%d\0"), i );
-		systemVars.dinputs_conf.modo_normal[i] = true;
+	for ( channel = 0; channel < NRO_DINPUTS; channel++ ) {
+		snprintf_P( systemVars.dinputs_conf.name[channel], PARAMNAME_LENGTH, PSTR("DIN%d\0"), channel );
+		systemVars.dinputs_conf.wrk_modo[channel] = DIN_NORMAL;
 	}
 
 }
@@ -131,6 +147,7 @@ static void pv_dinputs_TimerCallback( TimerHandle_t xTimer )
 	// ticks que estan en 1.
 	// Las entradas que son normales solo almacena su nivel.
 
+	ticks++;
 	pv_dinputs_poll();
 
 }
@@ -139,10 +156,11 @@ void dinputs_clear(void)
 {
 	// Inicializo a 0 la estructura que guarda los valores.
 
-uint8_t i;
+uint8_t channel;
 
-	for (i=0; i < MAX_DINPUTS_CHANNELS; i++)
-		din[i] = 0;
+	ticks = 0;
+	for (channel=0; channel < MAX_DINPUTS_CHANNELS; channel++)
+		pv_din[channel] = 0;
 }
 //------------------------------------------------------------------------------------
 static bool pv_dinputs_poll(void)
@@ -155,7 +173,7 @@ static bool pv_dinputs_poll(void)
 	// Al activarlas contra GND se marca un '1' en el micro.
 
 
-uint8_t i;
+uint8_t channel;
 uint8_t din_val;
 uint8_t port = 0;
 int8_t rdBytes = 0;
@@ -166,24 +184,24 @@ bool retS = false;
 	case SPX_IO5CH:	// SPX_IO5
 		// DIN0
 		din_val = IO_read_PA0();
-		if ( systemVars.dinputs_conf.modo_normal[0] == true ) {
-			// modo normal
-			din[0] = din_val;
+		if ( systemVars.dinputs_conf.wrk_modo[0] == DIN_NORMAL ) {
+			// modo normal. Solo leo el valor de la entrada (0,1)
+			pv_din[0] = din_val;
 		} else {
 			// modo timer
 			if ( din_val == 1)
-				din[0]++;
+				pv_din[0]++;
 		}
 
 		// DIN1
 		din_val = IO_read_PB7();
-		if ( systemVars.dinputs_conf.modo_normal[1] == true ) {
+		if ( systemVars.dinputs_conf.wrk_modo[1] == DIN_NORMAL ) {
 			// modo normal
-			din[1] = din_val;
+			pv_din[1] = din_val;
 		} else {
 			// modo timer
 			if ( din_val == 1)
-				din[1]++;
+				pv_din[1]++;
 		}
 		retS = true;
 		break;
@@ -196,14 +214,14 @@ bool retS = false;
 			break;
 		}
 
-		for (i=0; i<NRO_DINPUTS;i++) {
-			din_val = ( port & ( 1 << i )) >> i;
-			if ( systemVars.dinputs_conf.modo_normal[1] == true ) {
-				din[i] = din_val;
+		for (channel=0; channel < NRO_DINPUTS; channel++) {
+			din_val = ( port & ( 1 << channel )) >> channel;
+			if ( systemVars.dinputs_conf.wrk_modo[channel] == DIN_NORMAL ) {
+				pv_din[channel] = din_val;
 			} else {
 				// modo timer
 				if ( din_val == 1)
-					din[i]++;
+					pv_din[channel]++;
 			}
 		}
 		retS = true;
@@ -213,12 +231,12 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-bool dinputs_read(uint16_t dst[] )
+bool dinputs_read( uint16_t dst[] )
 {
-	// Actualiza las entradas que estan en modo normal y copia
-	// igual a dinputs_copy.
+	// Leo las entradas que estan configuradas en modo NORMAL y copio de pv_din
+	// los valores de aquellas que estan en modo TIMER
 
-uint8_t i;
+uint8_t channel;
 uint8_t din_val;
 uint8_t port = 0;
 int8_t rdBytes = 0;
@@ -229,15 +247,19 @@ bool retS = false;
 	case SPX_IO5CH:	// SPX_IO5
 
 		// DIN0
-		if ( systemVars.dinputs_conf.modo_normal[0] == true ) {
+		if ( systemVars.dinputs_conf.wrk_modo[0] == DIN_NORMAL ) {
 			// modo normal
 			dst[0] = IO_read_PA0();
+		} else {
+			dst[0] = pv_din[0];
 		}
 
 		// DIN1
-		if ( systemVars.dinputs_conf.modo_normal[1] == true ) {
+		if ( systemVars.dinputs_conf.wrk_modo[1] == DIN_NORMAL ) {
 			// modo normal
 			dst[1] = IO_read_PB7();
+		} else {
+			dst[1] = pv_din[1];
 		}
 
 		retS = true;
@@ -251,16 +273,20 @@ bool retS = false;
 			break;
 		}
 
-		for (i=0; i<NRO_DINPUTS;i++) {
-			din_val = ( port & ( 1 << i )) >> i;
-			if ( systemVars.dinputs_conf.modo_normal[1] == true ) {
-				dst[i] = din_val;
+		for (channel=0; channel < NRO_DINPUTS; channel++) {
+			din_val = ( port & ( 1 << channel )) >> channel;
+			if ( systemVars.dinputs_conf.wrk_modo[channel] == DIN_NORMAL ) {
+				dst[channel] = din_val;
+			} else {
+				dst[channel] = pv_din[channel];
 			}
 		}
+
 		retS = true;
 		break;
 	}
 
+	//xprintf_P(PSTR("DEBUG DIN: tics=%d\r\n\0"), ticks);
 	return(retS);
 }
 //------------------------------------------------------------------------------------
@@ -270,13 +296,22 @@ void dinputs_print(file_descriptor_t fd, uint16_t src[] )
 	// forma formateada.
 	// Los lee de una estructura array pasada como src
 
-uint8_t i = 0;
+uint8_t channel = 0;
+float time_up;
 
-	for ( i = 0; i < NRO_DINPUTS; i++) {
-		if ( ! strcmp ( systemVars.dinputs_conf.name[i], "X" ) )
+	for ( channel = 0; channel < NRO_DINPUTS; channel++) {
+		if ( ! strcmp ( systemVars.dinputs_conf.name[channel], "X" ) )
 			continue;
 
-		xCom_printf_P(fd, PSTR("%s:%d;"), systemVars.dinputs_conf.name[i], src[i] );
+		if ( systemVars.dinputs_conf.wrk_modo[channel] == DIN_NORMAL ) {
+			xCom_printf_P(fd, PSTR("%s:%d;"), systemVars.dinputs_conf.name[channel], src[channel] );
+		} else {
+			// Ajusto los ticks.
+			// El maximo nro. de ticks esta dado por la variable ticks.
+			// El time-up lo expreso en segundos. Como el tick es de 0.1s, divido por 10.
+			time_up = src[channel] / 10;
+			xCom_printf_P(fd, PSTR("%s:%.01f;"), systemVars.dinputs_conf.name[channel], time_up );
+		}
 	}
 
 }
@@ -284,7 +319,7 @@ uint8_t i = 0;
 uint8_t dinputs_checksum(void)
 {
 
-uint16_t i;
+uint8_t channel;
 uint8_t checksum = 0;
 char dst[32];
 char *p;
@@ -296,15 +331,15 @@ uint8_t j = 0;
 	// D0:D0,1;D1:D1,1;
 
 	// calculate own checksum
-	for(i=0;i<NRO_DINPUTS;i++) {
+	for(channel=0;channel<NRO_DINPUTS;channel++) {
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
 		j = 0;
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-		if ( systemVars.dinputs_conf.modo_normal[i] == true ) {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("D%d:%s,NORMAL;"), i, systemVars.dinputs_conf.name[i] );
+		if ( systemVars.dinputs_conf.wrk_modo[channel] == DIN_NORMAL ) {
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("D%d:%s,NORMAL;"), channel , systemVars.dinputs_conf.name[channel] );
 		} else {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("D%d:%s,TIMER;"), i, systemVars.dinputs_conf.name[i] );
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("D%d:%s,TIMER;"), channel, systemVars.dinputs_conf.name[channel] );
 		}
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;

@@ -18,7 +18,7 @@
 
 #include "spx.h"
 
-st_dataRecord_t dr;
+st_dataRecord_t dataRecd;
 
 //------------------------------------------------------------------------------------
 // PROTOTIPOS
@@ -67,8 +67,8 @@ TickType_t xLastWakeTime = 0;
 
 		// Poleo si no estoy en autocal
 		if ( ! ainputs_autocal_running() ) {
-			data_read_inputs(&dr, false);
-			data_print_inputs(fdTERM, &dr);
+			data_read_inputs(&dataRecd, false);
+			data_print_inputs(fdTERM, &dataRecd);
 			pv_data_guardar_en_BD();
 
 			// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
@@ -96,18 +96,27 @@ TickType_t xLastWakeTime = 0;
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy )
 {
 	// Leo las entradas digitales sobre la estructura local din.
+	// En los IO5 el sensor de temperatura y presion actuan juntos !!!!.
 
 int8_t xBytes = 0;
 
+	// Solo copio el buffer. No poleo.
 	if ( f_copy ) {
-		memcpy(dst, &dr, sizeof(dr));
+		memcpy(dst, &dataRecd, sizeof(dataRecd));
 		return;
 	}
 
+	// Poleo.
 	switch(spx_io_board) {
 	case SPX_IO5CH:
 		dinputs_read( dst->df.io5.dinputs );
+		// dinputs y counters operan en background por lo que usan variables locales
+		// que deben ser borradas apenas las leo.
+		dinputs_clear();
+
 		counters_read( dst->df.io5.counters );
+		counters_clear();
+
 		ainputs_read( dst->df.io5.ainputs, &dst->df.io5.battery );
 
 		if ( strcmp( systemVars.psensor_conf.name, "X" ) != 0 ) {
@@ -119,15 +128,17 @@ int8_t xBytes = 0;
 		break;
 	case SPX_IO8CH:
 		dinputs_read( dst->df.io8.dinputs );
+		dinputs_clear();
+
 		counters_read( dst->df.io8.counters );
+		counters_clear();
+
 		ainputs_read( dst->df.io8.ainputs, NULL );
 		break;
 	}
 
-	// dinputs y counters operan en background por lo que usan variables locales
-	// que deben ser borradas.
-	dinputs_clear();
-	counters_clear();
+
+
 
 	// Agrego el timestamp
 	xBytes = RTC_read_dtime( &dst->rtc );
@@ -152,6 +163,7 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
 		ainputs_print( fd, dr->df.io5.ainputs );
 		dinputs_print( fd, dr->df.io5.dinputs );
 		counters_print( fd, dr->df.io5.counters );
+
 		if ( strcmp( systemVars.psensor_conf.name, "X" ) != 0 ) {
 			psensor_print( fd, dr->df.io5.psensor );
 			tempsensor_print( fd, dr->df.io5.temp );
@@ -193,7 +205,7 @@ FAT_t fat;
 	}
 
 	// Guardo en BD
-	bytes_written = FF_writeRcd( &dr, sizeof(st_dataRecord_t) );
+	bytes_written = FF_writeRcd( &dataRecd, sizeof(st_dataRecord_t) );
 
 	if ( bytes_written == -1 ) {
 		// Error de escritura o memoria llena ??

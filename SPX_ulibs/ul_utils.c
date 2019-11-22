@@ -8,7 +8,7 @@
 #include "gprs.h"
 #include "spx.h"
 #include "ul_consigna.h"
-#include "ul_alarmas_ose.h"
+#include "ul_plantapot.h"
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -247,17 +247,22 @@ void u_load_defaults( char *opt )
 		systemVars.timerPoll = 300;
 	}
 
+	// pwrsave se configura en gprs_utils
+	// timepwrsensor se configura en ul_ainputs
+
+	psensor_config_defaults();
+	range_config_defaults();
+
+
 	counters_config_defaults();
 	dinputs_config_defaults();
 	ainputs_config_defaults();
-	psensor_config_defaults();
-	range_config_defaults();
 	u_gprs_load_defaults( opt );
 
 	// Modo de operacion
 	systemVars.aplicacion = APP_OFF;
 	consigna_config_defaults();
-	alarma_config_defaults();
+	ppot_config_defaults();
 	tanque_config_defaults();
 
 }
@@ -397,6 +402,14 @@ FAT_t fat;
 uint8_t u_base_checksum(void)
 {
 
+	/*
+	 *  La configuracin BASE incluye:
+	 *  - timerdial
+	 *  - timerpoll
+	 *  - timepwrsensor
+	 *  - pwrsave
+	 *
+	 */
 uint8_t checksum = 0;
 char dst[32];
 char *p;
@@ -406,24 +419,33 @@ uint8_t i = 0;
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 
+	// Timerdial
 	i = snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.gprs_conf.timerDial );
+	// TimerPoll
+	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.timerPoll );
+	// TimepwrSensor
+	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.ainputs_conf.pwr_settle_time );
 
+	// PwrSave
 	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
-		i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,ON,"), systemVars.timerPoll );
+		i += snprintf_P( &dst[i], sizeof(dst), PSTR("ON,"));
 	} else {
-		i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,OFF,"), systemVars.timerPoll );
+		i += snprintf_P( &dst[i], sizeof(dst), PSTR("OFF,"));
 	}
 
 	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
 	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min );
 
+
 	//xprintf_P( PSTR("DEBUG: BCKS = [%s]\r\n\0"), dst );
+
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
 		checksum += *p++;
 	}
+
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 	return(checksum);
@@ -459,7 +481,7 @@ char *p;
 	case APP_TANQUE:
 		break;
 
-	case APP_ALARMAS:
+	case APP_PLANTAPOT:
 		return( alarmas_checksum() );
 		break;
 	}
@@ -491,7 +513,7 @@ bool u_config_aplicacion( char *modo )
 	}
 
 	if (!strcmp_P( strupr(modo), PSTR("ALARMAS\0")) &&  ( spx_io_board == SPX_IO8CH ) ) {
-		systemVars.aplicacion = APP_ALARMAS;
+		systemVars.aplicacion = APP_PLANTAPOT;
 		return(true);
 	}
 

@@ -73,7 +73,7 @@ float tempC = 0;
 			tempC = (float)temp / 16;
 		}
 		xprintf_P( PSTR( "I2C_RAW_READ=b0[0x%02x],b1[0x%02x],b2[0x%02x],b3[0x%02x]\r\n\0"),buffer[0],buffer[1],buffer[2],buffer[3]);
-		xprintf_P( PSTR( "I2C_RAW_READ TEMP: %.02f, %d\r\n\0"), tempC, temp);
+		xprintf_P( PSTR( "I2C_RAW_READ TEMP: %.01f, %d\r\n\0"), tempC, temp);
 	}
 }
 //------------------------------------------------------------------------------------
@@ -83,6 +83,6 @@ void tempsensor_print(file_descriptor_t fd, float temp )
 //	if ( ! strcmp ( systemVars.psensor_conf.name, "X" ) )
 //		return;
 
-	xCom_printf_P(fd, PSTR("TEMP:%.02f;"), temp );
+	xCom_printf_P(fd, PSTR("TEMP:%.01f;"), temp );
 }
 //------------------------------------------------------------------------------------
