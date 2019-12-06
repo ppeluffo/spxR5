@@ -71,7 +71,7 @@ void u_gprs_sms_txcheckpoint(void)
 	// Los manda del modo quick.
 	// Por las dudas debe verificar que el modem este en modo comando.
 
-	xprintf_P( PSTR("DEBUG SMS txcheckpoint\r\n" ));
+//	xprintf_P( PSTR("DEBUG SMS txcheckpoint\r\n" ));
 
 	if ( ! GPRS_stateVars.sms_for_tx )
 		return;
@@ -231,7 +231,7 @@ void u_gprs_sms_rxcheckpoint(void)
 uint8_t msg_index;
 char *sms_msg;
 
-	xprintf_P( PSTR("DEBUG SMS rxcheckpoint\r\n" ));
+//	xprintf_P( PSTR("DEBUG SMS rxcheckpoint\r\n" ));
 
 	while ( u_gprs_sms_received(&msg_index) ) {
 		// Veo si hay mensajes pendientes

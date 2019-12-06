@@ -228,14 +228,7 @@ uint8_t i;
 		}
 		break;
 	case APP_PLANTAPOT:
-		xprintf_P( PSTR("  modo: PLANTAPOT\r\n\0"));
-		for ( channel=0; channel<NRO_CANALES_MONITOREO; channel++) {
-			xprintf_P( PSTR("  ch%d: alm1:(%.02f,%.02f),"),channel, systemVars.aplicacion_conf.alarmas[channel].alarma1.lim_inf, systemVars.aplicacion_conf.alarmas[channel].alarma1.lim_sup);
-			xprintf_P( PSTR("  alm2:(%.02f,%.02f),"),systemVars.aplicacion_conf.alarmas[channel].alarma2.lim_inf, systemVars.aplicacion_conf.alarmas[channel].alarma2.lim_sup);
-			xprintf_P( PSTR("  alm3:(%.02f,%.02f) \r\n\0"), systemVars.aplicacion_conf.alarmas[channel].alarma3.lim_inf, systemVars.aplicacion_conf.alarmas[channel].alarma3.lim_sup);
-		}
-		xprintf_P( PSTR("  manteniemiento: %d\r\n\0"), ppot_read_status_mantenimiento());
-		xprintf_P( PSTR("  sensor puerta: %d\r\n\0"), ppot_read_status_sensor_puerta());
+		appalarma_print_status();
 		break;
 	}
 
@@ -274,7 +267,7 @@ uint8_t i;
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
 
-	if ( spx_io_board == SPX_IO5CH ) {
+	//if ( spx_io_board == SPX_IO5CH ) {
 
 		// PWR SAVE:
 		if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ==  false ) {
@@ -292,7 +285,7 @@ uint8_t i;
 		} else {
 			xprintf_P( PSTR("  psensor: %s (offset=%.01f, span=%.01f )\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.offset, systemVars.psensor_conf.span );
 		}
-	}
+	//}
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
@@ -384,10 +377,10 @@ char l_data[10] = { '\0' };
 
 	FRTOS_CMD_makeArgv();
 
-	// PPOT
-	// write ppot (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena)
-	if (!strcmp_P( strupr(argv[1]), PSTR("PPOT\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		ppot_servicio_tecnico( argv[2], argv[3]);
+	// APPALARMA
+	// write appalarma (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena)
+	if (!strcmp_P( strupr(argv[1]), PSTR("APPALARMA\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		appalarma_servicio_tecnico( argv[2], argv[3]);
 		return;
 	}
 
@@ -538,6 +531,7 @@ uint8_t cks;
 
 	FRTOS_CMD_makeArgv();
 
+
 	// CHECKSUM
 	// read checksum
 	if (!strcmp_P( strupr(argv[1]), PSTR("CHECKSUM\0")) && ( tipo_usuario == USER_TECNICO) ) {
@@ -574,6 +568,17 @@ uint8_t cks;
 
 		psensor_test_read();
 		tempsensor_test_read();
+		return;
+	}
+
+
+	if (!strcmp_P( strupr(argv[1]), PSTR("TEMP\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		tempsensor_test_read();
+		return;
+	}
+
+	if (!strcmp_P( strupr(argv[1]), PSTR("PSENS\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		psensor_test_read();
 		return;
 	}
 
@@ -704,10 +709,12 @@ bool retS = false;
 		return;
 	}
 
-	// ALARMA
-	// config alarma ch,{ALARMA1,2,3},{inf|sup},val
-	if (!strcmp_P( strupr(argv[1]), PSTR("ALARMA\0")) ) {
-		retS = alarma_config( argv[2], argv[3], argv[4], argv[5] );
+	// APPALARM
+	// config appalarm
+	//                  sms {id} {nro} {almlevel}\r\n\0"));
+	//                  nivel {chid} {alerta} {inf|sup} val\r\n\0"));
+	if (!strcmp_P( strupr(argv[1]), PSTR("APPALARM\0")) ) {
+		retS = appalarma_config( argv[2], argv[3], argv[4], argv[5],argv[6] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -969,7 +976,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  mcp {regAddr} {data}, mcpinit\r\n\0"));
 				xprintf_P( PSTR("  outputs (val dec.)\r\n\0"));
 				xprintf_P( PSTR("  outpin {0..7} {set | clear}\r\n\0"));
-				xprintf_P( PSTR("  ppot (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena) \r\n\0"));
+				xprintf_P( PSTR("  appalarma (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena) \r\n\0"));
 			}
 
 			if ( spx_io_board == SPX_IO5CH ) {
@@ -1002,6 +1009,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  (ee,nvmee,rtcram) {pos} {lenght}\r\n\0"));
 			xprintf_P( PSTR("  ina (id) {conf|chXshv|chXbusv|mfid|dieid}\r\n\0"));
 			xprintf_P( PSTR("  i2cscan {busaddr}, i2cscanbus\r\n\0"));
+			xprintf_P( PSTR("  temp,psens\r\n\0"));
 			if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  mcp {regAddr}\r\n\0"));
 			}
@@ -1043,7 +1051,8 @@ static void cmdHelpFunction(void)
 		//xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
 
 		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque,plantapot}\r\n\0"));
-		xprintf_P( PSTR("  alarma ch,{ALARMA1,2,3}, {inf|sup} val\r\n\0"));
+		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
+		xprintf_P( PSTR("            nivel {chid} {alerta} {inf|sup} val\r\n\0"));
 		xprintf_P( PSTR("  piloto reg {CHICA|MEDIA|GRANDE}\r\n\0"));
 		xprintf_P( PSTR("         pband {pband}\r\n\0"));
 		xprintf_P( PSTR("         steps {steps}\r\n\0"));

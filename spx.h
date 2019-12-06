@@ -28,7 +28,6 @@
 #include "avr_compiler.h"
 #include "clksys_driver.h"
 #include <inttypes.h>
-
 #include "TC_driver.h"
 #include "pmic_driver.h"
 #include "wdt_driver.h"
@@ -67,8 +66,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.0.6.k"
-#define SPX_FW_DATE "@ 20191121"
+#define SPX_FW_REV "2.9.9a"
+#define SPX_FW_DATE "@ 20191128"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -139,6 +138,8 @@ typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
 typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_TANQUE, APP_PLANTAPOT } aplicacion_t;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { PERF_CTL_BOYA, PERF_CTL_SISTEMA } perforacion_control_t;
+
+typedef enum { ALARMA_NIVEL_0 = 0, ALARMA_NIVEL_1, ALARMA_NIVEL_2, ALARMA_NIVEL_3 } nivel_alarma_t;
 
 TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkGprsRx, xHandle_tkGprsTx, xHandle_tkAplicacion;
 
@@ -284,28 +285,50 @@ typedef struct {
 	char sms_perforaciones[NRO_PERFXTANQUE][SMS_NRO_LENGTH];
 } st_tanque_t;
 //---------------------------------------------------------------------------
+// Estructuras para el manejo del sistema de alarmas en plantas de potabilizacion de OSE
+
+#define MAX_NRO_SMS_ALARMAS 10
+#define NRO_CANALES_ALM	6
+
 
 typedef struct {
 	float lim_inf;
 	float lim_sup;
-} st_niveles_alarma_t;
+} st_limites_alarma_t;
+
+/* Estructura que define un nro.de sms que se usa con las alarmas.
+ * Tiene asociado el nivel de disparo
+ */
 
 typedef struct {
-	st_niveles_alarma_t alarma1;
-	st_niveles_alarma_t alarma2;
-	st_niveles_alarma_t alarma3;
-} st_alarma_t;
+	char sms_nro[SMS_NRO_LENGTH];
+	nivel_alarma_t alm_level;
+} st_alarma_sms_t;
 
-#define NRO_CANALES_ALM	6
+typedef struct {
+	st_limites_alarma_t alarma0;
+	st_limites_alarma_t alarma1;
+	st_limites_alarma_t alarma2;
+	st_limites_alarma_t alarma3;
+} st_limites_alarma_ch_t;
+
+/*
+ * Estructura que define una lista de canales con los niveles de c/alarma
+ * y una lista de sms con niveles asociados.
+ */
+typedef struct {
+	st_limites_alarma_ch_t l_niveles_alarma[NRO_CANALES_ALM];
+	st_alarma_sms_t l_sms[MAX_NRO_SMS_ALARMAS];
+}st_alarmas_t;
+
 
 //---------------------------------------------------------------------------
 
 typedef struct {
 	st_consigna_t consigna;
 	st_perforacion_t perforacion;
-	st_alarma_t alarmas[NRO_CANALES_ALM];
+	st_alarmas_t alarma_ppot;
 	st_tanque_t tanque;
-
 } aplicacion_conf_t;
 
 
@@ -397,7 +420,7 @@ void psensor_init(void);
 bool psensor_config ( char *s_pname, char *s_offset, char *s_span );
 void psensor_config_defaults(void);
 bool psensor_read( float *presion );
-void psensor_test_read (void);
+bool psensor_test_read (void);
 void psensor_print(file_descriptor_t fd, float presion );
 uint8_t psensor_checksum(void);
 

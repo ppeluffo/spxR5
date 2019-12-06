@@ -23,7 +23,7 @@ uint16_t temp = 0;
 
 	xBytes = adt7410_raw_read( buffer );
 	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: I2C: psensor_test_read\r\n\0"));
+		xprintf_P(PSTR("ERROR: I2C: temp_test_read\r\n\0"));
 		*tempC = -100;
 		return(false);
 	}
@@ -60,7 +60,7 @@ float tempC = 0;
 
 	xBytes = adt7410_raw_read( buffer );
 	if ( xBytes == -1 )
-		xprintf_P(PSTR("ERROR: I2C: psensor_test_read\r\n\0"));
+		xprintf_P(PSTR("ERROR: I2C: temp_test_read\r\n\0"));
 
 	if ( xBytes > 0 ) {
 		msbTemp = buffer[0];
@@ -72,8 +72,8 @@ float tempC = 0;
 		} else {                 // Positive temperature
 			tempC = (float)temp / 16;
 		}
-		xprintf_P( PSTR( "I2C_RAW_READ=b0[0x%02x],b1[0x%02x],b2[0x%02x],b3[0x%02x]\r\n\0"),buffer[0],buffer[1],buffer[2],buffer[3]);
-		xprintf_P( PSTR( "I2C_RAW_READ TEMP: %.01f, %d\r\n\0"), tempC, temp);
+		xprintf_P( PSTR( "TEMP TEST: raw=b0[0x%02x],b1[0x%02x],b2[0x%02x],b3[0x%02x]\r\n\0"),buffer[0],buffer[1],buffer[2],buffer[3]);
+		xprintf_P( PSTR( "TEMP TEST: temp=%.01f, %d\r\n\0"), tempC, temp);
 	}
 }
 //------------------------------------------------------------------------------------

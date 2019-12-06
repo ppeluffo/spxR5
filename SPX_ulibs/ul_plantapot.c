@@ -5,211 +5,28 @@
  *      Author: pablo
  */
 
-#include "ul_plantapot.h"
+#include "spx.h"
 
-
-static t_ppot_states state_tkppot;
-
-bool plantapot_init(void);
-// Estados
-void st_plantapot_normal(void);
-void st_plantapot_alarmado(void);
-void st_plantapot_mantenimiento(void);
-void st_plantapot_standby(void);
-
-void pv_disparar_alm_nivel1(void);
-void pv_disparar_alm_nivel2(void);
-void pv_disparar_alm_nivel3(void);
-
-static void pv_leer_entradas(void);
-static void pv_set_levels(void);
-static void pv_timers_update(void);
-static bool pv_alarm_fire(void);
 
 //------------------------------------------------------------------------------------
-void plantapot_stk(void)
+void appalarma_stk(void)
 {
 
-	if ( !plantapot_init() )
+	if ( !appalarma_init() )
 		return;
 
-	state_tkppot = st_ppot_NORMAL;
-
 	for (;;) {
-
-		switch(state_tkppot) {
-		case st_ppot_NORMAL:
-			st_plantapot_normal();
-			break;
-		case st_ppot_ALARMADO:
-			st_plantapot_alarmado();
-			break;
-		case st_ppot_STANDBY:
-			st_plantapot_standby();
-			break;
-		case st_ppot_MANTENIMIENTO:
-			st_plantapot_mantenimiento();
-			break;
-		default:
-			xprintf_P(PSTR("MODO OPERACION ERROR: Plantapot state unknown (%d)\r\n\0"), state_tkppot );
-			systemVars.aplicacion = APP_OFF;
-			u_save_params_in_NVMEE();
-			return;
-			break;
-		}
-	}
-}
-//------------------------------------------------------------------------------------
-// ESTADOS
-//------------------------------------------------------------------------------------
-void st_plantapot_normal(void)
-{
-
-bool alarm_fired = false;
-
-// Entry:
-	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Normal.\r\n\0"));
-	}
-
-// Loop:
-	while ( state_tkppot == st_ppot_NORMAL ) {
-
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		// Espera de 1s
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
-
-		// Leo los datos
-		pv_leer_entradas();
-		// Calculo los niveles de alarmas
-		pv_set_levels();
-		// Actualizo los timers de las alarmas
-		pv_timers_update();
-		// Veo si hay que disparar alguna alarma
-		alarm_fired = pv_alarm_fire();
-
-		// Si dispare una alarma, paso al estado de sistema alarmado
-		if ( alarm_fired == true ) {
-			state_tkppot = st_ppot_ALARMADO;
-		}
 	}
-
-// Exit
-	return;
-
-}
-//------------------------------------------------------------------------------------
-void st_plantapot_alarmado(void)
-{
-	// En este estado tengo al menos una alarma disparada.
-	// Sigo monitoreando pero ahora controlo que presiones el botón de reset
-
-}
-//------------------------------------------------------------------------------------
-void st_plantapot_mantenimiento(void)
-{
-	// Este estado es en mantenimiento ( llave de mantenimiento en on)
-	// Solo se polean los datos cada 30s y se guardan en la base de datos pero no
-	// se generan alarmas.
-	// Los datos se polean y guardan en la tarea spx_tkInputs y se mandan al server con
-	// spx_tkComms por lo tanto no hacemos nada.
-	// - No se activan las alarmas
-	// - No se disparan las sirenas
-	// - No se generan SMS
-	// - Solo flashea la luz verde.
-	// Cuando salgo solo voy al estado NORMAL
-
-
-// Entry:
-	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Mantenimiento.\r\n\0"));
-	}
-	// Al entrar en mantenimiento apago todas las posibles señales activas.
-	// Solo debe flashear la luz verde.
-	action_luz_verde( act_OFF );
-	action_luz_roja( act_OFF );
-	action_luz_amarilla( act_OFF );
-	action_luz_naranja( act_OFF );
-	action_sirena( act_OFF );
-
-// Loop:
-	while ( state_tkppot == st_ppot_MANTENIMIENTO ) {
-
-		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
-		// Espera de 1s
-		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
-		// Flasheo luz verde
-		action_luz_verde(act_FLASH);
-		// Veo si apagaron la llave de mantenimiento.
-		pv_leer_entradas();
-		if ( alarmVars.llave_mantenimiento == false ) {
-			// Apagaron la llave de mantenimiento. Salgo
-			state_tkppot = st_ppot_NORMAL;
-		}
-
-	}
-
-// Exit
-
-	plantapot_init();
-	return;
-
-}
-//------------------------------------------------------------------------------------
-void st_plantapot_standby(void)
-{
-	// Este estado es en standby. Entro luego de estar alarmado y que se presiono
-	// el boton de reset.
-	// Solo se polean los datos cada 30s y se guardan en la base de datos pero no
-	// se generan alarmas.
-	// Debo permanecer en este estado hasta que transcurran 30 minutos
-	// Los datos se polean y guardan en la tarea spx_tkInputs y se mandan al server con
-	// spx_tkComms por lo tanto no hacemos nada.
-	// - No se activan las alarmas
-	// - No se disparan las sirenas
-	// - No se generan SMS
-	// Cuando salgo solo voy al estado NORMAL o al estado MANTENIMIENTO.
-
-
-int16_t timer_en_standby;
-
-// Entry:
-	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Standby.\r\n\0"));
-	}
-	// Debo permancer 30 minutos.
-	timer_en_standby = TIME_IN_STANDBY;
-
-// Loop:
-	while ( state_tkppot == st_ppot_STANDBY ) {
-
-		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
-		// Espera de 1s
-		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
-
-		// Veo si activaron la llave de mantenimiento.
-		pv_leer_entradas();
-		if ( alarmVars.llave_mantenimiento == true ) {
-			state_tkppot = st_ppot_MANTENIMIENTO;
-		}
-
-		// Veo si expiro el tiempo para salir y volver al estado NORMAL
-		if ( timer_en_standby-- == 0 ) {
-			state_tkppot = st_ppot_NORMAL;
-		}
-
-	}
-
-// Exit
-	plantapot_init();
-
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES GENERALES
 //------------------------------------------------------------------------------------
-bool plantapot_init(void)
+bool appalarma_init(void)
 {
-uint8_t i;
+//uint8_t i;
 
 	// Inicializa las salidas y las variables de trabajo.
 
@@ -220,19 +37,21 @@ uint8_t i;
 		return(false);
 	}
 
-	action_luz_verde( act_OFF );
-	action_luz_roja( act_OFF );
-	action_luz_amarilla( act_OFF );
-	action_luz_naranja( act_OFF );
-	action_sirena( act_OFF );
+	appalarma_ac_luz_verde( act_OFF );
+	appalarma_ac_luz_roja( act_OFF );
+	appalarma_ac_luz_amarilla( act_OFF );
+	appalarma_ac_luz_naranja( act_OFF );
+	appalarma_ac_luz_azul( act_OFF );
+	appalarma_ac_sirena( act_OFF );
 
+	/*
 	for (i=0; i<NRO_CANALES_MONITOREO; i++) {
 		l_ppot_input_channels[i].enabled = false;					// Todo deshabilitado
 		l_ppot_input_channels[i].value = 0.0;						// Valores en 0
 		l_ppot_input_channels[i].timer = -1;						// Timers apagados
 		l_ppot_input_channels[i].nivel_alarma = ALARMA_NIVEL_0;	// Nivel normal
 	}
-
+	*/
 	alarmVars.llave_mantenimiento = false;
 	alarmVars.sensor_puerta_open = false;
 
@@ -240,173 +59,9 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-static void pv_leer_entradas(void)
-{
-	// El poleo de las entradas lo hace la tarea tkInputs. Esta debe tener un timerpoll de 30s
-	// Aqui c/1s leo las entradas en modo 'copy' ( sin poleo ).
-	// Por eso no tengo que monitorear los 30s sino que lo hago c/1s. y esto me permite tener
-	// permantente control de la tarea.
-	// Leo las entradas analogicas y digitales y seteo las correspondientes variables locales de c/canal.
-	// Seteo el valor de la llave de mantenimiento.
-
-st_dataRecord_t dr;
-uint8_t i;
-
-	// Leo todas las entradas analogicas, digitales, contadores.
-	// Es un DLG8CH
-	// Leo en modo 'copy', sin poleo real.
-	data_read_inputs(&dr, true );
-
-	for (i=0; i<NRO_CANALES_MONITOREO; i++) {
-		// Los switches ( canales digitales ) indican si el canal esta
-		// habilitado si o no.
-		if ( dr.df.io8.dinputs[i] == 0 ) {
-			l_ppot_input_channels[i].enabled = true;
-		} else {
-			l_ppot_input_channels[i].enabled = false;
-		}
-
-		// Leo el valor de todos los canales ( habilitados o no )
-		l_ppot_input_channels[i].value = dr.df.io8.ainputs[i];
-
-	}
-
-	// Leo los sensores externos:
-	// 1- Llave de mantenimiento
-	if ( dr.df.io8.dinputs[IPIN_LLAVE_MANTENIMIENTO] == 0 ) {
-		alarmVars.llave_mantenimiento = false;
-	} else {
-		alarmVars.llave_mantenimiento = true;
-	}
-
-	// 2- Sensor de puerta
-	if ( dr.df.io8.dinputs[IPIN_SENSOR_PUERTA] == 0 ) {
-		alarmVars.sensor_puerta_open = false;
-	} else {
-		alarmVars.sensor_puerta_open = true;
-	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_set_levels(void)
-{
-
-uint8_t i;
-float valor;
-nivel_alarma_t nivel_alarma;
-
-	// Para cada entrada habilitada, determino en que nivel de alarma esta
-
-	for ( i = 0; i < NRO_CANALES_MONITOREO; i++) {
-
-		// Salteo los canales no habilitados
-		if ( l_ppot_input_channels[i].enabled == false )
-			continue;
-
-		// Proceso solo los canales habilitados.
-		// Vemos en que franja de niveles de alarma estamos para c/canal.
-		valor = l_ppot_input_channels[i].value;
-		nivel_alarma = ALARMA_NIVEL_0;
-		if ( valor > systemVars.aplicacion_conf.alarmas[i].alarma3.lim_sup ) {
-			nivel_alarma = ALARMA_NIVEL_3;
-		} else if  ( valor > systemVars.aplicacion_conf.alarmas[i].alarma2.lim_sup ) {
-			nivel_alarma = ALARMA_NIVEL_2;
-		} else if  ( valor > systemVars.aplicacion_conf.alarmas[i].alarma1.lim_sup ) {
-			nivel_alarma = ALARMA_NIVEL_1;
-		} else if  ( valor < systemVars.aplicacion_conf.alarmas[i].alarma3.lim_inf ) {
-			nivel_alarma = ALARMA_NIVEL_3;
-		} else if  ( valor  < systemVars.aplicacion_conf.alarmas[i].alarma2.lim_inf ) {
-			nivel_alarma = ALARMA_NIVEL_2;
-		} else if  ( valor < systemVars.aplicacion_conf.alarmas[i].alarma3.lim_inf ) {
-			nivel_alarma = ALARMA_NIVEL_1;
-		}
-
-		// Si el nivel de alarma del canal cambio, activo el timer correspondiente.
-
-		// 1 - Si es normal, apago el timer
-		if ( nivel_alarma == ALARMA_NIVEL_0 ) {
-			l_ppot_input_channels[i].nivel_alarma = ALARMA_NIVEL_0;
-			l_ppot_input_channels[i].timer = -1;
-			continue;
-		}
-
-		// Si el nivel de alerta cambio, arranco el timer ( !!! OJO que no considera oscilaciones
-		// alrrededor de una fronter !!!! )
-		if ( l_ppot_input_channels[i].nivel_alarma != nivel_alarma ) {
-			l_ppot_input_channels[i].nivel_alarma = nivel_alarma;
-			switch(nivel_alarma) {
-			case ALARMA_NIVEL_0:
-				l_ppot_input_channels[i].timer = TIMEOUT_ALARMA_NIVEL_0;
-				break;
-			case ALARMA_NIVEL_1:
-				l_ppot_input_channels[i].timer = TIMEOUT_ALARMA_NIVEL_1;
-				break;
-			case ALARMA_NIVEL_2:
-				l_ppot_input_channels[i].timer = TIMEOUT_ALARMA_NIVEL_2;
-				break;
-			case ALARMA_NIVEL_3:
-				l_ppot_input_channels[i].timer = TIMEOUT_ALARMA_NIVEL_3;
-				break;
-
-			}
-		}
-	}
-}
-//------------------------------------------------------------------------------------
-static void pv_timers_update(void)
-{
-	// Se ejecuta cada 1s.
-	// Si algun timer de algun canal esta activo, lo decremento hasta llegar a 0
-
-uint8_t i;
-
-	for (i=0; i<NRO_CANALES_MONITOREO; i++) {
-
-		if ( ( l_ppot_input_channels[i].enabled == true ) && ( l_ppot_input_channels[i].timer > 0 ) ) {
-			l_ppot_input_channels[i].timer--;
-		}
-	}
-}
-//------------------------------------------------------------------------------------
-static bool pv_alarm_fire(void)
-{
-	// Reviso los timers de los canales activos si llegaron a 0.
-	// En este caso expiraron por lo tanto se debe dispara una alarma
-	// por dicho canal.
-
-	// Ver si las alarmas se dispara por canal o por nivel !!!!
-	// Hay que mantener un timer por alarma y por canal o solo por alarma ???
-
-uint8_t i;
-
-	for (i=0; i<NRO_CANALES_MONITOREO; i++) {
-
-		if ( ( l_ppot_input_channels[i].enabled == true ) && ( l_ppot_input_channels[i].timer == 0 ) ) {
-			l_ppot_input_channels[i].timer = -1 ;
-		}
-	}
-	return(false);
-
-}
-//------------------------------------------------------------------------------------
-void pv_disparar_alm_nivel1(void)
-{
-
-}
-//------------------------------------------------------------------------------------
-void pv_disparar_alm_nivel2(void)
-{
-
-}
-//------------------------------------------------------------------------------------
-void pv_disparar_alm_nivel3(void)
-{
-
-}
-//------------------------------------------------------------------------------------
 // ACCIONES
 //------------------------------------------------------------------------------------
-void action_luz_verde( t_dev_action action)
+void appalarma_ac_luz_verde( t_dev_action action)
 {
 
 static uint8_t l_state = 0;
@@ -434,7 +89,7 @@ static uint8_t l_state = 0;
 	}
 }
 //------------------------------------------------------------------------------------
-void action_luz_roja( t_dev_action action)
+void appalarma_ac_luz_roja( t_dev_action action)
 {
 
 static uint8_t l_state = 0;
@@ -462,7 +117,7 @@ static uint8_t l_state = 0;
 	}
 }
 //------------------------------------------------------------------------------------
-void action_luz_amarilla( t_dev_action action)
+void appalarma_ac_luz_amarilla( t_dev_action action)
 {
 
 static uint8_t l_state = 0;
@@ -490,7 +145,7 @@ static uint8_t l_state = 0;
 	}
 }
 //------------------------------------------------------------------------------------
-void action_luz_naranja( t_dev_action action)
+void appalarma_ac_luz_naranja( t_dev_action action)
 {
 
 static uint8_t l_state = 0;
@@ -518,7 +173,35 @@ static uint8_t l_state = 0;
 	}
 }
 //------------------------------------------------------------------------------------
-void action_sirena(t_dev_action action)
+void appalarma_ac_luz_azul( t_dev_action action)
+{
+
+static uint8_t l_state = 0;
+
+	switch(action) {
+	case act_OFF:
+		u_write_output_pins( OPIN_LUZ_AZUL, 0 );
+		l_state = 0;
+		break;
+	case act_ON:
+		u_write_output_pins( OPIN_LUZ_AZUL, 1 );
+		l_state = 1;
+		break;
+	case act_FLASH:
+		if ( l_state == 0 ) {
+			l_state = 1;
+			u_write_output_pins( OPIN_LUZ_AZUL, 1 );
+		} else {
+			l_state = 0;
+			u_write_output_pins( OPIN_LUZ_AZUL, 0 );
+		}
+		break;
+	default:
+		break;
+	}
+}
+//------------------------------------------------------------------------------------
+void appalarma_ac_sirena(t_dev_action action)
 {
 
 	switch(action) {
@@ -537,7 +220,7 @@ void action_sirena(t_dev_action action)
 //------------------------------------------------------------------------------------
 // GENERAL
 //------------------------------------------------------------------------------------
-uint8_t alarmas_checksum(void)
+uint8_t appalarma_checksum(void)
 {
 
 uint8_t checksum = 0;
@@ -565,100 +248,135 @@ uint8_t i = 0;
 	return(checksum);
 }
 //------------------------------------------------------------------------------------
-bool alarma_config( char *canal_str,char *alarm_str, char *limit_str, char *value_str )
+bool appalarma_config( char *param0,char *param1, char *param2, char *param3, char *param4 )
 {
-uint8_t ch;
+	// config appalarm sms {id} {nro} {almlevel}\r\n\0"));
+	// config appalarm nivel {chid} {alerta} {inf|sup} val\r\n\0"));
+
 nivel_alarma_t nivel_alarma;
 float valor;
 uint8_t limite;
+uint8_t pos;
 
-	// Chequeo integridad
-	if ( canal_str == NULL ) {
+	if ( param1 == NULL ) {
 		return(false);
 	}
 
-	if ( alarm_str == NULL ) {
+	if ( param2 == NULL ) {
 		return(false);
 	}
 
-	if ( limit_str == NULL ) {
+	if ( param3 == NULL ) {
 		return(false);
 	}
 
-	if ( value_str == NULL ) {
-		return(false);
+	// config appalarm sms {id} {nro} {almlevel}\r\n\0"));
+	if (!strcmp_P( strupr(param0), PSTR("SMS\0")) ) {
+
+		pos = atoi(param1);
+		memcpy( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, param2, SMS_NRO_LENGTH );
+		systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level = atoi(param3);
+		return(true);
+
 	}
 
-	// Converto a valores utiles
-	ch = atoi(canal_str);
+	// config appalarm nivel {chid} {alerta} {inf|sup} val\r\n\0"));
+	if (!strcmp_P( strupr(param0), PSTR("NIVEL\0")) ) {
 
-	if (!strcmp_P( strupr(alarm_str), PSTR("ALARMA1\0")) ) {
-		nivel_alarma = ALARMA_NIVEL_1;
-	} else 	if (!strcmp_P( strupr(alarm_str), PSTR("ALARMA2\0")) ) {
-		nivel_alarma = ALARMA_NIVEL_2;
-	} else 	if (!strcmp_P( strupr(alarm_str), PSTR("ALARMA3\0")) ) {
-		nivel_alarma = ALARMA_NIVEL_3;
-	} else {
-		return(false);
-	}
-
-	if (!strcmp_P( strupr(limit_str), PSTR("INF\0")) ) {
-		limite = 0;
-	} else 	if (!strcmp_P( strupr(limit_str), PSTR("SUP\0")) ) {
-		limite = 1;
-	} else {
-		return(false);
-	}
-
-	valor = atof(value_str);
-
-	// Configuro
-	switch ( nivel_alarma ) {
-	case ALARMA_NIVEL_0:
-		break;
-	case ALARMA_NIVEL_1:
-		if ( limite == 0 ) {
-			systemVars.aplicacion_conf.alarmas[ch].alarma1.lim_inf = valor;
-		} else 	if ( limite == 1 ) {
-			systemVars.aplicacion_conf.alarmas[ch].alarma1.lim_sup = valor;
+		if ( param4 == NULL ) {
+			return(false);
 		}
-		break;
-	case ALARMA_NIVEL_2:
-		if ( limite == 0 ) {
-			systemVars.aplicacion_conf.alarmas[ch].alarma2.lim_inf = valor;
-		} else 	if ( limite == 1 ) {
-			systemVars.aplicacion_conf.alarmas[ch].alarma2.lim_sup = valor;
+
+		pos = atoi(param1);
+
+		switch(atoi(param2)) {
+		case 1:
+			nivel_alarma = ALARMA_NIVEL_1;
+			break;
+		case 2:
+			nivel_alarma = ALARMA_NIVEL_2;
+			break;
+		case 3:
+			nivel_alarma = ALARMA_NIVEL_3;
+			break;
+		default:
+			return(false);
 		}
-		break;
-	case ALARMA_NIVEL_3:
-		if ( limite == 0 ) {
-			systemVars.aplicacion_conf.alarmas[ch].alarma3.lim_inf = valor;
-		} else 	if ( limite == 1 ) {
-			systemVars.aplicacion_conf.alarmas[ch].alarma3.lim_sup = valor;
+
+		if (!strcmp_P( strupr(param3), PSTR("INF\0")) ) {
+			limite = 0;
+		} else 	if (!strcmp_P( strupr(param3), PSTR("SUP\0")) ) {
+			limite = 1;
+		} else {
+			return(false);
 		}
-		break;
+
+		valor = atof(param4);
+
+		if (!strcmp_P( strupr(param3), PSTR("INF\0")) ) {
+
+		} else 	if (!strcmp_P( strupr(param3), PSTR("SUP\0")) ) {
+			systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma0.lim_sup = valor;
+		} else {
+			return(false);
+		}
+
+		// Configuro
+		switch ( nivel_alarma ) {
+		case ALARMA_NIVEL_0:
+			break;
+		case ALARMA_NIVEL_1:
+			if ( limite == 0 ) {
+				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma1.lim_inf = valor;
+			} else 	if ( limite == 1 ) {
+				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma1.lim_sup = valor;
+			}
+			break;
+		case ALARMA_NIVEL_2:
+			if ( limite == 0 ) {
+				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma2.lim_inf = valor;
+			} else 	if ( limite == 1 ) {
+				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma2.lim_sup = valor;
+			}
+			break;
+		case ALARMA_NIVEL_3:
+			if ( limite == 0 ) {
+				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma3.lim_inf = valor;
+			} else 	if ( limite == 1 ) {
+				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma3.lim_sup = valor;
+			}
+			break;
+		}
+
+		return(true);
 	}
 
-	return(true);
+	return(false);
 
 }
 //------------------------------------------------------------------------------------
-void ppot_config_defaults(void)
+void appalarma_config_defaults(void)
 {
 
 uint8_t i;
 
-	for ( i = 0; i < NRO_CANALES_MONITOREO; i++) {
-		systemVars.aplicacion_conf.alarmas[i].alarma1.lim_inf = 1.0;
-		systemVars.aplicacion_conf.alarmas[i].alarma1.lim_sup = 1.1;
-		systemVars.aplicacion_conf.alarmas[i].alarma2.lim_inf = 2.0;
-		systemVars.aplicacion_conf.alarmas[i].alarma2.lim_sup = 2.2;
-		systemVars.aplicacion_conf.alarmas[i].alarma3.lim_inf = 3.0;
-		systemVars.aplicacion_conf.alarmas[i].alarma3.lim_sup = 3.3;
+	for ( i = 0; i < NRO_CANALES_ALM; i++) {
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf = 6.7;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup = 8.3;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf = 6.0;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup = 9.0;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf = 5.5;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup = 9.5;
 	}
+
+	for ( i = 0; i < MAX_NRO_SMS_ALARMAS; i++) {
+		systemVars.aplicacion_conf.alarma_ppot.l_sms[i].alm_level = 1;
+		memcpy( systemVars.aplicacion_conf.alarma_ppot.l_sms[i].sms_nro, "099123456", SMS_NRO_LENGTH );
+	}
+
 }
 //------------------------------------------------------------------------------------
-uint8_t ppot_read_status_sensor_puerta(void)
+uint8_t appalarma_read_status_sensor_puerta(void)
 {
 	if ( alarmVars.sensor_puerta_open == true ) {
 		return(1);
@@ -667,7 +385,7 @@ uint8_t ppot_read_status_sensor_puerta(void)
 	}
 }
 //------------------------------------------------------------------------------------
-uint8_t ppot_read_status_mantenimiento(void)
+uint8_t appalarma_read_status_mantenimiento(void)
 {
 	if ( alarmVars.llave_mantenimiento == true ) {
 		return(1);
@@ -676,55 +394,112 @@ uint8_t ppot_read_status_mantenimiento(void)
 	}
 }
 //------------------------------------------------------------------------------------
-void ppot_servicio_tecnico( char * action, char * device )
+uint8_t appalarma_read_status_boton_alarma(void)
 {
-	// action: (prender/apagar)
+
+	if ( alarmVars.boton_alarma == true ) {
+		return(1);
+	} else {
+		return(0);
+	}
+}
+//------------------------------------------------------------------------------------
+void appalarma_servicio_tecnico( char *action, char *device )
+{
+	// action: (prender/apagar,rtimers )
 	// device: (lroja,lverde,lamarilla,lnaranja, sirena)
+
+//uint8_t i;
+
+	/*
+	if ( !strcmp_P( strupr(action), PSTR("RTIMERS\0"))) {
+		for (i=0; i<NRO_CANALES_MONITOREO; i++) {
+			xprintf_P(PSTR("DEBUG: timer[%d] status[%d] value[%d]\r\n"), i, l_ppot_input_channels[i].enabled, l_ppot_input_channels[i].timer );
+		}
+		return;
+	}
+	**/
 
 	if ( !strcmp_P( strupr(device), PSTR("LROJA\0"))) {
 		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
-			action_luz_roja(act_ON);
+			appalarma_ac_luz_roja(act_ON);
 		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
-			action_luz_roja(act_OFF);
+			appalarma_ac_luz_roja(act_OFF);
 		}
 		return;
 	}
 
 	if ( !strcmp_P( strupr(device), PSTR("LVERDE\0"))) {
 		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
-			action_luz_verde(act_ON);
+			appalarma_ac_luz_verde(act_ON);
 		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
-			action_luz_verde(act_OFF);
+			appalarma_ac_luz_verde(act_OFF);
 		}
 		return;
 	}
 
 	if ( !strcmp_P( strupr(device), PSTR("LAMARILLA\0"))) {
 		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
-			action_luz_amarilla(act_ON);
+			appalarma_ac_luz_amarilla(act_ON);
 		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
-			action_luz_amarilla(act_OFF);
+			appalarma_ac_luz_amarilla(act_OFF);
 		}
 		return;
 	}
 
 	if ( !strcmp_P( strupr(device), PSTR("LNARANJA\0"))) {
 		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
-			action_luz_naranja(act_ON);
+			appalarma_ac_luz_naranja(act_ON);
 		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
-			action_luz_naranja(act_OFF);
+			appalarma_ac_luz_naranja(act_OFF);
+		}
+		return;
+	}
+
+	if ( !strcmp_P( strupr(device), PSTR("LAZUL\0"))) {
+		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
+			appalarma_ac_luz_azul(act_ON);
+		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
+			appalarma_ac_luz_azul(act_OFF);
 		}
 		return;
 	}
 
 	if ( !strcmp_P( strupr(device), PSTR("SIRENA\0"))) {
 		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
-			action_sirena(act_ON);
+			appalarma_ac_sirena(act_ON);
 		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
-			action_sirena(act_OFF);
+			appalarma_ac_sirena(act_OFF);
 		}
 		return;
 	}
 }
 //------------------------------------------------------------------------------------
+void appalarma_print_status(void)
+{
 
+uint8_t pos;
+
+	xprintf_P( PSTR("  modo: PLANTAPOT\r\n\0"));
+	// Configuracion de los SMS
+	xprintf_P( PSTR("  Nros.SMS configurados\r\n\0"));
+	for (pos = 0; pos < MAX_NRO_SMS_ALARMAS; pos++) {
+		xprintf_P( PSTR("  sms%02d: %s, L%d\r\n"),pos, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level );
+	}
+
+	// Configuracion de los canales y niveles de alarma configurados
+	xprintf_P( PSTR("  Niveles de alarma:\r\n\0"));
+	for ( pos=0; pos<NRO_CANALES_ALM; pos++) {
+		if ( strcmp ( systemVars.ainputs_conf.name[pos], "X" ) != 0 ) {
+			xprintf_P( PSTR("  ch%d: alm1:(%.02f,%.02f),"),pos, systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma1.lim_inf,  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma1.lim_sup);
+			xprintf_P( PSTR("  alm2:(%.02f,%.02f),"), systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma2.lim_inf,  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma2.lim_sup);
+			xprintf_P( PSTR("  alm3:(%.02f,%.02f) \r\n\0"),  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma3.lim_inf,  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma3.lim_sup);
+		}
+	}
+
+	xprintf_P( PSTR("  mantenimiento: %d\r\n\0"), appalarma_read_status_mantenimiento());
+	xprintf_P( PSTR("  sensor puerta: %d\r\n\0"), appalarma_read_status_sensor_puerta());
+	xprintf_P( PSTR("  boton alarma: %d\r\n\0"), appalarma_read_status_boton_alarma());
+
+}
+//------------------------------------------------------------------------------------

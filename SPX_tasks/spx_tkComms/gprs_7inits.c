@@ -417,7 +417,6 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 		xprintf_P( PSTR("SIMPWD:%s;IMEI:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei );
 		xprintf_P( PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
 		xprintf_P( PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
-		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;PSE:0x%02X" ),cnt_cks,range_cks,psens_cks );
 		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
 		xprintf_P( PSTR("PSE:0x%02X;APP:0x%02X" ), psens_cks, app_cks );
 

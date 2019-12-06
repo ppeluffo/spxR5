@@ -6,7 +6,6 @@
  */
 
 #include <SPX_ulibs/ul_consigna.h>
-#include <SPX_ulibs/ul_plantapot.h>
 #include "spx.h"
 #include "gprs.h"
 
@@ -55,7 +54,7 @@ void tkAplicacion(void * pvParameters)
 		tanque_stk();
 		break;
 	case APP_PLANTAPOT:
-		plantapot_stk();
+		appalarma_stk();
 		break;
 	}
 

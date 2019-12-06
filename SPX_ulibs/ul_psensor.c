@@ -27,6 +27,12 @@ void psensor_config_defaults(void)
 bool psensor_config ( char *s_pname, char *s_offset, char *s_span )
 {
 
+	// Esta opcion es solo valida para IO5
+	if ( spx_io_board != SPX_IO5CH ) {
+		psensor_config_defaults();
+		return(false);
+	}
+
 	if ( s_pname != NULL ) {
 		snprintf_P( systemVars.psensor_conf.name, PARAMNAME_LENGTH, PSTR("%s\0"), s_pname );
 	}
@@ -47,49 +53,70 @@ bool psensor_config ( char *s_pname, char *s_offset, char *s_span )
 bool psensor_read( float *presion )
 {
 
-	// El sensor que usamos para leer la presion es el bps120.
-
-
-float lpres;
 int8_t xBytes = 0;
+char buffer[2] = { 0 };
+uint8_t msbPres = 0;
+uint8_t lsbPres = 0;
+float pres = 0;
+int16_t pcounts;
 
-	xBytes = bps120_raw_read( &lpres );
+	xBytes = bps120_raw_read( buffer );
 	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: psensor_read\r\n\0"));
+		xprintf_P(PSTR("ERROR: I2C: psensor_read\r\n\0"));
+		*presion = -100;
 		return(false);
 	}
 
 	if ( xBytes > 0 ) {
-		// Corrijo por el offset
-		lpres = lpres * systemVars.psensor_conf.span  + systemVars.psensor_conf.offset;
-		*presion = lpres;
+		msbPres = buffer[0]  & 0x3F;
+		lsbPres = buffer[1];
+		pcounts = (msbPres << 8) + lsbPres;
+		// pcounts = ( buffer[0]<<8 ) + buffer[1];
+
+		// Aplico la funcion de transferencia.
+		//pres = ( 1 * (pcounts - 1638)/13107 );
+		pres = (( 0.85 * (pcounts - 1638)/13107 ) + 0.15) * 70.31;
+
+		*presion = pres;
+		return(true);
 	}
 
 	return(true);
+
 }
 //------------------------------------------------------------------------------------
-void psensor_test_read (void)
+bool psensor_test_read( void )
 {
-	// Funcion de testing del sensor de presion I2C
-	// La direccion es fija 0x50 y solo se leen 2 bytes.
 
-
-float lpres;
-float presion = 0;
 int8_t xBytes = 0;
+char buffer[2] = { 0 };
+uint8_t msbPres = 0;
+uint8_t lsbPres = 0;
+float pres = 0;
+int16_t pcounts;
 
-	xBytes = bps120_raw_read( &lpres );
+	xBytes = bps120_raw_read( buffer );
 	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("ERROR: psensor_read\r\n\0"));
-		return;
+		xprintf_P(PSTR("ERROR: I2C: psensor_test_read\r\n\0"));
+		return(false);
 	}
 
 	if ( xBytes > 0 ) {
-		// Corrijo por el offset
-		presion = lpres * systemVars.psensor_conf.span  + systemVars.psensor_conf.offset;
+		msbPres = buffer[0] & 0x3F;
+		lsbPres = buffer[1];
+		pcounts = (msbPres << 8) + lsbPres;
+		// pcounts = ( buffer[0]<<8 ) + buffer[1];
+
+		// Aplico la funcion de transferencia.
+		pres = (( 0.85 * (pcounts - 1638)/13107 ) + 0.15) * 70.31;
+
+		xprintf_P( PSTR( "PRES TEST: raw=b0[0x%02x],b1[0x%02x]\r\n\0"),buffer[0],buffer[1]);
+		xprintf_P( PSTR( "PRES TEST: pcounts=%d, presion=%.03f\r\n\0"), pcounts, pres );
+
+		return(true);
 	}
 
-	xprintf_P( PSTR( "TEST PSENSOR: rawp=%.02f, pres=%0.2f\r\n\0"),lpres,presion);
+	return(true);
 
 }
 //------------------------------------------------------------------------------------
@@ -99,7 +126,7 @@ void psensor_print(file_descriptor_t fd, float presion )
 //	if ( ! strcmp ( systemVars.psensor_conf.name, "X" ) )
 //		return;
 
-	xCom_printf_P(fd, PSTR("%s%.02f;\0"), systemVars.psensor_conf.name, presion );
+	xCom_printf_P(fd, PSTR("%s:%.03f;\0"), systemVars.psensor_conf.name, presion );
 
 }
 //------------------------------------------------------------------------------------

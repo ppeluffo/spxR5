@@ -412,7 +412,7 @@ uint8_t j = 0;
 		j += snprintf_P( &dst[j], sizeof(dst), PSTR("A%d:%s,"), i, systemVars.ainputs_conf.name[i] );
 		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,%d,"), systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i] );
 		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.02f,%.02f,"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
-		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.02f"), systemVars.ainputs_conf.offset[i] );
+		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.02f;"), systemVars.ainputs_conf.offset[i] );
 
 		//xprintf_P( PSTR("DEBUG: ACKS = [%s]\r\n\0"), dst );
 		// Apunto al comienzo para recorrer el buffer
@@ -421,7 +421,7 @@ uint8_t j = 0;
 		while (*p != '\0') {
 			checksum += *p++;
 		}
-
+		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 	}
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 	return(checksum);
@@ -469,7 +469,7 @@ uint8_t MSB = 0;
 uint8_t LSB = 0;
 char res[3] = { '\0','\0', '\0' };
 int8_t xBytes = 0;
-float vshunt;
+//float vshunt;
 
 	//xprintf_P( PSTR("in->ACH: ch=%d, ina=%d, reg=%d, MSB=0x%x, LSB=0x%x, ANV=(0x%x)%d, VSHUNT = %.02f(mV)\r\n\0") ,channel_id, ina_id, ina_reg, MSB, LSB, an_raw_val, an_raw_val, vshunt );
 
@@ -554,7 +554,7 @@ float vshunt;
 	an_raw_val = ( MSB << 8 ) + LSB;
 	an_raw_val = an_raw_val >> 3;
 
-	vshunt = (float) an_raw_val * 40 / 1000;
+	//vshunt = (float) an_raw_val * 40 / 1000;
 	//xprintf_P( PSTR("out->ACH: ch=%d, ina=%d, reg=%d, MSB=0x%x, LSB=0x%x, ANV=(0x%x)%d, VSHUNT = %.02f(mV)\r\n\0") ,channel_id, ina_id, ina_reg, MSB, LSB, an_raw_val, an_raw_val, vshunt );
 
 	return( an_raw_val );

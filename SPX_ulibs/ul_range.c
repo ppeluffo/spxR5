@@ -30,8 +30,10 @@ bool range_config ( char *s_name )
 {
 
 	// Esta opcion es solo valida para IO5
-	if ( spx_io_board != SPX_IO5CH )
+	if ( spx_io_board != SPX_IO5CH ) {
+		range_config_defaults();
 		return(false);
+	}
 
 	snprintf_P( systemVars.range_name, PARAMNAME_LENGTH, PSTR("%s\0"), s_name );
 	return(true);

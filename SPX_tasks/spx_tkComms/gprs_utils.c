@@ -196,7 +196,7 @@ char l_data[10] = { 0 };
 
 	} else if (!strcmp_P( l_data, PSTR("UTE\0"))) {
 		snprintf_P( systemVars.gprs_conf.apn, APN_LENGTH, PSTR("SPYMOVIL.VPNANTEL\0") );
-		strncpy_P(systemVars.gprs_conf.server_ip_address, PSTR("192.168.8.13\0"),16);
+		strncpy_P(systemVars.gprs_conf.server_ip_address, PSTR("192.168.1.9\0"),16);
 
 	} else if (!strcmp_P( l_data, PSTR("OSE\0"))) {
 		snprintf_P( systemVars.gprs_conf.apn, APN_LENGTH, PSTR("STG1.VPNANTEL\0") );
@@ -427,6 +427,9 @@ void u_gprs_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime)
 	if (!strcmp_P( strupr(s_modo), PSTR( "OFF"))) {
 		systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
 		//xprintf_P( PSTR("DEBUG: pwrsave off(%d)\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled );
+		if ( s_startTime != NULL ) { u_convert_str_to_time_t( s_startTime, &systemVars.gprs_conf.pwrSave.hora_start); }
+		if ( s_endTime != NULL ) { u_convert_str_to_time_t( s_endTime, &systemVars.gprs_conf.pwrSave.hora_fin); }
+
 		goto quit;
 	}
 
@@ -444,6 +447,10 @@ quit:
 
 	xSemaphoreGive( sem_SYSVars );
 
+	// En los SPXIO8 no se usa el pwrsave !!!!. Siempre debe venir OFF de la BD.
+	if ( spx_io_board == SPX_IO8CH ) {
+		systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
+	}
 	//xprintf_P( PSTR("DEBUG_B: PWRS modo=%d, startitme=%02d%02d, endtime=%02d%02d\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min );
 
 }

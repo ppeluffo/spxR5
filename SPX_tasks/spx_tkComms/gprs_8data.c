@@ -100,7 +100,7 @@ EXIT:
 static void sst_monitoreo_datos(void)
 {
 
-	xprintf_P( PSTR("DEBUG GPRS: sst_monitoreo_datos.\r\n\0"));
+	//xprintf_P( PSTR("DEBUG GPRS: sst_monitoreo_datos.\r\n\0"));
 	GPRS_stateVars.state = G_DATA;
 
 	while ( data_state == SST_MONITOREO_DATOS ) {
@@ -120,7 +120,7 @@ static bool sst_txmit_datos(void)
 
 bool retS = bool_CONTINUAR;
 
-	xprintf_P( PSTR("DEBUG GPRS: sst_txmit_datos.\r\n\0"));
+	//xprintf_P( PSTR("DEBUG GPRS: sst_txmit_datos.\r\n\0"));
 	GPRS_stateVars.state = G_DATA;
 
 	while ( data_state == SST_TXMIT_DATOS ) {
@@ -142,7 +142,7 @@ static bool sst_no_datos(void)
 
 bool retS = bool_CONTINUAR;
 
-	xprintf_P( PSTR("DEBUG GPRS: sst_no_datos.\r\n\0"));
+	//xprintf_P( PSTR("DEBUG GPRS: sst_no_datos.\r\n\0"));
 	GPRS_stateVars.state = G_DATA;
 
 	while ( data_state == SST_NO_DATOS ) {
@@ -164,7 +164,7 @@ uint8_t sleep_time = 60;
 bool retS = bool_CONTINUAR;
 //t_socket_status socket_status = 0;
 
-	xprintf_P( PSTR("DEBUG GPRS: sst_espera.\r\n\0"));
+	//xprintf_P( PSTR("DEBUG GPRS: sst_espera.\r\n\0"));
 	GPRS_stateVars.state = G_DATA_AWAITING;
 
 	while ( data_state == SST_ESPERA ) {

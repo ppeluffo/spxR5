@@ -77,9 +77,9 @@ uint8_t channel;
 	if ( start_timer ) {
 		ticks = 0;
 		xTimerStart( dinputs_xTimer, 0 );
-		xprintf_P(PSTR("tkDada: dinputs timer started...\r\n\0"));
+		xprintf_P(PSTR("tkInputs: dinputs timer started...\r\n\0"));
 	} else {
-		xprintf_P(PSTR("tkDada: dinputs timer stopped (modo normal)\r\n\0"));
+		xprintf_P(PSTR("tkInputs: dinputs timer stopped (modo normal)\r\n\0"));
 	}
 
 }

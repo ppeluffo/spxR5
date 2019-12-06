@@ -8,7 +8,6 @@
 #include "gprs.h"
 #include "spx.h"
 #include "ul_consigna.h"
-#include "ul_plantapot.h"
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -262,7 +261,7 @@ void u_load_defaults( char *opt )
 	// Modo de operacion
 	systemVars.aplicacion = APP_OFF;
 	consigna_config_defaults();
-	ppot_config_defaults();
+	appalarma_config_defaults();
 	tanque_config_defaults();
 
 }
@@ -482,7 +481,7 @@ char *p;
 		break;
 
 	case APP_PLANTAPOT:
-		return( alarmas_checksum() );
+		return( appalarma_checksum() );
 		break;
 	}
 
