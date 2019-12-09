@@ -386,14 +386,15 @@ char l_data[10] = { '\0' };
 
 	// OUTPIN
 	// write outpin {0..7} {set | clear}
-	if (!strcmp_P( strupr(argv[1]), PSTR("OUTPUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
+	if (!strcmp_P( strupr(argv[1]), PSTR("OUTPIN\0")) && ( tipo_usuario == USER_TECNICO) ) {
 		memcpy(l_data, argv[3], sizeof(l_data));
 		strupr(l_data);
 		pin = atoi(argv[2]);
-		if (!strcmp_P( l_data, PSTR("SET\0"))) {
+
+		if (!strcmp_P( l_data, PSTR("SET"))) {
 			state = 1;
 		}
-		if (!strcmp_P( l_data, PSTR("CLEAR\0"))) {
+		if (!strcmp_P( l_data, PSTR("CLEAR"))) {
 			state = 0;
 		}
 
@@ -673,6 +674,12 @@ uint8_t cks;
 		return;
 	}
 
+	// DINPUTS
+	// read dinputs
+	if (!strcmp_P( strupr(argv[1]), PSTR("DINPUTS\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		dinputs_service_read();
+		return;
+	}
 
 	// GPRS
 	// read gprs (rsp,cts,dcd,ri, sms)
@@ -710,10 +717,10 @@ bool retS = false;
 	}
 
 	// APPALARM
-	// config appalarm
+	// config appalarma
 	//                  sms {id} {nro} {almlevel}\r\n\0"));
 	//                  nivel {chid} {alerta} {inf|sup} val\r\n\0"));
-	if (!strcmp_P( strupr(argv[1]), PSTR("APPALARM\0")) ) {
+	if (!strcmp_P( strupr(argv[1]), PSTR("APPALARMA\0")) ) {
 		retS = appalarma_config( argv[2], argv[3], argv[4], argv[5],argv[6] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
@@ -976,7 +983,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  mcp {regAddr} {data}, mcpinit\r\n\0"));
 				xprintf_P( PSTR("  outputs (val dec.)\r\n\0"));
 				xprintf_P( PSTR("  outpin {0..7} {set | clear}\r\n\0"));
-				xprintf_P( PSTR("  appalarma (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena) \r\n\0"));
+				xprintf_P( PSTR("  appalarma (prender/apagar/flash) (lroja,lverde,lamarilla,lnaranja,sirena) \r\n\0"));
 			}
 
 			if ( spx_io_board == SPX_IO5CH ) {
@@ -1014,6 +1021,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  mcp {regAddr}\r\n\0"));
 			}
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
+			xprintf_P( PSTR("  dinputs\r\n\0"));
 			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri,sms)\r\n\0"));
 		}
 		return;

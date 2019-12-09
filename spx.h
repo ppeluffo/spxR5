@@ -67,7 +67,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.9.9a"
-#define SPX_FW_DATE "@ 20191128"
+#define SPX_FW_DATE "@ 20191209"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -287,7 +287,7 @@ typedef struct {
 //---------------------------------------------------------------------------
 // Estructuras para el manejo del sistema de alarmas en plantas de potabilizacion de OSE
 
-#define MAX_NRO_SMS_ALARMAS 10
+#define MAX_NRO_SMS_ALARMAS 9
 #define NRO_CANALES_ALM	6
 
 
@@ -373,7 +373,7 @@ bool u_check_more_Rcds4Tx(void);
 uint8_t u_base_checksum(void);
 uint8_t u_aplicacion_checksum(void);
 bool u_config_aplicacion( char *modo );
-bool u_write_output_pins( uint8_t pin, uint8_t val );
+bool u_write_output_pins( uint8_t pin, int8_t val );
 bool u_set_douts( uint8_t dout );
 bool u_sms_send(char *dst_nbr, char *msg );
 
@@ -396,6 +396,7 @@ void dinputs_clear(void);
 bool dinputs_read(uint16_t dst[]);
 void dinputs_print(file_descriptor_t fd, uint16_t src[] );
 uint8_t dinputs_checksum(void);
+bool dinputs_service_read(void);
 
 // COUNTERS
 void counters_setup(void);

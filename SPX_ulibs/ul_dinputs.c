@@ -355,5 +355,49 @@ uint8_t j = 0;
 
 }
 //------------------------------------------------------------------------------------
+bool dinputs_service_read(void)
+{
+	/*
+	 * Leo las entradas digitales y las imprimo
+	 * Se usa para el modo test.
+	 */
 
+int8_t channel;
+uint8_t din_val;
+uint8_t port = 0;
+int8_t rdBytes = 0;
+bool retS = false;
+uint8_t dst[IO8_DINPUTS_CHANNELS];
+	switch (spx_io_board ) {
+
+	case SPX_IO5CH:	// SPX_IO5
+
+		// DIN0
+		dst[0] = IO_read_PA0();
+		// DIN1
+		dst[1] = IO_read_PB7();
+		xprintf_P(PSTR("Dinputs: din_1=%d,din_0=%d"), dst[1], dst[0]);
+		break;
+
+	case SPX_IO8CH:
+		rdBytes = MCP_read( MCP_GPIOA, (char *)&port, 1 );
+		if ( rdBytes == -1 ) {
+			xprintf_P(PSTR("ERROR: IO_DIN_read_pin\r\n\0"));
+			return(false);
+			break;
+		}
+
+		for (channel=0; channel < NRO_DINPUTS; channel++) {
+			din_val = ( port & ( 1 << channel )) >> channel;
+			dst[channel] = din_val;
+		}
+
+		xprintf_P(PSTR("Dinputs: msb[ "));
+		for (channel=(NRO_DINPUTS - 1); channel>=0 ; channel--) {
+			xprintf_P(PSTR("%d "),dst[channel]);
+		}
+		xprintf_P(PSTR("]\r\n"));
+		break;
+	}
+}
 

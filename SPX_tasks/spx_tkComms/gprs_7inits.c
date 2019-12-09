@@ -593,6 +593,9 @@ static void pv_tx_init_payload_psensor(void)
 //------------------------------------------------------------------------------------
 static void pv_tx_init_payload_aplicacion(void)
 {
+
+uint8_t i;
+
 	switch(systemVars.aplicacion) {
 	case APP_OFF:
 		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:OFF;"));
@@ -627,9 +630,32 @@ static void pv_tx_init_payload_aplicacion(void)
 		break;
 
 	case APP_PLANTAPOT:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:PLANTAPOT;"));
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;"));
+		xCom_printf_P( fdGPRS,PSTR("AP0:PLANTAPOT;"));
+		for (i=0; i<MAX_NRO_SMS_ALARMAS;i++) {
+			xCom_printf_P( fdGPRS,PSTR("SMS%d:%s,%d;"), systemVars.aplicacion_conf.alarma_ppot.l_sms[i].sms_nro, systemVars.aplicacion_conf.alarma_ppot.l_sms[i].alm_level);
+		}
+		xCom_printf_P( fdGPRS,PSTR("ALMLEVEL:"));
+		for (i=0; i<NRO_CANALES_ALM;i++) {
+			xCom_printf_P( fdGPRS,PSTR("CH%d:%.02f,%.02f,%.02f,%.02f,%.02f,%.02f;"), i,
+				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup,
+				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup,
+				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup );
+		}
+
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:PLANTAPOT;"));
+			xprintf_P( PSTR("&PLOAD=CLASS:APP;"));
+			xprintf_P( PSTR("AP0:PLANTAPOT;"));
+			for (i=0; i<MAX_NRO_SMS_ALARMAS;i++) {
+				xprintf_P( PSTR("SMS%d:%s,%d;"), systemVars.aplicacion_conf.alarma_ppot.l_sms[i].sms_nro, systemVars.aplicacion_conf.alarma_ppot.l_sms[i].alm_level);
+			}
+			xprintf_P( PSTR("ALMLEVEL:"));
+			for (i=0; i<NRO_CANALES_ALM;i++) {
+				xprintf_P( PSTR("CH%d:%.02f,%.02f,%.02f,%.02f,%.02f,%.02f;"), i,
+					systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup,
+					systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup,
+					systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup );
+			}
 		}
 		break;
 	}

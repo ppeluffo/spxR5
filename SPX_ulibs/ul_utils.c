@@ -520,30 +520,36 @@ bool u_config_aplicacion( char *modo )
 
 }
 //------------------------------------------------------------------------------------
-bool u_write_output_pins( uint8_t pin, uint8_t val )
+bool u_write_output_pins( uint8_t pin, int8_t val )
 {
 
+	/* Esta funcion pone los pines en un valor dado 0 o 1.
+	 * El tema es visto desde donde ?.
+	 * Porque como las salidas estan implementadas con un transistor
+	 * a la salida del pin del MCP, si pongo un 0 en el MCP, en el
+	 * circuito externo esto queda por un pull-up en 1.
+	 * La norma que seguimos es que el valor que ponemos es el que vemos en
+	 * el circuito !!!.
+	 * Para poner un 0 (GND) en el circuito, entonces debo escribir un 1 en el MCP. !!!
+	 */
 int8_t ret_code = 0;
 bool retS = false;
 
 
-	if ( ( val != 0) || ( val != 1 ))
-		retS = false;
-		goto exit;
-
-
 	if ( spx_io_board == SPX_IO8CH ) {
+
 		// Tenemos 8 salidas que las manejamos con el MCP
 		if ( pin > 7 ) {
 			retS = false;
 			goto exit;
 		}
 
+
 		if ( val == 0) {
-			ret_code = IO_set_DOUT(pin);
+			ret_code = IO_set_DOUT(pin);		// Pongo un 1 en el MCP
 			if ( ret_code == -1 ) {
 				// Error de bus
-				xprintf_P( PSTR("wOUTPUT_PIN: I2C bus error(1)\n\0"));
+				xprintf_P( PSTR("wOUTPUT_PIN: I2C bus error(1)\r\n\0"));
 				retS = false;
 				goto exit;
 			}
@@ -553,7 +559,7 @@ bool retS = false;
 		}
 
 		if ( val == 1) {
-			ret_code = IO_clr_DOUT(pin);
+			ret_code = IO_clr_DOUT(pin);		// Pongo un 0 en el MCP
 			if ( ret_code == -1 ) {
 				// Error de bus
 				xprintf_P( PSTR("wOUTPUT_PIN: I2C bus error(2)\n\0"));

@@ -154,7 +154,10 @@ int8_t xBytes = 0;
 		return(-1);
 	}
 
-	xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
+	//xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
+	xBytes = MCP_read( MCP_OLATB, (char *)&data, 1 );
+//	xprintf_P(PSTR("DEBUG_A: IO_set_DOUT rd[0x%x]\r\n\0"), data);
+
 	if ( xBytes == -1 ) {
 		xprintf_P(PSTR("ERROR: IO_set_DOUT(1)\r\n\0"));
 		return(-1);
@@ -165,6 +168,7 @@ int8_t xBytes = 0;
 	data |= ( 1 << ( 7 - pin )  );
 
 	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+//	xprintf_P(PSTR("DEBUG_A: IO_set_DOUT wr[0x%x]\r\n\0"), data);
 	if ( xBytes == -1 ) {
 		xprintf_P(PSTR("ERROR: IO_set_DOUT(2)\r\n\0"));
 		return(-1);
@@ -187,7 +191,10 @@ int8_t xBytes = 0;
 		return(-1);
 	}
 
-	xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
+	//xBytes = MCP_read( MCP_GPIOB, (char *)&data, 1 );
+	xBytes = MCP_read( MCP_OLATB, (char *)&data, 1 );
+//	xprintf_P(PSTR("DEBUG_B: IO_clr_DOUT rd[0x%x]\r\n\0"), data);
+
 	if ( xBytes == -1 ) {
 		xprintf_P(PSTR("ERROR: IO_clr_DOUT(1)\r\n\0"));
 		return(-1);
@@ -197,6 +204,7 @@ int8_t xBytes = 0;
 	data &= ~( 1 << ( 7 - pin ) );
 
 	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+//	xprintf_P(PSTR("DEBUG_B: IO_clr_DOUT wr[0x%x]\r\n\0"), data);
 	if ( xBytes == -1 ) {
 		xprintf_P(PSTR("ERROR: IO_clr_DOUT(2)\r\n\0"));
 		return(-1);
