@@ -13,12 +13,25 @@ bool flash_luz_amarilla;
 bool flash_luz_azul;
 bool flash_luz_naranja;
 
-static void pv_plantapot_TimerCallback( TimerHandle_t xTimer );
+static int16_t timer_en_standby;
 
-TimerHandle_t plantaplot_timerAlarmas;
-StaticTimer_t plantaplot_xTimerAlarmas;
+static void pv_appalarma_TimerCallback( TimerHandle_t xTimer );
+static void pv_appalarma_leer_entradas(void);
+static void pv_appalarma_check_inband(void);
+static bool pv_fire_alarmas(void);
+
+TimerHandle_t appalarma_timerAlarmas;
+StaticTimer_t appalarma_xTimerAlarmas;
 
 uint16_t din[IO8_DINPUTS_CHANNELS];
+
+static t_appalm_states appalarma_state;
+
+// Estados
+void st_appalarma_normal(void);
+void st_appalarma_alarmado(void);
+void st_appalarma_mantenimiento(void);
+void st_appalarma_standby(void);
 
 // Acciones
 static void ac_luz_verde( t_dev_action action);
@@ -40,29 +53,227 @@ void appalarma_stk(void)
 		return;
 
 	// Creo y arranco el timer de control del tiempo de alarmas
-	plantaplot_timerAlarmas = xTimerCreateStatic ("PPOT",
+	appalarma_timerAlarmas = xTimerCreateStatic ("PPOT",
 			pdMS_TO_TICKS( 1000 ),
 			pdTRUE,
 			( void * ) 0,
-			pv_plantapot_TimerCallback,
-			&plantaplot_xTimerAlarmas
+			pv_appalarma_TimerCallback,
+			&appalarma_xTimerAlarmas
 			);
 
-	xTimerStart(plantaplot_timerAlarmas, 10);
+	xTimerStart(appalarma_timerAlarmas, 10);
 
 	for (;;) {
+
+		switch(appalarma_state) {
+		case st_NORMAL:
+			st_appalarma_normal();
+			break;
+		case st_ALARMADO:
+			st_appalarma_alarmado();
+			break;
+		case st_STANDBY:
+			st_appalarma_standby();
+			break;
+		case st_MANTENIMIENTO:
+			st_appalarma_mantenimiento();
+			break;
+		default:
+			xprintf_P(PSTR("MODO OPERACION ERROR: Plantapot state unknown (%d)\r\n\0"), appalarma_state );
+			systemVars.aplicacion = APP_OFF;
+			u_save_params_in_NVMEE();
+			return;
+			break;
+		}
+	}
+}
+//------------------------------------------------------------------------------------
+// ESTADOS
+//------------------------------------------------------------------------------------
+void st_appalarma_normal(void)
+{
+
+// Entry:
+	if ( systemVars.debug == DEBUG_APLICACION ) {
+		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Normal.\r\n\0"));
+	}
+
+// Loop:
+	// Genero un ciclo por segundo !!!
+
+	while ( appalarma_state == st_NORMAL ) {
+
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		// Espera de 1s
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
+		// Leo los datos
+		pv_appalarma_leer_entradas();
+		// Veo si hay alguna medida en una region de alarma
+		pv_appalarma_check_inband();
+		// Disparo alarmas si es necesario
+		if ( pv_fire_alarmas() ) {
+			// Si dispare una alarma, paso al estado de sistema alarmado
+			appalarma_state = st_ALARMADO;
+			return;
+		}
 	}
+
+// Exit
+	return;
+
 }
 //------------------------------------------------------------------------------------
-// FUNCIONES GENERALES
+void st_appalarma_alarmado(void)
+{
+	// En este estado tengo al menos una alarma disparada.
+	// Sigo monitoreando pero ahora controlo que presiones el botón de reset
+	// Entry:
+
+uint8_t timer_boton_pressed = SECS_BOTON_PRESSED;
+
+	if ( systemVars.debug == DEBUG_APLICACION ) {
+		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Alarmado.\r\n\0"));
+	}
+
+	// Loop:
+	// Genero un ciclo por segundo !!!
+
+	while ( appalarma_state == st_ALARMADO ) {
+
+		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
+		// Espera de 1s
+		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+
+		// Leo los datos
+		pv_appalarma_leer_entradas();
+		// Veo si hay alguna medida en una region de alarma
+		pv_appalarma_check_inband();
+		// Disparo alarmas si es necesario
+		pv_fire_alarmas();
+		// Veo si presiono el boton de reset de alarma por mas de 5secs.
+		if ( ! alarmVars.boton_alarma_pressed ) {
+			timer_boton_pressed = SECS_BOTON_PRESSED;
+		} else {
+			timer_boton_pressed--;
+		}
+
+		if ( timer_boton_pressed == 0 ) {
+			// Reconoci la alarma por tener apretado el boton de pressed mas de 5s
+			appalarma_state = st_STANDBY;
+			return;
+		}
+	}
+
+// Exit
+	return;
+}
+//------------------------------------------------------------------------------------
+void st_appalarma_mantenimiento(void)
+{
+	// Este estado es en mantenimiento ( llave de mantenimiento en on)
+	// Solo se polean los datos cada 30s y se guardan en la base de datos pero no
+	// se generan alarmas.
+	// Los datos se polean y guardan en la tarea spx_tkInputs y se mandan al server con
+	// spx_tkComms por lo tanto no hacemos nada.
+	// - No se activan las alarmas
+	// - No se disparan las sirenas
+	// - No se generan SMS
+	// - Solo flashea la luz azul.
+	// Cuando salgo solo voy al estado NORMAL
+
+
+// Entry:
+	if ( systemVars.debug == DEBUG_APLICACION ) {
+		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Mantenimiento.\r\n\0"));
+	}
+	// Al entrar en mantenimiento apago todas las posibles señales activas.
+	// Solo debe flashear la luz verde.
+	ac_luz_verde( act_OFF );
+	ac_luz_roja( act_OFF );
+	ac_luz_amarilla( act_OFF );
+	ac_luz_naranja( act_OFF );
+	ac_luz_azul(act_OFF);
+	ac_sirena( act_OFF );
+
+	// Flasheo luz azul
+	ac_luz_azul(act_FLASH);
+
+// Loop:
+	while ( appalarma_state == st_MANTENIMIENTO ) {
+
+		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
+		// Espera de 1s
+		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+
+		// Veo si apagaron la llave de mantenimiento.
+		if ( alarmVars.llave_mantenimiento_on == false ) {
+			// Apagaron la llave de mantenimiento. Salgo
+			appalarma_state = st_NORMAL;
+		}
+
+	}
+
+// Exit
+
+	appalarma_init();
+	return;
+
+}
+//------------------------------------------------------------------------------------
+void st_appalarma_standby(void)
+{
+	// Este estado es en standby. Entro luego de estar alarmado y que se presiono
+	// el boton de reset.
+	// Solo se polean los datos cada 30s y se guardan en la base de datos pero no
+	// se generan alarmas.
+	// Debo permanecer en este estado hasta que transcurran 30 minutos
+	// Los datos se polean y guardan en la tarea spx_tkInputs y se mandan al server con
+	// spx_tkComms por lo tanto no hacemos nada.
+	// - No se activan las alarmas
+	// - No se disparan las sirenas
+	// - No se generan SMS
+	// Cuando salgo solo voy al estado NORMAL o al estado MANTENIMIENTO.
+	// El timer que uso es una variable estática externa para poder mostrarlo en el status.
+
+
+// Entry:
+	if ( systemVars.debug == DEBUG_APLICACION ) {
+		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Standby.\r\n\0"));
+	}
+	// Debo permancer 30 minutos.
+	timer_en_standby = TIME_IN_STANDBY;
+
+// Loop:
+	while ( appalarma_state == st_STANDBY ) {
+
+		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
+		// Espera de 1s
+		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+
+		// Veo si activaron la llave de mantenimiento.
+		if ( alarmVars.llave_mantenimiento_on == true ) {
+			appalarma_state = st_MANTENIMIENTO;
+		}
+
+		// Veo si expiro el tiempo para salir y volver al estado NORMAL
+		if ( timer_en_standby-- <= 1 ) {
+			appalarma_state = st_NORMAL;
+		}
+
+	}
+
+// Exit
+	timer_en_standby = 0;
+	appalarma_init();
+
+}
+//------------------------------------------------------------------------------------
+// FUNCIONES GENERALES PRIVADAS
 //------------------------------------------------------------------------------------
 bool appalarma_init(void)
 {
-//uint8_t i;
+uint8_t i;
 
 	// Inicializa las salidas y las variables de trabajo.
 
@@ -84,11 +295,19 @@ bool appalarma_init(void)
 	alarmVars.llave_mantenimiento_on= false;
 	alarmVars.sensor_puerta_open = false;
 
+	// Inicializo los timers por canal y por nivel de alamra
+	for ( i = 0; i < NRO_CANALES_MONITOREO; i++) {
+		alm_sysVars[i].enabled = false;
+		alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1;
+		alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2;
+		alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3;
+	}
+
 	return(true);
 
 }
 //------------------------------------------------------------------------------------
-static void pv_plantapot_TimerCallback( TimerHandle_t xTimer )
+static void pv_appalarma_TimerCallback( TimerHandle_t xTimer )
 {
 	// Se ejecuta cada 1s como callback del timer.
 
@@ -116,13 +335,13 @@ static void pv_plantapot_TimerCallback( TimerHandle_t xTimer )
 
 	dinputs_read( din );
 
-	if ( din[IPIN_LLAVE_MANTENIMIENTO] == 0 ) {
+	if ( din[IPIN_LLAVE_MANTENIMIENTO] == 1 ) {
 		alarmVars.llave_mantenimiento_on = true;
 	} else {
 		alarmVars.llave_mantenimiento_on = false;
 	}
 
-	if ( din[IPIN_BOTON_ALARMA] == 0 ) {
+	if ( din[IPIN_BOTON_ALARMA] == 	1 ) {
 		alarmVars.boton_alarma_pressed = true;
 	} else {
 		alarmVars.boton_alarma_pressed = false;
@@ -134,6 +353,122 @@ static void pv_plantapot_TimerCallback( TimerHandle_t xTimer )
 	} else {
 		alarmVars.sensor_puerta_open = false;
 	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_appalarma_leer_entradas(void)
+{
+	// El poleo de las entradas lo hace la tarea tkInputs. Esta debe tener un timerpoll de 30s
+	// Aqui c/1s leo las entradas en modo 'copy' ( sin poleo ).
+	// Por eso no tengo que monitorear los 30s sino que lo hago c/1s. y esto me permite tener
+	// permantente control de la tarea.
+	// Leo las entradas analogicas
+	// Los sensores externos: llave_mantenimiento, sensor_puerta, boton_alarma
+	// los leo en la funcion de callback del timer.
+
+st_dataRecord_t dr;
+uint8_t i;
+
+	// Leo todas las entradas analogicas, digitales, contadores.
+	// Es un DLG8CH
+	// Leo en modo 'copy', sin poleo real.
+	data_read_inputs(&dr, true );
+
+	for (i=0; i < NRO_CANALES_MONITOREO; i++) {
+		// Los switches ( canales digitales ) indican si el canal esta
+		// habilitado si o no.
+		if ( dr.df.io8.dinputs[i] == 0 ) {
+			alm_sysVars[i].enabled = false;
+		} else {
+			alm_sysVars[i].enabled = true;
+		}
+
+		// Leo el valor de todos los canales ( habilitados o no )
+		alm_sysVars[i].value = dr.df.io8.ainputs[i];
+
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_appalarma_check_inband(void)
+{
+	// Para cada canal, veo si el nivel actual esta en alguna banda de alarma.
+	// En caso afirmativo decremento el contador hasta 0.
+	// En caso que el valor este en el valor normal, reseteo los contadores de c/banda
+	// Los timers son decrementados a 0 si son mayores a 0. !!!
+
+
+uint8_t i;
+float value;
+
+	for (i=0; i < NRO_CANALES_MONITOREO; i++) {
+		// Si el canal esta apagado lo salteo
+		if ( alm_sysVars[i].enabled == false )
+			continue;
+
+		value = alm_sysVars[i].value;
+
+		if (  ( alm_sysVars[i].L3_timer > 0 ) &&
+				( ( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup ) ||
+				( value < systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf ) ) ) {
+			alm_sysVars[i].L3_timer--;
+
+		} else  if (  ( alm_sysVars[i].L2_timer > 0 ) &&
+				( ( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup ) ||
+				( value < systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf ) ) ) {
+			alm_sysVars[i].L2_timer--;
+
+		} else  if (  ( alm_sysVars[i].L1_timer > 0 ) &&
+				( ( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup ) ||
+				( value < systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf ) ) ) {
+			alm_sysVars[i].L1_timer--;
+		} else {
+			// Estoy en la banda normal. Reseteo los timers
+			alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3;
+			alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2;
+			alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1;
+		}
+	}
+}
+//------------------------------------------------------------------------------------
+static bool pv_fire_alarmas(void)
+{
+	// Revisa si hay algún canal que deba disparar alguna alarma.
+	// En caso afirmativo la dispara.
+
+uint8_t i;
+bool alm_fired = false;
+
+	for (i=0; i < NRO_CANALES_MONITOREO; i++) {
+
+		// Si el canal esta apagado lo salteo
+		if ( alm_sysVars[i].enabled == false )
+			continue;
+
+		if ( alm_sysVars[i].L1_timer == 1 ) {
+			// Disparo alarma LEVEL_1
+			ac_luz_verde(act_OFF);
+			ac_luz_amarilla(act_FLASH);
+			alm_fired = true;
+		}
+
+		if ( alm_sysVars[i].L2_timer == 1 ) {
+			// Disparo alarma LEVEL_1
+			ac_luz_verde(act_OFF);
+			ac_luz_naranja(act_FLASH);
+			alm_fired = true;
+		}
+
+		if ( alm_sysVars[i].L3_timer == 1 ) {
+			// Disparo alarma LEVEL_1
+			ac_luz_verde(act_OFF);
+			ac_luz_roja(act_FLASH);
+			alm_fired = true;
+		}
+
+	}
+
+	return(alm_fired);
 
 }
 //------------------------------------------------------------------------------------
@@ -315,10 +650,10 @@ static void ac_sirena(t_dev_action action)
 
 	switch(action) {
 	case act_OFF:
-		u_write_output_pins( OPIN_SIRENA, 0 );
+		u_write_output_pins( OPIN_SIRENA, 1 );
 		break;
 	case act_ON:
-		u_write_output_pins( OPIN_SIRENA, 1 );
+		u_write_output_pins( OPIN_SIRENA, 0 );
 		break;
 	case act_FLASH:
 		break;
@@ -679,6 +1014,7 @@ uint8_t pos;
 		}
 	}
 
+	// Entradas digitales
 	if ( ac_read_status_mantenimiento() ) {
 		xprintf_P( PSTR("    mantenimiento: ON\r\n\0"));
 	} else {
@@ -697,5 +1033,65 @@ uint8_t pos;
 		xprintf_P( PSTR("    boton alarma: NORMAL\r\n\0"));
 	}
 
+	// Señales activas
+
+
+	// Estado del programa
+	xprintf_P( PSTR("  Estado:"));
+	switch (appalarma_state) {
+	case st_NORMAL:
+		xprintf_P( PSTR(" NORMAL\r\n"));
+		break;
+	case st_ALARMADO:
+		xprintf_P( PSTR(" ALARMADO\r\n"));
+		break;
+	case st_STANDBY:
+		xprintf_P( PSTR(" STANDBY(%d)\r\n"), timer_en_standby );
+		break;
+	case st_MANTENIMIENTO:
+		xprintf_P( PSTR(" MANTENIMIENTO\r\n"));
+		break;
+
+	}
+
 }
 //------------------------------------------------------------------------------------
+void appalarma_test(void)
+{
+	// Funcion invocada desde el modo comando para ver como evolucionan
+	// las variables de la aplicacion
+
+uint8_t i;
+
+	appalarma_print_status();
+
+	xprintf_P(PSTR("\r\n") );
+
+	switch(appalarma_state) {
+	case st_NORMAL:
+		xprintf_P(PSTR("Estado: NORMAL\r\n"));
+		break;
+	case st_ALARMADO:
+		xprintf_P(PSTR("Estado: ALARMADO\r\n"));
+		break;
+	case st_STANDBY:
+		xprintf_P(PSTR("Estado: STANDBY\r\n"));
+		break;
+	case st_MANTENIMIENTO:
+		xprintf_P(PSTR("Estado: MANTENIMIENTO\r\n"));
+		break;
+	default:
+		xprintf_P(PSTR("Estado: ERROR\r\n") );
+		break;
+	}
+
+	xprintf_P(PSTR("\r\n") );
+
+	for (i=0; i < NRO_CANALES_MONITOREO; i++) {
+		xprintf_P(PSTR("ch%02d: [%d] val=%.02f, L1=%d, L2=%d, L3=%d\r\n\0"), i, alm_sysVars[i].enabled, alm_sysVars[i].value, alm_sysVars[i].L1_timer, alm_sysVars[i].L2_timer, alm_sysVars[i].L3_timer );
+	}
+
+
+}
+//------------------------------------------------------------------------------------
+

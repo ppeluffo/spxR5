@@ -283,8 +283,9 @@ uint8_t i;
 		if ( strcmp ( systemVars.psensor_conf.name, "X" ) == 0 ) {
 			xprintf_P( PSTR("  psensor: X\r\n\0"));
 		} else {
-			xprintf_P( PSTR("  psensor: %s (offset=%.01f, span=%.01f )\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.offset, systemVars.psensor_conf.span );
+			xprintf_P( PSTR("  psensor: %s (%d-%d / %.01f-%.01f)[offset=%0.02f]\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
 		}
+
 	//}
 
 	// aninputs
@@ -533,6 +534,14 @@ uint8_t cks;
 	FRTOS_CMD_makeArgv();
 
 
+	// ALMTEST
+	// read almtest
+	if (!strcmp_P( strupr(argv[1]), PSTR("ALMTEST\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		 appalarma_test();
+		 return;
+	}
+
+
 	// CHECKSUM
 	// read checksum
 	if (!strcmp_P( strupr(argv[1]), PSTR("CHECKSUM\0")) && ( tipo_usuario == USER_TECNICO) ) {
@@ -776,8 +785,12 @@ bool retS = false;
 
 	// Parametros ENTRADAS ANALOGICAS------------------------------------------------------------------------
 	// AUTOCAL
-	// config autocal {ch} {mag}
+	// config autocal {ch,PSENSOR} {mag}
 	if (!strcmp_P( strupr(argv[1]), PSTR("AUTOCAL\0")) ) {
+		if (!strcmp_P( strupr(argv[2]), PSTR("PSENSOR\0")) ) {
+			psensor_config_autocalibrar( argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+			return;
+		}
 		ainputs_config_autocalibrar( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -894,9 +907,9 @@ bool retS = false;
 	}
 
 	// PSENSOR
-	// config psensor name offset span
+	// config psensor name countMin countMax pmin pmax offset
 	if (!strcmp_P( strupr(argv[1]), PSTR("PSENSOR\0")) ) {
-		psensor_config( argv[2], argv[3], argv[4] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		psensor_config( argv[2], argv[3], argv[4], argv[5], argv[6], argv[7] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
@@ -1045,7 +1058,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
 		xprintf_P( PSTR("  rangemeter {name}\r\n\0"));
-		xprintf_P( PSTR("  psensor {name} {offset} {span}\r\n\0"));
+		xprintf_P( PSTR("  psensor name countMin countMax pmin pmax offset\r\n\0"));
 
 		xprintf_P( PSTR("  debug {none,counter,data,gprs,aplicacion }\r\n\0"));
 
@@ -1054,11 +1067,11 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
 
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax offset\r\n\0"),( NRO_ANINPUTS - 1 ) );
-		xprintf_P( PSTR("  autocal {ch} {mag}\r\n\0"));
+		xprintf_P( PSTR("  autocal {ch,PSENSOR} {mag}\r\n\0"));
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
 		//xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
 
-		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque,plantapot}\r\n\0"));
+		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque,alarmas}\r\n\0"));
 		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
 		xprintf_P( PSTR("            nivel {chid} {alerta} {inf|sup} val\r\n\0"));
 		xprintf_P( PSTR("  piloto reg {CHICA|MEDIA|GRANDE}\r\n\0"));

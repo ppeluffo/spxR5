@@ -67,7 +67,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.9.9a"
-#define SPX_FW_DATE "@ 20191209"
+#define SPX_FW_DATE "@ 20191213"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -261,9 +261,13 @@ typedef struct {
 // Configuracion del sensor i2c de presion
 typedef struct {
 	char name[PARAMNAME_LENGTH];
-	float span;
+	uint16_t count_min;
+	uint16_t count_max;
+	float pmin;
+	float pmax;
 	float offset;
 } psensor_conf_t;
+
 
 typedef struct {
 	st_time_t hhmm_c_diurna;
@@ -376,6 +380,7 @@ bool u_config_aplicacion( char *modo );
 bool u_write_output_pins( uint8_t pin, int8_t val );
 bool u_set_douts( uint8_t dout );
 bool u_sms_send(char *dst_nbr, char *msg );
+void appalarma_test(void);
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -418,12 +423,13 @@ uint8_t range_checksum(void);
 
 // PSENSOR
 void psensor_init(void);
-bool psensor_config ( char *s_pname, char *s_offset, char *s_span );
+bool psensor_config ( char *s_pname, char *s_countMin, char *s_countMax, char *s_pmin, char *s_pmax , char *s_offset );
 void psensor_config_defaults(void);
 bool psensor_read( float *presion );
 bool psensor_test_read (void);
 void psensor_print(file_descriptor_t fd, float presion );
 uint8_t psensor_checksum(void);
+bool psensor_config_autocalibrar( char *s_mag );
 
 // TEMPSENSOR
 void tempsensor_init(void);

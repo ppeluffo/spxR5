@@ -16,7 +16,6 @@
 //--------------------------------------------------------------------------------
 // API START
 
-int8_t __bps120_raw_read( float *presion );
 int8_t bps120_raw_read( char *data );
 
 // API END

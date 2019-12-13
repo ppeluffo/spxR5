@@ -13,11 +13,11 @@
 #define NRO_CANALES_MONITOREO	6
 
 // Pines de salida
-#define OPIN_SIRENA				0
+#define OPIN_LUZ_ROJA			0
 #define OPIN_LUZ_VERDE			1
-#define OPIN_LUZ_ROJA			2
-#define OPIN_LUZ_AMARILLA		3
-#define OPIN_LUZ_NARANJA		4
+#define OPIN_LUZ_AMARILLA		2
+#define OPIN_LUZ_NARANJA		3
+#define OPIN_SIRENA				4
 #define OPIN_LUZ_AZUL			5
 
 // Pines de entrada
@@ -32,13 +32,33 @@
 
 #define IPIN_SENSOR_PUERTA			CNT0
 
+#define SECS_ALM_LEVEL_1	360
+#define SECS_ALM_LEVEL_2	240
+#define SECS_ALM_LEVEL_3	120
+
+#define SECS_BOTON_PRESSED	5
+
+typedef enum {st_NORMAL = 0, st_ALARMADO, st_STANDBY, st_MANTENIMIENTO } t_appalm_states;
 typedef enum { act_OFF = 0, act_ON,act_FLASH } t_dev_action;
+
+// Tiempo dentro del estado standby ( luego de haber reconocido las alarmas )
+#define TIME_IN_STANDBY			1800
 
 struct {
 	bool llave_mantenimiento_on;
 	bool boton_alarma_pressed;
 	bool sensor_puerta_open;
 } alarmVars;
+
+typedef struct {
+	bool enabled;
+	float value;
+	uint16_t L1_timer;
+	uint16_t L2_timer;
+	uint16_t L3_timer;
+} t_alm_channels;
+
+t_alm_channels alm_sysVars[NRO_CANALES_MONITOREO];
 
 void appalarma_stk(void);
 bool appalarma_init(void);

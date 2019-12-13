@@ -18,13 +18,15 @@ void psensor_init(void)
 void psensor_config_defaults(void)
 {
 
-	snprintf_P( systemVars.psensor_conf.name, PARAMNAME_LENGTH, PSTR("X\0"));
-	systemVars.psensor_conf.span = 70;
-	systemVars.psensor_conf.offset = 0;
-
+	snprintf_P( systemVars.psensor_conf.name, PARAMNAME_LENGTH, PSTR("PSEN\0"));
+	systemVars.psensor_conf.count_min = 1480;
+	systemVars.psensor_conf.count_max = 6200;
+	systemVars.psensor_conf.pmin = 0;
+	systemVars.psensor_conf.pmax = 28.5;
+	systemVars.psensor_conf.offset = 0.0;
 }
 //------------------------------------------------------------------------------------
-bool psensor_config ( char *s_pname, char *s_offset, char *s_span )
+bool psensor_config ( char *s_pname, char *s_countMin, char *s_countMax, char *s_pmin, char *s_pmax, char *s_offset )
 {
 
 	// Esta opcion es solo valida para IO5
@@ -35,15 +37,33 @@ bool psensor_config ( char *s_pname, char *s_offset, char *s_span )
 
 	if ( s_pname != NULL ) {
 		snprintf_P( systemVars.psensor_conf.name, PARAMNAME_LENGTH, PSTR("%s\0"), s_pname );
+//		xprintf_P(PSTR("DEBUG NAME %s\r\n"), s_pname);
+	}
+
+	if ( s_countMin != NULL ) {
+		systemVars.psensor_conf.count_min = atoi(s_countMin);
+//		xprintf_P(PSTR("DEBUG CMIN [%s] %d\r\n"), s_countMin, systemVars.psensor_conf.count_min);
+	}
+
+
+	if ( s_countMax != NULL ) {
+		systemVars.psensor_conf.count_max = atoi(s_countMax);
+//		xprintf_P(PSTR("DEBUG CMAX [%s] %d\r\n"), s_countMax, systemVars.psensor_conf.count_max);
+	}
+
+	if ( s_pmin != NULL ) {
+		systemVars.psensor_conf.pmin = atof(s_pmin);
+//		xprintf_P(PSTR("DEBUG PMIN [%s] %.02f\r\n"), s_pmin, systemVars.psensor_conf.pmin);
+	}
+
+	if ( s_pmax != NULL ) {
+		systemVars.psensor_conf.pmax = atof(s_pmax);
+//		xprintf_P(PSTR("DEBUG PMAX [%s] %.02f\r\n"), s_pmax, systemVars.psensor_conf.pmax);
 	}
 
 	if ( s_offset != NULL ) {
 		systemVars.psensor_conf.offset = atof(s_offset);
-	}
-
-
-	if ( s_span != NULL ) {
-		systemVars.psensor_conf.span = atof(s_span);
+//		xprintf_P(PSTR("DEBUG OFFSET [%s] %.02f\r\n"), s_offset, systemVars.psensor_conf.offset);
 	}
 
 	return(true);
@@ -58,7 +78,7 @@ char buffer[2] = { 0 };
 uint8_t msbPres = 0;
 uint8_t lsbPres = 0;
 float pres = 0;
-int16_t pcounts;
+int32_t pcounts;
 
 	xBytes = bps120_raw_read( buffer );
 	if ( xBytes == -1 ) {
@@ -71,11 +91,20 @@ int16_t pcounts;
 		msbPres = buffer[0]  & 0x3F;
 		lsbPres = buffer[1];
 		pcounts = (msbPres << 8) + lsbPres;
+
+		pres = ( systemVars.psensor_conf.pmax - systemVars.psensor_conf.pmin ) / ( systemVars.psensor_conf.count_max - systemVars.psensor_conf.count_min );
+		pres *= ( pcounts - systemVars.psensor_conf.count_min);
+		pres += systemVars.psensor_conf.pmin;
+		pres += systemVars.psensor_conf.offset;
+		if ( pres < 0 )
+			pres = 0.0;
+
 		// pcounts = ( buffer[0]<<8 ) + buffer[1];
 
 		// Aplico la funcion de transferencia.
+		// Viene dada por los puntos countMin, countMax,pMin, pMax
 		//pres = ( 1 * (pcounts - 1638)/13107 );
-		pres = (( 0.85 * (pcounts - 1638)/13107 ) + 0.15) * 70.31;
+		//pres = (( 0.85 * (pcounts - 1638)/13107 ) + 0.15) * 70.31;
 
 		*presion = pres;
 		return(true);
@@ -93,7 +122,7 @@ char buffer[2] = { 0 };
 uint8_t msbPres = 0;
 uint8_t lsbPres = 0;
 float pres = 0;
-int16_t pcounts;
+int32_t pcounts;
 
 	xBytes = bps120_raw_read( buffer );
 	if ( xBytes == -1 ) {
@@ -108,10 +137,20 @@ int16_t pcounts;
 		// pcounts = ( buffer[0]<<8 ) + buffer[1];
 
 		// Aplico la funcion de transferencia.
-		pres = (( 0.85 * (pcounts - 1638)/13107 ) + 0.15) * 70.31;
+		//pres = (( 0.85 * (pcounts - 1638)/13107 ) + 0.15) * 70.31;
 
-		xprintf_P( PSTR( "PRES TEST: raw=b0[0x%02x],b1[0x%02x]\r\n\0"),buffer[0],buffer[1]);
-		xprintf_P( PSTR( "PRES TEST: pcounts=%d, presion=%.03f\r\n\0"), pcounts, pres );
+		xprintf_P( PSTR( "PRES TEST: raw=MSB[0x%02x], LSB[0x%02x]\r\n\0"),buffer[0],buffer[1]);
+
+		pres = ( systemVars.psensor_conf.pmax - systemVars.psensor_conf.pmin ) / ( systemVars.psensor_conf.count_max - systemVars.psensor_conf.count_min );
+		//xprintf_P( PSTR( "PRES TEST1:pres=%.03f\r\n\0"), pres );
+		pres = pres * ( pcounts - systemVars.psensor_conf.count_min);
+		//xprintf_P( PSTR( "PRES TEST2:pres=%.03f\r\n\0"), pres );
+		pres = pres + systemVars.psensor_conf.pmin;
+		pres += systemVars.psensor_conf.offset;
+		//xprintf_P( PSTR( "PRES TEST3:pres=%.03f\r\n\0"), pres );
+		xprintf_P( PSTR( "PRES TEST: pcounts=%d, "), pcounts );
+		xprintf_P( PSTR( "pres=%.03f\r\n\0"), pres );
+		//xprintf_P( PSTR( "PRES TEST4:pres=%.03f\r\n\0"), pres );
 
 		return(true);
 	}
@@ -126,29 +165,67 @@ void psensor_print(file_descriptor_t fd, float presion )
 //	if ( ! strcmp ( systemVars.psensor_conf.name, "X" ) )
 //		return;
 
-	xCom_printf_P(fd, PSTR("%s:%.03f;\0"), systemVars.psensor_conf.name, presion );
+	xCom_printf_P(fd, PSTR("%s:%.01f;\0"), systemVars.psensor_conf.name, presion );
 
+}
+//------------------------------------------------------------------------------------
+bool psensor_config_autocalibrar( char *s_mag )
+{
+	// Calibra el parámetro offset.
+	// El usuario pone un valor de referencia s_mag.
+	// El sistema mide la presion y ajusta el offset para que el valor final sea el que
+	// ingreso el usuario.
+
+float pres_real;
+int8_t xBytes = 0;
+char buffer[2] = { 0 };
+uint8_t msbPres = 0;
+uint8_t lsbPres = 0;
+float pres = 0;
+int32_t pcounts;
+
+	pres_real = atof(s_mag);
+
+	// Mido
+	xBytes = bps120_raw_read( buffer );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: I2C: psensor_test_read\r\n\0"));
+		return(false);
+	}
+
+	if ( xBytes > 0 ) {
+		msbPres = buffer[0] & 0x3F;
+		lsbPres = buffer[1];
+		pcounts = (msbPres << 8) + lsbPres;
+		//xprintf_P( PSTR( "PRES TEST: raw=MSB[0x%02x], LSB[0x%02x]\r\n\0"),buffer[0],buffer[1]);
+
+		pres = ( systemVars.psensor_conf.pmax - systemVars.psensor_conf.pmin ) / ( systemVars.psensor_conf.count_max - systemVars.psensor_conf.count_min );
+		pres = pres * ( pcounts - systemVars.psensor_conf.count_min);
+		pres = pres + systemVars.psensor_conf.pmin;
+		//pres += systemVars.psensor_conf.offset;
+		systemVars.psensor_conf.offset = ( pres_real - pres ) ;
+		xprintf_P( PSTR( "PSENSOR_ACAL: raw=MSB[0x%02x], LSB[0x%02x]\r\n\0"),buffer[0],buffer[1]);
+		xprintf_P( PSTR( "PSENSOR_ACAL: pres=%.01f\r\n\0"), pres );
+		xprintf_P( PSTR( "PSENSOR_ACAL: offset=%.01f\r\n\0"), systemVars.psensor_conf.offset );
+		return(true);
+	}
+
+	return(false);
 }
 //------------------------------------------------------------------------------------
 uint8_t psensor_checksum(void)
 {
 
 uint8_t checksum = 0;
-char dst[32];
+char dst[40];
 char *p;
-
-	//	char name[PARAMNAME_LENGTH];
-	//	float offset;
-	//	float span;
-
 
 	// calculate own checksum
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
-	// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-	snprintf_P( dst, sizeof(dst), PSTR("%s,%.01f,%.01f"), systemVars.psensor_conf.name, systemVars.psensor_conf.offset, systemVars.psensor_conf.span  );
 
-	//xprintf_P( PSTR("DEBUG: PCKS = [%s]\r\n\0"), dst );
+	snprintf_P( dst, sizeof(dst), PSTR("%s,%d,%d,%.01f,%.01f,%.01f"),systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max,systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
+	//xprintf_P( PSTR("DEBUG: PSENSOR = [%s]\r\n\0"), dst );
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
 	// Mientras no sea NULL calculo el checksum deol buffer
@@ -161,4 +238,5 @@ char *p;
 
 }
 //------------------------------------------------------------------------------------
+
 
