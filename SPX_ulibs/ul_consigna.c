@@ -181,27 +181,144 @@ void consigna_config_defaults(void)
 
 }
 //------------------------------------------------------------------------------------
-bool consigna_write( char *tipo_consigna_str)
+bool consigna_write( char *param0, char *param1, char *param2 )
 {
-
-char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
-
-	memcpy(l_data, tipo_consigna_str, sizeof(l_data));
-	strupr(l_data);
+	// write consigna
+	// 		(diurna|nocturna)
+	//		(enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}
+	//		(open|close) (A|B)
+	//		pulse (A|B) (secs)
+	//		power {on|off}
 
 	if ( spx_io_board != SPX_IO5CH ) {
 		return(false);
 	}
 
-	if (!strcmp_P( l_data, PSTR("DIURNA\0")) ) {
+	xprintf_P(PSTR("DEBUG: param0: %s\r\n"), param0);
+	xprintf_P(PSTR("DEBUG: param1: %s\r\n"), param1);
+	xprintf_P(PSTR("DEBUG: param2: %s\r\n"), param2);
+
+	// (diurna|nocturna)
+	if (!strcmp_P( strupr(param0) , PSTR("DIURNA\0")) ) {
 		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
 		DRV8814_set_consigna_diurna();
 		return(true);
 	}
 
-	if (!strcmp_P( l_data, PSTR("NOCTURNA\0")) ) {
+	if (!strcmp_P( strupr(param0), PSTR("NOCTURNA\0")) ) {
 		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
 		DRV8814_set_consigna_nocturna();
+		return(true);
+	}
+
+	// {(enable|disable),(set|reset),(sleep|awake),(ph01|ph10)} {A/B}
+	if (!strcmp_P( strupr(param0), PSTR("ENABLE\0")) ) {
+		DRV8814_enable_pin( toupper(param1[0]), 1);
+		return(true);
+	}
+
+	// disable (A|B)
+	if (!strcmp_P( strupr(param0), PSTR("DISABLE\0")) ) {
+		DRV8814_enable_pin( toupper(param1[0]), 0);
+		return(true);
+	}
+
+	// set
+	if (!strcmp_P( strupr(param0), PSTR("SET\0")) ) {
+		DRV8814_reset_pin(1);
+		return(true);
+	}
+
+	// reset
+	if (!strcmp_P( strupr(param0), PSTR("RESET\0")) ) {
+		DRV8814_reset_pin(0);
+		return(true);
+	}
+
+	// sleep
+	if (!strcmp_P( strupr(param0), PSTR("SLEEP\0")) ) {
+		DRV8814_sleep_pin(1);
+		return(true);
+	}
+
+	// awake
+	if (!strcmp_P( strupr(param0), PSTR("AWAKE\0")) ) {
+		DRV8814_sleep_pin(0);
+		return(true);
+	}
+
+	// ph01 (A|B)
+	if (!strcmp_P( strupr(param0), PSTR("PH01\0")) ) {
+		DRV8814_phase_pin( toupper(param1[0]), 1);
+		return(true);
+	}
+
+	//  ph10 (A|B)
+	if (!strcmp_P( strupr(param0), PSTR("PH10\0")) ) {
+		DRV8814_phase_pin( toupper(param1[0]), 0);
+		return(true);
+	}
+
+	// power on|off
+	if ( strcmp_P( strupr(param0), PSTR("POWER\0")) == 0 ) {
+
+		if (strcmp_P( strupr(param1), PSTR("ON\0")) == 0 ) {
+			DRV8814_power_on();
+			return(true);
+		}
+		if (strcmp_P( strupr(param1), PSTR("OFF\0")) == 0 ) {
+			DRV8814_power_off();
+			return(true);
+		}
+		return(false);
+	}
+
+	//  (open|close) (A|B) (ms)
+	if (!strcmp_P( strupr(param0), PSTR("OPEN\0")) ) {
+
+		// Proporciono corriente.
+		DRV8814_power_on();
+		// Espero 10s que se carguen los condensasores
+		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+
+		xprintf_P( PSTR("VALVE OPEN %c\r\n\0"), strupr(param1 ));
+		DRV8814_vopen(toupper(param1[0]), 100);
+
+		DRV8814_power_off();
+		return(true);
+	}
+
+	if (!strcmp_P( strupr(param0), PSTR("CLOSE\0")) ) {
+		// Proporciono corriente.
+		DRV8814_power_on();
+		// Espero 10s que se carguen los condensasores
+		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+
+		DRV8814_vclose( toupper(param1[0]), 100);
+		xprintf_P( PSTR("VALVE CLOSE %c\r\n\0"), strupr(param1 ));
+
+		DRV8814_power_off();
+		return(true);
+	}
+
+	// pulse (A/B) ms
+	if (!strcmp_P( strupr(param0), PSTR("PULSE\0")) ) {
+		// Proporciono corriente.
+		DRV8814_power_on();
+		// Espero 10s que se carguen los condensasores
+		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+		// Abro la valvula
+		xprintf_P( PSTR("VALVE OPEN...\0") );
+		DRV8814_vopen( toupper(param1[0]), 100);
+
+		// Espero en segundos
+		vTaskDelay( ( TickType_t)( atoi(param2)*1000 / portTICK_RATE_MS ) );
+
+		// Cierro
+		xprintf_P( PSTR("CLOSE\r\n\0") );
+		DRV8814_vclose( toupper(param1[0]), 100);
+
+		DRV8814_power_off();
 		return(true);
 	}
 

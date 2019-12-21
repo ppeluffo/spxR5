@@ -26,9 +26,9 @@
  *  22923645
  *
  * --------------------------------------------------------------------------------------------------
- * Version 5.0.0
- * - Al dar status no copia bien los datos.
- * - El checksum toma todo como X.
+ * Version 2.9.9.d
+ * - Revisar configuracion del PSENSOR desde el server. Que al apagarlo no quede en OFF !!
+
  * --------------------------------------------------------------------------------------------------
  *  Version 2.0.5 @ 20190812
  *  REVISAR:

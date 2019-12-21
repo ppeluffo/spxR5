@@ -21,6 +21,10 @@
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 #define MAX_TX_WINDOW_TRYES		4	// Intentos de enviar el mismo paquete de datos
 
+#define SMS_NRO_LENGTH		10
+#define SMS_MSG_LENGTH		40
+#define SMS_QUEUE_LENGTH	MAX_NRO_SMS_ALARMAS
+
 #define CTRL_Z 26
 
 // Datos del buffer local de recepcion de datos del GPRS.
@@ -102,9 +106,11 @@ void u_gprs_tx_tail(void);
 uint32_t u_gprs_read_timeToNextDial(void);
 void u_gprs_set_timeToNextDial( uint32_t time_to_dial );
 
+void u_sms_init(void);
+bool u_sms_send(char *dst_nbr, char *msg );
+void u_gprs_sms_txcheckpoint(void);
 void u_gprs_send_sms( char *dst_nbr, char *msg );
 void u_gprs_quick_send_sms( char *dst_nbr, char *msg );
-void u_gprs_sms_txcheckpoint(void);
 
 void u_gprs_sms_rxcheckpoint(void);
 bool u_gprs_sms_received( uint8_t *first_msg_index );

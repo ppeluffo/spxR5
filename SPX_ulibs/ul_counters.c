@@ -221,7 +221,7 @@ bool counters_config_channel( uint8_t channel,char *s_name, char *s_magpp, char 
 bool retS = false;
 char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
-	xprintf_P( PSTR("DEBUG COUNTER CONFIG: C%d,name=%s, magpp=%s, pwidth=%s, period=%s, speed=%s\r\n\0"), channel, s_name, s_magpp, s_pw, s_period, s_speed );
+	//xprintf_P( PSTR("DEBUG COUNTER CONFIG: C%d,name=%s, magpp=%s, pwidth=%s, period=%s, speed=%s\r\n\0"), channel, s_name, s_magpp, s_pw, s_period, s_speed );
 
 
 	if ( s_name == NULL ) {
@@ -337,16 +337,16 @@ uint8_t j = 0;
 		} else {
 			j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,HS;"), systemVars.counters_conf.pwidth[i] );
 		}
-		//xprintf_P( PSTR("DEBUG: CCKS = [%s]\r\n\0"), dst );
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
 			checksum += *p++;
 		}
+		//xprintf_P( PSTR("DEBUG: CCKS = [%s]\r\n\0"), dst );
+		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 	}
-	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 	return(checksum);
 
 }

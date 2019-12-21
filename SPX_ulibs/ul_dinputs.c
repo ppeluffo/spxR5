@@ -347,9 +347,11 @@ uint8_t j = 0;
 		while (*p != '\0') {
 			checksum += *p++;
 		}
+
+	//	xprintf_P( PSTR("DEBUG: DCKS = [%s]\r\n\0"), dst );
+	//	xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
+
 	}
-	//xprintf_P( PSTR("DEBUG: DCKS = [%s]\r\n\0"), dst );
-	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 	return(checksum);
 

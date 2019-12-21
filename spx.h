@@ -66,8 +66,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9a"
-#define SPX_FW_DATE "@ 20191213"
+#define SPX_FW_REV "2.9.9e"
+#define SPX_FW_DATE "@ 20191221"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -375,7 +375,7 @@ void u_config_timerpoll ( char *s_timerpoll );
 bool u_check_more_Rcds4Del ( FAT_t *fat );
 bool u_check_more_Rcds4Tx(void);
 uint8_t u_base_checksum(void);
-uint8_t u_aplicacion_checksum(void);
+void u_aplicacion_checksum( uint8_t *app_A_cks, uint8_t *app_B_cks, uint8_t *app_C_cks );
 bool u_config_aplicacion( char *modo );
 bool u_write_output_pins( uint8_t pin, int8_t val );
 bool u_set_douts( uint8_t dout );

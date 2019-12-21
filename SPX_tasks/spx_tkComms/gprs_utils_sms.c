@@ -5,11 +5,7 @@
  *      Author: pablo
  */
 
-#include <spx_tkComms/gprs.h>
-
-#define SMS_NRO_LENGTH		10
-#define SMS_MSG_LENGTH		20
-#define SMS_QUEUE_LENGTH	10
+#include "gprs.h"
 
 typedef struct {
 	char nro[SMS_NRO_LENGTH];

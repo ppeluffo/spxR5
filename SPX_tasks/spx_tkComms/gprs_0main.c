@@ -190,9 +190,9 @@ static void pv_gprs_init_system(void)
 	memset(buff_gprs_imei,'\0',IMEIBUFFSIZE);
 	strncpy_P(GPRS_stateVars.dlg_ip_address, PSTR("000.000.000.000\0"),16);
 
-	if ( spx_io_board == SPX_IO8CH ) {
-		systemVars.gprs_conf.timerDial = 0;
-	}
+	//if ( spx_io_board == SPX_IO8CH ) {
+	//	systemVars.gprs_conf.timerDial = 0;
+	//}
 
 	// Configuracion inicial de la tarea
 	// Configuro la interrupcion del DCD ( PORTD.6)

@@ -185,8 +185,6 @@ uint16_t recSize = 0;
 
 	} else if ( spx_io_board == SPX_IO8CH ) {
 
-		range_config("OFF");
-
 		NRO_ANINPUTS = IO8_ANALOG_CHANNELS;
 		NRO_DINPUTS = IO8_DINPUTS_CHANNELS;
 		NRO_COUNTERS = IO8_COUNTER_CHANNELS;

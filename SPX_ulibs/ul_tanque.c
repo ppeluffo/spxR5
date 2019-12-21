@@ -266,7 +266,7 @@ char msg[15];
 				strcpy(msg,"PERF_OUTS:5");
 				break;
 			}
-			u_sms_send( systemVars.aplicacion_conf.tanque.sms_perforaciones[i], &msg );
+			u_sms_send( systemVars.aplicacion_conf.tanque.sms_perforaciones[i], msg );
 		}
 	}
 }

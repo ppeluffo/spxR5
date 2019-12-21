@@ -448,9 +448,9 @@ quit:
 	xSemaphoreGive( sem_SYSVars );
 
 	// En los SPXIO8 no se usa el pwrsave !!!!. Siempre debe venir OFF de la BD.
-	if ( spx_io_board == SPX_IO8CH ) {
-		systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
-	}
+	//if ( spx_io_board == SPX_IO8CH ) {
+	//	systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
+	//}
 	//xprintf_P( PSTR("DEBUG_B: PWRS modo=%d, startitme=%02d%02d, endtime=%02d%02d\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min );
 
 }

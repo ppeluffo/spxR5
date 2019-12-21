@@ -414,13 +414,13 @@ uint8_t j = 0;
 		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.02f,%.02f,"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
 		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.02f;"), systemVars.ainputs_conf.offset[i] );
 
-		//xprintf_P( PSTR("DEBUG: ACKS = [%s]\r\n\0"), dst );
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
 			checksum += *p++;
 		}
+		//xprintf_P( PSTR("DEBUG: ACKS = [%s]\r\n\0"), dst );
 		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 	}
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );

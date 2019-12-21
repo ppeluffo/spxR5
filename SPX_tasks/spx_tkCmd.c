@@ -114,6 +114,8 @@ st_dataRecord_t dr;
 uint8_t olatb = 0 ;
 uint8_t i;
 
+	FRTOS_CMD_makeArgv();
+
 	memset( &l_fat, '\0', sizeof(FAT_t));
 
 	xprintf_P( PSTR("\r\nSpymovil %s %s %s %s \r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE);
@@ -267,6 +269,7 @@ uint8_t i;
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
 
+	if ( ( spx_io_board == SPX_IO5CH ) || (strcmp_P( strupr(argv[1]), PSTR("ALL\0")) == 0 ) ) {
 	//if ( spx_io_board == SPX_IO5CH ) {
 
 		// PWR SAVE:
@@ -286,7 +289,7 @@ uint8_t i;
 			xprintf_P( PSTR("  psensor: %s (%d-%d / %.01f-%.01f)[offset=%0.02f]\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
 		}
 
-	//}
+	}
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
@@ -413,8 +416,12 @@ char l_data[10] = { '\0' };
 
 	// CONSIGNA
 	// write consigna (diurna|nocturna)
+	//		          (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}
+	//		          (open|close) (A|B)
+	//		          pulse (A|B) (secs)
+	//		          power {on|off}
 	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		consigna_write( argv[2] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		consigna_write( argv[2],argv[3],argv[4] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
 		return;
 	}
 
@@ -530,9 +537,8 @@ static void cmdReadFunction(void)
 
 st_dataRecord_t dr;
 uint8_t cks;
-
+uint8_t cks_A, cks_B, cks_C;
 	FRTOS_CMD_makeArgv();
-
 
 	// ALMTEST
 	// read almtest
@@ -557,8 +563,8 @@ uint8_t cks;
 		xprintf_P( PSTR("Pensor Checksum = [0x%02x]\r\n\0"), cks );
 		cks = range_checksum();
 		xprintf_P( PSTR("Range Checksum = [0x%02x]\r\n\0"), cks );
-		cks = u_aplicacion_checksum();
-		xprintf_P( PSTR("App Checksum = [0x%02x]\r\n\0"), cks );
+		u_aplicacion_checksum(&cks_A, &cks_B, &cks_C);
+		xprintf_P( PSTR("App Checksum = A[0x%02x],B[0x%02x],C[0x%02x]\r\n\0"), cks_A, cks_B, cks_C );
 		return;
 	}
 
@@ -947,7 +953,7 @@ bool retS = false;
 
 	// TIMERDIAL
 	// config timerdial
-	if ( ( spx_io_board == SPX_IO5CH ) && (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0"))) ) {
+	if ( !strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0"))) {
 		u_gprs_config_timerdial( argv[2] );
 		pv_snprintfP_OK();
 		return;
@@ -1006,10 +1012,10 @@ static void cmdHelpFunction(void)
 				}
 
 				xprintf_P( PSTR("  consigna (diurna|nocturna)\r\n\0"));
-				xprintf_P( PSTR("  valve (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}\r\n\0"));
-				xprintf_P( PSTR("        (open|close) (A|B)\r\n\0"));
-				xprintf_P( PSTR("        pulse (A|B) (secs) \r\n\0"));
-				xprintf_P( PSTR("        power {on|off}\r\n\0"));
+				xprintf_P( PSTR("           (enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}\r\n\0"));
+				xprintf_P( PSTR("           (open|close) (A|B)\r\n\0"));
+				xprintf_P( PSTR("           pulse (A|B) (secs) \r\n\0"));
+				xprintf_P( PSTR("           power {on|off}\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|cts|dtr) {on|off}\r\n\0"));
@@ -1591,10 +1597,7 @@ static void cmdPokeFunction(void)
 		u_config_timerpoll( argv[2] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0")) ) {
-
-		if ( spx_io_board == SPX_IO5CH ) {
-			u_gprs_config_timerdial( argv[2] );
-		}
+		u_gprs_config_timerdial( argv[2] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("timepwrsensor\0")) ) {
 		ainputs_config_timepwrsensor( argv[2] );

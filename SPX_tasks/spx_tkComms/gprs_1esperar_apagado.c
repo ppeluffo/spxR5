@@ -148,7 +148,7 @@ int8_t xBytes = 0;
 	memset( &rtc, '\0', sizeof(RtcTimeType_t));
 
 	// Estoy en modo PWR_DISCRETO con PWR SAVE ACTIVADO
-	if ( ( MODO_DISCRETO ) && ( systemVars.gprs_conf.pwrSave.pwrs_enabled == true )) {
+	if ( ( MODO_DISCRETO ) && ( spx_io_board == SPX_IO5CH ) && ( systemVars.gprs_conf.pwrSave.pwrs_enabled == true )) {
 
 		// Cuando arranco siempre me conecto sin importar si estoy o no en pwr save !!
 		if ( starting_flag_pws ) {

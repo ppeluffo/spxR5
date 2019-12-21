@@ -451,8 +451,10 @@ uint8_t i = 0;
 
 }
 //------------------------------------------------------------------------------------
-uint8_t u_aplicacion_checksum(void)
+void u_aplicacion_checksum( uint8_t *app_A_cks, uint8_t *app_B_cks, uint8_t *app_C_cks )
 {
+	// La aplicacion puede tener hasta 3 partes por lo tanto debo generar
+	// siempre los 3 checksums
 
 uint8_t checksum = 0;
 char dst[32];
@@ -466,26 +468,41 @@ char *p;
 		while (*p != '\0') {
 			checksum += *p++;
 		}
-		return(checksum);
+		*app_A_cks = checksum;
+		*app_B_cks = 0;
+		*app_C_cks = 0;
+		return;
 		break;
 
 	case APP_CONSIGNA:
-		return( consigna_checksum() );
+		*app_A_cks = consigna_checksum();
+		*app_B_cks = 0;
+		*app_C_cks = 0;
+		return;
 		break;
 
 	case APP_PERFORACION:
-		return( perforacion_checksum() );
+		*app_A_cks = perforacion_checksum();
+		*app_B_cks = 0;
+		*app_C_cks = 0;
+		return;
 		break;
 
 	case APP_TANQUE:
+		*app_A_cks = 0;
+		*app_B_cks = 0;
+		*app_C_cks = 0;
+		return;
 		break;
 
 	case APP_PLANTAPOT:
-		return( appalarma_checksum() );
+		appalarma_checksum(app_A_cks, app_B_cks );
+		*app_C_cks = 0;
+		return;
 		break;
 	}
 
-	return(0x00);
+	return;
 
 }
 //------------------------------------------------------------------------------------
