@@ -537,7 +537,7 @@ static void cmdReadFunction(void)
 
 st_dataRecord_t dr;
 uint8_t cks;
-uint8_t cks_A, cks_B, cks_C;
+
 	FRTOS_CMD_makeArgv();
 
 	// ALMTEST
@@ -563,8 +563,8 @@ uint8_t cks_A, cks_B, cks_C;
 		xprintf_P( PSTR("Pensor Checksum = [0x%02x]\r\n\0"), cks );
 		cks = range_checksum();
 		xprintf_P( PSTR("Range Checksum = [0x%02x]\r\n\0"), cks );
-		u_aplicacion_checksum(&cks_A, &cks_B, &cks_C);
-		xprintf_P( PSTR("App Checksum = A[0x%02x],B[0x%02x],C[0x%02x]\r\n\0"), cks_A, cks_B, cks_C );
+		cks = u_aplicacion_checksum();
+		xprintf_P( PSTR("App Checksum = [0x%02x]\r\n\0"), cks );
 		return;
 	}
 

@@ -63,7 +63,7 @@ t_alm_channels alm_sysVars[NRO_CANALES_MONITOREO];
 void appalarma_stk(void);
 bool appalarma_init(void);
 
-void appalarma_checksum( uint8_t *app_A_cks, uint8_t *app_B_cks );
+uint8_t appalarma_checksum(void);
 bool appalarma_config( char *param0,char *param1, char *param2, char *param3, char *param4 );
 void appalarma_config_defaults(void);
 

@@ -22,7 +22,7 @@ bool f_send_init_app = false;
 
 bool f_reset = false;
 
-typedef enum { GLOBAL=0, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR, APP } init_frames_t;
+typedef enum { GLOBAL=0, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR, APP_A, APP_B, APP_C } init_frames_t;
 
 static bool pv_process_frame_init(init_frames_t tipo);
 static bool pv_tx_frame_init(init_frames_t tipo);
@@ -34,8 +34,9 @@ static void pv_tx_init_payload_digital(void);
 static void pv_tx_init_payload_counters(void);
 static void pv_tx_init_payload_range(void);
 static void pv_tx_init_payload_psensor(void);
-static void pv_tx_init_payload_app(void);
-
+static void pv_tx_init_payload_app_A(void);
+static void pv_tx_init_payload_app_B(void);
+static void pv_tx_init_payload_app_C(void);
 
 static t_frame_responses pv_init_process_response(void);
 static void pv_init_reconfigure_params_global(void);
@@ -45,8 +46,9 @@ static void pv_init_reconfigure_params_digital(void);
 static void pv_init_reconfigure_params_counters(void);
 static void pv_init_reconfigure_params_range(void);
 static void pv_init_reconfigure_params_psensor(void);
-static void pv_init_reconfigure_params_app(void);
-
+static void pv_init_reconfigure_params_app_A(void);
+static void pv_init_reconfigure_params_app_B(void);
+static void pv_init_reconfigure_params_app_C(void);
 
 bool pv_process_frame_init_GLOBAL(void);
 bool pv_process_frame_init_BASE(void);
@@ -56,6 +58,12 @@ bool pv_process_frame_init_COUNTERS(void);
 bool pv_process_frame_init_RANGE(void);
 bool pv_process_frame_init_PSENSOR(void);
 bool pv_process_frame_init_APP(void);
+
+static void pv_init_reconfigure_app_off(void);
+static void pv_init_reconfigure_app_consigna(void);
+static void pv_init_reconfigure_app_perforacion(void);
+static void pv_init_reconfigure_app_tanque(void);
+static void pv_init_reconfigure_app_plantapot(void);
 
 
 //------------------------------------------------------------------------------------
@@ -225,12 +233,40 @@ bool retS = true;
 //------------------------------------------------------------------------------------
 bool pv_process_frame_init_APP(void)
 {
+	// Proceso la reconfiguracio de la aplicacion activa.
+	// Puede involucrar varios frames, dependiendo de la aplicacion.
+	// En el primero es en el que el server indica la aplicacion.
+	// Luego, viendo cual aplicacion fue activada es que enviamos las
+	// solicitudes de los otros frames.
 
 bool retS = true;
 
 	if ( f_send_init_app ) {
-		f_send_init_app = false;
-		retS = pv_process_frame_init(APP);
+		// El frame APP_A configura el tipo de aplicacion lo que determina
+		// si requiero frames extra
+		retS = pv_process_frame_init(APP_A);
+
+		switch(systemVars.aplicacion) {
+		case APP_OFF:
+			f_send_init_app = false;
+			break;
+		case APP_CONSIGNA:
+			f_send_init_app = false;
+			break;
+		case APP_PERFORACION:
+			f_send_init_app = false;
+			break;
+		case APP_TANQUE:
+			f_send_init_app = false;
+			break;
+		case APP_PLANTAPOT:
+			// Requiere 2 frames mas:
+			retS = pv_process_frame_init(APP_B);	// SMS
+			retS = pv_process_frame_init(APP_C);	// Niveles
+			f_send_init_app = false;
+			f_reset = true;
+			break;
+		}
 	}
 	return(retS);
 
@@ -392,16 +428,21 @@ static void pv_tx_init_payload(init_frames_t tipo)
 	case PSENSOR:
 		pv_tx_init_payload_psensor();
 		break;
-	case APP:
-		pv_tx_init_payload_app();
+	case APP_A:
+		pv_tx_init_payload_app_A();
+		break;
+	case APP_B:
+		pv_tx_init_payload_app_B();
+		break;
+	case APP_C:
+		pv_tx_init_payload_app_C();
 		break;
 	}
 }
 //------------------------------------------------------------------------------------
 static void pv_tx_init_payload_global(void)
 {
-uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks;
-uint8_t app_A_cks,app_B_cks,app_C_cks;
+uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 
 	base_cks = u_base_checksum();
 	an_cks = ainputs_checksum();
@@ -409,7 +450,7 @@ uint8_t app_A_cks,app_B_cks,app_C_cks;
 	cnt_cks = counters_checksum();
 	range_cks = range_checksum();
 	psens_cks = psensor_checksum();
-	u_aplicacion_checksum( &app_A_cks, &app_B_cks, &app_C_cks);
+	app_cks = u_aplicacion_checksum();
 
 	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
 	xCom_printf_P( fdGPRS,PSTR("SIMPWD:%s;IMEI:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei );
@@ -417,7 +458,7 @@ uint8_t app_A_cks,app_B_cks,app_C_cks;
 	xCom_printf_P( fdGPRS,PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
 	xCom_printf_P( fdGPRS,PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
 	xCom_printf_P( fdGPRS,PSTR("PSE:0x%02X;" ), psens_cks );
-	xCom_printf_P( fdGPRS,PSTR("APP_A:0x%02X;APP_B:0x%02X;APP_C:0x%02X" ), app_A_cks, app_B_cks, app_C_cks );
+	xCom_printf_P( fdGPRS,PSTR("APP:0x%02X;" ), app_cks );
 
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
@@ -427,7 +468,7 @@ uint8_t app_A_cks,app_B_cks,app_C_cks;
 		xprintf_P( PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
 		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
 		xprintf_P( PSTR("PSE:0x%02X;" ), psens_cks );
-		xprintf_P( PSTR("APP_A:0x%02X;APP_B:0x%02X;APP_C:0x%02X" ), app_A_cks, app_B_cks, app_C_cks );
+		xprintf_P( PSTR("APP_A:0x%02X;" ), app_cks );
 	}
 
 }
@@ -435,36 +476,12 @@ uint8_t app_A_cks,app_B_cks,app_C_cks;
 static void pv_tx_init_payload_base(void)
 {
 
-	// PLOAD=CLASS:BASE;TDIAL:1800;TPOLL:90;PWST:5;PWRS:ON,930,1240
+	// PLOAD=CLASS:BASE;
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:BASE;"));
-	xCom_printf_P( fdGPRS,PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
-	xCom_printf_P( fdGPRS,PSTR("TPOLL:%d;"), systemVars.timerPoll );
-	xCom_printf_P( fdGPRS,PSTR("PWST:%d;"), systemVars.ainputs_conf.pwr_settle_time );
-
-	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
-		xCom_printf_P( fdGPRS,PSTR("PWRS:ON,"));
-	} else {
-		xCom_printf_P( fdGPRS,PSTR("PWRS:OFF,"));
-	}
-	xCom_printf_P( fdGPRS,PSTR("%02d%02d,"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
-	xCom_printf_P( fdGPRS,PSTR("%02d%02d;"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
-
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_BASE;"));
 	// DEBUG & LOG
-	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PLOAD=CLASS:BASE;"));
-		xprintf_P( PSTR("TDIAL:%d;"), systemVars.gprs_conf.timerDial);
-		xprintf_P( PSTR("TPOLL:%d;"), systemVars.timerPoll );
-		xprintf_P( PSTR("PWST:%d;"), systemVars.ainputs_conf.pwr_settle_time );
-
-		if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
-			xprintf_P( PSTR("PWRS:ON,"));
-		} else {
-			xprintf_P( PSTR("PWRS:OFF,"));
-		}
-		xprintf_P( PSTR("%02d%02d,"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
-		xprintf_P( PSTR("%02d%02d;"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
-
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("&PLOAD=CLASS:CONF_BASE;"));
 	}
 
 }
@@ -473,104 +490,34 @@ static void pv_tx_init_payload_analog(void)
 {
 	// Mandamos todos los canales analogicos, esten o no configurados (X)
 
-	//  PLOAD=CLASS:ANALOG;A0:PA,0,20,0.00,6.00;A1:PB,4,20,0.00,10.00;A2:X,4,20,0.00,10.00;A3:PC,4,20,0.00,10.00;A4:X,4,20,0.00,10.00
+	//  PLOAD=CLASS:ANALOG;
 
-uint8_t i;
-
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:ANALOG\0"));
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PLOAD=CLASS:ANALOG\0"));
-	}
-
-	for (i=0; i < NRO_ANINPUTS; i++) {
-		xCom_printf_P( fdGPRS,PSTR(";A%d:%s,"), i, systemVars.ainputs_conf.name[i] );
-		xCom_printf_P( fdGPRS,PSTR("%d,%d,"), systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i] );
-		xCom_printf_P( fdGPRS,PSTR("%.02f,%.02f,"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
-		xCom_printf_P( fdGPRS,PSTR("%.02f"), systemVars.ainputs_conf.offset[i] );
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR(";A%d:%s,"), i, systemVars.ainputs_conf.name[i] );
-			xprintf_P( PSTR("%d,%d,"), systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i] );
-			xprintf_P( PSTR("%.02f,%.02f,"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
-			xprintf_P( PSTR("%.02f"), systemVars.ainputs_conf.offset[i] );
-		}
-	}
-
-	xCom_printf_P( fdGPRS,PSTR("\0"));
-	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("\r\n\0"));
+		xprintf_P( PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
 	}
 }
 //------------------------------------------------------------------------------------
 static void pv_tx_init_payload_digital(void)
 {
-uint8_t i;
 
-	// PLOAD=CLASS:DIGITAL;D0:DINA,1;D1:DINB,0
+	// PLOAD=CLASS:DIGITAL;
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:DIGITAL\0"));
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PLOAD=CLASS:DIGITAL\0"));
+		xprintf_P( PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
 	}
 
-	for (i=0; i < NRO_DINPUTS; i++) {
-		if ( systemVars.dinputs_conf.wrk_modo[i] == DIN_NORMAL ) {
-			xCom_printf_P( fdGPRS,PSTR(";D%d:%s,NORMAL"), i, systemVars.dinputs_conf.name[i] );
-		} else {
-			xCom_printf_P( fdGPRS,PSTR(";D%d:%s,TIMER"), i, systemVars.dinputs_conf.name[i] );
-		}
-
-
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			if ( systemVars.dinputs_conf.wrk_modo[i] == DIN_NORMAL ) {
-				xprintf_P( PSTR(";D%d:%s,NORMAL"), i, systemVars.dinputs_conf.name[i] );
-			} else {
-				xprintf_P( PSTR(";D%d:%s,TIMER"), i, systemVars.dinputs_conf.name[i] );
-			}
-		}
-	}
-
-	xCom_printf_P( fdGPRS,PSTR("\0"));
-	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("\0"));
-	}
 }
 //------------------------------------------------------------------------------------
 static void pv_tx_init_payload_counters(void)
 {
-uint8_t i;
 
-	// PLOAD=CLASS:COUNTER;C0:CNTA,1.000,100,10,0;C1:CNT1,1.000,100,10,0
+	// PLOAD=CLASS:COUNTER;
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:COUNTER\0"));
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PLOAD=CLASS:COUNTER\0"));
-	}
-
-	for (i=0; i < NRO_COUNTERS; i++) {
-		xCom_printf_P( fdGPRS,PSTR(";C%d:%s,"), i, systemVars.counters_conf.name[i] );
-		xCom_printf_P( fdGPRS,PSTR("%.03f,%d,"), systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i] );
-		xCom_printf_P( fdGPRS,PSTR("%d,"), systemVars.counters_conf.pwidth[i] );
-		if ( systemVars.counters_conf.speed[i] == CNT_LOW_SPEED ) {
-			xCom_printf_P( fdGPRS,PSTR("LS"));
-		} else {
-			xCom_printf_P( fdGPRS,PSTR("HS"));
-		}
-
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR(";C%d:%s,"), i, systemVars.counters_conf.name[i] );
-			xprintf_P( PSTR("%.03f,%d,"), systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i] );
-			xprintf_P( PSTR("%d,"), systemVars.counters_conf.pwidth[i] );
-			if ( systemVars.counters_conf.speed[i] == CNT_LOW_SPEED ) {
-				xprintf_P( PSTR("LS"));
-			} else {
-				xprintf_P( PSTR("HS"));
-			}
-		}
-	}
-
-	xCom_printf_P( fdGPRS,PSTR("\0"));
-	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("\0"));
+		xprintf_P( PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
 	}
 
 }
@@ -580,9 +527,9 @@ static void pv_tx_init_payload_range(void)
 
 	// PLOAD=CLASS:RANGE;R0:DIST1
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:RANGE;R0:%s"), systemVars.range_name);
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_RANGE;"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PLOAD=CLASS:RANGE;R0:%s"), systemVars.range_name);
+		xprintf_P( PSTR("&PLOAD=CLASS:CONF_RANGE;"));
 	}
 }
 //------------------------------------------------------------------------------------
@@ -591,59 +538,47 @@ static void pv_tx_init_payload_psensor(void)
 
 	// PLOAD=CLASS:PSENSOR;PS0:CLORO,0,70
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:PSENSOR;"));
-	xCom_printf_P( fdGPRS,PSTR("PS0:%s,%d,%d,%.01f,%.01f,%.01f\0"),systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max,systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
 
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
-		xprintf_P( PSTR("&PLOAD=CLASS:PSENSOR;"));
-		xprintf_P( PSTR("PS0:%s,%d,%d,%.01f,%.01f,%.01f\0"),systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max,systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
+		xprintf_P( PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
 	}
 
 }
 //------------------------------------------------------------------------------------
-static void pv_tx_init_payload_app(void)
+static void pv_tx_init_payload_app_A(void)
 {
 
-	switch(systemVars.aplicacion) {
-	case APP_OFF:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:OFF;"));
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:OFF;"));
-		}
-		break;
-
-	case APP_CONSIGNA:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;"));
-		xCom_printf_P( fdGPRS,PSTR("AP0:CONSIGNA,%02d%02d,"),systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min  );
-		xCom_printf_P( fdGPRS,PSTR("%02d%02d"),systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min  );
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:APP;"));
-			xprintf_P( PSTR("AP0:CONSIGNA,%02d%02d,"),systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min  );
-			xprintf_P( PSTR("%02d%02d"),systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min  );
-		}
-		break;
-
-	case APP_PERFORACION:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:PERFORACION;"));
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:PERFORACION;"));
-		}
-		break;
-
-	case APP_TANQUE:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:TANQUE;"));
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:TANQUE;"));
-		}
-		break;
-
-	case APP_PLANTAPOT:
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:APP;AP0:PLANTAPOT;"));
-		if ( systemVars.debug ==  DEBUG_GPRS ) {
-			xprintf_P( PSTR("&PLOAD=CLASS:APP;AP0:PLANTAPOT;"));
-		}
-		break;
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_APP;"));
+	if ( systemVars.debug ==  DEBUG_GPRS ) {
+		xprintf_P( PSTR("&PLOAD=CLASS:CONF_APP;"));
 	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_tx_init_payload_app_B(void)
+{
+
+	// En aplicacion PPOT pido la configuracion de los SMS
+	if ( systemVars.aplicacion == APP_PLANTAPOT ) {
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
+		}
+	}
+}
+//------------------------------------------------------------------------------------
+static void pv_tx_init_payload_app_C(void)
+{
+
+	// En aplicacion PPOT pido la configuracion de los NIVELES
+	if ( systemVars.aplicacion == APP_PLANTAPOT ) {
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
+		}
+	}
+
 }
 //------------------------------------------------------------------------------------
 static t_frame_responses pv_init_process_response(void)
@@ -736,10 +671,26 @@ uint8_t exit_code = FRAME_ERROR;
 				goto EXIT;
 			}
 
-			if ( u_gprs_check_response("APP") ) {
+			if ( u_gprs_check_response("APP_A") ) {
 				// Borro la causa del reset
 				wdg_resetCause = 0x00;
-				pv_init_reconfigure_params_app();
+				pv_init_reconfigure_params_app_A();
+				exit_code = FRAME_OK;
+				goto EXIT;
+			}
+
+			if ( u_gprs_check_response("APP_B") ) {
+				// Borro la causa del reset
+				wdg_resetCause = 0x00;
+				pv_init_reconfigure_params_app_B();
+				exit_code = FRAME_OK;
+				goto EXIT;
+			}
+
+			if ( u_gprs_check_response("APP_C") ) {
+				// Borro la causa del reset
+				wdg_resetCause = 0x00;
+				pv_init_reconfigure_params_app_C();
 				exit_code = FRAME_OK;
 				goto EXIT;
 			}
@@ -868,7 +819,7 @@ int8_t xBytes = 0;
 		}
 	}
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "APP");
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "APLICACION");
 	if ( p != NULL ) {
 		f_send_init_app = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
@@ -1203,12 +1154,162 @@ char *delim = ",=:;><";
 
 }
 //------------------------------------------------------------------------------------
-static void pv_init_reconfigure_params_app(void)
+static void pv_init_reconfigure_params_app_A(void)
+{
+
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:OFF;
+	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:OFF") != NULL ) {
+		pv_init_reconfigure_app_off();
+		return;
+	}
+
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:CONSIGNA,1230,0940;
+	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:CONSIGNA") != NULL ) {
+		pv_init_reconfigure_app_consigna();
+		return;
+	}
+
+	// // TYPE=INIT&PLOAD=CLASS:APP;AP0:PERFORACION;
+	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:PERFORACION") != NULL ) {
+		pv_init_reconfigure_app_perforacion();
+		return;
+	}
+
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:TANQUE
+	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:TANQUE") != NULL ) {
+		pv_init_reconfigure_app_tanque();
+		return;
+	}
+
+	// AP0:PLANTAPOT
+	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:PLANTAPOT") != NULL ) {
+		pv_init_reconfigure_app_plantapot();
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_params_app_B(void)
+{
+
+	// TYPE=INIT&PLOAD=CLASS:APP_B;SMS01:111111,1;SMS02:2222222,2;SMS03:3333333,3;SMS04:4444444,1;...SMS09:9999999,3
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_nro= NULL;
+char *tk_level= NULL;
+char *delim = ",=:;><";
+uint8_t i;
+char id[2];
+char str_base[8];
+
+	// SMS?
+	for (i=0; i < MAX_NRO_SMS_ALARMAS; i++ ) {
+
+		memset( &str_base, '\0', sizeof(str_base) );
+		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
+		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
+		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
+		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
+		if ( p != NULL ) {
+			memset(localStr,'\0',sizeof(localStr));
+			memcpy(localStr,p,sizeof(localStr));
+			stringp = localStr;
+			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
+			tk_nro = strsep(&stringp,delim);		//SMS0x
+			tk_nro = strsep(&stringp,delim);		//09111111
+			tk_level = strsep(&stringp,delim);		//1
+
+			id[0] = '0' + i;
+			id[1] = '\0';
+
+			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
+			appalarma_config("SMS", id, tk_nro, tk_level, NULL );
+			if ( systemVars.debug == DEBUG_APLICACION ) {
+				xprintf_P( PSTR("GPRS: Reconfig SMS0%d\r\n\0"), i);
+			}
+		}
+	}
+
+	u_save_params_in_NVMEE();
+
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_params_app_C(void)
+{
+	// TYPE=INIT&PLOAD=CLASS:APP_C;CH00:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;CH01:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;..
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_V1_INF = NULL;
+char *tk_V1_SUP = NULL;
+char *tk_V2_INF = NULL;
+char *tk_V2_SUP = NULL;
+char *tk_V3_INF = NULL;
+char *tk_V3_SUP = NULL;
+char *delim = ",=:;><";
+uint8_t i;
+char id[2];
+char str_base[8];
+
+	// LEVELS?
+	for (i=0; i < NRO_CANALES_ALM; i++ ) {
+
+		memset( &str_base, '\0', sizeof(str_base) );
+		snprintf_P( str_base, sizeof(str_base), PSTR("CH0%d\0"), i );
+		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
+		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
+		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
+		if ( p != NULL ) {
+			memset(localStr,'\0',sizeof(localStr));
+			memcpy(localStr,p,sizeof(localStr));
+			stringp = localStr;
+			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
+			tk_V1_INF = strsep(&stringp,delim);		//CH0x
+
+			tk_V1_INF = strsep(&stringp,delim);
+			tk_V1_SUP = strsep(&stringp,delim);
+			tk_V2_INF = strsep(&stringp,delim);
+			tk_V2_SUP = strsep(&stringp,delim);
+			tk_V3_INF = strsep(&stringp,delim);
+			tk_V3_SUP = strsep(&stringp,delim);
+
+			id[0] = '0' + i;
+			id[1] = '\0';
+
+			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
+			appalarma_config("NIVEL", id, "1", "INF", tk_V1_INF );
+			appalarma_config("NIVEL", id, "1", "SUP", tk_V1_SUP );
+			appalarma_config("NIVEL", id, "2", "INF", tk_V2_INF );
+			appalarma_config("NIVEL", id, "2", "SUP", tk_V2_SUP );
+			appalarma_config("NIVEL", id, "3", "INF", tk_V3_INF );
+			appalarma_config("NIVEL", id, "3", "SUP", tk_V3_SUP );
+
+			if ( systemVars.debug == DEBUG_APLICACION ) {
+				xprintf_P( PSTR("GPRS: Reconfig ALM_CH 0%d\r\n\0"), i);
+			}
+		}
+	}
+
+	u_save_params_in_NVMEE();
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_app_off(void)
 {
 	// TYPE=INIT&PLOAD=CLASS:APP;AP0:OFF;
+
+	systemVars.aplicacion = APP_OFF;
+	u_save_params_in_NVMEE();
+	f_reset = true;
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:OFF\r\n\0"));
+	}
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_app_consigna(void)
+{
 	// TYPE=INIT&PLOAD=CLASS:APP;AP0:CONSIGNA,1230,0940;
-	// TYPE=INIT&PLOAD=CLASS:APP;AP0:PERFORACION;
-	// TYPE=INIT&PLOAD=CLASS:APP;AP0:TANQUE
 
 char *p = NULL;
 char localStr[32] = { 0 };
@@ -1217,76 +1318,60 @@ char *tk_cons_dia = NULL;
 char *tk_cons_noche = NULL;
 char *delim = ",=:;><";
 
-	// AP0:OFF
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:OFF");
-	if ( p != NULL ) {
-		systemVars.aplicacion = APP_OFF;
-		u_save_params_in_NVMEE();
-		f_reset = true;
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: Reconfig APLICACION:OFF\r\n\0"));
-		}
-		return;
+	systemVars.aplicacion = APP_CONSIGNA;
+
+	memset( &localStr, '\0', sizeof(localStr) );
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_cons_dia = strsep(&stringp,delim);	// AP0
+	tk_cons_dia = strsep(&stringp,delim);	// CONSIGNA
+	tk_cons_dia = strsep(&stringp,delim);	// 1230
+	tk_cons_noche = strsep(&stringp,delim); // 0940
+	consigna_config(tk_cons_dia, tk_cons_noche );
+	u_save_params_in_NVMEE();
+	f_reset = true;
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA\r\n\0"));
 	}
 
-	// CONSIGNA
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:CONSIGNA");
-	if ( p != NULL ) {
-		systemVars.aplicacion = APP_CONSIGNA;
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_app_perforacion(void)
+{
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:PERFORACION;
 
-		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
-
-		stringp = localStr;
-		tk_cons_dia = strsep(&stringp,delim);	// AP0
-		tk_cons_dia = strsep(&stringp,delim);	// CONSIGNA
-		tk_cons_dia = strsep(&stringp,delim);	// 1230
-		tk_cons_noche = strsep(&stringp,delim); // 0940
-		consigna_config(tk_cons_dia, tk_cons_noche );
-		u_save_params_in_NVMEE();
-		f_reset = true;
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA\r\n\0"));
-		}
-		return;
+	systemVars.aplicacion = APP_PERFORACION;
+	u_save_params_in_NVMEE();
+	f_reset = true;
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PERFORACION\r\n\0"));
 	}
 
-	// AP0:PERFORACION
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:PERFORACION");
-	if ( p != NULL ) {
-		systemVars.aplicacion = APP_PERFORACION;
-		u_save_params_in_NVMEE();
-		f_reset = true;
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: Reconfig APLICACION:PERFORACION\r\n\0"));
-		}
-		return;
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_app_tanque(void)
+{
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:TANQUE
+
+	systemVars.aplicacion = APP_TANQUE;
+	u_save_params_in_NVMEE();
+	f_reset = true;
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:TANQUE\r\n\0"));
 	}
 
-	// AP0:TANQUE
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:TANQUE");
-	if ( p != NULL ) {
-		systemVars.aplicacion = APP_TANQUE;
-		u_save_params_in_NVMEE();
-		f_reset = true;
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: Reconfig APLICACION:TANQUE\r\n\0"));
-		}
-		return;
-	}
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_app_plantapot(void)
+{
 
-	// AP0:PLANTAPOT
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:PLANTAPOT");
-	if ( p != NULL ) {
-		systemVars.aplicacion = APP_PLANTAPOT;
-		u_save_params_in_NVMEE();
-		f_reset = true;
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: Reconfig APLICACION:PLANTAPOT\r\n\0"));
-		}
-		return;
+	// Como quedan aun 2 frames, no reseteo.
+	systemVars.aplicacion = APP_PLANTAPOT;
+	u_save_params_in_NVMEE();
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PLANTAPOT\r\n\0"));
 	}
-
 }
 //------------------------------------------------------------------------------------
 

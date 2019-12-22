@@ -800,7 +800,7 @@ static uint8_t ac_read_status_boton_alarma(void)
 //------------------------------------------------------------------------------------
 // GENERAL
 //------------------------------------------------------------------------------------
-void appalarma_checksum( uint8_t *app_A_cks, uint8_t *app_B_cks )
+uint8_t appalarma_checksum( void )
 {
 
 	// En app_A_cks ponemos el checksum de los SMS y en app_B_cks los niveles de alarma
@@ -810,7 +810,19 @@ char dst[32];
 char *p;
 uint8_t i;
 
-	// cks_A: Numeros de SMS
+
+	memset(dst,'\0', sizeof(dst));
+	snprintf_P( dst, sizeof(dst), PSTR("CONSIGNA;"));
+	// Apunto al comienzo para recorrer el buffer
+	p = dst;
+	// Mientras no sea NULL calculo el checksum deol buffer
+	while (*p != '\0') {
+		checksum += *p++;
+	}
+	xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
+	xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
+
+	// Numeros de SMS
 	for (i=0; i<MAX_NRO_SMS_ALARMAS;i++) {
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
@@ -822,10 +834,11 @@ uint8_t i;
 		while (*p != '\0') {
 			checksum += *p++;
 		}
+		xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
+		xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
 	}
-	*app_A_cks = checksum;
 
-	// cks_B: Niveles
+	// Niveles
 	for (i=0; i<NRO_CANALES_ALM;i++) {
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
@@ -838,8 +851,11 @@ uint8_t i;
 		while (*p != '\0') {
 			checksum += *p++;
 		}
+		xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
+		xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
 	}
-	*app_B_cks = checksum;
+
+	return(checksum);
 
 }
 //------------------------------------------------------------------------------------
@@ -879,6 +895,7 @@ uint8_t pos;
 		if ( ( nivel_alarma <= 0 ) || ( nivel_alarma > ALARMA_NIVEL_3) ) {
 			return(false);
 		}
+
 		memcpy( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, param2, SMS_NRO_LENGTH );
 		systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level = nivel_alarma;
 		return(true);
@@ -921,10 +938,11 @@ uint8_t pos;
 
 		valor = atof(param4);
 
+		// Limite INF/SUP
 		if (!strcmp_P( strupr(param3), PSTR("INF\0")) ) {
-
+			limite = 0;
 		} else 	if (!strcmp_P( strupr(param3), PSTR("SUP\0")) ) {
-			systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma0.lim_sup = valor;
+			limite = 1;
 		} else {
 			return(false);
 		}
@@ -993,12 +1011,12 @@ uint8_t i;
 	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[2].alarma3.lim_sup = 5.0;
 
 	for ( i = 3; i < NRO_CANALES_ALM; i++) {
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf = 4;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup = 6;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf = 3;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup = 7;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf = 2;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup = 8;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf = 4.1;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup = 6.1;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf = 3.1;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup = 7.1;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf = 2.1;
+		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup = 8.1;
 	}
 
 	for ( i = 0; i < MAX_NRO_SMS_ALARMAS; i++) {
@@ -1128,28 +1146,10 @@ uint8_t pos;
 
 	xprintf_P( PSTR("  modo: PLANTAPOT\r\n\0"));
 	// Configuracion de los SMS
-	xprintf_P( PSTR("  Nros.SMS configurados\r\n\0"));
-	xprintf_P( PSTR("    ALM_Nivel_1:"));
+	xprintf_P( PSTR("  Nros.SMS configurados:\r\n"));
 	for (pos = 0; pos < MAX_NRO_SMS_ALARMAS; pos++) {
-		if ( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level == 1) {
-			xprintf_P( PSTR("    sms%02d: %s "),pos,systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro );
-		}
+		xprintf_P( PSTR("   (%02d): %s, Nivel_%d\r\n"), pos, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level );
 	}
-	xprintf_P( PSTR("\r\n"));
-	xprintf_P( PSTR("    ALM_Nivel_2:"));
-	for (pos = 0; pos < MAX_NRO_SMS_ALARMAS; pos++) {
-		if ( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level == 2) {
-			xprintf_P( PSTR("    sms%02d: %s "),pos,systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro );
-		}
-	}
-	xprintf_P( PSTR("\r\n"));
-	xprintf_P( PSTR("    ALM_Nivel_3:"));
-	for (pos = 0; pos < MAX_NRO_SMS_ALARMAS; pos++) {
-		if ( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level == 3) {
-			xprintf_P( PSTR("    sms%02d: %s "),pos,systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro );
-		}
-	}
-	xprintf_P( PSTR("\r\n"));
 
 	// Configuracion de los canales y niveles de alarma configurados
 	xprintf_P( PSTR("  Niveles de alarma:\r\n\0"));
@@ -1207,6 +1207,8 @@ void appalarma_test(void)
 uint8_t i;
 
 	appalarma_print_status();
+
+	dinputs_service_read();
 
 	xprintf_P(PSTR("  Timers x canal x nivel:\r\n") );
 
