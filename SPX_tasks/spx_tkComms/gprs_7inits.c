@@ -20,7 +20,7 @@ bool f_send_init_psensor = false;
 bool f_send_init_app = false;
 
 
-bool f_reset = false;
+//bool f_reset = false;
 
 typedef enum { GLOBAL=0, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR, APP_A, APP_B, APP_C } init_frames_t;
 
@@ -123,11 +123,12 @@ bool st_gprs_inits(void)
 	}
 
 	// Alguna configuracion requiere que me resetee para tomarla.
-	if ( f_reset ) {
-		xprintf_P( PSTR("GPRS: reset for reload config...\r\n\0"));
-		vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
-		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
-	}
+
+//	if ( f_reset ) {
+//		xprintf_P( PSTR("GPRS: reset for reload config...\r\n\0"));
+//		vTaskDelay( ( TickType_t)( 1500 / portTICK_RATE_MS ) );
+//		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
+//	}
 
 	return(bool_CONTINUAR);
 }
@@ -264,7 +265,7 @@ bool retS = true;
 			retS = pv_process_frame_init(APP_B);	// SMS
 			retS = pv_process_frame_init(APP_C);	// Niveles
 			f_send_init_app = false;
-			f_reset = true;
+			//f_reset = true;
 			break;
 		}
 	}
@@ -968,6 +969,7 @@ char str_base[8];
 			tk_offset = strsep(&stringp,delim);		//offset
 
 			ainputs_config_channel( ch, tk_name ,tk_iMin, tk_iMax, tk_mMin, tk_mMax, tk_offset );
+
 			if ( systemVars.debug == DEBUG_GPRS ) {
 				xprintf_P( PSTR("GPRS: Reconfig A%d\r\n\0"), ch);
 			}
@@ -1073,7 +1075,7 @@ char str_base[8];
 	}
 
 	// Necesito resetearme para tomar la nueva configuracion.
-	f_reset = true;
+	//f_reset = true;
 
 }
 //------------------------------------------------------------------------------------
@@ -1225,6 +1227,7 @@ char str_base[8];
 
 			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
 			appalarma_config("SMS", id, tk_nro, tk_level, NULL );
+
 			if ( systemVars.debug == DEBUG_APLICACION ) {
 				xprintf_P( PSTR("GPRS: Reconfig SMS0%d\r\n\0"), i);
 			}
@@ -1257,9 +1260,12 @@ char str_base[8];
 	for (i=0; i < NRO_CANALES_ALM; i++ ) {
 
 		memset( &str_base, '\0', sizeof(str_base) );
-		snprintf_P( str_base, sizeof(str_base), PSTR("CH0%d\0"), i );
+		snprintf_P( str_base, sizeof(str_base), PSTR("CH%d\0"), i );
+
 		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
+
 		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
+
 		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
@@ -1278,7 +1284,8 @@ char str_base[8];
 			id[0] = '0' + i;
 			id[1] = '\0';
 
-			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
+			//xprintf_P( PSTR("DEBUG LEVELS: ID:%s\r\n\0"), id );
+
 			appalarma_config("NIVEL", id, "1", "INF", tk_V1_INF );
 			appalarma_config("NIVEL", id, "1", "SUP", tk_V1_SUP );
 			appalarma_config("NIVEL", id, "2", "INF", tk_V2_INF );
@@ -1301,7 +1308,8 @@ static void pv_init_reconfigure_app_off(void)
 
 	systemVars.aplicacion = APP_OFF;
 	u_save_params_in_NVMEE();
-	f_reset = true;
+	//f_reset = true;
+
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig APLICACION:OFF\r\n\0"));
 	}
@@ -1321,6 +1329,7 @@ char *delim = ",=:;><";
 	systemVars.aplicacion = APP_CONSIGNA;
 
 	memset( &localStr, '\0', sizeof(localStr) );
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:CONSIGNA");
 	memcpy(localStr,p,sizeof(localStr));
 
 	stringp = localStr;
@@ -1330,9 +1339,10 @@ char *delim = ",=:;><";
 	tk_cons_noche = strsep(&stringp,delim); // 0940
 	consigna_config(tk_cons_dia, tk_cons_noche );
 	u_save_params_in_NVMEE();
-	f_reset = true;
+	//f_reset = true;
+
 	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA\r\n\0"));
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
 	}
 
 }
@@ -1343,7 +1353,8 @@ static void pv_init_reconfigure_app_perforacion(void)
 
 	systemVars.aplicacion = APP_PERFORACION;
 	u_save_params_in_NVMEE();
-	f_reset = true;
+	//f_reset = true;
+
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PERFORACION\r\n\0"));
 	}
@@ -1356,7 +1367,8 @@ static void pv_init_reconfigure_app_tanque(void)
 
 	systemVars.aplicacion = APP_TANQUE;
 	u_save_params_in_NVMEE();
-	f_reset = true;
+	//f_reset = true;
+
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig APLICACION:TANQUE\r\n\0"));
 	}
@@ -1369,6 +1381,7 @@ static void pv_init_reconfigure_app_plantapot(void)
 	// Como quedan aun 2 frames, no reseteo.
 	systemVars.aplicacion = APP_PLANTAPOT;
 	u_save_params_in_NVMEE();
+
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PLANTAPOT\r\n\0"));
 	}

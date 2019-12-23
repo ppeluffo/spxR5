@@ -159,12 +159,19 @@ uint8_t consigna_a_aplicar = 99;
 bool consigna_config ( char *hhmm1, char *hhmm2 )
 {
 
+//	xprintf_P(PSTR("DEBUG CONSIGNA: %s, %s\r\n"), hhmm1, hhmm2);
+
 	if ( hhmm1 != NULL ) {
+//		xprintf_P(PSTR("DEBUG HHMM1: %02d,%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min );
 		u_convert_int_to_time_t( atoi( hhmm1), &systemVars.aplicacion_conf.consigna.hhmm_c_diurna );
+//		xprintf_P(PSTR("DEBUG HHMM1: %02d,%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min );
+
 	}
 
 	if ( hhmm2 != NULL ) {
+//		xprintf_P(PSTR("DEBUG HHMM2: %02d,%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min );
 		u_convert_int_to_time_t( atoi(hhmm2), &systemVars.aplicacion_conf.consigna.hhmm_c_nocturna );
+//		xprintf_P(PSTR("DEBUG HHMM2: %02d,%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min );
 	}
 
 	return(true);
@@ -194,9 +201,9 @@ bool consigna_write( char *param0, char *param1, char *param2 )
 		return(false);
 	}
 
-	xprintf_P(PSTR("DEBUG: param0: %s\r\n"), param0);
-	xprintf_P(PSTR("DEBUG: param1: %s\r\n"), param1);
-	xprintf_P(PSTR("DEBUG: param2: %s\r\n"), param2);
+//	xprintf_P(PSTR("DEBUG: param0: %s\r\n"), param0);
+//	xprintf_P(PSTR("DEBUG: param1: %s\r\n"), param1);
+//	xprintf_P(PSTR("DEBUG: param2: %s\r\n"), param2);
 
 	// (diurna|nocturna)
 	if (!strcmp_P( strupr(param0) , PSTR("DIURNA\0")) ) {
@@ -279,9 +286,9 @@ bool consigna_write( char *param0, char *param1, char *param2 )
 		// Proporciono corriente.
 		DRV8814_power_on();
 		// Espero 10s que se carguen los condensasores
-		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+		vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
 
-		xprintf_P( PSTR("VALVE OPEN %c\r\n\0"), strupr(param1 ));
+		xprintf_P( PSTR("VALVE OPEN %c\r\n\0"), strupr(param1[0]));
 		DRV8814_vopen(toupper(param1[0]), 100);
 
 		DRV8814_power_off();
@@ -292,10 +299,10 @@ bool consigna_write( char *param0, char *param1, char *param2 )
 		// Proporciono corriente.
 		DRV8814_power_on();
 		// Espero 10s que se carguen los condensasores
-		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+		vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
 
 		DRV8814_vclose( toupper(param1[0]), 100);
-		xprintf_P( PSTR("VALVE CLOSE %c\r\n\0"), strupr(param1 ));
+		xprintf_P( PSTR("VALVE CLOSE %c\r\n\0"), strupr(param1[0] ));
 
 		DRV8814_power_off();
 		return(true);
@@ -306,7 +313,7 @@ bool consigna_write( char *param0, char *param1, char *param2 )
 		// Proporciono corriente.
 		DRV8814_power_on();
 		// Espero 10s que se carguen los condensasores
-		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+		vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
 		// Abro la valvula
 		xprintf_P( PSTR("VALVE OPEN...\0") );
 		DRV8814_vopen( toupper(param1[0]), 100);

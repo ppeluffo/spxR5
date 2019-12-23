@@ -806,21 +806,21 @@ uint8_t appalarma_checksum( void )
 	// En app_A_cks ponemos el checksum de los SMS y en app_B_cks los niveles de alarma
 
 uint8_t checksum = 0;
-char dst[32];
+char dst[48];
 char *p;
 uint8_t i;
 
 
 	memset(dst,'\0', sizeof(dst));
-	snprintf_P( dst, sizeof(dst), PSTR("CONSIGNA;"));
+	snprintf_P( dst, sizeof(dst), PSTR("PPOT;"));
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
 		checksum += *p++;
 	}
-	xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
-	xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
+	//xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
+	//xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
 
 	// Numeros de SMS
 	for (i=0; i<MAX_NRO_SMS_ALARMAS;i++) {
@@ -834,15 +834,16 @@ uint8_t i;
 		while (*p != '\0') {
 			checksum += *p++;
 		}
-		xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
-		xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
+		//xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
+		//xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
 	}
 
 	// Niveles
 	for (i=0; i<NRO_CANALES_ALM;i++) {
 		// Vacio el buffer temoral
+
 		memset(dst,'\0', sizeof(dst));
-		snprintf_P( dst, sizeof(dst), PSTR("CH%d:%.02f,%.02f,%.02f,%.02f,%.02f,%.02f;"), i,
+		snprintf_P( dst, sizeof(dst), PSTR("LCH%d:%.02f,%.02f,%.02f,%.02f,%.02f,%.02f;"), i,
 			systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup,
 			systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup,
 			systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup );
@@ -851,8 +852,8 @@ uint8_t i;
 		while (*p != '\0') {
 			checksum += *p++;
 		}
-		xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
-		xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
+		//xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
+		//xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
 	}
 
 	return(checksum);
@@ -869,7 +870,7 @@ float valor;
 uint8_t limite;
 uint8_t pos;
 
-	xprintf_P(PSTR("p0=%s, p1=%s, p2=%s, p3=%s, p4=%s\r\n"), param0, param1, param2,param3, param4);
+	//xprintf_P(PSTR("p0=%s, p1=%s, p2=%s, p3=%s, p4=%s\r\n"), param0, param1, param2,param3, param4);
 
 	if ( param1 == NULL ) {
 		return(false);
