@@ -207,6 +207,13 @@ uint8_t i = 0;
 		systemVars.counters_conf.speed[i] = CNT_LOW_SPEED;
 	}
 
+// Aplicacion ALARMAS
+	/*
+#ifdef APLICACION_ALARMAS_PPOT
+	snprintf_P( systemVars.counters_conf.name[0], PARAMNAME_LENGTH, PSTR("SP1\0") );
+	snprintf_P( systemVars.counters_conf.name[1], PARAMNAME_LENGTH, PSTR("SP2\0") );
+#endif
+*/
 }
 //------------------------------------------------------------------------------------
 bool counters_config_channel( uint8_t channel,char *s_name, char *s_magpp, char *s_pw, char *s_period, char *s_speed )
@@ -224,6 +231,12 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 	//xprintf_P( PSTR("DEBUG COUNTER CONFIG: C%d,name=%s, magpp=%s, pwidth=%s, period=%s, speed=%s\r\n\0"), channel, s_name, s_magpp, s_pw, s_period, s_speed );
 
 
+// Aplicacion ALARMAS
+/*
+#ifdef APLICACION_ALARMAS_PPOT
+	return(true);
+#endif
+*/
 	if ( s_name == NULL ) {
 		return(retS);
 	}

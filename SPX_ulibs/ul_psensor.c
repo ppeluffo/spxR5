@@ -51,6 +51,13 @@ bool psensor_config ( char *s_pname, char *s_countMin, char *s_countMax, char *s
 	}
 	*/
 
+
+	// Aplicacion ALARMAS
+#ifdef APLICACION_ALARMAS_PPOT
+	snprintf_P( systemVars.psensor_conf.name, PARAMNAME_LENGTH, PSTR("X"));
+	psensor_present = false;
+#endif
+
 	if ( s_pname != NULL ) {
 		snprintf_P( systemVars.psensor_conf.name, PARAMNAME_LENGTH, PSTR("%s\0"), s_pname );
 //		xprintf_P(PSTR("DEBUG NAME %s\r\n"), s_pname);

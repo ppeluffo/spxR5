@@ -493,6 +493,13 @@ char *p;
 //------------------------------------------------------------------------------------
 bool u_config_aplicacion( char *modo )
 {
+
+	// Aplicacion ALARMAS
+#ifdef APLICACION_ALARMAS_PPOT
+	systemVars.aplicacion = APP_PLANTAPOT;
+	return(true);
+#endif
+
 	if (!strcmp_P( strupr(modo), PSTR("OFF\0"))) {
 		systemVars.aplicacion = APP_OFF;
 		return(true);

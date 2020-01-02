@@ -30,7 +30,8 @@
 #define IPIN_LLAVE_MANTENIMIENTO	6
 #define IPIN_BOTON_ALARMA			7
 
-#define IPIN_SENSOR_PUERTA			CNT0
+#define IPIN_SENSOR_PUERTA_1		CNT0
+#define IPIN_SENSOR_PUERTA_2		CNT1
 
 #define SECS_ALM_LEVEL_1	180
 #define SECS_ALM_LEVEL_2	120
@@ -40,6 +41,7 @@
 
 typedef enum {st_NORMAL = 0, st_ALARMADO, st_STANDBY, st_MANTENIMIENTO } t_appalm_states;
 typedef enum { act_OFF = 0, act_ON,act_FLASH } t_dev_action;
+typedef enum { alm_NOT_PRESENT = -1, alm_NOT_FIRED = 0 , alm_FIRED_L1, alm_FIRED_L2, alm_FIRED_L3   } t_alarm_fired;
 
 // Tiempo dentro del estado standby ( luego de haber reconocido las alarmas )
 #define TIME_IN_STANDBY			120
@@ -47,7 +49,8 @@ typedef enum { act_OFF = 0, act_ON,act_FLASH } t_dev_action;
 struct {
 	bool llave_mantenimiento_on;
 	bool boton_alarma_pressed;
-	bool sensor_puerta_open;
+	bool sensor_puerta_1_open;
+	bool sensor_puerta_2_open;
 } alarmVars;
 
 typedef struct {
@@ -56,6 +59,7 @@ typedef struct {
 	uint16_t L1_timer;
 	uint16_t L2_timer;
 	uint16_t L3_timer;
+	int8_t alm_fired;
 } t_alm_channels;
 
 t_alm_channels alm_sysVars[NRO_CANALES_MONITOREO];

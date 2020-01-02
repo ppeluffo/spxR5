@@ -66,11 +66,13 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9g"
-#define SPX_FW_DATE "@ 20191223"
+#define SPX_FW_REV "2.9.9h"
+#define SPX_FW_DATE "@ 20200102"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
+
+#define APLICACION_ALARMAS_PPOT
 
 //#define F_CPU (32000000UL)
 

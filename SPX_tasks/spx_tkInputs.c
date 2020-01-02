@@ -134,6 +134,7 @@ int8_t xBytes = 0;
 		counters_clear();
 
 		ainputs_read( dst->df.io8.ainputs, NULL );
+
 		break;
 	}
 

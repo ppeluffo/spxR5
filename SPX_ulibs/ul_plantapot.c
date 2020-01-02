@@ -45,7 +45,8 @@ static void ac_luz_naranja( t_dev_action action);
 static void ac_luz_azul( t_dev_action action);
 static void ac_sirena(t_dev_action action);
 
-static uint8_t ac_read_status_sensor_puerta(void);
+static uint8_t ac_read_status_sensor_puerta_1(void);
+static uint8_t ac_read_status_sensor_puerta_2(void);
 static uint8_t ac_read_status_mantenimiento(void);
 static uint8_t ac_read_status_boton_alarma(void);
 
@@ -317,6 +318,8 @@ static void pv_appalarma_TimerCallback( TimerHandle_t xTimer )
 {
 	// Se ejecuta cada 1s como callback del timer.
 
+uint8_t i;
+
 	// Flash de luces
 	if ( flash_luz_verde ) ac_luz_verde(act_FLASH);
 	if ( flash_luz_roja) ac_luz_roja(act_FLASH);
@@ -341,6 +344,18 @@ static void pv_appalarma_TimerCallback( TimerHandle_t xTimer )
 
 	dinputs_read( din );
 
+	// Actualizo las entradas digitales de los canales habilitados
+	for (i=0; i < NRO_CANALES_MONITOREO; i++) {
+		// Los switches ( canales digitales ) indican si el canal esta
+		// habilitado si o no.
+		if ( din[i] == 0 ) {
+			alm_sysVars[i].enabled = false;
+		} else {
+			alm_sysVars[i].enabled = true;
+		}
+	}
+
+
 	if ( din[IPIN_LLAVE_MANTENIMIENTO] == 1 ) {
 		alarmVars.llave_mantenimiento_on = true;
 	} else {
@@ -353,11 +368,18 @@ static void pv_appalarma_TimerCallback( TimerHandle_t xTimer )
 		alarmVars.boton_alarma_pressed = false;
 	}
 
-	// La entrada del sensor de puerta la leo directamente de la entrda del CNT0
+	// La entrada del sensor de puerta 1 la leo directamente de la entrda del CNT0
 	if ( CNT_read_CNT0() == 0 ) {
-		alarmVars.sensor_puerta_open = true;
+		alarmVars.sensor_puerta_1_open = true;
 	} else {
-		alarmVars.sensor_puerta_open = false;
+		alarmVars.sensor_puerta_1_open = false;
+	}
+
+	// La entrada del sensor de puerta 2 la leo directamente de la entrda del CNT0
+	if ( CNT_read_CNT1() == 0 ) {
+		alarmVars.sensor_puerta_2_open = true;
+	} else {
+		alarmVars.sensor_puerta_2_open = false;
 	}
 
 }
@@ -381,13 +403,19 @@ uint8_t i;
 	data_read_inputs(&dr, true );
 
 	for (i=0; i < NRO_CANALES_MONITOREO; i++) {
+
 		// Los switches ( canales digitales ) indican si el canal esta
 		// habilitado si o no.
+		// Los canales digitales los leo en la funcion de callback por lo tanto
+		// no los sobreescribo aqui. !!!
+
+		/*
 		if ( dr.df.io8.dinputs[i] == 0 ) {
 			alm_sysVars[i].enabled = false;
 		} else {
 			alm_sysVars[i].enabled = true;
 		}
+		*/
 
 		// Leo el valor de todos los canales ( habilitados o no )
 		alm_sysVars[i].value = dr.df.io8.ainputs[i];
@@ -484,14 +512,19 @@ char sms_msg[SMS_MSG_LENGTH];
 	for (i=0; i < NRO_CANALES_MONITOREO; i++) {
 
 		// Si el canal esta apagado lo salteo
-		if ( alm_sysVars[i].enabled == false )
+		if ( alm_sysVars[i].enabled == false ) {
+			alm_sysVars[i].alm_fired = alm_NOT_PRESENT;
 			continue;
+		}
+
 
 		// Disparo alarma LEVEL_1
 		if ( alm_sysVars[i].L1_timer == 1 ) {
 			// Luces
 			ac_luz_verde(act_OFF);
 			ac_luz_amarilla(act_FLASH);
+			// Sirena
+			ac_sirena(act_ON);
 			// Envio Sms
 			snprintf_P( sms_msg, SMS_MSG_LENGTH, PSTR("ALARMA Nivel 1 activada por: %s\0"), systemVars.ainputs_conf.name[i] );
 			for (pos = 0; pos < MAX_NRO_SMS_ALARMAS; pos++) {
@@ -503,6 +536,7 @@ char sms_msg[SMS_MSG_LENGTH];
 				}
 				xprintf_P( PSTR("ALARMA L1 SMS: NRO:%s, MSG:%s\r\n"),systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, sms_msg );
 			}
+			alm_sysVars[i].alm_fired = alm_FIRED_L1;
 			alm_fired = true;
 		}
 
@@ -510,6 +544,8 @@ char sms_msg[SMS_MSG_LENGTH];
 		if ( alm_sysVars[i].L2_timer == 1 ) {
 			ac_luz_verde(act_OFF);
 			ac_luz_naranja(act_FLASH);
+			// Sirena
+			ac_sirena(act_ON);
 			// Envio Sms
 			snprintf_P( sms_msg, SMS_MSG_LENGTH, PSTR("ALARMA Nivel 2 activada por: %s\0"), systemVars.ainputs_conf.name[i] );
 			for (pos = 0; pos < MAX_NRO_SMS_ALARMAS; pos++) {
@@ -521,6 +557,7 @@ char sms_msg[SMS_MSG_LENGTH];
 				}
 				xprintf_P( PSTR("ALARMA L2 SMS: NRO:%s, MSG:%s\r\n"),systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, sms_msg );
 			}
+			alm_sysVars[i].alm_fired = alm_FIRED_L2;
 			alm_fired = true;
 		}
 
@@ -528,6 +565,8 @@ char sms_msg[SMS_MSG_LENGTH];
 		if ( alm_sysVars[i].L3_timer == 1 ) {
 			ac_luz_verde(act_OFF);
 			ac_luz_roja(act_FLASH);
+			// Sirena
+			ac_sirena(act_ON);
 			// Envio Sms
 			snprintf_P( sms_msg, SMS_MSG_LENGTH, PSTR("ALARMA Nivel 3 activada por: %s\0"), systemVars.ainputs_conf.name[i] );
 			for (pos = 0; pos < MAX_NRO_SMS_ALARMAS; pos++) {
@@ -539,6 +578,7 @@ char sms_msg[SMS_MSG_LENGTH];
 				}
 				xprintf_P( PSTR("ALARMA L3 SMS: NRO:%s, MSG:%s\r\n"),systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, sms_msg );
 			}
+			alm_sysVars[i].alm_fired = alm_FIRED_L3;
 			alm_fired = true;
 		}
 
@@ -562,7 +602,8 @@ static void pv_reset_almVars(void)
 {
 	alarmVars.boton_alarma_pressed = false;
 	alarmVars.llave_mantenimiento_on= false;
-	alarmVars.sensor_puerta_open = false;
+	alarmVars.sensor_puerta_1_open = false;
+	alarmVars.sensor_puerta_2_open = false;
 
 }
 //------------------------------------------------------------------------------------
@@ -577,6 +618,7 @@ uint8_t i;
 		alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1;
 		alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2;
 		alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3;
+		alm_sysVars[i].alm_fired = alm_NOT_FIRED;
 	}
 }
 //------------------------------------------------------------------------------------
@@ -770,9 +812,18 @@ static void ac_sirena(t_dev_action action)
 	}
 }
 //------------------------------------------------------------------------------------
-static uint8_t ac_read_status_sensor_puerta(void)
+static uint8_t ac_read_status_sensor_puerta_1(void)
 {
-	if ( alarmVars.sensor_puerta_open == true ) {
+	if ( alarmVars.sensor_puerta_1_open == true ) {
+		return(1);
+	} else {
+		return(0);
+	}
+}
+//------------------------------------------------------------------------------------
+static uint8_t ac_read_status_sensor_puerta_2(void)
+{
+	if ( alarmVars.sensor_puerta_2_open == true ) {
 		return(1);
 	} else {
 		return(0);
@@ -1168,10 +1219,16 @@ uint8_t pos;
 		xprintf_P( PSTR("    mantenimiento: OFF\r\n\0"));
 	}
 
-	if ( ac_read_status_sensor_puerta() ) {
-		xprintf_P( PSTR("    Puerta: ABIERTA\r\n\0"));
+	if ( ac_read_status_sensor_puerta_1() ) {
+		xprintf_P( PSTR("    Puerta 1: ABIERTA\r\n\0"));
 	} else {
-		xprintf_P( PSTR("    Puerta: CERRADA\r\n\0"));
+		xprintf_P( PSTR("    Puerta 1: CERRADA\r\n\0"));
+	}
+
+	if ( ac_read_status_sensor_puerta_2() ) {
+		xprintf_P( PSTR("    Puerta 2: ABIERTA\r\n\0"));
+	} else {
+		xprintf_P( PSTR("    Puerta 2: CERRADA\r\n\0"));
 	}
 
 	if ( ac_read_status_boton_alarma() ) {
@@ -1214,7 +1271,16 @@ uint8_t i;
 	xprintf_P(PSTR("  Timers x canal x nivel:\r\n") );
 
 	for (i=0; i < NRO_CANALES_MONITOREO; i++) {
-		xprintf_P(PSTR("    ch%02d: [%d] val=%.02f, L1=%d, L2=%d, L3=%d\r\n\0"), i, alm_sysVars[i].enabled, alm_sysVars[i].value, alm_sysVars[i].L1_timer, alm_sysVars[i].L2_timer, alm_sysVars[i].L3_timer );
+
+		xprintf_P(PSTR("    ch%02d:"), i );
+
+		if ( alm_sysVars[i].enabled ) {
+			xprintf_P(PSTR("[ON] "));
+		} else {
+			xprintf_P(PSTR("[OFF] "));
+		}
+		xprintf_P(PSTR("val=%.02f, L1=%d, L2=%d, L3=%d FIRED=%d\r\n\0"), alm_sysVars[i].value, alm_sysVars[i].L1_timer, alm_sysVars[i].L2_timer, alm_sysVars[i].L3_timer, alm_sysVars[i].alm_fired );
+
 	}
 
 

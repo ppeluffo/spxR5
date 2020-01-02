@@ -24,15 +24,17 @@ static void pv_cmd_I2Cscan(bool busscan);
 // FUNCIONES DE CMDMODE
 //----------------------------------------------------------------------------------------
 static void cmdHelpFunction(void);
+static void cmdHelpAlarmasFunction(void);
 static void cmdClearScreen(void);
 static void cmdResetFunction(void);
 static void cmdWriteFunction(void);
 static void cmdReadFunction(void);
 static void cmdStatusFunction(void);
+static void cmdStatusAlarmasFunction(void);
 static void cmdConfigFunction(void);
 static void cmdKillFunction(void);
-static void cmdPeekFunction(void);
-static void cmdPokeFunction(void);
+//static void cmdPeekFunction(void);
+//static void cmdPokeFunction(void);
 
 #define WR_CMD 0
 #define RD_CMD 1
@@ -64,12 +66,22 @@ uint8_t ticks = 0;
 	FRTOS_CMD_register( "reset\0", cmdResetFunction);
 	FRTOS_CMD_register( "write\0", cmdWriteFunction);
 	FRTOS_CMD_register( "read\0", cmdReadFunction);
+
+#ifdef APLICACION_ALARMAS_PPOT
+	FRTOS_CMD_register( "help\0", cmdHelpAlarmasFunction );
+	FRTOS_CMD_register( "fullhelp\0", cmdHelpFunction );
+//	FRTOS_CMD_register( "status\0", cmdStatusAlarmasFunction );
+//	FRTOS_CMD_register( "fullstatus\0", cmdStatusFunction );
+#else
 	FRTOS_CMD_register( "help\0", cmdHelpFunction );
+//	FRTOS_CMD_register( "status\0", cmdStatusFunction );
+#endif
+
 	FRTOS_CMD_register( "status\0", cmdStatusFunction );
 	FRTOS_CMD_register( "config\0", cmdConfigFunction );
 	FRTOS_CMD_register( "kill\0", cmdKillFunction );
-	FRTOS_CMD_register( "peek\0", cmdPeekFunction );
-	FRTOS_CMD_register( "poke\0", cmdPokeFunction );
+	//FRTOS_CMD_register( "peek\0", cmdPeekFunction );
+	//FRTOS_CMD_register( "poke\0", cmdPokeFunction );
 
 	// Fijo el timeout del READ
 	ticks = 5;
@@ -126,6 +138,10 @@ uint8_t i;
 		xprintf_P( PSTR("IOboard SPX8CH\r\n\0") );
 	}
 
+	// APLICACION ALARMAS
+#ifdef APLICACION_ALARMAS_PPOT
+	xprintf_P( PSTR("Aplicacion: ALARMAS PPOT OSE.\r\n\0") );
+#endif
 	// SIGNATURE ID
 	xprintf_P( PSTR("uID=%s\r\n\0"), NVMEE_readID() );
 
@@ -323,6 +339,126 @@ uint8_t i;
 		}
 	}
 
+
+	// Muestro los datos
+	// CONFIG
+	xprintf_P( PSTR(">Frame:\r\n\0"));
+	data_read_inputs(&dr, true );
+	data_print_inputs(fdTERM, &dr);
+}
+//-----------------------------------------------------------------------------------
+static void cmdStatusAlarmasFunction(void)
+{
+
+FAT_t l_fat;
+uint8_t channel = 0;
+st_dataRecord_t dr;
+uint8_t olatb = 0 ;
+uint8_t i;
+
+	FRTOS_CMD_makeArgv();
+
+	memset( &l_fat, '\0', sizeof(FAT_t));
+
+	xprintf_P( PSTR("\r\nSpymovil %s %s %s %s \r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE);
+	xprintf_P( PSTR("Clock %d Mhz, Tick %d Hz\r\n\0"),SYSMAINCLK, configTICK_RATE_HZ );
+	if ( spx_io_board == SPX_IO5CH ) {
+		xprintf_P( PSTR("IOboard SPX5CH\r\n\0") );
+	} else if ( spx_io_board == SPX_IO8CH ) {
+		xprintf_P( PSTR("IOboard SPX8CH\r\n\0") );
+	}
+
+	// APLICACION ALARMAS
+#ifdef APLICACION_ALARMAS_PPOT
+	xprintf_P( PSTR("Aplicacion: ALARMAS PPOT OSE.\r\n\0") );
+#endif
+	// SIGNATURE ID
+	xprintf_P( PSTR("uID=%s\r\n\0"), NVMEE_readID() );
+
+	// Last reset cause
+	xprintf_P( PSTR("WRST=0x%02X\r\n\0") ,wdg_resetCause );
+
+	xprintf_P( PSTR("sVars Size: %d\r\n\0"), sizeof(systemVars) );
+	xprintf_P( PSTR("dr Size: %d\r\n\0"), sizeof(st_dataRecord_t) );
+
+	RTC_read_time();
+
+	// DlgId
+	xprintf_P( PSTR("dlgid: %s\r\n\0"), systemVars.gprs_conf.dlgId );
+
+	// Memoria
+	FAT_read(&l_fat);
+	xprintf_P( PSTR("memory: rcdSize=%d, wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), sizeof(st_dataRecord_t), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
+
+	// SERVER
+	xprintf_P( PSTR(">Server:\r\n\0"));
+	xprintf_P( PSTR("  apn: %s\r\n\0"), systemVars.gprs_conf.apn );
+	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), systemVars.gprs_conf.server_ip_address, systemVars.gprs_conf.server_tcp_port );
+	xprintf_P( PSTR("  server script: %s\r\n\0"), systemVars.gprs_conf.serverScript );
+	xprintf_P( PSTR("  simpwd: %s\r\n\0"), systemVars.gprs_conf.simpwd );
+
+	// MODEM
+	xprintf_P( PSTR(">Modem:\r\n\0"));
+	xprintf_P( PSTR("  signalQ: csq=%d, dBm=%d\r\n\0"), GPRS_stateVars.csq, GPRS_stateVars.dbm );
+	xprintf_P( PSTR("  ip address: %s\r\n\0"), GPRS_stateVars.dlg_ip_address);
+
+	// GPRS STATE
+	switch (GPRS_stateVars.state) {
+	case G_ESPERA_APAGADO:
+		xprintf_P( PSTR("  state: await_off\r\n"));
+		break;
+	case G_PRENDER:
+		xprintf_P( PSTR("  state: prendiendo\r\n"));
+		break;
+	case G_CONFIGURAR:
+		xprintf_P( PSTR("  state: configurando\r\n"));
+		break;
+	case G_MON_SQE:
+		xprintf_P( PSTR("  state: mon_sqe\r\n"));
+		break;
+	case G_SCAN_APN:
+		xprintf_P( PSTR("  state: scan apn\r\n"));
+		break;
+	case G_GET_IP:
+		xprintf_P( PSTR("  state: ip\r\n"));
+		break;
+	case G_INITS:
+		xprintf_P( PSTR("  state: link up: inits\r\n"));
+		break;
+	case G_DATA:
+		xprintf_P( PSTR("  state: link up: data\r\n"));
+		break;
+	case G_DATA_AWAITING:
+		xprintf_P( PSTR("  state: link up: data awaiting\r\n"));
+		break;
+	default:
+		xprintf_P( PSTR("  state: ERROR\r\n"));
+		break;
+	}
+
+	// MODO DE OPERACION:
+	xprintf_P( PSTR(">Aplicacion:\r\n\0"));
+	appalarma_print_status();
+
+	// CONFIG
+	xprintf_P( PSTR(">Config:\r\n\0"));
+
+	// Timerpoll
+	xprintf_P( PSTR("  timerPoll: [%d s]/ %d\r\n\0"), systemVars.timerPoll, ctl_readTimeToNextPoll() );
+
+	// aninputs
+	for ( channel = 0; channel < 6; channel++) {
+		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %.02f | %.03f | %.03f | %s]\r\n\0"),
+				channel,
+				systemVars.ainputs_conf.imin[channel],
+				systemVars.ainputs_conf.imax[channel],
+				systemVars.ainputs_conf.mmin[channel],
+				systemVars.ainputs_conf.mmax[channel],
+				systemVars.ainputs_conf.offset[channel] ,
+				systemVars.ainputs_conf.ieq_min[channel] ,
+				systemVars.ainputs_conf.ieq_max[channel],
+				systemVars.ainputs_conf.name[channel] );
+	}
 
 	// Muestro los datos
 	// CONFIG
@@ -1118,6 +1254,69 @@ static void cmdHelpFunction(void)
 
 }
 //------------------------------------------------------------------------------------
+static void cmdHelpAlarmasFunction(void)
+{
+
+	FRTOS_CMD_makeArgv();
+
+	// HELP WRITE
+	if (!strcmp_P( strupr(argv[1]), PSTR("WRITE\0"))) {
+		xprintf_P( PSTR("-write\r\n\0"));
+		xprintf_P( PSTR("  rtc YYMMDDhhmm\r\n\0"));
+		xprintf_P( PSTR("  appalarma (prender/apagar/flash) (lroja,lverde,lamarilla,lnaranja,sirena) \r\n\0"));
+		return;
+	}
+
+	// HELP READ
+	else if (!strcmp_P( strupr(argv[1]), PSTR("READ\0"))) {
+		xprintf_P( PSTR("-read\r\n\0"));
+		xprintf_P( PSTR("  rtc, frame, fuses\r\n\0"));
+		xprintf_P( PSTR("  dinputs\r\n\0"));
+		return;
+
+	}
+
+	// HELP RESET
+	else if (!strcmp_P( strupr(argv[1]), PSTR("RESET\0"))) {
+		xprintf_P( PSTR("-reset\r\n\0"));
+		xprintf_P( PSTR("  memory {soft|hard}\r\n\0"));
+		return;
+
+	}
+
+	// HELP CONFIG
+	else if (!strcmp_P( strupr(argv[1]), PSTR("CONFIG\0"))) {
+		xprintf_P( PSTR("-config\r\n\0"));
+		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
+		xprintf_P( PSTR("  timerpoll {val}\r\n\0"));
+		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
+		xprintf_P( PSTR("            nivel {chid} {alerta} {inf|sup} val\r\n\0"));
+		xprintf_P( PSTR("  default {SPY|OSE}\r\n\0"));
+		xprintf_P( PSTR("  save\r\n\0"));
+	}
+
+	// HELP KILL
+
+	else {
+
+		// HELP GENERAL
+		xprintf_P( PSTR("\r\nSpymovil %s %s %s %s\r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE);
+		xprintf_P( PSTR("Clock %d Mhz, Tick %d Hz\r\n\0"),SYSMAINCLK, configTICK_RATE_HZ );
+		xprintf_P( PSTR("Available commands are:\r\n\0"));
+		xprintf_P( PSTR("-cls\r\n\0"));
+		xprintf_P( PSTR("-help\r\n\0"));
+		xprintf_P( PSTR("-status\r\n\0"));
+		xprintf_P( PSTR("-reset...\r\n\0"));
+		xprintf_P( PSTR("-write...\r\n\0"));
+		xprintf_P( PSTR("-read...\r\n\0"));
+		xprintf_P( PSTR("-config...\r\n\0"));
+
+	}
+
+	xprintf_P( PSTR("\r\n\0"));
+
+}
+//------------------------------------------------------------------------------------
 static void cmdKillFunction(void)
 {
 
@@ -1477,6 +1676,7 @@ uint8_t data = 0;
 
 }
 //------------------------------------------------------------------------------------
+/*
 static void cmdPeekFunction(void)
 {
 	// Comando utilizado para recuperar variables.
@@ -1554,7 +1754,9 @@ uint8_t ch = 0;
 	return;
 
 }
+*/
 //------------------------------------------------------------------------------------
+/*
 static void cmdPokeFunction(void)
 {
 	// COmando para configurar variables.
@@ -1622,6 +1824,7 @@ static void cmdPokeFunction(void)
 	}
 
 }
+*/
 //------------------------------------------------------------------------------------
 static void pv_cmd_I2Cscan(bool busscan)
 {

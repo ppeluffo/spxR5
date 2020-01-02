@@ -363,6 +363,12 @@ void u_gprs_config_timerdial ( char *s_timerdial )
 
 	//xprintf_P( PSTR("DEBUG_A TDIAL CONFIG: [%s]\r\n\0"), s_timerdial );
 
+	// Aplicacion ALARMAS
+#ifdef APLICACION_ALARMAS_PPOT
+	systemVars.gprs_conf.timerDial = 0;
+	return;
+#endif
+
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();
 
@@ -418,6 +424,12 @@ void u_gprs_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime)
 {
 	// Recibe como parametros el modo ( 0,1) y punteros a string con las horas de inicio y fin del pwrsave
 	// expresadas en minutos.
+
+	// Aplicacion ALARMAS
+#ifdef APLICACION_ALARMAS_PPOT
+	systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
+	return;
+#endif
 
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();
