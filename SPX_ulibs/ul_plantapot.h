@@ -53,6 +53,16 @@ struct {
 	bool sensor_puerta_2_open;
 } alarmVars;
 
+// Estas son las mismas variables de estado pero cambian solo
+// con los timerpoll y son las que transmito.
+struct {
+	bool llave_mantenimiento_on;
+	bool boton_alarma_pressed;
+	bool sensor_puerta_1_open;
+	bool sensor_puerta_2_open;
+} alarmVarsState;
+
+
 typedef struct {
 	bool enabled;
 	float value;

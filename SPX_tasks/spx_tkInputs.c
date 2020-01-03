@@ -135,11 +135,16 @@ int8_t xBytes = 0;
 
 		ainputs_read( dst->df.io8.ainputs, NULL );
 
+		// En el caso de la aplicacion PLANTAPOT debo ajustar los valores de las
+		// entradas analogicas, digitales y contadores para que reflejen el estado de las alarmas
+#ifdef APLICACION_ALARMAS_PPOT
+
+		appalarma_adjust_vars(dst);
+
+#endif
+
 		break;
 	}
-
-
-
 
 	// Agrego el timestamp
 	xBytes = RTC_read_dtime( &dst->rtc );

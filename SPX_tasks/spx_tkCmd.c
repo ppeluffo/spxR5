@@ -70,14 +70,14 @@ uint8_t ticks = 0;
 #ifdef APLICACION_ALARMAS_PPOT
 	FRTOS_CMD_register( "help\0", cmdHelpAlarmasFunction );
 	FRTOS_CMD_register( "fullhelp\0", cmdHelpFunction );
-//	FRTOS_CMD_register( "status\0", cmdStatusAlarmasFunction );
-//	FRTOS_CMD_register( "fullstatus\0", cmdStatusFunction );
+	FRTOS_CMD_register( "status\0", cmdStatusAlarmasFunction );
+	FRTOS_CMD_register( "fullstatus\0", cmdStatusFunction );
 #else
 	FRTOS_CMD_register( "help\0", cmdHelpFunction );
-//	FRTOS_CMD_register( "status\0", cmdStatusFunction );
+	FRTOS_CMD_register( "status\0", cmdStatusFunction );
 #endif
 
-	FRTOS_CMD_register( "status\0", cmdStatusFunction );
+//	FRTOS_CMD_register( "status\0", cmdStatusFunction );
 	FRTOS_CMD_register( "config\0", cmdConfigFunction );
 	FRTOS_CMD_register( "kill\0", cmdKillFunction );
 	//FRTOS_CMD_register( "peek\0", cmdPeekFunction );
@@ -285,7 +285,7 @@ uint8_t i;
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
 
-	if ( ( spx_io_board == SPX_IO5CH ) || (strcmp_P( strupr(argv[1]), PSTR("ALL\0")) == 0 ) ) {
+//	if ( ( spx_io_board == SPX_IO5CH ) || (strcmp_P( strupr(argv[1]), PSTR("ALL\0")) == 0 ) ) {
 	//if ( spx_io_board == SPX_IO5CH ) {
 
 		// PWR SAVE:
@@ -305,7 +305,7 @@ uint8_t i;
 			xprintf_P( PSTR("  psensor: %s (%d-%d / %.01f-%.01f)[offset=%0.02f]\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
 		}
 
-	}
+//	}
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
@@ -353,8 +353,6 @@ static void cmdStatusAlarmasFunction(void)
 FAT_t l_fat;
 uint8_t channel = 0;
 st_dataRecord_t dr;
-uint8_t olatb = 0 ;
-uint8_t i;
 
 	FRTOS_CMD_makeArgv();
 
@@ -438,7 +436,26 @@ uint8_t i;
 
 	// MODO DE OPERACION:
 	xprintf_P( PSTR(">Aplicacion:\r\n\0"));
-	appalarma_print_status();
+	switch (systemVars.aplicacion ) {
+	case APP_OFF:
+		xprintf_P( PSTR("  modo: OFF\r\n\0"));
+		break;
+	case APP_CONSIGNA:
+		xprintf_P( PSTR("  modo: Consignas\r\n") );
+		break;
+	case APP_PERFORACION:
+		xprintf_P( PSTR("  modo: Perforacion\r\n\0"));
+		break;
+	case APP_TANQUE:
+		xprintf_P( PSTR("  modo: TANQUE\r\n\0"));
+		break;
+	case APP_PLANTAPOT:
+		appalarma_print_status();
+		break;
+	}
+
+	//xprintf_P( PSTR(">Aplicacion:\r\n\0"));
+	//appalarma_print_status();
 
 	// CONFIG
 	xprintf_P( PSTR(">Config:\r\n\0"));

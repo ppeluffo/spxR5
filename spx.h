@@ -66,8 +66,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9h"
-#define SPX_FW_DATE "@ 20200102"
+#define SPX_FW_REV "2.9.9i"
+#define SPX_FW_DATE "@ 20200103"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -383,6 +383,7 @@ bool u_write_output_pins( uint8_t pin, int8_t val );
 bool u_set_douts( uint8_t dout );
 bool u_sms_send(char *dst_nbr, char *msg );
 void appalarma_test(void);
+void appalarma_adjust_vars( st_dataRecord_t *dr);
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );

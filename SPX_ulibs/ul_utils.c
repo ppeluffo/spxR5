@@ -259,7 +259,13 @@ void u_load_defaults( char *opt )
 	u_gprs_load_defaults( opt );
 
 	// Modo de operacion
+	// Aplicacion ALARMAS
+#ifdef APLICACION_ALARMAS_PPOT
+	systemVars.aplicacion = APP_PLANTAPOT;
+#else
 	systemVars.aplicacion = APP_OFF;
+#endif
+
 	consigna_config_defaults();
 	appalarma_config_defaults();
 	tanque_config_defaults();

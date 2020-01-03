@@ -345,7 +345,14 @@ char *ts = NULL;
 //------------------------------------------------------------------------------------
 bool u_gprs_modem_prendido(void)
 {
-	return(GPRS_stateVars.modem_prendido);
+	//return(GPRS_stateVars.modem_prendido);
+
+bool retS = false;
+
+	if ( GPRS_stateVars.state >= G_INITS ) {
+		retS = true;
+	}
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 void u_gprs_redial(void)
@@ -426,10 +433,12 @@ void u_gprs_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime)
 	// expresadas en minutos.
 
 	// Aplicacion ALARMAS
+/*
 #ifdef APLICACION_ALARMAS_PPOT
 	systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
 	return;
 #endif
+*/
 
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();

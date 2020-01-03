@@ -1159,6 +1159,12 @@ char *delim = ",=:;><";
 static void pv_init_reconfigure_params_app_A(void)
 {
 
+	// Aplicacion ALARMAS
+#ifdef APLICACION_ALARMAS_PPOT
+	pv_init_reconfigure_app_plantapot();
+	return;
+#endif
+
 	// TYPE=INIT&PLOAD=CLASS:APP;AP0:OFF;
 	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:OFF") != NULL ) {
 		pv_init_reconfigure_app_off();
