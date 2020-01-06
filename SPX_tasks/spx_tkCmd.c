@@ -246,7 +246,7 @@ uint8_t i;
 		}
 		break;
 	case APP_PLANTAPOT:
-		appalarma_print_status();
+		appalarma_print_status(false);
 		break;
 	}
 
@@ -450,7 +450,7 @@ st_dataRecord_t dr;
 		xprintf_P( PSTR("  modo: TANQUE\r\n\0"));
 		break;
 	case APP_PLANTAPOT:
-		appalarma_print_status();
+		appalarma_print_status(false);
 		break;
 	}
 

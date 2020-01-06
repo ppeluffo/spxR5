@@ -130,12 +130,14 @@ void st_appalarma_normal(void)
 		if ( pv_fire_alarmas() ) {
 			// Si dispare una alarma, paso al estado de sistema alarmado
 			appalarma_state = st_ALARMADO;
+			break;
 		}
 
 		// Veo si se activo la llave de mantenimiento.
-		if ( alarmVars.llave_mantenimiento_on == true ) {
+		if ( alarmVars.llave_mantenimiento_on.master == true ) {
 			// Activaron la llave de mantenimiento. Salgo
 			appalarma_state = st_MANTENIMIENTO;
+			break;
 		}
 	}
 
@@ -177,7 +179,7 @@ uint8_t timer_boton_pressed = SECS_BOTON_PRESSED;
 
 		// CAMBIO DE ESTADO
 		// Veo si presiono el boton de reset de alarma por mas de 5secs.
-		if ( ! alarmVars.boton_alarma_pressed ) {
+		if ( ! alarmVars.boton_alarma_pressed.master ) {
 			timer_boton_pressed = SECS_BOTON_PRESSED;
 		} else {
 			timer_boton_pressed--;
@@ -186,12 +188,14 @@ uint8_t timer_boton_pressed = SECS_BOTON_PRESSED;
 		if ( timer_boton_pressed == 0 ) {
 			// Reconoci la alarma por tener apretado el boton de pressed mas de 5s
 			appalarma_state = st_STANDBY;
+			break;
 		}
 
 		// Veo si se activo la llave de mantenimiento.
-		if ( alarmVars.llave_mantenimiento_on == true ) {
+		if ( alarmVars.llave_mantenimiento_on.master == true ) {
 			// Activaron la llave de mantenimiento. Salgo
 			appalarma_state = st_MANTENIMIENTO;
+			break;
 		}
 
 	}
@@ -233,7 +237,7 @@ void st_appalarma_mantenimiento(void)
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
 		// Veo si apagaron la llave de mantenimiento.
-		if ( alarmVars.llave_mantenimiento_on == false ) {
+		if ( alarmVars.llave_mantenimiento_on.master == false ) {
 			// Apagaron la llave de mantenimiento. Salgo
 			appalarma_state = st_NORMAL;
 		}
@@ -282,13 +286,15 @@ void st_appalarma_standby(void)
 
 		// CAMBIO DE ESTADO
 		// Veo si activaron la llave de mantenimiento.
-		if ( alarmVars.llave_mantenimiento_on == true ) {
+		if ( alarmVars.llave_mantenimiento_on.master == true ) {
 			appalarma_state = st_MANTENIMIENTO;
+			break;
 		}
 
 		// Veo si expiro el tiempo para salir y volver al estado NORMAL
 		if ( timer_en_standby-- <= 1 ) {
 			appalarma_state = st_NORMAL;
+			break;
 		}
 
 	}
@@ -342,7 +348,6 @@ uint8_t i;
 	 *
 	 */
 
-
 	dinputs_read( din );
 
 	// Actualizo las entradas digitales de los canales habilitados
@@ -351,44 +356,39 @@ uint8_t i;
 		// habilitado si o no.
 		if ( din[i] == 0 ) {
 			alm_sysVars[i].enabled = false;
-			alm_sysVars[i].alm_fired = alm_NOT_PRESENT;
 		} else {
 			alm_sysVars[i].enabled = true;
-			if ( alm_sysVars[i].alm_fired == alm_NOT_PRESENT ) {
-				alm_sysVars[i].alm_fired = alm_NOT_FIRED;
-			}
 		}
 	}
 
-
 	if ( din[IPIN_LLAVE_MANTENIMIENTO] == 1 ) {
-		alarmVars.llave_mantenimiento_on = true;
-		alarmVarsState.llave_mantenimiento_on = true;
+		alarmVars.llave_mantenimiento_on.master = true;
+		alarmVars.llave_mantenimiento_on.slave = true;
 	} else {
-		alarmVars.llave_mantenimiento_on = false;
+		alarmVars.llave_mantenimiento_on.master = false;
 	}
 
 	if ( din[IPIN_BOTON_ALARMA] == 	1 ) {
-		alarmVars.boton_alarma_pressed = true;
-		alarmVarsState.boton_alarma_pressed = true;
+		alarmVars.boton_alarma_pressed.master = true;
+		alarmVars.boton_alarma_pressed.slave = true;
 	} else {
-		alarmVars.boton_alarma_pressed = false;
+		alarmVars.boton_alarma_pressed.master = false;
 	}
 
 	// La entrada del sensor de puerta 1 la leo directamente de la entrda del CNT0
 	if ( CNT_read_CNT0() == 0 ) {
-		alarmVars.sensor_puerta_1_open = true;
-		alarmVarsState.sensor_puerta_1_open = true;
+		alarmVars.sensor_puerta_1_open.master = true;
+		alarmVars.sensor_puerta_1_open.slave = true;
 	} else {
-		alarmVars.sensor_puerta_1_open = false;
+		alarmVars.sensor_puerta_1_open.master = false;
 	}
 
 	// La entrada del sensor de puerta 2 la leo directamente de la entrda del CNT0
 	if ( CNT_read_CNT1() == 0 ) {
-		alarmVars.sensor_puerta_2_open = true;
-		alarmVarsState.sensor_puerta_2_open = true;
+		alarmVars.sensor_puerta_2_open.master = true;
+		alarmVars.sensor_puerta_2_open.slave = true;
 	} else {
-		alarmVars.sensor_puerta_2_open = false;
+		alarmVars.sensor_puerta_2_open.master = false;
 	}
 
 }
@@ -401,7 +401,7 @@ static void pv_appalarma_leer_entradas(void)
 	// permantente control de la tarea.
 	// Leo las entradas analogicas
 	// Los sensores externos: llave_mantenimiento, sensor_puerta, boton_alarma
-	// los leo en la funcion de callback del timer.
+	// los leo en la funcion de callback del timer cada 1s.
 
 st_dataRecord_t dr;
 uint8_t i;
@@ -449,9 +449,10 @@ float value;
 		if ( alm_sysVars[i].enabled == false )
 			continue;
 
+		// Canal habilitado:
 		value = alm_sysVars[i].value;
 
-		// ALARMA NIVEL_3
+		// Countdown para ALARMA NIVEL_3
 		if (alm_sysVars[i].L3_timer > 0 ) {
 			if ( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup ) {
 				alm_sysVars[i].L3_timer--;
@@ -464,7 +465,7 @@ float value;
 			}
 		}
 
-		// ALARMA NIVEL_2
+		// Countdown para ALARMA NIVEL_2
 		if (alm_sysVars[i].L2_timer > 0 ) {
 			if ( ( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup ) &&
 				( value < systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup ) ) {
@@ -479,7 +480,7 @@ float value;
 			}
 		}
 
-		// ALARMA NIVEL_1
+		// Countdown para ALARMA NIVEL_1
 		if (alm_sysVars[i].L1_timer > 0 ) {
 
 			if ( ( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup ) &&
@@ -494,7 +495,7 @@ float value;
 			}
 		}
 
-		// NIVELES NORMALES
+		// Reset a NIVELES NORMALES
 		if ( ( value <  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup ) &&
 				( value >= systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf ) ) {
 
@@ -513,18 +514,15 @@ static bool pv_fire_alarmas(void)
 	// En caso afirmativo la dispara.
 
 uint8_t i;
-uint8_t pos;
+
 bool alm_fired = false;	// Variable de retorno para el cambio de estado
 
 	for (i=0; i < NRO_CANALES_MONITOREO; i++) {
 
 		// Si el canal esta apagado lo salteo
 		if ( alm_sysVars[i].enabled == false ) {
-			// Ya lo marque en el callback
-			//alm_sysVars[i].alm_fired = alm_NOT_PRESENT;
 			continue;
 		}
-
 
 		// Disparo alarma LEVEL_1
 		if ( alm_sysVars[i].L1_timer == 1 ) {
@@ -587,10 +585,10 @@ static void pv_apagar_alarmas(void)
 //------------------------------------------------------------------------------------
 static void pv_reset_almVars(void)
 {
-	alarmVars.boton_alarma_pressed = false;
-	alarmVars.llave_mantenimiento_on = false;
-	alarmVars.sensor_puerta_1_open = false;
-	alarmVars.sensor_puerta_2_open = false;
+	alarmVars.boton_alarma_pressed.master = false;
+	alarmVars.llave_mantenimiento_on.master = false;
+	alarmVars.sensor_puerta_1_open.master = false;
+	alarmVars.sensor_puerta_2_open.master = false;
 
 }
 //------------------------------------------------------------------------------------
@@ -605,7 +603,7 @@ uint8_t i;
 		alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1;
 		alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2;
 		alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3;
-		alm_sysVars[i].alm_fired = alm_NOT_FIRED;
+		//alm_sysVars[i].alm_fired = alm_NOT_FIRED;
 	}
 }
 //------------------------------------------------------------------------------------
@@ -799,45 +797,6 @@ static void ac_sirena(t_dev_action action)
 	}
 }
 //------------------------------------------------------------------------------------
-/*
-static uint8_t ac_read_status_sensor_puerta_1(void)
-{
-	if ( alarmVars.sensor_puerta_1_open == true ) {
-		return(1);
-	} else {
-		return(0);
-	}
-}
-//------------------------------------------------------------------------------------
-static uint8_t ac_read_status_sensor_puerta_2(void)
-{
-	if ( alarmVars.sensor_puerta_2_open == true ) {
-		return(1);
-	} else {
-		return(0);
-	}
-}
-//------------------------------------------------------------------------------------
-static uint8_t ac_read_status_mantenimiento(void)
-{
-	if ( alarmVars.llave_mantenimiento_on ) {
-		return(1);
-	} else {
-		return(0);
-	}
-}
-//------------------------------------------------------------------------------------
-static uint8_t ac_read_status_boton_alarma(void)
-{
-
-	if ( alarmVars.boton_alarma_pressed) {
-		return(1);
-	} else {
-		return(0);
-	}
-}
-*/
-//------------------------------------------------------------------------------------
 static void ac_send_smsAlarm( int8_t level, uint8_t channel )
 {
 	// Envio el mensaje de alarma por SMS.
@@ -849,12 +808,25 @@ uint8_t pos;
 	snprintf_P( sms_msg, SMS_MSG_LENGTH, PSTR("ALARMA Nivel %d activada por: %s\0"), level, systemVars.ainputs_conf.name[channel] );
 
 	for (pos = 0; pos < MAX_NRO_SMS_ALARMAS; pos++) {
-		// Envio a todos los numeros configurados para nivel 1.
-		if ( ( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level == level ) && ( strcmp ( systemVars.ainputs_conf.name[pos], "X" ) != 0 )) {
-			xprintf_P( PSTR("ALARMA L%d, SMSnro:%s, MSG:%s\r\n"),level, systemVars.aplicacion_conf.alarma_ppot.l_sms[channel].sms_nro, sms_msg );
-			if ( ! u_sms_send( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, sms_msg ) ) {
-				xprintf_P( PSTR("ERROR: ALARMA SMS NIVEL %d NO PUEDE SER ENVIADA !!!\r\n"),level );
-			}
+
+		// Envio a todos los numeros configurados para nivel level.
+		if ( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level != level ) {
+			// Salto las posiciones que no tienen igual level
+			//xprintf_P(PSTR("ALARMA L%d: pos=%d, Pass x Level(%d)\r\n"), level, pos, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level );
+			continue;
+		}
+
+
+		if ( strcmp ( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, "X" ) == 0 ) {
+			// Salto las posiciones que no tienen un nro.configurado
+			//xprintf_P(PSTR("ALARMA L%d: pos=%d, Pass x Name(%s)\r\n"), level, pos, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro );
+			continue;
+		}
+
+		xprintf_P( PSTR("ALARMA L%d: pos=%d smsLevel=%d, SMSnro=%s, MSG=%s !!\r\n"), level, pos, level, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, sms_msg );
+
+		if ( ! u_sms_send( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, sms_msg ) ) {
+			xprintf_P( PSTR("ERROR: ALARMA SMS NIVEL %d NO PUEDE SER ENVIADA !!!\r\n"),level );
 		}
 	}
 }
@@ -1201,7 +1173,7 @@ void appalarma_servicio_tecnico( char *action, char *device )
 	return;
 }
 //------------------------------------------------------------------------------------
-void appalarma_print_status(void)
+void appalarma_print_status( bool full )
 {
 
 uint8_t pos;
@@ -1224,54 +1196,64 @@ uint8_t pos;
 	// Entradas digitales
 	xprintf_P( PSTR("  Entradas de control:\r\n\0"));
 	xprintf_P( PSTR("    Mantenimiento:"));
-	if ( alarmVars.llave_mantenimiento_on == true ) {
+	if ( alarmVars.llave_mantenimiento_on.master == true ) {
 		xprintf_P( PSTR("ON"));
 	} else {
 		xprintf_P( PSTR("OFF"));
 	}
-	if ( alarmVarsState.llave_mantenimiento_on == true ) {
-		xprintf_P( PSTR(":ON\r\n"));
-	} else {
-		xprintf_P( PSTR(":OFF\r\n"));
+	if ( full ) {
+		if ( alarmVars.llave_mantenimiento_on.slave == true ) {
+			xprintf_P( PSTR("/ON"));
+		} else {
+			xprintf_P( PSTR("/OFF"));
+		}
 	}
+	xprintf_P( PSTR("\r\n"));
 
 	xprintf_P( PSTR("    Boton:"));
-	if ( alarmVars.boton_alarma_pressed == true ) {
+	if ( alarmVars.boton_alarma_pressed.master == true ) {
 		xprintf_P( PSTR("PRESIONADO"));
 	} else {
 		xprintf_P( PSTR("NORMAL"));
 	}
-	if ( alarmVarsState.boton_alarma_pressed == true ) {
-		xprintf_P( PSTR(":PRESIONADO\r\n"));
-	} else {
-		xprintf_P( PSTR(":NORMAL\r\n"));
+	if ( full ) {
+		if ( alarmVars.boton_alarma_pressed.slave == true ) {
+			xprintf_P( PSTR("/PRESIONADO"));
+		} else {
+			xprintf_P( PSTR("/NORMAL"));
+		}
 	}
+	xprintf_P( PSTR("\r\n"));
 
 	xprintf_P( PSTR("    Puerta 1:"));
-	if ( alarmVars.sensor_puerta_1_open== true ) {
+	if ( alarmVars.sensor_puerta_1_open.master== true ) {
 		xprintf_P( PSTR("ABIERTA"));
 	} else {
 		xprintf_P( PSTR("CERRADA"));
 	}
-	if ( alarmVarsState.sensor_puerta_1_open == true ) {
-		xprintf_P( PSTR(":ABIERTA\r\n"));
-	} else {
-		xprintf_P( PSTR(":CERRADA\r\n"));
+	if ( full ) {
+		if ( alarmVars.sensor_puerta_1_open.slave == true ) {
+			xprintf_P( PSTR("/ABIERTA"));
+		} else {
+			xprintf_P( PSTR("/CERRADA"));
+		}
 	}
-
+	xprintf_P( PSTR("\r\n"));
 
 	xprintf_P( PSTR("    Puerta 2:"));
-	if ( alarmVars.sensor_puerta_2_open== true ) {
+	if ( alarmVars.sensor_puerta_2_open.master== true ) {
 		xprintf_P( PSTR("ABIERTA"));
 	} else {
 		xprintf_P( PSTR("CERRADA"));
 	}
-	if ( alarmVarsState.sensor_puerta_2_open == true ) {
-		xprintf_P( PSTR(":ABIERTA\r\n"));
-	} else {
-		xprintf_P( PSTR(":CERRADA\r\n"));
+	if ( full ) {
+		if ( alarmVars.sensor_puerta_2_open.slave == true ) {
+			xprintf_P( PSTR("/ABIERTA"));
+		} else {
+			xprintf_P( PSTR("/CERRADA"));
+		}
 	}
-
+	xprintf_P( PSTR("\r\n"));
 
 	// Estado del programa
 	xprintf_P( PSTR("  Estado:"));
@@ -1300,7 +1282,7 @@ void appalarma_test(void)
 
 uint8_t i;
 
-	appalarma_print_status();
+	appalarma_print_status(true);
 
 	dinputs_service_read();
 
@@ -1311,7 +1293,7 @@ uint8_t i;
 		xprintf_P(PSTR("    ch%02d:"), i );
 
 		if ( alm_sysVars[i].enabled ) {
-			xprintf_P(PSTR("[ON] "));
+			xprintf_P(PSTR("[ON ] "));
 		} else {
 			xprintf_P(PSTR("[OFF] "));
 		}
@@ -1325,31 +1307,36 @@ uint8_t i;
 void appalarma_adjust_vars( st_dataRecord_t *dr)
 {
 
+uint8_t i;
+
+	// La funcion de tkInputs usa esta funcion para ajustar el valor de las variables digitales
+	// a transmitir al servidor ya que estas deben transmitir el estado.
+
 	// Niveles de alarma disparados
-	dr->df.io8.dinputs[0] = alm_sysVars[0].alm_fired;
-	dr->df.io8.dinputs[1] = alm_sysVars[1].alm_fired;
-	dr->df.io8.dinputs[2] = alm_sysVars[2].alm_fired;
-	dr->df.io8.dinputs[3] = alm_sysVars[3].alm_fired;
-	dr->df.io8.dinputs[4] = alm_sysVars[4].alm_fired;
-	dr->df.io8.dinputs[5] = alm_sysVars[5].alm_fired;
+	for ( i = 0; i < NRO_CANALES_MONITOREO; i++) {
+		dr->df.io8.dinputs[i] = alm_sysVars[i].alm_fired;
 
-	dr->df.io8.dinputs[6] = alarmVarsState.llave_mantenimiento_on;
-	if ( alarmVars.llave_mantenimiento_on == false )
-		alarmVarsState.llave_mantenimiento_on = false;
+		// Si estoy en modo standby, reseteo los nivels de disparo.
+		if ( ( appalarma_state == st_STANDBY ) || ( appalarma_state == st_NORMAL ))  {
+			alm_sysVars[i].alm_fired = alm_NOT_FIRED;
+		}
+	}
 
-	dr->df.io8.dinputs[7] = alarmVarsState.boton_alarma_pressed;
-	if ( alarmVars.boton_alarma_pressed == false )
-		alarmVarsState.boton_alarma_pressed = false;
+	// Las señales de puerta, boton, llave son las slave para tener el cambio en el periodo.
+	// Luego se resetean para seguir el valor de la señal master.
+	dr->df.io8.dinputs[6] = alarmVars.llave_mantenimiento_on.slave;
+	alarmVars.llave_mantenimiento_on.slave = alarmVars.llave_mantenimiento_on.master;
 
-	dr->df.io8.counters[0] = alarmVarsState.sensor_puerta_1_open;
-	if ( alarmVars.sensor_puerta_1_open == false )
-		alarmVarsState.sensor_puerta_1_open = false;
+	dr->df.io8.dinputs[7] = alarmVars.boton_alarma_pressed.slave;
+	alarmVars.boton_alarma_pressed.slave = alarmVars.boton_alarma_pressed.master;
 
-	dr->df.io8.counters[1] = alarmVarsState.sensor_puerta_2_open;
-	if ( alarmVars.sensor_puerta_2_open == false )
-		alarmVarsState.sensor_puerta_2_open = false;
+	dr->df.io8.counters[0] = alarmVars.sensor_puerta_1_open.slave;
+	alarmVars.sensor_puerta_1_open.slave = alarmVars.sensor_puerta_1_open.master;
 
+	dr->df.io8.counters[1] = alarmVars.sensor_puerta_2_open.master;
+	alarmVars.sensor_puerta_2_open.slave = alarmVars.sensor_puerta_2_open.master;
 
+	// Estado en que se encuentra el sistema de alarmas.
 	dr->df.io8.ainputs[7] = appalarma_state;
 
 

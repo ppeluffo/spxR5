@@ -61,6 +61,8 @@ bool u_gprs_close_socket(void)
 
 uint8_t intentos = 4;
 
+	//xprintf_P( PSTR("DEBUG u_gprs_close_socket\r\n" ));
+
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: try to close socket\r\n\0"));
 	}

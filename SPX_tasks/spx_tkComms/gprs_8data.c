@@ -194,8 +194,9 @@ bool retS = bool_CONTINUAR;
 				break;
 			}
 
+			//xprintf_P(PSTR("DEBUG check sms4tx=%d\r\n"), GPRS_stateVars.sms_for_tx);
 			// SMS for TX
-			if ( GPRS_stateVars.sms_for_tx ) {
+			if ( GPRS_stateVars.sms_for_tx == true ) {
 				// Si el socket esta abierto lo cierro
 				if ( u_gprs_close_socket() ) {
 					u_gprs_sms_txcheckpoint();

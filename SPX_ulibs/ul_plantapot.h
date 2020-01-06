@@ -46,22 +46,20 @@ typedef enum { alm_NOT_PRESENT = -1, alm_NOT_FIRED = 0 , alm_FIRED_L1, alm_FIRED
 // Tiempo dentro del estado standby ( luego de haber reconocido las alarmas )
 #define TIME_IN_STANDBY			120
 
+typedef struct {
+	bool master;		// Se monitorea el cambio c/segundo
+	bool  slave;		// Vuelve al estado normal solo luego de un poleo para no perder de trasnmitir el cambio.
+}t_digital_state_var;
+
 struct {
-	bool llave_mantenimiento_on;
-	bool boton_alarma_pressed;
-	bool sensor_puerta_1_open;
-	bool sensor_puerta_2_open;
+	t_digital_state_var llave_mantenimiento_on;
+	t_digital_state_var boton_alarma_pressed;
+	t_digital_state_var sensor_puerta_1_open;
+	t_digital_state_var sensor_puerta_2_open;
 } alarmVars;
 
 // Estas son las mismas variables de estado pero cambian solo
 // con los timerpoll y son las que transmito.
-struct {
-	bool llave_mantenimiento_on;
-	bool boton_alarma_pressed;
-	bool sensor_puerta_1_open;
-	bool sensor_puerta_2_open;
-} alarmVarsState;
-
 
 typedef struct {
 	bool enabled;
@@ -69,7 +67,7 @@ typedef struct {
 	uint16_t L1_timer;
 	uint16_t L2_timer;
 	uint16_t L3_timer;
-	int8_t alm_fired;
+	uint8_t alm_fired;
 } t_alm_channels;
 
 t_alm_channels alm_sysVars[NRO_CANALES_MONITOREO];
@@ -82,6 +80,6 @@ bool appalarma_config( char *param0,char *param1, char *param2, char *param3, ch
 void appalarma_config_defaults(void);
 
 void appalarma_servicio_tecnico( char * action, char * device );
-void appalarma_print_status(void);
+void appalarma_print_status( bool full );
 
 #endif /* SRC_SPX_ULIBS_UL_ALARMAS_OSE_H_ */

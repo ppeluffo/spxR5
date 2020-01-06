@@ -34,7 +34,8 @@ bool u_sms_send(char *dst_nbr, char *msg )
 {
 	// Funcion publica que la usa el resto del programa para trasmitir mensajes SMS
 
-	if ( s_sms.ptr == SMS_QUEUE_LENGTH ) {
+	// Testeo SMS queue llena
+	if ( s_sms.ptr == ( SMS_QUEUE_LENGTH - 1 )) {
 		// La cola de mensajes esta llena.
 		GPRS_stateVars.sms_for_tx = true;
 		return(false);
@@ -67,23 +68,40 @@ void u_gprs_sms_txcheckpoint(void)
 	// Los manda del modo quick.
 	// Por las dudas debe verificar que el modem este en modo comando.
 
-//	xprintf_P( PSTR("DEBUG SMS txcheckpoint\r\n" ));
+//RtcTimeType_t rtc;
+//char sms_message[50];
+uint8_t i;
 
-	if ( ! GPRS_stateVars.sms_for_tx )
+
+	//xprintf_P( PSTR("DEBUG SMS txcheckpoint A(%d)\r\n" ),  GPRS_stateVars.sms_for_tx);
+
+	if ( GPRS_stateVars.sms_for_tx == false )
 		return;
+
+	//xprintf_P( PSTR("DEBUG SMS txcheckpoint B(%d)\r\n" ),  GPRS_stateVars.sms_for_tx);
 
 	// CMGF: Selecciono el modo de mandar sms: 1-> texto
 	u_gprs_flush_RX_buffer();
 	xCom_printf_P( fdGPRS,PSTR("AT+CMGF=1\r"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-	while ( s_sms.ptr > 0 ) {
+	// Testing SMS queue con espacio
+	while ( s_sms.ptr > -1 ) {
 		// Hay mensajes pendientes.
 
 		// Mando el mensaje
 		u_gprs_flush_RX_buffer();
+
+//		RTC_read_dtime( &rtc );
+//		memset( &sms_message, '\0', sizeof(sms_message) );
+//		i = snprintf_P( sms_message, sizeof(sms_message), PSTR("Fecha: %02d/%02d/%02d %02d:%02d\r"), rtc.year, rtc.month, rtc.day, rtc.hour, rtc.min );
+//		memcpy( &sms_message[i], s_sms.queue[s_sms.ptr].msg, sizeof(sms_message) );
+
 		xCom_printf_P( fdGPRS,PSTR("AT+CMGSO=\"%s\",\"%s\"\r"), s_sms.queue[s_sms.ptr].nro, s_sms.queue[s_sms.ptr].msg);
 		xprintf_P( PSTR("AT+CMGSO=\"%s\",\"%s\"\r\n"), s_sms.queue[s_sms.ptr].nro, s_sms.queue[s_sms.ptr].msg );
+
+		//xCom_printf_P( fdGPRS,PSTR("AT+CMGSO=\"%s\",\"%s\"\r"), s_sms.queue[s_sms.ptr].nro, sms_message);
+		//xprintf_P( PSTR("AT+CMGSO=\"%s\",\"%s\"\r\n"), s_sms.queue[s_sms.ptr].nro, sms_message );
 
 		// Espero el OK
 		if ( ! u_gprs_check_response_with_to( "OK", 10 ) ) {
