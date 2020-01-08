@@ -1155,7 +1155,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  mcp {regAddr} {data}, mcpinit\r\n\0"));
 				xprintf_P( PSTR("  outputs (val dec.)\r\n\0"));
 				xprintf_P( PSTR("  outpin {0..7} {set | clear}\r\n\0"));
-				xprintf_P( PSTR("  appalarma (prender/apagar/flash) (lroja,lverde,lamarilla,lnaranja,sirena) \r\n\0"));
+				xprintf_P( PSTR("  appalarma (prender/apagar/flash) (lroja,lverde,lamarilla,lnaranja,lazul,sirena) \r\n\0"));
 			}
 
 			if ( spx_io_board == SPX_IO5CH ) {
@@ -1280,7 +1280,7 @@ static void cmdHelpAlarmasFunction(void)
 	if (!strcmp_P( strupr(argv[1]), PSTR("WRITE\0"))) {
 		xprintf_P( PSTR("-write\r\n\0"));
 		xprintf_P( PSTR("  rtc YYMMDDhhmm\r\n\0"));
-		xprintf_P( PSTR("  appalarma (prender/apagar/flash) (lroja,lverde,lamarilla,lnaranja,sirena) \r\n\0"));
+		xprintf_P( PSTR("  appalarma (prender/apagar/flash) (lroja,lverde,lamarilla,lnaranja,lazul,sirena) \r\n\0"));
 		return;
 	}
 
@@ -1306,8 +1306,9 @@ static void cmdHelpAlarmasFunction(void)
 		xprintf_P( PSTR("-config\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
 		xprintf_P( PSTR("  timerpoll {val}\r\n\0"));
+		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax offset\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
-		xprintf_P( PSTR("            nivel {chid} {alerta} {inf|sup} val\r\n\0"));
+		xprintf_P( PSTR("            nivel {ch} {alerta} {inf|sup} val\r\n\0"));
 		xprintf_P( PSTR("  default {SPY|OSE}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
 	}

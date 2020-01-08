@@ -97,16 +97,16 @@ RESTART:
 			goto RESTART;								// banda ) salgo con false y vuelvo a APAGAR
 		}
 
-		if ( st_gprs_monitor_sqe() != bool_CONTINUAR ) {	// Salgo por signal o reset o timeout de control task
+		if ( st_gprs_monitor_sqe() != bool_CONTINUAR ) {// Salgo por signal o reset o timeout de control task
 			goto RESTART;
+		}
+
+		if ( st_gprs_scan_frame() != bool_CONTINUAR ) {	// Si algun parametro(apn,ip,dlgid) esta en DEFAULT hago un scan de varios servidores para
+			goto RESTART;								// descubrir la server IP correcta.
 		}
 
 		if ( st_gprs_get_ip() != bool_CONTINUAR  ) {	// Si no logro una IP debo reiniciarme. Salgo en este caso
 			goto RESTART;								// con false. Aqui si no tengo el APN hago un SCAN
-		}
-
-		if ( st_gprs_scan_frame() != bool_CONTINUAR ) {	// Si la IP esta en DEFAULT hago un scan de varios servidores para
-			goto RESTART;								// descubrir la server IP correcta.
 		}
 
 		// El modem prendio. Paso a reconfigurar con inits.

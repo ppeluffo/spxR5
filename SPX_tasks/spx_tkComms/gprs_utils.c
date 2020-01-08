@@ -527,3 +527,137 @@ void u_gprs_tx_tail(void)
 	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 }
 //------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+void gprs_set_apn(char *apn)
+{
+	// Configura el APN de trabajo.
+
+	xprintf_P( PSTR("GPRS: Set APN\r\n\0") );
+
+	//Defino el PDP indicando cual es el APN.
+	// AT+CGDCONT
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+	// Como puedo tener varios PDP definidos, indico cual va a ser el que se deba activar
+	// al usar el comando NETOPEN.
+	u_gprs_flush_RX_buffer();
+	xCom_printf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+}
+//------------------------------------------------------------------------------------
+bool gprs_netopen(void)
+{
+	// Abre una conexion a la red.
+	// La red asigna una IP.
+	// Doy el comando para atachearme a la red
+	// Puede demorar unos segundos por lo que espero para chequear el resultado
+	// y reintento varias veces.
+
+uint8_t reintentos = MAX_TRYES_NET_ATTCH;
+uint8_t checks = 0;
+
+	xprintf_P( PSTR("GPRS: netopen (get IP).\r\n\0") );
+	// Espero 2s para dar el comando
+	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+
+	while ( reintentos-- > 0 ) {
+
+		if ( systemVars.debug == DEBUG_GPRS ) {
+			xprintf_P( PSTR("GPRS: send NETOPEN cmd (%d)\r\n\0"),reintentos );
+		}
+
+		// Envio el comando.
+		// AT+NETOPEN
+		u_gprs_flush_RX_buffer();
+		xCom_printf_P( fdGPRS,PSTR("AT+NETOPEN\r\0"));
+		vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+
+		// Intento 5 veces ver si respondio correctamente.
+		for ( checks = 0; checks < 5; checks++) {
+
+			if ( systemVars.debug == DEBUG_GPRS ) {
+				xprintf_P( PSTR("GPRS: netopen check.(%d)\r\n\0"),checks );
+			}
+
+			if ( systemVars.debug == DEBUG_GPRS ) {
+				u_gprs_print_RX_Buffer();
+			}
+
+			// Evaluo las respuestas del modem.
+			if ( u_gprs_check_response("+NETOPEN: 0")) {
+				xprintf_P( PSTR("GPRS: NETOPEN OK !.\r\n\0") );
+				return(true);
+
+			} else if ( u_gprs_check_response("Network opened")) {
+				xprintf_P( PSTR("GPRS: NETOPEN OK !.\r\n\0") );
+				return(true);
+
+			} else if ( u_gprs_check_response("+IP ERROR: Network is already opened")) {
+				return(true);
+
+			} else if ( u_gprs_check_response("+NETOPEN: 1")) {
+				xprintf_P( PSTR("GPRS: NETOPEN FAIL !!.\r\n\0") );
+				return(false);
+
+			} else if ( u_gprs_check_response("ERROR")) {
+				break;	// Salgo de la espera
+
+			}
+			// Aun no tengo ninguna respuesta esperada.
+			// espero 5s para re-evaluar la respuesta.
+			vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+
+		}
+
+		// No pude atachearme. Debo mandar de nuevo el comando
+		// Pasaron 25s.
+	}
+
+	// Luego de varios reintentos no pude conectarme a la red.
+	xprintf_P( PSTR("GPRS: NETOPEN FAIL !!.\r\n\0"));
+	return(false);
+
+}
+//------------------------------------------------------------------------------------
+void gprs_read_ip_assigned(void)
+{
+
+	// Tengo la IP asignada: la leo para actualizar systemVars.ipaddress
+
+char *ts = NULL;
+int i=0;
+char c = '\0';
+
+	// AT+CGPADDR para leer la IP
+	u_gprs_flush_RX_buffer();
+	//xCom_printf_P( fdGPRS,PSTR("AT+CGPADDR\r\0"));
+	xCom_printf_P( fdGPRS,PSTR("AT+IPADDR\r\0"));
+	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		u_gprs_print_RX_Buffer();
+	}
+
+	// Extraigo la IP del token.
+	ts = strchr( pv_gprsRxCbuffer.buffer, ':');
+	ts++;
+	while ( (c= *ts) != '\r') {
+		GPRS_stateVars.dlg_ip_address[i++] = c;
+		ts++;
+	}
+	GPRS_stateVars.dlg_ip_address[i++] = '\0';
+
+	xprintf_P( PSTR("GPRS: ip address=[%s]\r\n\0"), GPRS_stateVars.dlg_ip_address);
+
+}
+//------------------------------------------------------------------------------------
+
+

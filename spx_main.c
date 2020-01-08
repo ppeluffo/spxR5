@@ -24,6 +24,8 @@
  *
  *  https://e2019.uy/buscar
  *  http://www.CABRERA/MONS/ENRIQUE/Montevideo/Padron/2354U
+ *  Literatura,adscriptores
+ *  Liceo 58 Mario Benedetti Fundado 1999
  *  18488618
  *  CMA 37384 515 111
  *  22923645

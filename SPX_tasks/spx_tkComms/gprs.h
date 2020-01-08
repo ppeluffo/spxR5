@@ -102,6 +102,11 @@ void u_gprs_init_pines(void);
 void u_gprs_tx_header(char *type);
 void u_gprs_tx_tail(void);
 
+void gprs_set_apn(char *apn);
+bool gprs_netopen(void);
+void gprs_read_ip_assigned(void);
+
+
 uint32_t u_gprs_read_timeToNextDial(void);
 void u_gprs_set_timeToNextDial( uint32_t time_to_dial );
 
