@@ -825,7 +825,7 @@ uint8_t pos;
 
 		xprintf_P( PSTR("ALARMA L%d: pos=%d smsLevel=%d, SMSnro=%s, MSG=%s !!\r\n"), level, pos, level, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, sms_msg );
 
-		if ( ! u_sms_send( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, sms_msg ) ) {
+		if ( ! u_sms_send( systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro, u_format_date_sms(sms_msg) ) ) {
 			xprintf_P( PSTR("ERROR: ALARMA SMS NIVEL %d NO PUEDE SER ENVIADA !!!\r\n"),level );
 		}
 	}

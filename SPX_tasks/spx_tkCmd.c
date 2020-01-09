@@ -1173,7 +1173,7 @@ static void cmdHelpFunction(void)
 
 			xprintf_P( PSTR("  gprs (pwr|sw|cts|dtr) {on|off}\r\n\0"));
 			xprintf_P( PSTR("       cmd {atcmd}, redial\r\n\0"));
-			xprintf_P( PSTR("       sms,qsms {nbr,msg}\r\n\0"));
+			xprintf_P( PSTR("       sms,qsms,fsms {nbr,msg}\r\n\0"));
 
 		}
 		return;
@@ -1517,8 +1517,7 @@ uint8_t pin = 0;
 
 		// write gprs sms nbr msg
 		if (!strcmp_P( strupr(argv[2]), PSTR("SMS\0"))) {
-			//u_gprs_send_sms( argv[3], argv[4] );
-			u_sms_send( argv[3], argv[4] );
+			u_gprs_send_sms( argv[3], argv[4] );
 			pv_snprintfP_OK();
 			return;
 		}
@@ -1526,6 +1525,13 @@ uint8_t pin = 0;
 		// write gprs qsms nbr msg
 		if (!strcmp_P( strupr(argv[2]), PSTR("QSMS\0")) ) {
 			u_gprs_quick_send_sms( argv[3], argv[4] );
+			pv_snprintfP_OK();
+			return;
+		}
+
+		// write gprs fsms nbr msg
+		if (!strcmp_P( strupr(argv[2]), PSTR("FSMS\0"))) {
+			u_sms_send( argv[3], u_format_date_sms(argv[4]) );
 			pv_snprintfP_OK();
 			return;
 		}

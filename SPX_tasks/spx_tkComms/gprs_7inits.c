@@ -22,11 +22,12 @@ bool f_send_init_app = false;
 
 //bool f_reset = false;
 
-typedef enum { GLOBAL=0, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR, APP_A, APP_B, APP_C } init_frames_t;
+typedef enum { AUTH=0, GLOBAL, BASE, ANALOG, DIGITAL, COUNTERS, RANGE, PSENSOR, APP_A, APP_B, APP_C } init_frames_t;
 
 static bool pv_process_frame_init(init_frames_t tipo);
 static bool pv_tx_frame_init(init_frames_t tipo);
 static void pv_tx_init_payload(init_frames_t tipo);
+static void pv_tx_init_payload_auth(void);
 static void pv_tx_init_payload_global(void);
 static void pv_tx_init_payload_base(void);
 static void pv_tx_init_payload_analog(void);
@@ -39,6 +40,7 @@ static void pv_tx_init_payload_app_B(void);
 static void pv_tx_init_payload_app_C(void);
 
 static t_frame_responses pv_init_process_response(void);
+static bool pv_init_reconfigure_params_auth(void);
 static void pv_init_reconfigure_params_global(void);
 static void pv_init_reconfigure_params_base(void);
 static void pv_init_reconfigure_params_analog(void);
@@ -50,6 +52,7 @@ static void pv_init_reconfigure_params_app_A(void);
 static void pv_init_reconfigure_params_app_B(void);
 static void pv_init_reconfigure_params_app_C(void);
 
+bool pv_process_frame_init_AUTH(void);
 bool pv_process_frame_init_GLOBAL(void);
 bool pv_process_frame_init_BASE(void);
 bool pv_process_frame_init_ANALOG(void);
@@ -79,6 +82,11 @@ bool st_gprs_inits(void)
 
 
 	GPRS_stateVars.state = G_INITS;
+
+	// Este frame se envia para ver que el UID/DLGID sean correctos y reconocidos.
+	if ( ! pv_process_frame_init_AUTH() ) {
+		return(bool_RESTART);
+	}
 
 	// El resultado del frame GLOBAL es el que prende las flags de que
 	// otras inits deben enviarse.
@@ -131,6 +139,16 @@ bool st_gprs_inits(void)
 //	}
 
 	return(bool_CONTINUAR);
+}
+//------------------------------------------------------------------------------------
+bool pv_process_frame_init_AUTH(void)
+{
+
+bool retS = true;
+
+	retS = pv_process_frame_init(AUTH);
+	return(retS);
+
 }
 //------------------------------------------------------------------------------------
 bool pv_process_frame_init_GLOBAL(void)
@@ -408,6 +426,9 @@ static void pv_tx_init_payload(init_frames_t tipo)
 {
 
 	switch(tipo) {
+	case AUTH:
+		pv_tx_init_payload_auth();
+		break;
 	case GLOBAL:
 		pv_tx_init_payload_global();
 		break;
@@ -441,6 +462,18 @@ static void pv_tx_init_payload(init_frames_t tipo)
 	}
 }
 //------------------------------------------------------------------------------------
+static void pv_tx_init_payload_auth(void)
+{
+
+	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
+
+	// DEBUG & LOG
+	if ( systemVars.debug ==  DEBUG_GPRS ) {
+		xprintf_P( PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
+	}
+
+}
+//------------------------------------------------------------------------------------
 static void pv_tx_init_payload_global(void)
 {
 uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
@@ -454,7 +487,7 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 	app_cks = u_aplicacion_checksum();
 
 	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
-	xCom_printf_P( fdGPRS,PSTR("SIMPWD:%s;IMEI:%s;UID:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei, NVMEE_readID() );
+	xCom_printf_P( fdGPRS,PSTR("SIMPWD:%s;IMEI:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei );
 	xCom_printf_P( fdGPRS,PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
 	xCom_printf_P( fdGPRS,PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
 	xCom_printf_P( fdGPRS,PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
@@ -464,7 +497,7 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P( PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
-		xprintf_P( PSTR("SIMPWD:%s;IMEI:%s;UID:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei, NVMEE_readID() );
+		xprintf_P( PSTR("SIMPWD:%s;IMEI:%s;" ), systemVars.gprs_conf.simpwd, &buff_gprs_imei );
 		xprintf_P( PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
 		xprintf_P( PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
 		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
@@ -616,6 +649,18 @@ uint8_t exit_code = FRAME_ERROR;
 			}
 
 			// Analizo las respuestas.
+			if ( u_gprs_check_response("AUTH") ) {	// Respuesta correcta:
+				// Borro la causa del reset
+				wdg_resetCause = 0x00;
+				if ( pv_init_reconfigure_params_auth() ) {
+					exit_code = FRAME_OK;
+				} else {
+					exit_code = FRAME_NOT_ALLOWED;
+				}
+				goto EXIT;
+			}
+
+			// Analizo las respuestas.
 			if ( u_gprs_check_response("GLOBAL") ) {	// Respuesta correcta:
 				// Borro la causa del reset
 				wdg_resetCause = 0x00;
@@ -716,6 +761,58 @@ uint8_t exit_code = FRAME_ERROR;
 EXIT:
 
 	return(exit_code);
+
+}
+//------------------------------------------------------------------------------------
+static bool pv_init_reconfigure_params_auth(void)
+{
+	// Recibimos un frame de autorizacion que indica si los parametros UID/DLGID son
+	// correctos o debe reconfigurar el DLGID.
+	// TYPE=INIT&PLOAD=CLASS:AUTH;STATUS:OK
+	// TYPE=INIT&PLOAD=CLASS:AUTH;STATUS:RECONF;DLGID:TEST01
+	// TYPE=INIT&PLOAD=CLASS:AUTH;STATUS:ERROR_DS
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *token = NULL;
+char *tk_action = NULL;
+char *delim = ",=:><";
+char dlgId[DLGID_LENGTH];
+
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AUTH");
+	if ( p == NULL ) {
+		return(false);
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	token = strsep(&stringp,delim);	    // AUTH
+	token = strsep(&stringp,delim);	    // STATUS
+	tk_action = strsep(&stringp,delim);	// Action
+
+	if ( strcmp_P(tk_action, PSTR("OK") == 0 )) {
+		// Autorizado por el server.
+		return(true);
+	} else if ( strcmp_P (tk_action, PSTR("ERROR_DS"))) {
+		// No autorizado
+		return(false);
+	} else if ( strcmp_P (tk_action, PSTR("RECONF"))) {
+		// Autorizado. Debo reconfigurar el DLGID
+		token = strsep(&stringp,delim);	 // DLGID
+		token = strsep(&stringp,delim);	 // TEST01
+		// Copio el dlgid recibido al systemVars.
+		memset(dlgId,'\0', sizeof(dlgId) );
+		strncpy(dlgId, token, DLGID_LENGTH);
+		u_save_params_in_NVMEE();
+		xprintf_P( PSTR("GPRS_INIT_AUTH: reconfig DLGID to %s\r\n\0"), dlgId );
+		return(true);
+	}
+
+	return(false);
 
 }
 //------------------------------------------------------------------------------------

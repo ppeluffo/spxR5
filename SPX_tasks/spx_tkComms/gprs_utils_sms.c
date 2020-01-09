@@ -33,6 +33,7 @@ void u_sms_init(void)
 bool u_sms_send(char *dst_nbr, char *msg )
 {
 	// Funcion publica que la usa el resto del programa para trasmitir mensajes SMS
+	// Agrego la fecha y hora
 
 	// Testeo SMS queue llena
 	if ( s_sms.ptr == ( SMS_QUEUE_LENGTH - 1 )) {
@@ -46,15 +47,21 @@ bool u_sms_send(char *dst_nbr, char *msg )
 	// El puntero apunta siempre a una posicion libre.
 
 	s_sms.ptr++;
+
 	memcpy( s_sms.queue[s_sms.ptr].nro, dst_nbr, SMS_NRO_LENGTH );
 	s_sms.queue[s_sms.ptr].nro[SMS_NRO_LENGTH - 1] = '\0';
+
 	memcpy(s_sms.queue[s_sms.ptr].msg, msg, SMS_MSG_LENGTH );
 	s_sms.queue[s_sms.ptr].msg[SMS_MSG_LENGTH - 1] = '\0';
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("SMS ptr = %d\r\n"), s_sms.ptr );
+		xprintf_P( PSTR("SMS nbr = %s\r\n"), s_sms.queue[s_sms.ptr].nro );
+		xprintf_P( PSTR("SMS msg = [%s]\r\n"), s_sms.queue[s_sms.ptr].msg );
 	}
-	// Aviso al gprs que hay mensajes para trasmitir
+
+	// Aviso al gprs que hay mensajes para trasmitir.
+	// Lo mando por txcheckpoint
 	GPRS_stateVars.sms_for_tx = true;
 	return(true);
 
@@ -68,70 +75,47 @@ void u_gprs_sms_txcheckpoint(void)
 	// Los manda del modo quick.
 	// Por las dudas debe verificar que el modem este en modo comando.
 
-//RtcTimeType_t rtc;
-//char sms_message[50];
-uint8_t i;
-
-
-	//xprintf_P( PSTR("DEBUG SMS txcheckpoint A(%d)\r\n" ),  GPRS_stateVars.sms_for_tx);
+char *nbr;
+char *msg;
 
 	if ( GPRS_stateVars.sms_for_tx == false )
 		return;
-
-	//xprintf_P( PSTR("DEBUG SMS txcheckpoint B(%d)\r\n" ),  GPRS_stateVars.sms_for_tx);
-
-	// CMGF: Selecciono el modo de mandar sms: 1-> texto
-	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CMGF=1\r"));
-	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 	// Testing SMS queue con espacio
 	while ( s_sms.ptr > -1 ) {
 		// Hay mensajes pendientes.
 
+		nbr = s_sms.queue[s_sms.ptr].nro;
+		msg = s_sms.queue[s_sms.ptr].msg;
+
 		// Mando el mensaje
-		u_gprs_flush_RX_buffer();
-
-//		RTC_read_dtime( &rtc );
-//		memset( &sms_message, '\0', sizeof(sms_message) );
-//		i = snprintf_P( sms_message, sizeof(sms_message), PSTR("Fecha: %02d/%02d/%02d %02d:%02d\r"), rtc.year, rtc.month, rtc.day, rtc.hour, rtc.min );
-//		memcpy( &sms_message[i], s_sms.queue[s_sms.ptr].msg, sizeof(sms_message) );
-
-		xCom_printf_P( fdGPRS,PSTR("AT+CMGSO=\"%s\",\"%s\"\r"), s_sms.queue[s_sms.ptr].nro, s_sms.queue[s_sms.ptr].msg);
-		xprintf_P( PSTR("AT+CMGSO=\"%s\",\"%s\"\r\n"), s_sms.queue[s_sms.ptr].nro, s_sms.queue[s_sms.ptr].msg );
-
-		//xCom_printf_P( fdGPRS,PSTR("AT+CMGSO=\"%s\",\"%s\"\r"), s_sms.queue[s_sms.ptr].nro, sms_message);
-		//xprintf_P( PSTR("AT+CMGSO=\"%s\",\"%s\"\r\n"), s_sms.queue[s_sms.ptr].nro, sms_message );
-
-		// Espero el OK
-		if ( ! u_gprs_check_response_with_to( "OK", 10 ) ) {
-			xprintf_P( PSTR("ERROR: Sent SMS Fail !!\r\n" ));
-			return;
+	//	if ( u_gprs_quick_send_sms(nbr, msg) ) {
+	    if ( u_gprs_send_sms(nbr, msg) ) {
+			// Borro el mensaje de la lista
+			memset( s_sms.queue[s_sms.ptr].nro, '\0', SMS_NRO_LENGTH );
+			memset(s_sms.queue[s_sms.ptr].msg, '\0', SMS_MSG_LENGTH );
+			s_sms.ptr--;
+			xprintf_P( PSTR("TXCKP: Sent SMS OK !!\r\n" ));
+		} else {
+			xprintf_P( PSTR("TXCKP: Sent SMS FAIL !!\r\n" ));
 		}
-
-		// Mensajes trasmitido OK.
-		xprintf_P( PSTR("Sent SMS OK !!\r\n" ));
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			u_gprs_print_RX_Buffer();
-		}
-		// Borro el mensaje de la lista
-		memset( s_sms.queue[s_sms.ptr].nro, '\0', SMS_NRO_LENGTH );
-		memset(s_sms.queue[s_sms.ptr].msg, '\0', SMS_MSG_LENGTH );
-		s_sms.ptr--;
 	}
 	// No hay mas mensajes pendientes.
 	GPRS_stateVars.sms_for_tx = false;
 }
 //------------------------------------------------------------------------------------
- void u_gprs_send_sms( char *dst_nbr, char *msg )
+bool u_gprs_send_sms( char *dst_nbr, char *msg )
 {
 	// Envio un mensaje sms.
 	// Si el modem esta conectado, lo paso a offline
 	// Mando un comando para setear el modo de sms en texto
 	// Envio el comando.
+	// Puedo mandar cualquier caracter de control !!
+	// Se usa para mensajes formateados
 
 
 uint8_t ctlz = 0x1A;
+bool retS = false;
 
 	// CMGF: Selecciono el modo de mandar sms: 1-> texto
 	u_gprs_flush_RX_buffer();
@@ -143,8 +127,8 @@ uint8_t ctlz = 0x1A;
 
 	// Espero el prompt > para enviar el mensaje.
 	if ( ! u_gprs_check_response_with_to( ">", 10 ) ) {
-		xprintf_P( PSTR("ERROR: Sent SMS Fail !!\r\n" ));
-		return;
+		xprintf_P( PSTR("ERROR: Sent SMS Fail(2) !!\r\n" ));
+		return(false);
 	}
 
 	// Recibi el prompt
@@ -162,18 +146,22 @@ uint8_t ctlz = 0x1A;
 
 	// Espero el OK
 	if ( ! u_gprs_check_response_with_to( "OK", 10 ) ) {
-		xprintf_P( PSTR("ERROR: Sent SMS Fail !!\r\n" ));
+		xprintf_P( PSTR("ERROR: Sent SMS Fail(3) !!\r\n" ));
+		retS = false;
 	} else {
 		xprintf_P( PSTR("Sent SMS OK !!\r\n" ));
+		retS = true;
 	}
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
 	}
 
+	return(retS);
+
 }
 //------------------------------------------------------------------------------------
-void u_gprs_quick_send_sms( char *dst_nbr, char *msg )
+bool u_gprs_quick_send_sms( char *dst_nbr, char *msg )
 {
 
 	// Si el modem esta apagado debo mandarlo prender y esperar que prenda y luego
@@ -181,6 +169,9 @@ void u_gprs_quick_send_sms( char *dst_nbr, char *msg )
 	// En este caso demora mucho.
 	// Si esta prendido debo esperar que este en modo DATA_AWAITING para sacarlo del online
 	// y mandar el sms.
+	// NO PUEDO MANDAR CARACTERES DE CONTROL (ej \n)
+
+bool retS = false;
 
 	if ( GPRS_stateVars.state == G_ESPERA_APAGADO ) {
 		// Mando la señal para prenderlo
@@ -221,14 +212,33 @@ void u_gprs_quick_send_sms( char *dst_nbr, char *msg )
 
 	// Espero el OK
 	if ( ! u_gprs_check_response_with_to( "OK", 10 ) ) {
-		xprintf_P( PSTR("ERROR: Sent SMS Fail !!\r\n" ));
+		xprintf_P( PSTR("ERROR: Sent SMS Fail(4) !!\r\n" ));
+		retS = false;
 	} else {
 		xprintf_P( PSTR("Sent SMS OK !!\r\n" ));
+		retS = true;
 	}
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
 	}
+
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+char *u_format_date_sms(char *msg)
+{
+	// Formatea el mensaje a enviar por SMS
+
+RtcTimeType_t rtc;
+static char sms_msg[SMS_MSG_LENGTH];
+
+	memset( &rtc, '\0', sizeof(RtcTimeType_t));
+	RTC_read_dtime(&rtc);
+	memset( &sms_msg, '\0', SMS_MSG_LENGTH );
+	snprintf_P( sms_msg, SMS_MSG_LENGTH, PSTR("Fecha: %02d/%02d/%02d %02d:%02d\n%s"), rtc.year, rtc.month, rtc.day, rtc.hour, rtc.min, msg );
+	xprintf_P( PSTR("DEBUG SMS1: [%s]\r\n" ), sms_msg );
+	return((char *)&sms_msg);
 
 }
 //------------------------------------------------------------------------------------

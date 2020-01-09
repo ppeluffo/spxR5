@@ -22,7 +22,7 @@
 #define MAX_TX_WINDOW_TRYES		4	// Intentos de enviar el mismo paquete de datos
 
 #define SMS_NRO_LENGTH		10
-#define SMS_MSG_LENGTH		40
+#define SMS_MSG_LENGTH		70
 #define SMS_QUEUE_LENGTH	MAX_NRO_SMS_ALARMAS
 
 #define CTRL_Z 26
@@ -113,8 +113,9 @@ void u_gprs_set_timeToNextDial( uint32_t time_to_dial );
 void u_sms_init(void);
 bool u_sms_send(char *dst_nbr, char *msg );
 void u_gprs_sms_txcheckpoint(void);
-void u_gprs_send_sms( char *dst_nbr, char *msg );
-void u_gprs_quick_send_sms( char *dst_nbr, char *msg );
+bool u_gprs_send_sms( char *dst_nbr, char *msg );
+bool u_gprs_quick_send_sms( char *dst_nbr, char *msg );
+char *u_format_date_sms(char *msg);
 
 void u_gprs_sms_rxcheckpoint(void);
 bool u_gprs_sms_received( uint8_t *first_msg_index );

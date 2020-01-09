@@ -276,7 +276,7 @@ uint8_t exit_code = FRAME_ERROR;
 				goto EXIT;
 
 			} else if ( u_gprs_check_response("STATUS:RECONF") ) {	// Respuesta correcta
-				pv_scan_get_dlgid();             				// Configure el DLGID correcto y la SERVER_IP usada es la correcta.
+				pv_scan_get_dlgid();             				    // Configure el DLGID correcto y la SERVER_IP usada es la correcta.
 				exit_code = FRAME_OK;
 				goto EXIT;
 

@@ -66,8 +66,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9k"
-#define SPX_FW_DATE "@ 20200108"
+#define SPX_FW_REV "2.9.9l"
+#define SPX_FW_DATE "@ 20200109"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -293,7 +293,7 @@ typedef struct {
 //---------------------------------------------------------------------------
 // Estructuras para el manejo del sistema de alarmas en plantas de potabilizacion de OSE
 
-#define MAX_NRO_SMS_ALARMAS 9
+#define MAX_NRO_SMS_ALARMAS 6
 #define NRO_CANALES_ALM	6
 
 
