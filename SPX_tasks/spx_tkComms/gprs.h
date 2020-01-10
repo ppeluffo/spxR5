@@ -21,11 +21,13 @@
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 #define MAX_TX_WINDOW_TRYES		4	// Intentos de enviar el mismo paquete de datos
 
-#define SMS_NRO_LENGTH		10
-#define SMS_MSG_LENGTH		70
-#define SMS_QUEUE_LENGTH	MAX_NRO_SMS_ALARMAS
+#define SMS_NRO_LENGTH			10
+#define SMS_MSG_LENGTH			70
+#define SMS_MSG_QUEUE_LENGTH	9
 
 #define CTRL_Z 26
+
+#define SIMPIN_DEFAULT	"1234\0"
 
 // Datos del buffer local de recepcion de datos del GPRS.
 // Es del mismo tamanio que el ringBuffer asociado a la uart RX.

@@ -13,7 +13,7 @@ typedef struct {
 } t_sms;
 
 struct {
-	t_sms queue[SMS_QUEUE_LENGTH];
+	t_sms queue[SMS_MSG_QUEUE_LENGTH];
 	int8_t ptr;
 } s_sms;
 
@@ -36,7 +36,7 @@ bool u_sms_send(char *dst_nbr, char *msg )
 	// Agrego la fecha y hora
 
 	// Testeo SMS queue llena
-	if ( s_sms.ptr == ( SMS_QUEUE_LENGTH - 1 )) {
+	if ( s_sms.ptr == ( SMS_MSG_QUEUE_LENGTH - 1 )) {
 		// La cola de mensajes esta llena.
 		GPRS_stateVars.sms_for_tx = true;
 		return(false);

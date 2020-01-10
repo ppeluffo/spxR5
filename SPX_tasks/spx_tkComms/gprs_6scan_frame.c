@@ -98,7 +98,7 @@ uint8_t try_status;
 	}  else {
 
 		// Los datos son correctos.
-		xprintf_P( PSTR("GPRS_SCAN: Params.OK.\r\n\0" ));
+		xprintf_P( PSTR("GPRS_SCAN: Params.OK (no scan).\r\n\0" ));
 		exit_flag = bool_CONTINUAR;
 	}
 

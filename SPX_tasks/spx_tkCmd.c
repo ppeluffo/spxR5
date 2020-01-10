@@ -1032,7 +1032,7 @@ bool retS = false;
 		} else {
 			memset(systemVars.gprs_conf.simpwd, '\0', sizeof(systemVars.gprs_conf.simpwd));
 			memcpy(systemVars.gprs_conf.simpwd, argv[2], sizeof(systemVars.gprs_conf.simpwd));
-			systemVars.gprs_conf.simpwd[PASSWD_LENGTH - 1] = '\0';
+			systemVars.gprs_conf.simpwd[SIM_PASSWD_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();

@@ -856,7 +856,7 @@ uint8_t i;
 	//xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
 
 	// Numeros de SMS
-	for (i=0; i<MAX_NRO_SMS_ALARMAS;i++) {
+	for (i=0; i < MAX_NRO_SMS_ALARMAS;i++) {
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.

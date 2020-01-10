@@ -96,14 +96,14 @@ static bool pv_gprs_CPIN(void)
 	// Chequeo que el SIM este en condiciones de funcionar.
 	// AT+CPIN?
 
-bool retS = false;
-uint8_t tryes = 0;
+uint8_t tryes = 3;
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: CPIN\r\n\0"));
 	}
 
-	for ( tryes = 0; tryes < 3; tryes++ ) {
+	while ( tryes > 0 ) {
+		// Vemos si necesita SIMPIN
 		u_gprs_flush_RX_buffer();
 		xCom_printf_P( fdGPRS,PSTR("AT+CPIN?\r\0"));
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
@@ -111,17 +111,43 @@ uint8_t tryes = 0;
 			u_gprs_print_RX_Buffer();
 		}
 
-		vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
-
-		u_gprs_check_response("+CPIN: READY\0") ? (retS = true ): (retS = false) ;
-
-		if ( retS ) {
-			break;
+		// Pin desbloqueado
+		if ( u_gprs_check_response("+CPIN: READY\0") ) {
+			if ( tryes == 1 ) {
+				// Se destrabo con el pin x defecto. Lo grabo en la EE.
+			    snprintf_P(systemVars.gprs_conf.simpwd, sizeof(systemVars.gprs_conf.simpwd), PSTR("%s\0"), SIMPIN_DEFAULT );
+			    u_save_params_in_NVMEE();
+			}
+			vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+			return(true);
 		}
+
+		// Requiere PIN
+		if ( u_gprs_check_response("+CPIN: SIM PIN\0") ) {
+			u_gprs_flush_RX_buffer();
+
+			if ( tryes == 3 ) {
+				// Ingreso el pin configurado en el systemVars.
+				xCom_printf_P( fdGPRS,PSTR("AT+CPIN=%s\r"), systemVars.gprs_conf.simpwd);
+			} else if ( tryes == 2 ) {
+				// Ingreso el pin por defecto
+				xCom_printf_P( fdGPRS,PSTR("AT+CPIN=%s\r"), SIMPIN_DEFAULT );
+			}
+
+			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
+			if ( systemVars.debug == DEBUG_GPRS ) {
+				u_gprs_print_RX_Buffer();
+			}
+		}
+
+		tryes--;
 
 	}
 
-	return(retS);
+	// Pin BLOQUEADO
+	// Configuro para esperar 1h.
+	systemVars.gprs_conf.timerDial = 3600;
+	return(false);
 
 }
 //------------------------------------------------------------------------------------

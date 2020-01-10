@@ -174,6 +174,7 @@ void tkAplicacion(void * pvParameters);
 #define SCRIPT_LENGTH		64
 #define PASSWD_LENGTH		15
 #define PARAMNAME_LENGTH	7
+#define SIM_PASSWD_LENGTH	5
 
 uint8_t NRO_COUNTERS;
 uint8_t NRO_ANINPUTS;
@@ -255,7 +256,7 @@ typedef struct {
 	char server_tcp_port[PORT_LENGTH];
 	char server_ip_address[IP_LENGTH];
 	char serverScript[SCRIPT_LENGTH];
-	char simpwd[PASSWD_LENGTH];
+	char simpwd[SIM_PASSWD_LENGTH];
 	uint32_t timerDial;
 	st_pwrsave_t pwrSave;
 } gprs_conf_t;
@@ -293,9 +294,10 @@ typedef struct {
 //---------------------------------------------------------------------------
 // Estructuras para el manejo del sistema de alarmas en plantas de potabilizacion de OSE
 
-#define MAX_NRO_SMS_ALARMAS 6
+// Numeros de SMS a los que enviar las alarmas
+#define MAX_NRO_SMS_ALARMAS 9
+// Canales de datos de entradas.
 #define NRO_CANALES_ALM	6
-
 
 typedef struct {
 	float lim_inf;

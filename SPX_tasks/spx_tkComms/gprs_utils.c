@@ -217,7 +217,7 @@ char l_data[10] = { 0 };
 	//strncpy_P(systemVars.gprs_conf.serverScript, PSTR("/cgi-bin/PY/spy.py\0"),SCRIPT_LENGTH);
 	strncpy_P(systemVars.gprs_conf.serverScript, PSTR("/cgi-bin/SPY/spy.py\0"),SCRIPT_LENGTH);
 	strncpy_P(systemVars.gprs_conf.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
-    strncpy_P(systemVars.gprs_conf.simpwd, PSTR("DEFAULT\0"),PASSWD_LENGTH);
+    snprintf_P(systemVars.gprs_conf.simpwd, sizeof(systemVars.gprs_conf.simpwd), PSTR("%s\0"), SIMPIN_DEFAULT );
 
 	// PWRSAVE
 	if ( spx_io_board == SPX_IO5CH ) {
