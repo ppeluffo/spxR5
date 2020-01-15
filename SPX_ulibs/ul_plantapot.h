@@ -33,9 +33,9 @@
 #define IPIN_SENSOR_PUERTA_1		CNT0
 #define IPIN_SENSOR_PUERTA_2		CNT1
 
-#define SECS_ALM_LEVEL_1	180
-#define SECS_ALM_LEVEL_2	120
-#define SECS_ALM_LEVEL_3	60
+#define SECS_ALM_LEVEL_1	360
+#define SECS_ALM_LEVEL_2	140
+#define SECS_ALM_LEVEL_3	120
 
 #define SECS_BOTON_PRESSED	5
 
@@ -72,6 +72,8 @@ typedef struct {
 
 t_alm_channels alm_sysVars[NRO_CANALES_MONITOREO];
 
+bool vt_MODO_TESTING;
+
 void appalarma_stk(void);
 bool appalarma_init(void);
 
@@ -81,5 +83,7 @@ void appalarma_config_defaults(void);
 
 void appalarma_servicio_tecnico( char * action, char * device );
 void appalarma_print_status( bool full );
+
+void appalarma_set_modo_testing(void);
 
 #endif /* SRC_SPX_ULIBS_UL_ALARMAS_OSE_H_ */

@@ -875,6 +875,13 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
+	// APPALARMA MODO TESTING
+	if (!strcmp_P( strupr(argv[1]), PSTR("modotest\0")) ) {
+		appalarma_set_modo_testing();
+		pv_snprintfP_OK();
+		return;
+	}
+
 	// TANQUE
 	// config tanque sms {id} nro
 	// config tanque nivelB,nivelA valor
@@ -1287,7 +1294,7 @@ static void cmdHelpAlarmasFunction(void)
 	// HELP READ
 	else if (!strcmp_P( strupr(argv[1]), PSTR("READ\0"))) {
 		xprintf_P( PSTR("-read\r\n\0"));
-		xprintf_P( PSTR("  rtc, frame, fuses\r\n\0"));
+		xprintf_P( PSTR("  rtc, frame\r\n\0"));
 		xprintf_P( PSTR("  dinputs\r\n\0"));
 		return;
 
