@@ -195,7 +195,7 @@ uint16_t recSize = 0;
 	xprintf_P( PSTR("------------------------------------------------\r\n\0"));
 
 	// Aplicacion ALARMAS
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	systemVars.aplicacion = APP_PLANTAPOT;
 #endif
 

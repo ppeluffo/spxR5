@@ -30,7 +30,7 @@ bool range_config ( char *s_name )
 {
 
 	// Aplicacion ALARMAS
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	range_config_defaults();
 #endif
 

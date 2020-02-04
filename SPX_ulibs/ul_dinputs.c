@@ -96,7 +96,7 @@ bool retS = false;
 
 // Aplicacion ALARMAS
 /*
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	return(true);
 #endif
 */
@@ -146,7 +146,7 @@ uint8_t channel = 0;
 
 	// Aplicacion ALARMAS
 /*
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 		snprintf_P( systemVars.dinputs_conf.name[6], PARAMNAME_LENGTH, PSTR("MKEY\0") );
 		snprintf_P( systemVars.dinputs_conf.name[7], PARAMNAME_LENGTH, PSTR("BTN\0") );
 #endif

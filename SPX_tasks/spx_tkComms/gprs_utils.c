@@ -373,7 +373,7 @@ void u_gprs_config_timerdial ( char *s_timerdial )
 	//xprintf_P( PSTR("DEBUG_A TDIAL CONFIG: [%s]\r\n\0"), s_timerdial );
 
 	// Aplicacion ALARMAS
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	systemVars.gprs_conf.timerDial = 0;
 	return;
 #endif
@@ -436,7 +436,7 @@ void u_gprs_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime)
 
 	// Aplicacion ALARMAS
 /*
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
 	return;
 #endif

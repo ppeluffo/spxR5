@@ -50,6 +50,8 @@ static void pv_init_reconfigure_params_range(void);
 static void pv_init_reconfigure_params_psensor(void);
 static void pv_init_reconfigure_params_app_A(void);
 static void pv_init_reconfigure_params_app_B(void);
+static void pv_init_reconfigure_params_app_B_plantapot(void);
+static void pv_init_reconfigure_params_app_B_consigna(void);
 static void pv_init_reconfigure_params_app_C(void);
 
 bool pv_process_frame_init_AUTH(void);
@@ -93,7 +95,6 @@ bool st_gprs_inits(void)
 	if ( ! pv_process_frame_init_GLOBAL() ) {
 		return(bool_RESTART);
 	}
-
 
 	// Configuracion BASE
 	if ( ! pv_process_frame_init_BASE() ) {
@@ -270,6 +271,8 @@ bool retS = true;
 			f_send_init_app = false;
 			break;
 		case APP_CONSIGNA:
+			// Requiere 1 frames mas:
+			retS = pv_process_frame_init(APP_B);	// CONS_HHMM1, CONS_HHMM2
 			f_send_init_app = false;
 			break;
 		case APP_PERFORACION:
@@ -502,7 +505,7 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 		xprintf_P( PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
 		xprintf_P( PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
 		xprintf_P( PSTR("PSE:0x%02X;" ), psens_cks );
-		xprintf_P( PSTR("APP_A:0x%02X;" ), app_cks );
+		xprintf_P( PSTR("APP:0x%02X;" ), app_cks );
 	}
 
 }
@@ -599,6 +602,15 @@ static void pv_tx_init_payload_app_B(void)
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
 			xprintf_P( PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
 		}
+		return;
+
+	// En aplicacion CONSIGNA pido la configuracion de las consignas
+	} else if ( systemVars.aplicacion == APP_CONSIGNA ) {
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
+		}
+		return;
 	}
 }
 //------------------------------------------------------------------------------------
@@ -1257,7 +1269,7 @@ static void pv_init_reconfigure_params_app_A(void)
 {
 
 	// Aplicacion ALARMAS
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	pv_init_reconfigure_app_plantapot();
 	return;
 #endif
@@ -1295,7 +1307,20 @@ static void pv_init_reconfigure_params_app_A(void)
 //------------------------------------------------------------------------------------
 static void pv_init_reconfigure_params_app_B(void)
 {
+	// El frame B se manda en plantapot para pedir los SMS y en consigna para pedir la hhmm1, hhmm2
+	// Debo ver porque razón lo pedi
 
+	if (systemVars.aplicacion == APP_PLANTAPOT ) {
+		pv_init_reconfigure_params_app_B_plantapot();
+	} else if (systemVars.aplicacion == APP_CONSIGNA ) {
+		pv_init_reconfigure_params_app_B_consigna();
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_params_app_B_plantapot(void)
+{
+	// PLANTAPOT SMS
 	// TYPE=INIT&PLOAD=CLASS:APP_B;SMS01:111111,1;SMS02:2222222,2;SMS03:3333333,3;SMS04:4444444,1;...SMS09:9999999,3
 
 char *p = NULL;
@@ -1310,7 +1335,6 @@ char str_base[8];
 
 	// SMS?
 	for (i=0; i < MAX_NRO_SMS_ALARMAS; i++ ) {
-
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
 		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
@@ -1341,6 +1365,39 @@ char str_base[8];
 
 }
 //------------------------------------------------------------------------------------
+static void pv_init_reconfigure_params_app_B_consigna(void)
+{
+	// CONSIGNAS:
+	// TYPE=INIT&PLOAD=CLASS:APP_B;HHMM1:1230;HHMM2:0940
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_cons_dia = NULL;
+char *tk_cons_noche = NULL;
+char *delim = ",=:;><";
+
+
+	memset( &localStr, '\0', sizeof(localStr) );
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "HHMM1");
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_cons_dia = strsep(&stringp,delim);	// HHMM1
+	tk_cons_dia = strsep(&stringp,delim);	// 1230
+	tk_cons_noche = strsep(&stringp,delim); // HHMM2
+	tk_cons_noche = strsep(&stringp,delim); // 0940
+	consigna_config(tk_cons_dia, tk_cons_noche );
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
+	}
+
+	u_save_params_in_NVMEE();
+
+}
+//------------------------------------------------------------------------------------
+
 static void pv_init_reconfigure_params_app_C(void)
 {
 	// TYPE=INIT&PLOAD=CLASS:APP_C;CH00:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;CH01:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;..
@@ -1420,34 +1477,12 @@ static void pv_init_reconfigure_app_off(void)
 //------------------------------------------------------------------------------------
 static void pv_init_reconfigure_app_consigna(void)
 {
-	// TYPE=INIT&PLOAD=CLASS:APP;AP0:CONSIGNA,1230,0940;
-
-char *p = NULL;
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_cons_dia = NULL;
-char *tk_cons_noche = NULL;
-char *delim = ",=:;><";
-
 	systemVars.aplicacion = APP_CONSIGNA;
-
-	memset( &localStr, '\0', sizeof(localStr) );
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:CONSIGNA");
-	memcpy(localStr,p,sizeof(localStr));
-
-	stringp = localStr;
-	tk_cons_dia = strsep(&stringp,delim);	// AP0
-	tk_cons_dia = strsep(&stringp,delim);	// CONSIGNA
-	tk_cons_dia = strsep(&stringp,delim);	// 1230
-	tk_cons_noche = strsep(&stringp,delim); // 0940
-	consigna_config(tk_cons_dia, tk_cons_noche );
 	u_save_params_in_NVMEE();
-	//f_reset = true;
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA\r\n\0"));
 	}
-
 }
 //------------------------------------------------------------------------------------
 static void pv_init_reconfigure_app_perforacion(void)

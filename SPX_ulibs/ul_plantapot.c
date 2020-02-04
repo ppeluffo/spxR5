@@ -73,8 +73,6 @@ void appalarma_stk(void)
 
 	xTimerStart(appalarma_timerAlarmas, 10);
 
-	vt_MODO_TESTING = false;
-
 	for (;;) {
 
 		switch(appalarma_state) {
@@ -503,16 +501,7 @@ float value;
 
 			// Estoy en la banda normal. Reseteo los timers
 			alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1;
-			if ( vt_MODO_TESTING )
-				alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1 / 2;
-
-			alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2;
-			if ( vt_MODO_TESTING )
-				alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2 / 2;
-
 			alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3;
-			if ( vt_MODO_TESTING )
-				alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3 / 2;
 		}
 
 	}
@@ -612,16 +601,8 @@ uint8_t i;
 		alm_sysVars[i].enabled = false;
 
 		alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1;
-		if ( vt_MODO_TESTING )
-			alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1 / 2;
-
 		alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2;
-		if ( vt_MODO_TESTING )
-			alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2 / 2;
-
 		alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3;
-		if ( vt_MODO_TESTING )
-			alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3 / 2;
 		//alm_sysVars[i].alm_fired = alm_NOT_FIRED;
 	}
 }
@@ -1361,9 +1342,3 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-void appalarma_set_modo_testing(void)
-{
-	vt_MODO_TESTING = true;
-}
-//------------------------------------------------------------------------------------
-

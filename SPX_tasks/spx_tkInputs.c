@@ -137,7 +137,7 @@ int8_t xBytes = 0;
 
 		// En el caso de la aplicacion PLANTAPOT debo ajustar los valores de las
 		// entradas analogicas, digitales y contadores para que reflejen el estado de las alarmas
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 
 		appalarma_adjust_vars(dst);
 

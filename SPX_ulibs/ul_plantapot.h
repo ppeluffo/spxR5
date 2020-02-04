@@ -34,7 +34,7 @@
 #define IPIN_SENSOR_PUERTA_2		CNT1
 
 #define SECS_ALM_LEVEL_1	360
-#define SECS_ALM_LEVEL_2	140
+#define SECS_ALM_LEVEL_2	240
 #define SECS_ALM_LEVEL_3	120
 
 #define SECS_BOTON_PRESSED	5
@@ -44,7 +44,7 @@ typedef enum { act_OFF = 0, act_ON,act_FLASH } t_dev_action;
 typedef enum { alm_NOT_PRESENT = -1, alm_NOT_FIRED = 0 , alm_FIRED_L1, alm_FIRED_L2, alm_FIRED_L3   } t_alarm_fired;
 
 // Tiempo dentro del estado standby ( luego de haber reconocido las alarmas )
-#define TIME_IN_STANDBY			120
+#define TIME_IN_STANDBY			1800
 
 typedef struct {
 	bool master;		// Se monitorea el cambio c/segundo
@@ -72,8 +72,6 @@ typedef struct {
 
 t_alm_channels alm_sysVars[NRO_CANALES_MONITOREO];
 
-bool vt_MODO_TESTING;
-
 void appalarma_stk(void);
 bool appalarma_init(void);
 
@@ -83,7 +81,5 @@ void appalarma_config_defaults(void);
 
 void appalarma_servicio_tecnico( char * action, char * device );
 void appalarma_print_status( bool full );
-
-void appalarma_set_modo_testing(void);
 
 #endif /* SRC_SPX_ULIBS_UL_ALARMAS_OSE_H_ */

@@ -209,7 +209,7 @@ uint8_t i = 0;
 
 // Aplicacion ALARMAS
 	/*
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	snprintf_P( systemVars.counters_conf.name[0], PARAMNAME_LENGTH, PSTR("SP1\0") );
 	snprintf_P( systemVars.counters_conf.name[1], PARAMNAME_LENGTH, PSTR("SP2\0") );
 #endif
@@ -233,7 +233,7 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
 // Aplicacion ALARMAS
 /*
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	return(true);
 #endif
 */

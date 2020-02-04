@@ -67,7 +67,7 @@ uint8_t ticks = 0;
 	FRTOS_CMD_register( "write\0", cmdWriteFunction);
 	FRTOS_CMD_register( "read\0", cmdReadFunction);
 
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	FRTOS_CMD_register( "help\0", cmdHelpAlarmasFunction );
 	FRTOS_CMD_register( "fullhelp\0", cmdHelpFunction );
 	FRTOS_CMD_register( "status\0", cmdStatusAlarmasFunction );
@@ -138,8 +138,8 @@ uint8_t i;
 		xprintf_P( PSTR("IOboard SPX8CH\r\n\0") );
 	}
 
-	// APLICACION ALARMAS
-#ifdef APLICACION_ALARMAS_PPOT
+	// APLICACION PLANTAPOT
+#ifdef APLICACION_PLANTAPOT
 	xprintf_P( PSTR("Aplicacion: ALARMAS PPOT OSE.\r\n\0") );
 #endif
 	// SIGNATURE ID
@@ -366,8 +366,8 @@ st_dataRecord_t dr;
 		xprintf_P( PSTR("IOboard SPX8CH\r\n\0") );
 	}
 
-	// APLICACION ALARMAS
-#ifdef APLICACION_ALARMAS_PPOT
+	// APLICACION PLANTAPOT
+#ifdef APLICACION_PLANTAPOT
 	xprintf_P( PSTR("Aplicacion: ALARMAS PPOT OSE.\r\n\0") );
 #endif
 	// SIGNATURE ID
@@ -875,13 +875,6 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
-	// APPALARMA MODO TESTING
-	if (!strcmp_P( strupr(argv[1]), PSTR("modotest\0")) ) {
-		appalarma_set_modo_testing();
-		pv_snprintfP_OK();
-		return;
-	}
-
 	// TANQUE
 	// config tanque sms {id} nro
 	// config tanque nivelB,nivelA valor
@@ -908,6 +901,7 @@ bool retS = false;
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
+
 	// CONSIGNA
 	// config consigna {hhmm1} {hhmm2}
 	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
@@ -1237,7 +1231,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
 		//xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
 
-		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque,alarmas}\r\n\0"));
+		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque}\r\n\0"));
 		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
 		xprintf_P( PSTR("            nivel {chid} {alerta} {inf|sup} val\r\n\0"));
 		xprintf_P( PSTR("  piloto reg {CHICA|MEDIA|GRANDE}\r\n\0"));

@@ -260,7 +260,7 @@ void u_load_defaults( char *opt )
 
 	// Modo de operacion
 	// Aplicacion ALARMAS
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	systemVars.aplicacion = APP_PLANTAPOT;
 #else
 	systemVars.aplicacion = APP_OFF;
@@ -501,7 +501,7 @@ bool u_config_aplicacion( char *modo )
 {
 
 	// Aplicacion ALARMAS
-#ifdef APLICACION_ALARMAS_PPOT
+#ifdef APLICACION_PLANTAPOT
 	systemVars.aplicacion = APP_PLANTAPOT;
 	return(true);
 #endif
@@ -523,11 +523,6 @@ bool u_config_aplicacion( char *modo )
 
 	if (!strcmp_P( strupr(modo), PSTR("TANQUE\0")) &&  ( spx_io_board == SPX_IO5CH ) ) {
 		systemVars.aplicacion = APP_TANQUE;
-		return(true);
-	}
-
-	if (!strcmp_P( strupr(modo), PSTR("ALARMAS\0")) &&  ( spx_io_board == SPX_IO8CH ) ) {
-		systemVars.aplicacion = APP_PLANTAPOT;
 		return(true);
 	}
 
