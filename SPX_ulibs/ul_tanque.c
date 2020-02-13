@@ -5,31 +5,75 @@
  *      Author: pablo
  */
 
+/* PENDIENTE:
+ * Recepcion del ACK: Hay que ver de que numero estan mandando el sms
+ * Antes de enviar un SMS verificar que halla lugar en la cola
+ * Tamanios de cola de SMS
+ * Testing:
+ * operacion
+ * configuracion local
+ * configuracion remota
+ * condiciones de alarma:
+ * 	envio_sms
+ * 		no ack
+ * 		si ack
+ */
 
 #include "spx.h"
 #include "gprs.h"
 
-typedef enum { ST_TQ_NORMAL = 0, ST_TQ_ALARMA_L, ST_TQ_ALARMA_H } t_tanque_states;
+typedef enum { ST_TQ_NORMAL = 0, ST_TQ_LOWLEVEL, ST_TQ_HIGHLEVEL } t_tanque_states;
+typedef enum { TQ_NO_LINK = 1, TQ_LINK_DOWN = 0, TQ_LINK_UP } t_tanques_link_status;
+
+#define MAX_NRO_REM_PERF			SMS_NRO_LENGTH
+#define MAX_NRO_REINTENTOS_SMS_TQ	3
+#define LOCAL_LINK_TIMEOUT			180
 
 t_tanque_states  tq_state;
 
-bool tq_sms_enabled;
-uint16_t perf_links_status;
+/* Estructura que tiene el estado de los enlaces a las perforaciones
+ * y la cantidad de veces que mandamos un SMS.
+ * Si el enlace esta caido debemos mandar un SMS reintentando hasta 3 veces.
+ * Cuando se genera una condicion de alarma, si el enlace esta down ponemos un
+ * 3 en sms_tries.
+ * Cada 1 minuto intentamos enviarlo
+ * Cuando recibimos un SMS-ACK, ponemos el contador en 0.
+ */
+typedef struct {
+	t_tanques_link_status link_status;
+	uint8_t reintentos_sms;
+} t_perforacion_remota;
 
+t_perforacion_remota lista_de_perforaciones[MAX_NRO_REM_PERF];
 
 void st_tq_normal(void);
-void st_tq_alarmaL(void);
-void st_tq_alarmaH(void);
+void st_tq_lowlevel(void);
+void st_tq_highlevel(void);
+
 float pv_tq_get_level(void);
-void pv_fire_tq_alarm( uint8_t alarm_type );
+void pv_tq_check_links(void);
+void pv_tq_check_sms(void);
+void pv_tq_fire_sms(void);
+void pv_tq_send_sms(uint8_t perf_id );
+
+float nivel_tanque;
+#define NIVEL_TANQUE_HIGH() ( nivel_tanque > ( systemVars.aplicacion_conf.tanque.high_level + 0.05) )
+#define NIVEL_TANQUE_LOW()  ( nivel_tanque < ( systemVars.aplicacion_conf.tanque.low_level - 0.05 ) )
+#define NIVEL_TANQUE_NORMAL()  (  ! NIVEL_TANQUE_HIGH() && ! NIVEL_TANQUE_LOW() )
+
+uint16_t server_response_timeout;
 
 //------------------------------------------------------------------------------------
 void tanque_stk(void)
 {
 
+uint8_t i;
+
 	tq_state = ST_TQ_NORMAL;
-	// Flag que indica que aplico o no el envio de sms.
-	tq_sms_enabled = false;
+	server_response_timeout = LOCAL_LINK_TIMEOUT;
+	for ( i=0; i<MAX_NRO_REM_PERF; i++ ) {
+		lista_de_perforaciones[i].link_status = TQ_NO_LINK;
+	}
 
 	for (;;) {
 
@@ -37,11 +81,11 @@ void tanque_stk(void)
 		case ST_TQ_NORMAL:
 			st_tq_normal();
 			break;
-		case ST_TQ_ALARMA_L:
-			st_tq_alarmaL();
+		case ST_TQ_LOWLEVEL:
+			st_tq_lowlevel();
 			break;
-		case ST_TQ_ALARMA_H:
-			st_tq_alarmaH();
+		case ST_TQ_HIGHLEVEL:
+			st_tq_highlevel();
 			break;
 		default:
 			xprintf_P(PSTR("MODO OPERACION ERROR: Tanque state unknown (%d)\r\n\0"), tq_state );
@@ -56,8 +100,6 @@ void tanque_stk(void)
 void st_tq_normal(void)
 {
 
-float nivel_tanque;
-
 // Entry:
 	if ( systemVars.debug == DEBUG_APLICACION ) {
 		xprintf_P(PSTR("APP_TANQUE: Ingreso en modo Normal.\r\n\0"));
@@ -70,18 +112,23 @@ float nivel_tanque;
 		// Espera de 1s
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
+		pv_tq_check_links();
+		pv_tq_check_sms();
+
 		nivel_tanque = pv_tq_get_level();
 
 		// Veo si disparo por alarma_H
-		if ( nivel_tanque > systemVars.aplicacion_conf.tanque.high_level + 0.05 ) {
+		if ( NIVEL_TANQUE_HIGH() ) {
 			// Condicion de disparo
-			tq_state = ST_TQ_ALARMA_H;
+			tq_state = ST_TQ_HIGHLEVEL;
+			break;
 		}
 
 		// Veo si disparo por alarma_L
-		if ( nivel_tanque < systemVars.aplicacion_conf.tanque.low_level - 0.05 ) {
+		if ( NIVEL_TANQUE_LOW() ) {
 			// Condicion de disparo
-			tq_state = ST_TQ_ALARMA_L;
+			tq_state = ST_TQ_LOWLEVEL;
+			break;
 		}
 
 	}
@@ -91,34 +138,42 @@ float nivel_tanque;
 
 }
 //------------------------------------------------------------------------------------
-void st_tq_alarmaL(void)
+void st_tq_lowlevel(void)
 {
 
 float nivel_tanque;
 
 // Entry:
 	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_TANQUE: Ingreso en modo Alarma_L.\r\n\0"));
+		xprintf_P(PSTR("APP_TANQUE: Ingreso en modo LOW_LEVEL.\r\n\0"));
 	}
 
-	// Acciones por disparo de alarma_L
-	pv_fire_tq_alarm(ST_TQ_ALARMA_L);
+	// Acciones por disparo de LOW_LEVEL
+	pv_tq_fire_sms();
 
-// Loop:
-	while ( tq_state == ST_TQ_ALARMA_L ) {
+	// Loop:
+	while ( tq_state == ST_TQ_LOWLEVEL ) {
 
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		// Espera de 1s
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
+		pv_tq_check_links();
+		pv_tq_check_sms();
+
 		nivel_tanque = pv_tq_get_level();
 
-		// Veo si retorno al estado normal
-		if ( nivel_tanque < systemVars.aplicacion_conf.tanque.high_level - 0.05 ) {
+		if ( NIVEL_TANQUE_HIGH() ) {
 			// Condicion de disparo
-			tq_state = ST_TQ_NORMAL;
+			tq_state = ST_TQ_HIGHLEVEL;
+			break;
 		}
 
+		if ( NIVEL_TANQUE_NORMAL() ) {
+			// Condicion de disparo
+			tq_state = ST_TQ_NORMAL;
+			break;
+		}
 	}
 
 // Exit
@@ -126,32 +181,41 @@ float nivel_tanque;
 
 }
 //------------------------------------------------------------------------------------
-void st_tq_alarmaH(void)
+void st_tq_highlevel(void)
 {
 
 float nivel_tanque;
 
 // Entry:
 	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_TANQUE: Ingreso en modo Alarma_H.\r\n\0"));
+		xprintf_P(PSTR("APP_TANQUE: Ingreso en modo HIGH_LEVEL.\r\n\0"));
 	}
 
-	// Acciones por disparo de alarma_H
-	pv_fire_tq_alarm(ST_TQ_ALARMA_H);
+	// Acciones por disparo de HIGH_LEVEL
+	pv_tq_fire_sms();
 
-// Loop:
-	while ( tq_state == ST_TQ_ALARMA_H ) {
+	// Loop:
+	while ( tq_state == ST_TQ_HIGHLEVEL ) {
 
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		// Espera de 1s
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
+		pv_tq_check_links();
+		pv_tq_check_sms();
+
 		nivel_tanque = pv_tq_get_level();
 
-		// Veo si retorno al estado normal
-		if ( nivel_tanque > systemVars.aplicacion_conf.tanque.low_level + 0.05 ) {
+		if ( NIVEL_TANQUE_NORMAL() ) {
 			// Condicion de disparo
 			tq_state = ST_TQ_NORMAL;
+			break;
+		}
+
+		if ( NIVEL_TANQUE_LOW() ) {
+			// Condicion de disparo
+			tq_state = ST_TQ_LOWLEVEL;
+			break;
 		}
 	}
 
@@ -175,30 +239,136 @@ float nivel_tanque;
 	return(nivel_tanque);
 }
 //------------------------------------------------------------------------------------
+void pv_tq_check_links(void)
+{
+	// Los links se controlan por 2 caminos:
+	// Uno es que el server envia el status de c/u.
+	// Otro es local y monitorea que el servidor envie una respuesta en menos de 3 minutos.
+	// Esta funcion debe controlar el tiempo entre las respuestas del server.
+	// Si pasa mas de 3 minutos sin respuesta, marca todos los enlaces caidos
+	// Es invocada una vez por segundo.
+	// Existe una variable global ( server_response_timeout ) que cada vez que se recibe
+	// una respuesta del server, se resetea a 3 minutos.
+	// Aqui la vamos decrementando.
+	// Si llego a 0 es que hace 3 minutos que no hay respuesta y entonces ponemos
+	// todos los enlaces en DOWN
+
+uint8_t i;
+
+	if ( server_response_timeout > 0 ) {
+		server_response_timeout--;
+		return;
+	}
+
+	// Aqui es que server_response_timeout = 0.
+	// Marco todos los enlaces como caidos.
+	for ( i = 0; i < MAX_NRO_REM_PERF; i++ ) {
+		lista_de_perforaciones[i].link_status = TQ_LINK_DOWN;
+	}
+
+}
+//------------------------------------------------------------------------------------
+void pv_tq_fire_sms(void)
+{
+	// Esta funcion inicializa la variable reintentos de todos las perforaciones
+	// que esten caidas.
+	// Luego la función pv_t_check_sms los envia.
+
+uint8_t i;
+
+	for ( i = 0; i < MAX_NRO_REM_PERF; i++ ) {
+		if ( ( lista_de_perforaciones[i].link_status == TQ_LINK_DOWN ) &&
+				( systemVars.aplicacion_conf.tanque.sms_enabled == true ) ) {
+			lista_de_perforaciones[i].reintentos_sms = MAX_NRO_REINTENTOS_SMS_TQ;
+		}
+	}
+}
+//------------------------------------------------------------------------------------
+void pv_tq_check_sms(void)
+{
+	// Una vez por minuto se fija si hay SMS para mandar.
+	// Si los hay los manda y decrementa el contador de reintentos.
+	// Esta funcion se ejecuta 1 vez por seg.
+
+static uint8_t timeout = 60;
+uint8_t i;
+
+	// Cuento hasta 1 minuto
+	if ( timeout > 0 ) {
+		timeout--;
+		return;
+	}
+
+	// Reviso los SMS
+	for ( i = 0; i < MAX_NRO_REM_PERF; i++ ) {
+		if ( lista_de_perforaciones[i].reintentos_sms > 0 ) {
+			lista_de_perforaciones[i].reintentos_sms--;
+			pv_tq_send_sms(i);
+		}
+	}
+}
+//------------------------------------------------------------------------------------
+void pv_tq_send_sms(uint8_t perf_id )
+{
+	// Envia un sms al nro de la perforacion perf_id.
+	// De acuerdo al tq_state ( LOW, HIGH ) es el texto del mensaje.
+	// DEBEMOS VER COMO CHEQUAR QUE LA LISTA DE SMS PENDIENTES NO ESTE LLENA
+	// La lista de SMSs esta en systemVars.aplicacion_conf.l_sms
+
+char *sms_nro;
+char msg[15];
+
+	sms_nro = systemVars.aplicacion_conf.l_sms[perf_id];
+	switch ( tq_state ) {
+	case ST_TQ_LOWLEVEL:
+		strcpy(msg,"PERF_OUTS:15");		// Mando prender la bomba
+		break;
+	case ST_TQ_HIGHLEVEL:
+		strcpy(msg,"PERF_OUTS:5");		// Mando apagar la bomba
+		break;
+	case ST_TQ_NORMAL:
+		return;
+		break;
+	}
+
+	// Envio el SMS
+	u_sms_send( sms_nro, msg);
+
+}
+//------------------------------------------------------------------------------------
+// FUNCIONES DE CONFIGURACION
+//------------------------------------------------------------------------------------
 bool tanque_config ( char *param1, char *param2, char *param3 )
 {
 	// Podemos configurar los niveles o los sms.
+	// sms {id} nro
+	// nivel {BAJO|ALTO} valor
 
 uint8_t sms_id;
 
-	//Nivel bajo
-	if (!strcmp_P( strupr(param1), PSTR("NIVELB")) ) {
-		systemVars.aplicacion_conf.tanque.low_level = atof(param2);
-		return(true);
-	}
+	if (!strcmp_P( strupr(param1), PSTR("nivel")) ) {
 
-	// Nivel alto
-	if (!strcmp_P( strupr(param1), PSTR("NIVELA")) ) {
-		systemVars.aplicacion_conf.tanque.high_level = atof(param2);
-		return(true);
+		//Nivel bajo
+		if (!strcmp_P( strupr(param2), PSTR("BAJO")) ) {
+			systemVars.aplicacion_conf.tanque.low_level = atof(param3);
+			return(true);
+		}
+
+		// Nivel alto
+		if (!strcmp_P( strupr(param2), PSTR("ALTO")) ) {
+			systemVars.aplicacion_conf.tanque.high_level = atof(param3);
+			return(true);
+		}
+
+		return(false);
 	}
 
 	// SMS
 	if (!strcmp_P( strupr(param1), PSTR("SMS")) ) {
 		sms_id = atoi(param2);
 		if ( sms_id < NRO_PERFXTANQUE ) {
-			memcpy( systemVars.aplicacion_conf.tanque.sms_perforaciones[sms_id], param3, SMS_NRO_LENGTH );
-			systemVars.aplicacion_conf.tanque.sms_perforaciones[sms_id][SMS_NRO_LENGTH - 1] = '\0';
+			memcpy( systemVars.aplicacion_conf.l_sms[sms_id], param3, SMS_NRO_LENGTH );
+			systemVars.aplicacion_conf.l_sms[sms_id][SMS_NRO_LENGTH - 1] = '\0';
 			return(true);
 		}
 	}
@@ -213,8 +383,9 @@ uint8_t i;
 
 	systemVars.aplicacion_conf.tanque.high_level = 1.0;
 	systemVars.aplicacion_conf.tanque.low_level = 0.2;
-	for ( i = 0; i < NRO_PERFXTANQUE; i++ ) {
-		memset( systemVars.aplicacion_conf.tanque.sms_perforaciones[i], '\0', SMS_NRO_LENGTH );
+	systemVars.aplicacion_conf.tanque.sms_enabled = true;
+	for ( i = 0; i < MAX_NRO_SMS ; i++ ) {
+		memset( systemVars.aplicacion_conf.l_sms[i], '\0', SMS_NRO_LENGTH );
 	}
 
 }
@@ -223,83 +394,96 @@ uint8_t tanque_checksum(void)
 {
 
 uint8_t checksum = 0;
-char dst[32];
+char dst[48];
 char *p;
-uint8_t i = 0;
+uint8_t i;
+uint8_t j = 0;
 
-	// calculate own checksum
-	// Vacio el buffer temoral
+	// Niveles de altura
 	memset(dst,'\0', sizeof(dst));
+	j = 0;
+	j += snprintf_P( &dst[j], sizeof(dst), PSTR("LEVELS:%.02f,%.02f;"),systemVars.aplicacion_conf.tanque.low_level, systemVars.aplicacion_conf.tanque.high_level );
+	if ( systemVars.aplicacion_conf.tanque.sms_enabled == true ) {
+		j += snprintf_P( &dst[j], sizeof(dst), PSTR("SMSEN:1;"));
+	} else {
+		j += snprintf_P( &dst[j], sizeof(dst), PSTR("SMSEN:0;"));
+	}
+	// Apunto al comienzo para recorrer el buffer
+	p = dst;
+	// Mientras no sea NULL calculo el checksum deol buffer
+	while (*p != '\0') {
+		checksum += *p++;
+	}
+	//xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
+	//xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
+
+
+	// NROS.DE SMS
+	for (i=0; i < MAX_NRO_SMS;i++) {
+		// Vacio el buffer temoral
+		memset(dst,'\0', sizeof(dst));
+		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
+		snprintf_P( dst, sizeof(dst), PSTR("SMS%02d:%s;"), i, systemVars.aplicacion_conf.l_sms[i] );
+		// Apunto al comienzo para recorrer el buffer
+		p = dst;
+		// Mientras no sea NULL calculo el checksum deol buffer
+		while (*p != '\0') {
+			checksum += *p++;
+		}
+		//xprintf_P( PSTR("DEBUG: PPOT_CKS = [%s]\r\n\0"), dst );
+		//xprintf_P( PSTR("DEBUG: PPOT_CKS cks = [0x%02x]\r\n\0"), checksum );
+	}
 
 	return(checksum);
 
-}
-//------------------------------------------------------------------------------------
-void pv_fire_tq_alarm( uint8_t alarm_type )
-{
-	// Disparo de alarmas.
-	// Si no tengo enlace debo mandar GPRS a todos las perforaciones remotas.
-	// Si algun enlace de perforacion esta caido, le mando a esa perforacion un sms.
-	// Todo esto siempre que la flag de sms_enabled este activa.
 
-uint16_t link_mask;
-uint8_t i;
-uint16_t mask;
-char msg[15];
-
-	// No tengo enlace GPRS.
-	if ( GPRS_stateVars.state < G_DATA ) {
-		link_mask = 0x00;
-	} else {
-		link_mask = perf_links_status;
-	}
-
-	for ( i = 0; i < NRO_PERFXTANQUE; i++ ) {
-		mask = 1 << i;
-		if ( ( (link_mask & mask) != 0 ) && ( systemVars.aplicacion_conf.tanque.sms_perforaciones[i] != NULL ) ) {
-			// El bit del link esta prendido. Link caido. Mando SMS
-			switch(alarm_type) {
-			case ST_TQ_ALARMA_L:
-				strcpy(msg,"PERF_OUTS:15");
-				break;
-			case ST_TQ_ALARMA_H:
-				strcpy(msg,"PERF_OUTS:5");
-				break;
-			}
-			u_sms_send( systemVars.aplicacion_conf.tanque.sms_perforaciones[i], msg );
-		}
-	}
 }
 //------------------------------------------------------------------------------------
 void tanque_set_params_from_gprs( char *tk_sms, char *tk_link )
 {
-	// Recibo de una respuesta del server si habilito o no los SMS y el estado
+	// Recibo de una respuesta del server (modo DATA) si habilito o no los SMS y el estado
 	// de todos los enlaces de las perforaciones.
 
+char *ch;
+uint8_t link_id;
 
 	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_TANQUE: SEt param GPRS: [%s][%s]\r\n\0"), tk_sms, tk_link );
+		xprintf_P(PSTR("APP_TANQUE: Set param GPRS: [%s][%s]\r\n\0"), tk_sms, tk_link );
 	}
 
+	// SMS's.
 	if ( atoi(tk_sms) == 0 ) {
-		tq_sms_enabled = false;
+		systemVars.aplicacion_conf.tanque.sms_enabled = false;
 	} else if ( atoi(tk_sms) == 1 ) {
-		tq_sms_enabled = true;
+		systemVars.aplicacion_conf.tanque.sms_enabled = true;
 	}
 
-	perf_links_status = atoi(tk_link);
+	// Estados de los enlaces.
+	// El string tk_link lo convierto a entero (110110010). Este trae un patron de 16 bits.
+	// Veo c/bit que esta en 0 y corresponde a un link caido.
+	ch = tk_link;
+	link_id = 0;
+	while ( ch != NULL ) {
+		if ( atoi(ch) == 0 ) {
+			lista_de_perforaciones[link_id].link_status = TQ_LINK_DOWN;
+		} else {
+			lista_de_perforaciones[link_id].link_status = TQ_LINK_UP;
+		}
+		ch++;
+		link_id++;
+		if ( link_id >= MAX_NRO_REM_PERF )
+			return;
+	}
 
 }
 //------------------------------------------------------------------------------------
-bool tanque_read_sms_enable_flag(void)
+void tanque_process_rxsms(char *sms_msg)
 {
-	// La utiliza el modo cmd para ver el estado de esta flag.
-	return(tq_sms_enabled);
-}
-//------------------------------------------------------------------------------------
-uint16_t tanque_perf_link_status(void)
-{
-	return(perf_links_status);
+	// Cuando mando un SMS a una perforacion, espero un ACK para confirmar que lo recibio.
+	// En este caso, pongo el contador de reintentos en 0.
+	// Debo determinar de que perforacion llego. Lo hago con el numero origen.
+
+
 }
 //------------------------------------------------------------------------------------
 

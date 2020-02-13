@@ -235,14 +235,13 @@ uint8_t i;
 	case APP_TANQUE:
 		xprintf_P( PSTR("  modo: TANQUE\r\n\0"));
 		xprintf_P( PSTR("  low_level: %0.3f, high_level: %0.03f \r\n\0"), systemVars.aplicacion_conf.tanque.low_level, systemVars.aplicacion_conf.tanque.high_level  );
-		if ( tanque_read_sms_enable_flag() ) {
+		if ( systemVars.aplicacion_conf.tanque.sms_enabled == true ) {
 			xprintf_P( PSTR("  sms: Enabled\r\n\0"));
 		} else {
 			xprintf_P( PSTR("  sms: Disabled\r\n\0"));
 		}
-		xprintf_P( PSTR("  links: %d\r\n\0"), tanque_perf_link_status());
 		for ( i = 0; i < NRO_PERFXTANQUE; i++ ) {
-			xprintf_P( PSTR("  sms%02d: %s\r\n\0"), i, systemVars.aplicacion_conf.tanque.sms_perforaciones[i]);
+			xprintf_P( PSTR("  sms%02d: %s\r\n\0"), i, systemVars.aplicacion_conf.l_sms[i]);
 		}
 		break;
 	case APP_PLANTAPOT:
@@ -877,7 +876,7 @@ bool retS = false;
 
 	// TANQUE
 	// config tanque sms {id} nro
-	// config tanque nivelB,nivelA valor
+	// config tanque nivel {BAJO|ALTO} valor
 	if (!strcmp_P( strupr(argv[1]), PSTR("TANQUE\0")) ) {
 		retS = tanque_config( argv[2], argv[3], argv[4] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();

@@ -364,19 +364,26 @@ char *delim = ",=:><";
 
 	xprintf_P( PSTR("DEBUG: SMS_PROCESS: %s\r\n"), sms_msg );
 
-	// SMS enviado desde un tanque a una perforacion.
-	if ( ( systemVars.aplicacion == APP_PERFORACION ) && (!strcmp_P( strupr(sms_msg), PSTR("PERF_OUTS\0"))) )  {
+	// PERFORACION:
+	if ( systemVars.aplicacion == APP_PERFORACION )  {
 
-		memset(localStr,'\0',16);
-		memcpy(localStr,sms_msg ,sizeof(localStr));
+		// Los mensajes que procesamos son los PERF_OUTS:
+		if (!strcmp_P( strupr(sms_msg), PSTR("PERF_OUTS\0")))  {
+			memset(localStr,'\0',16);
+			memcpy(localStr,sms_msg ,sizeof(localStr));
+			stringp = localStr;
+			tk_douts = strsep(&stringp,delim);	// PERF_OUTS
+			tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
+			// Actualizo el status a travez de una funcion propia del modulo de outputs
+			perforacion_set_douts_from_gprs( atoi( tk_douts ));
 
-		stringp = localStr;
-		tk_douts = strsep(&stringp,delim);	// PERF_OUTS
-		tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
+			// Mando el ACK del mensaje
+		}
 
-		// Actualizo el status a travez de una funcion propia del modulo de outputs
-		perforacion_set_douts_from_gprs( atoi( tk_douts ));
-
+	// TANQUE
+	} else if ( systemVars.aplicacion == APP_TANQUE )  {
+		// El SMS recibido por un tanque: lo proceso
+		tanque_process_rxsms(sms_msg);
 	}
 }
 //------------------------------------------------------------------------------------

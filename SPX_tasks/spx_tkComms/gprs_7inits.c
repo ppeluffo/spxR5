@@ -52,7 +52,10 @@ static void pv_init_reconfigure_params_app_A(void);
 static void pv_init_reconfigure_params_app_B(void);
 static void pv_init_reconfigure_params_app_B_plantapot(void);
 static void pv_init_reconfigure_params_app_B_consigna(void);
+static void pv_init_reconfigure_params_app_B_tanque(void);
 static void pv_init_reconfigure_params_app_C(void);
+static void pv_init_reconfigure_params_app_C_plantapot(void);
+static void pv_init_reconfigure_params_app_C_tanque(void);
 
 bool pv_process_frame_init_AUTH(void);
 bool pv_process_frame_init_GLOBAL(void);
@@ -611,6 +614,14 @@ static void pv_tx_init_payload_app_B(void)
 			xprintf_P( PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
 		}
 		return;
+
+	// En aplicacion TANQUE pido la configuracion de los niveles
+	} else if ( systemVars.aplicacion == APP_TANQUE ) {
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_TANQUE_LEVELS;"));
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:CONF_TANQUE_LEVELS;"));
+		}
+		return;
 	}
 }
 //------------------------------------------------------------------------------------
@@ -623,6 +634,14 @@ static void pv_tx_init_payload_app_C(void)
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
 			xprintf_P( PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
 		}
+
+	// En aplicacion TANQUE pido la configuracion de los niveles
+	} else if ( systemVars.aplicacion == APP_TANQUE ) {
+		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_TANQUE_SMS;"));
+		if ( systemVars.debug ==  DEBUG_GPRS ) {
+			xprintf_P( PSTR("&PLOAD=CLASS:CONF_TANQUE_SMS;"));
+		}
+		return;
 	}
 
 }
@@ -1314,6 +1333,8 @@ static void pv_init_reconfigure_params_app_B(void)
 		pv_init_reconfigure_params_app_B_plantapot();
 	} else if (systemVars.aplicacion == APP_CONSIGNA ) {
 		pv_init_reconfigure_params_app_B_consigna();
+	}  else if (systemVars.aplicacion == APP_TANQUE ) {
+		pv_init_reconfigure_params_app_B_tanque();
 	}
 
 }
@@ -1334,7 +1355,7 @@ char id[2];
 char str_base[8];
 
 	// SMS?
-	for (i=0; i < MAX_NRO_SMS_ALARMAS; i++ ) {
+	for (i=0; i < MAX_NRO_SMS; i++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
 		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
@@ -1397,8 +1418,54 @@ char *delim = ",=:;><";
 
 }
 //------------------------------------------------------------------------------------
+static void pv_init_reconfigure_params_app_B_tanque(void)
+{
+	// TANQUE:
+	// TYPE=INIT&PLOAD=CLASS:APP_B;LOW:0.2;HIGH:1.34
 
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_low_level = NULL;
+char *tk_high_level = NULL;
+char *delim = ",=:;><";
+
+
+	memset( &localStr, '\0', sizeof(localStr) );
+	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "LOW");
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_low_level = strsep(&stringp,delim);	// LOW
+	tk_low_level = strsep(&stringp,delim);	// 0.2
+	tk_high_level = strsep(&stringp,delim); // HIGH
+	tk_high_level = strsep(&stringp,delim); // 1.34
+	tanque_config("NIVEL","BAJO", tk_low_level);
+	tanque_config("NIVEL","ALTO", tk_high_level);
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig TANQUE. Niveles (low=%s,high=%s)\r\n\0"),tk_low_level, tk_high_level);
+	}
+
+	u_save_params_in_NVMEE();
+
+}
+//------------------------------------------------------------------------------------
 static void pv_init_reconfigure_params_app_C(void)
+{
+	// El frame C se manda en plantapot para pedir los niveles de alarma y en tanques para
+	// pedir los SMS
+	// Debo ver porque razón lo pedi
+
+	if (systemVars.aplicacion == APP_PLANTAPOT ) {
+		pv_init_reconfigure_params_app_C_plantapot();
+	}  else if (systemVars.aplicacion == APP_TANQUE ) {
+		pv_init_reconfigure_params_app_C_tanque();
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_params_app_C_plantapot(void)
 {
 	// TYPE=INIT&PLOAD=CLASS:APP_C;CH00:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;CH01:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;..
 
@@ -1460,6 +1527,51 @@ char str_base[8];
 	}
 
 	u_save_params_in_NVMEE();
+}
+//------------------------------------------------------------------------------------
+static void pv_init_reconfigure_params_app_C_tanque(void)
+{
+	// TANQUE SMS
+	// TYPE=INIT&PLOAD=CLASS:APP_C;SMS01:111111;SMS02:2222222;SMS03:3333333;SMS04:4444444;...SMS09:9999999
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_nro= NULL;
+char *delim = ",=:;><";
+uint8_t i;
+char id[2];
+char str_base[8];
+
+	// SMS?
+	for (i=0; i < MAX_NRO_SMS; i++ ) {
+		memset( &str_base, '\0', sizeof(str_base) );
+		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
+		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
+		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
+		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
+		if ( p != NULL ) {
+			memset(localStr,'\0',sizeof(localStr));
+			memcpy(localStr,p,sizeof(localStr));
+			stringp = localStr;
+			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
+			tk_nro = strsep(&stringp,delim);		//SMS0x
+			tk_nro = strsep(&stringp,delim);		//09111111
+
+			id[0] = '0' + i;
+			id[1] = '\0';
+
+			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
+			tanque_config("SMS", id, tk_nro );
+
+			if ( systemVars.debug == DEBUG_APLICACION ) {
+				xprintf_P( PSTR("GPRS: Reconfig TANQUE SMS0%d\r\n\0"), i);
+			}
+		}
+	}
+
+	u_save_params_in_NVMEE();
+
 }
 //------------------------------------------------------------------------------------
 static void pv_init_reconfigure_app_off(void)

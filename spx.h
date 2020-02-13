@@ -66,8 +66,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9j"
-#define SPX_FW_DATE "@ 20200204"
+#define SPX_FW_REV "2.9.9k"
+#define SPX_FW_DATE "@ 20200213"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -271,31 +271,44 @@ typedef struct {
 	float offset;
 } psensor_conf_t;
 
-
+// CONSIGNA
 typedef struct {
 	st_time_t hhmm_c_diurna;
 	st_time_t hhmm_c_nocturna;
 	consigna_t c_aplicada;
 } st_consigna_t;
 
+// PERFORACION
 typedef struct {
 	uint8_t outs;
 	uint8_t	control;
 } st_perforacion_t;
 
+// TANQUES
 #define NRO_PERFXTANQUE		10
+
+// Numeros de SMS a los que enviar las alarmas
+#define MAX_NRO_SMS 		9
 #define SMS_NRO_LENGTH		10
 
 typedef struct {
 	float low_level;
 	float high_level;
-	char sms_perforaciones[NRO_PERFXTANQUE][SMS_NRO_LENGTH];
+	bool sms_enabled;
 } st_tanque_t;
 //---------------------------------------------------------------------------
 // Estructuras para el manejo del sistema de alarmas en plantas de potabilizacion de OSE
+// Cada canal tiene 3 alarmas asociadas.
+// Cada alarma tiene un nivel superior y uno inferior.
+// Debemos tener entonces una lista l_niveles_alarma de tamanio NRO_CANALES_ALM donde almacenemos
+// los mismos.
+//
+// Por otro lado, cada SMS tiene un nivel de alarma asociado.
+// Cuando se genera una alarma de un tipo, se debe mandar un SMS a todos los nros. con dicho
+// nivel asociado.
+// Creamos una lista alm_level de tamanio MAX_NRO_SMS con el nivel asociado a dicho SMS.
+//
 
-// Numeros de SMS a los que enviar las alarmas
-#define MAX_NRO_SMS_ALARMAS 9
 // Canales de datos de entradas.
 #define NRO_CANALES_ALM	6
 
@@ -308,26 +321,30 @@ typedef struct {
  * Tiene asociado el nivel de disparo
  */
 
+// Estructura usada en común con la aplicacion de TANQUES
+/*
 typedef struct {
 	char sms_nro[SMS_NRO_LENGTH];
 	nivel_alarma_t alm_level;
 } st_alarma_sms_t;
+*/
 
 typedef struct {
-	st_limites_alarma_t alarma0;
-	st_limites_alarma_t alarma1;
-	st_limites_alarma_t alarma2;
-	st_limites_alarma_t alarma3;
+	st_limites_alarma_t alarma0;		// Banda normal
+	st_limites_alarma_t alarma1;		// Alarma 1: Amarillo
+	st_limites_alarma_t alarma2;		// Alarma 2: Naranja
+	st_limites_alarma_t alarma3;		// Alarma 3: Rojo
 } st_limites_alarma_ch_t;
 
 /*
  * Estructura que define una lista de canales con los niveles de c/alarma
  * y una lista de sms con niveles asociados.
  */
+
 typedef struct {
 	st_limites_alarma_ch_t l_niveles_alarma[NRO_CANALES_ALM];
-	st_alarma_sms_t l_sms[MAX_NRO_SMS_ALARMAS];
-}st_alarmas_t;
+	nivel_alarma_t alm_level[MAX_NRO_SMS];
+} st_alarmas_t;
 
 
 //---------------------------------------------------------------------------
@@ -337,6 +354,8 @@ typedef struct {
 	st_perforacion_t perforacion;
 	st_alarmas_t alarma_ppot;
 	st_tanque_t tanque;
+	// Estructura usada en común con la aplicacion de TANQUES y ALARMAS
+	char l_sms[MAX_NRO_SMS][SMS_NRO_LENGTH];
 } aplicacion_conf_t;
 
 
@@ -467,9 +486,7 @@ bool tanque_config ( char *param1, char *param2, char *param3 );
 void tanque_config_defaults(void);
 uint8_t tanque_checksum(void);
 void tanque_set_params_from_gprs( char *tk_sms, char *tk_link );
-bool tanque_read_sms_enable_flag(void);
-uint16_t tanque_perf_link_status(void);
-
+void tanque_process_rxsms(char *sms_msg);
 
 // WATCHDOG
 uint8_t wdg_resetCause;

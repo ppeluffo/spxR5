@@ -31,6 +31,12 @@
  *  22923645
  *
  * --------------------------------------------------------------------------------------------------
+ * Version 2.9.9.k
+ * - Como en la aplicacion TANQUE se requiere de una lista de SMS, para ahorrar memoria la vamos
+ * a tener en comun con la aplicacion de PLANTAPOT y por lo tanto la sacamos de la estructura de  tanques_conf
+ * y alarmas_conf y la ponemos aparte de modo que queda compartida
+ * - En la aplicacion ALARMAS cuando un canal esta deshabilitado transmito 99.
+ * --------------------------------------------------------------------------------------------------
  * Version 2.9.9.d
  * - Revisar configuracion del PSENSOR desde el server. Que al apagarlo no quede en OFF !!
 

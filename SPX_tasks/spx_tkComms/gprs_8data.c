@@ -509,7 +509,7 @@ char *p = NULL;
 //------------------------------------------------------------------------------------
 static void pv_process_response_TANQUE(void)
 {
-	// Recibi algo del estilo TQS:0,245
+	// Recibi algo del estilo TQS:0,110110010
 	// Es la respuesta del server a un frame de datos de un tanque.
 	// El primer dato puede ser 0 o 1.
 	// Si es 0 hay que deshabilitar el SMS
@@ -517,7 +517,6 @@ static void pv_process_response_TANQUE(void)
 	// El segundo dato es un numero que indica el estado de los enlaces
 	// de las perforaciones. 0 indica caido, 1 indica activo.
 	//
-
 	// Extraigo el valor de las salidas y las seteo.
 
 char localStr[32] = { 0 };

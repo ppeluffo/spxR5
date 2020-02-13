@@ -124,5 +124,6 @@ bool u_gprs_sms_received( uint8_t *first_msg_index );
 char *u_gprs_read_and_delete_sms_by_index( uint8_t msg_index );
 void u_gprs_process_sms( char *sms_msg);
 
+bool u_gprs_link_up(void);
 
 #endif /* SRC_SPXR3_TKGPRS_SPXR3_TKGPRS_H_ */

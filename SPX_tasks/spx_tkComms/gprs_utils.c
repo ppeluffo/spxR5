@@ -357,6 +357,17 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
+bool u_gprs_link_up(void)
+{
+
+bool retS = false;
+
+	if ( GPRS_stateVars.state == G_DATA ) {
+		retS = true;
+	}
+	return(retS);
+}
+//------------------------------------------------------------------------------------
 void u_gprs_redial(void)
 {
 	GPRS_stateVars.signal_redial = true;
