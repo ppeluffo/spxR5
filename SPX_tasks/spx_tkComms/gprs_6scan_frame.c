@@ -9,7 +9,7 @@
  *
  */
 
-#include <spx_tkComms/gprs.h>
+#include <comms.h>
 
 // La tarea no puede demorar mas de 180s.
 #define WDG_GPRS_TO_INIT	180
@@ -321,7 +321,7 @@ char *stringp = NULL;
 char *token = NULL;
 char *delim = ",=:><";
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DLGID");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "DLGID");
 	if ( p == NULL ) {
 		return;
 	}

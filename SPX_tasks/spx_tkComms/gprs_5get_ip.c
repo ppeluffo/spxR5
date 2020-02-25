@@ -5,7 +5,7 @@
  *      Author: pablo
  */
 
-#include <spx_tkComms/gprs.h>
+#include <comms.h>
 
 /*
 static bool sst_apn_configurada(void);

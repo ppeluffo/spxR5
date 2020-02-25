@@ -11,7 +11,7 @@
  *
  */
 
-#include <spx_tkComms/gprs.h>
+#include <comms.h>
 
 static void pv_gprs_readImei(void);
 static void pv_gprs_readCcid(void);
@@ -139,7 +139,7 @@ uint8_t end = 0;
 		j = 0;
 		// Busco el primer digito
 		for ( i = 0; i < 64; i++ ) {
-			if ( isdigit( pv_gprsRxCbuffer.buffer[i]) ) {
+			if ( isdigit( commsRxBuffer.buffer[i]) ) {
 				start = i;
 				break;
 			}
@@ -149,8 +149,8 @@ uint8_t end = 0;
 
 		// Busco el ultimo digito y copio todos
 		for ( i = start; i < 64; i++ ) {
-			if ( isdigit( pv_gprsRxCbuffer.buffer[i]) ) {
-				buff_gprs_imei[j++] = pv_gprsRxCbuffer.buffer[i];
+			if ( isdigit( commsRxBuffer.buffer[i]) ) {
+				buff_gprs_imei[j++] = commsRxBuffer.buffer[i];
 			} else {
 				break;
 			}
@@ -197,7 +197,7 @@ uint8_t end = 0;
 		j = 0;
 		// Busco el primer digito
 		for ( i = 0; i < 64; i++ ) {
-			if ( isdigit( pv_gprsRxCbuffer.buffer[i]) ) {
+			if ( isdigit( commsRxBuffer.buffer[i]) ) {
 				start = i;
 				break;
 			}
@@ -207,8 +207,8 @@ uint8_t end = 0;
 
 		// Busco el ultimo digito y copio todos
 		for ( i = start; i < 64; i++ ) {
-			if ( isdigit( pv_gprsRxCbuffer.buffer[i]) ) {
-				buff_gprs_ccid[j++] = pv_gprsRxCbuffer.buffer[i];
+			if ( isdigit( commsRxBuffer.buffer[i]) ) {
+				buff_gprs_ccid[j++] = commsRxBuffer.buffer[i];
 				if ( j > 18) break;
 			} else {
 				break;

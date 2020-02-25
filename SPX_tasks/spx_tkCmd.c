@@ -5,8 +5,8 @@
  *      Author: root
  */
 
+#include <comms.h>
 #include "spx.h"
-#include "gprs.h"
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE USO PRIVADO

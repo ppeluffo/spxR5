@@ -74,7 +74,7 @@ int8_t xRet = -1;
 		break;
 	case fdTERM:
 		xRet = frtos_uart_write( &xComTERM, pvBuffer, xBytes );
-		frtos_uart_write( &xComBT, pvBuffer, xBytes );		// La Tahona
+		//frtos_uart_write( &xComBT, pvBuffer, xBytes );		// La Tahona
 		break;
 	case fdI2C:
 		xRet = frtos_i2c_write( &xBusI2C, pvBuffer, xBytes );

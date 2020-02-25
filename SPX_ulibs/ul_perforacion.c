@@ -221,4 +221,53 @@ char *p;
 
 }
 //------------------------------------------------------------------------------------
+void perforacion_reconfigure_app(void)
+{
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:PERFORACION;
 
+	systemVars.aplicacion = APP_PERFORACION;
+	u_save_params_in_NVMEE();
+	//f_reset = true;
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PERFORACION\r\n\0"));
+	}
+
+}
+//------------------------------------------------------------------------------------
+void perforacion_process_gprs_response( const char *gprsbuff )
+{
+	// Recibi algo del estilo PERF_OUTS:245
+	// Es la respuesta del server para activar las salidas en perforaciones o modo remoto.
+
+	// Extraigo el valor de las salidas y las seteo.
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_douts = NULL;
+char *delim = ",=:><";
+char *p = NULL;
+
+	//p = strstr( (const char *)&commsRxBuffer.buffer, "PERF_OUTS");
+	p = strstr( gprsbuff , "PERF_OUTS");
+	if ( p == NULL ) {
+		return;
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_douts = strsep(&stringp,delim);	// PERF_OUTS
+	tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
+
+	// Actualizo el status a travez de una funcion propia del modulo de outputs
+	perforacion_set_douts_from_gprs( atoi( tk_douts ));
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: PERF_OUTS\r\n\0"));
+	}
+
+}
+//------------------------------------------------------------------------------------

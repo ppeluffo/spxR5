@@ -24,8 +24,8 @@
  *
  */
 
+#include <comms.h>
 #include "spx.h"
-#include "gprs.h"
 
 //------------------------------------------------------------------------------------
 static void pv_ctl_init_system(void);

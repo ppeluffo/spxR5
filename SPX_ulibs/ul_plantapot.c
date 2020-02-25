@@ -5,8 +5,8 @@
  *      Author: pablo
  */
 
+#include <comms.h>
 #include "spx.h"
-#include "gprs.h"
 
 bool flash_luz_verde;
 bool flash_luz_roja;
@@ -1349,3 +1349,129 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
+void appalarma_reconfigure_app(void)
+{
+
+	// Como quedan aun 2 frames, no reseteo.
+	systemVars.aplicacion = APP_PLANTAPOT;
+	u_save_params_in_NVMEE();
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PLANTAPOT\r\n\0"));
+	}
+}
+//------------------------------------------------------------------------------------
+void appalarma_reconfigure_sms_by_gprsinit( const char *gprsbuff )
+{
+	// PLANTAPOT SMS
+	// TYPE=INIT&PLOAD=CLASS:APP_B;SMS01:111111,1;SMS02:2222222,2;SMS03:3333333,3;SMS04:4444444,1;...SMS09:9999999,3
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_nro= NULL;
+char *tk_level= NULL;
+char *delim = ",=:;><";
+uint8_t i;
+char id[2];
+char str_base[8];
+
+	// SMS?
+	for (i=0; i < MAX_NRO_SMS; i++ ) {
+		memset( &str_base, '\0', sizeof(str_base) );
+		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
+		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
+		//p = strstr( (const char *)&commsRxBuffer.buffer, str_base);
+		p = strstr( gprsbuff, str_base);
+		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
+		if ( p != NULL ) {
+			memset(localStr,'\0',sizeof(localStr));
+			memcpy(localStr,p,sizeof(localStr));
+			stringp = localStr;
+			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
+			tk_nro = strsep(&stringp,delim);		//SMS0x
+			tk_nro = strsep(&stringp,delim);		//09111111
+			tk_level = strsep(&stringp,delim);		//1
+
+			id[0] = '0' + i;
+			id[1] = '\0';
+
+			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
+			appalarma_config("SMS", id, tk_nro, tk_level, NULL );
+
+			if ( systemVars.debug == DEBUG_APLICACION ) {
+				xprintf_P( PSTR("GPRS: Reconfig SMS0%d\r\n\0"), i);
+			}
+		}
+	}
+
+	u_save_params_in_NVMEE();
+
+}
+//------------------------------------------------------------------------------------
+void appalarma_reconfigure_levels_by_gprsinit(const char *gprsbuff )
+{
+	// TYPE=INIT&PLOAD=CLASS:APP_C;CH00:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;CH01:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;..
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_V1_INF = NULL;
+char *tk_V1_SUP = NULL;
+char *tk_V2_INF = NULL;
+char *tk_V2_SUP = NULL;
+char *tk_V3_INF = NULL;
+char *tk_V3_SUP = NULL;
+char *delim = ",=:;><";
+uint8_t i;
+char id[2];
+char str_base[8];
+
+	// LEVELS?
+	for (i=0; i < NRO_CANALES_ALM; i++ ) {
+
+		memset( &str_base, '\0', sizeof(str_base) );
+		snprintf_P( str_base, sizeof(str_base), PSTR("CH%d\0"), i );
+
+		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
+
+		// p = strstr( (const char *)&commsRxBuffer.buffer, str_base);
+		p = strstr( gprsbuff, str_base);
+
+		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
+		if ( p != NULL ) {
+			memset(localStr,'\0',sizeof(localStr));
+			memcpy(localStr,p,sizeof(localStr));
+			stringp = localStr;
+			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
+			tk_V1_INF = strsep(&stringp,delim);		//CH0x
+
+			tk_V1_INF = strsep(&stringp,delim);
+			tk_V1_SUP = strsep(&stringp,delim);
+			tk_V2_INF = strsep(&stringp,delim);
+			tk_V2_SUP = strsep(&stringp,delim);
+			tk_V3_INF = strsep(&stringp,delim);
+			tk_V3_SUP = strsep(&stringp,delim);
+
+			id[0] = '0' + i;
+			id[1] = '\0';
+
+			//xprintf_P( PSTR("DEBUG LEVELS: ID:%s\r\n\0"), id );
+
+			appalarma_config("NIVEL", id, "1", "INF", tk_V1_INF );
+			appalarma_config("NIVEL", id, "1", "SUP", tk_V1_SUP );
+			appalarma_config("NIVEL", id, "2", "INF", tk_V2_INF );
+			appalarma_config("NIVEL", id, "2", "SUP", tk_V2_SUP );
+			appalarma_config("NIVEL", id, "3", "INF", tk_V3_INF );
+			appalarma_config("NIVEL", id, "3", "SUP", tk_V3_SUP );
+
+			if ( systemVars.debug == DEBUG_APLICACION ) {
+				xprintf_P( PSTR("GPRS: Reconfig ALM_CH 0%d\r\n\0"), i);
+			}
+		}
+	}
+
+	u_save_params_in_NVMEE();
+}
+//------------------------------------------------------------------------------------
+

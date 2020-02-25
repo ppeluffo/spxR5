@@ -10,7 +10,7 @@
  *  En este estado es donde entro en el modo tickless !!!.
  */
 
-#include <spx_tkComms/gprs.h>
+#include <comms.h>
 
 static bool pv_tkGprs_check_inside_pwrSave(void);
 static void pv_tkGprs_calcular_tiempo_espera(void);

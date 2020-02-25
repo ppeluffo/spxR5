@@ -5,7 +5,7 @@
  *      Author: pablo
  */
 
-#include <spx_tkComms/gprs.h>
+#include <comms.h>
 
 //------------------------------------------------------------------------------------
 t_socket_status u_gprs_open_socket(void)
@@ -235,15 +235,15 @@ char l_data[10] = { 0 };
 //------------------------------------------------------------------------------------
 void u_gprs_rxbuffer_flush(void)
 {
-	memset( pv_gprsRxCbuffer.buffer, '\0', UART_GPRS_RXBUFFER_LEN);
-	pv_gprsRxCbuffer.ptr = 0;
+	memset( commsRxBuffer.buffer, '\0', COMMS_RXBUFFER_LEN);
+	commsRxBuffer.ptr = 0;
 }
 //------------------------------------------------------------------------------------
 bool u_gprs_check_response( const char *rsp )
 {
 bool retS = false;
 
-	if ( strstr( pv_gprsRxCbuffer.buffer, rsp) != NULL ) {
+	if ( strstr( commsRxBuffer.buffer, rsp) != NULL ) {
 		retS = true;
 	}
 	return(retS);
@@ -261,7 +261,7 @@ bool retS = false;
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 		// Veo si tengo la respuesta correcta.
-		if ( strstr( pv_gprsRxCbuffer.buffer, rsp) != NULL ) {
+		if ( strstr( commsRxBuffer.buffer, rsp) != NULL ) {
 			retS = true;
 			break;
 		}
@@ -279,16 +279,16 @@ void u_gprs_print_RX_response(void)
 char *start_tag = NULL;
 char *end_tag = NULL;
 
-	start_tag = strstr(pv_gprsRxCbuffer.buffer,"<h1>");
-	end_tag = strstr(pv_gprsRxCbuffer.buffer, "</h1>");
+	start_tag = strstr(commsRxBuffer.buffer,"<h1>");
+	end_tag = strstr(commsRxBuffer.buffer, "</h1>");
 
 	if ( ( start_tag != NULL ) && ( end_tag != NULL) ) {
 		*end_tag = '\0';	// Para que frene el xprintf_P
 		start_tag += 4;
 		//xprintf_P ( PSTR("GPRS: rsp>%s\r\n\0"), start_tag );
 		xprintf_P( PSTR ("GPRS: rxbuff>\r\n\0"));
-		xnprint( start_tag, sizeof(pv_gprsRxCbuffer.buffer) );
-		xprintf_P( PSTR ("\r\n[%d]\r\n\0"), pv_gprsRxCbuffer.ptr );
+		xnprint( start_tag, sizeof(commsRxBuffer.buffer) );
+		xprintf_P( PSTR ("\r\n[%d]\r\n\0"), commsRxBuffer.ptr );
 	}
 }
 //------------------------------------------------------------------------------------
@@ -299,8 +299,8 @@ void u_gprs_print_RX_Buffer(void)
 	xprintf_P( PSTR ("GPRS: rxbuff>\r\n\0"));
 
 	// Uso esta funcion para imprimir un buffer largo, mayor al que utiliza xprintf_P. !!!
-	xnprint( pv_gprsRxCbuffer.buffer, sizeof(pv_gprsRxCbuffer.buffer) );
-	xprintf_P( PSTR ("\r\n[%d]\r\n\0"), pv_gprsRxCbuffer.ptr );
+	xnprint( commsRxBuffer.buffer, sizeof(commsRxBuffer.buffer) );
+	xprintf_P( PSTR ("\r\n[%d]\r\n\0"), commsRxBuffer.ptr );
 }
 //------------------------------------------------------------------------------------
 void u_gprs_flush_RX_buffer(void)
@@ -333,7 +333,7 @@ char *ts = NULL;
 		u_gprs_print_RX_Buffer();
 	}
 
-	memcpy(csqBuffer, &pv_gprsRxCbuffer.buffer[0], sizeof(csqBuffer) );
+	memcpy(csqBuffer, &commsRxBuffer.buffer[0], sizeof(csqBuffer) );
 	if ( (ts = strchr(csqBuffer, ':')) ) {
 		ts++;
 		GPRS_stateVars.csq = atoi(ts);
@@ -658,7 +658,7 @@ char c = '\0';
 	}
 
 	// Extraigo la IP del token.
-	ts = strchr( pv_gprsRxCbuffer.buffer, ':');
+	ts = strchr( commsRxBuffer.buffer, ':');
 	ts++;
 	while ( (c= *ts) != '\r') {
 		GPRS_stateVars.dlg_ip_address[i++] = c;

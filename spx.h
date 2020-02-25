@@ -487,6 +487,11 @@ void tanque_config_defaults(void);
 uint8_t tanque_checksum(void);
 void tanque_set_params_from_gprs( char *tk_sms, char *tk_link );
 void tanque_process_rxsms(char *sms_msg);
+void tanque_reconfigure_app(void);
+void tanque_process_gprs_response( const char *gprsbuff );
+void tanque_reconfigure_levels_by_gprsinit(const char *gprsbuff);
+void tanque_reconfigure_sms_by_gprsinit(const char *gprsbuff);
+
 
 // WATCHDOG
 uint8_t wdg_resetCause;

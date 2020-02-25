@@ -5,7 +5,7 @@
  *      Author: pablo
  */
 
-#include "gprs.h"
+#include <comms.h>
 
 typedef struct {
 	char nro[SMS_NRO_LENGTH];
@@ -289,7 +289,7 @@ char *delim = "\r";
 		u_gprs_print_RX_Buffer();
 	}
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "+CMGRD:");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "+CMGRD:");
 	if ( p != NULL ) {
 		//memset(localStr,'\0',sizeof(localStr));
 		//memcpy(localStr,p,sizeof(localStr));
@@ -339,7 +339,7 @@ char *delim = ",:";
 
 	if ( retS ) {
 		// Hay al menos un mensaje pendiente. Decodifico su indice
-		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "+CMGL:");
+		p = strstr( (const char *)&commsRxBuffer.buffer, "+CMGL:");
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
 			memcpy(localStr,p,sizeof(localStr));

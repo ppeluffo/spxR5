@@ -14,13 +14,13 @@
  * configuracion local
  * configuracion remota
  * condiciones de alarma:
- * 	envio_sms
- * 		no ack
- * 		si ack
+ * envio_sms
+ * 	no ack
+ * 	si ack
  */
 
+#include <comms.h>
 #include "spx.h"
-#include "gprs.h"
 
 typedef enum { ST_TQ_NORMAL = 0, ST_TQ_LOWLEVEL, ST_TQ_HIGHLEVEL } t_tanque_states;
 typedef enum { TQ_NO_LINK = 1, TQ_LINK_DOWN = 0, TQ_LINK_UP } t_tanques_link_status;
@@ -451,6 +451,9 @@ uint8_t link_id;
 		xprintf_P(PSTR("APP_TANQUE: Set param GPRS: [%s][%s]\r\n\0"), tk_sms, tk_link );
 	}
 
+	// Reinicio el timer de respuestas del servidor.
+	server_response_timeout = LOCAL_LINK_TIMEOUT;
+
 	// SMS's.
 	if ( atoi(tk_sms) == 0 ) {
 		systemVars.aplicacion_conf.tanque.sms_enabled = false;
@@ -483,6 +486,143 @@ void tanque_process_rxsms(char *sms_msg)
 	// En este caso, pongo el contador de reintentos en 0.
 	// Debo determinar de que perforacion llego. Lo hago con el numero origen.
 
+
+}
+//------------------------------------------------------------------------------------
+void tanque_reconfigure_app(void)
+{
+	// TYPE=INIT&PLOAD=CLASS:APP;AP0:TANQUE
+
+	systemVars.aplicacion = APP_TANQUE;
+	u_save_params_in_NVMEE();
+	//f_reset = true;
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:TANQUE\r\n\0"));
+	}
+
+}
+//------------------------------------------------------------------------------------
+void tanque_process_gprs_response( const char *gprsbuff )
+{
+	// Recibi algo del estilo TQS:0,110110010
+	// Es la respuesta del server a un frame de datos de un tanque.
+	// El primer dato puede ser 0 o 1.
+	// Si es 0 hay que deshabilitar el SMS
+	// Si es 1 hay que habilitarlo
+	// El segundo dato es un numero que indica el estado de los enlaces
+	// de las perforaciones. 0 indica caido, 1 indica activo.
+	//
+	// Extraigo el valor de las salidas y las seteo.
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_sms = NULL;
+char *tk_link = NULL;
+char *delim = ",=:><";
+char *p = NULL;
+
+	//p = strstr( (const char *)&commsRxBuffer.buffer, "TQS");
+	p = strstr( gprsbuff, "TQS");
+	if ( p == NULL ) {
+		return;
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_sms = strsep(&stringp,delim);	// TQS
+	tk_sms = strsep(&stringp,delim);	// Str. con el valor 0,1 del enable del sms
+	tk_link = strsep(&stringp,delim);	// Str. con el valor del estado de los links de las perforaciones
+
+	// Actualizo el status a travez de una funcion propia del modulo de outputs
+	tanque_set_params_from_gprs( tk_sms, tk_link );
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: TQS\r\n\0"));
+	}
+
+}
+//------------------------------------------------------------------------------------
+void tanque_reconfigure_levels_by_gprsinit(const char *gprsbuff)
+{
+	// TANQUE:
+	// TYPE=INIT&PLOAD=CLASS:APP_B;LOW:0.2;HIGH:1.34
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_low_level = NULL;
+char *tk_high_level = NULL;
+char *delim = ",=:;><";
+
+
+	memset( &localStr, '\0', sizeof(localStr) );
+	//p = strstr( (const char *)&commsRxBuffer.buffer, "LOW");
+	p = strstr( gprsbuff, "LOW");
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_low_level = strsep(&stringp,delim);	// LOW
+	tk_low_level = strsep(&stringp,delim);	// 0.2
+	tk_high_level = strsep(&stringp,delim); // HIGH
+	tk_high_level = strsep(&stringp,delim); // 1.34
+	tanque_config("NIVEL","BAJO", tk_low_level);
+	tanque_config("NIVEL","ALTO", tk_high_level);
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig TANQUE. Niveles (low=%s,high=%s)\r\n\0"),tk_low_level, tk_high_level);
+	}
+
+	u_save_params_in_NVMEE();
+
+}
+//------------------------------------------------------------------------------------
+void tanque_reconfigure_sms_by_gprsinit(const char *gprsbuff)
+{
+	// TANQUE SMS
+	// TYPE=INIT&PLOAD=CLASS:APP_C;SMS01:111111;SMS02:2222222;SMS03:3333333;SMS04:4444444;...SMS09:9999999
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_nro= NULL;
+char *delim = ",=:;><";
+uint8_t i;
+char id[2];
+char str_base[8];
+
+	// SMS?
+	for (i=0; i < MAX_NRO_SMS; i++ ) {
+		memset( &str_base, '\0', sizeof(str_base) );
+		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
+		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
+		//p = strstr( (const char *)&commsRxBuffer.buffer, str_base);
+		p = strstr( gprsbuff, str_base);
+		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
+		if ( p != NULL ) {
+			memset(localStr,'\0',sizeof(localStr));
+			memcpy(localStr,p,sizeof(localStr));
+			stringp = localStr;
+			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
+			tk_nro = strsep(&stringp,delim);		//SMS0x
+			tk_nro = strsep(&stringp,delim);		//09111111
+
+			id[0] = '0' + i;
+			id[1] = '\0';
+
+			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
+			tanque_config("SMS", id, tk_nro );
+
+			if ( systemVars.debug == DEBUG_APLICACION ) {
+				xprintf_P( PSTR("GPRS: Reconfig TANQUE SMS0%d\r\n\0"), i);
+			}
+		}
+	}
+
+	u_save_params_in_NVMEE();
 
 }
 //------------------------------------------------------------------------------------

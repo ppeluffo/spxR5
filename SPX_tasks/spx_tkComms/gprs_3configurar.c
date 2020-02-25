@@ -5,7 +5,7 @@
  *      Author: pablo
  */
 
-#include <spx_tkComms/gprs.h>
+#include <comms.h>
 
 static bool pv_gprs_CPIN(void);
 static bool pv_gprs_CGREG(void);

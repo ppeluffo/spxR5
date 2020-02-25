@@ -58,7 +58,7 @@
  *
  */
 
-#include <spx_tkComms/gprs.h>
+#include <comms.h>
 
 #define WDG_GPRSRX_TIMEOUT 60
 
@@ -210,8 +210,8 @@ static void pv_gprs_rxbuffer_poke(char c)
 {
 
 	// Si hay lugar meto el dato.
-	if ( pv_gprsRxCbuffer.ptr < UART_GPRS_RXBUFFER_LEN )
-		pv_gprsRxCbuffer.buffer[ pv_gprsRxCbuffer.ptr++ ] = c;
+	if ( commsRxBuffer.ptr < COMMS_RXBUFFER_LEN )
+		commsRxBuffer.buffer[ commsRxBuffer.ptr++ ] = c;
 }
 //------------------------------------------------------------------------------------
 

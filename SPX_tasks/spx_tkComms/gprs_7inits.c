@@ -5,7 +5,7 @@
  *      Author: pablo
  */
 
-#include <spx_tkComms/gprs.h>
+#include <comms.h>
 #include "spx.h"
 
 // La tarea no puede demorar mas de 180s.
@@ -50,12 +50,7 @@ static void pv_init_reconfigure_params_range(void);
 static void pv_init_reconfigure_params_psensor(void);
 static void pv_init_reconfigure_params_app_A(void);
 static void pv_init_reconfigure_params_app_B(void);
-static void pv_init_reconfigure_params_app_B_plantapot(void);
-static void pv_init_reconfigure_params_app_B_consigna(void);
-static void pv_init_reconfigure_params_app_B_tanque(void);
 static void pv_init_reconfigure_params_app_C(void);
-static void pv_init_reconfigure_params_app_C_plantapot(void);
-static void pv_init_reconfigure_params_app_C_tanque(void);
 
 bool pv_process_frame_init_AUTH(void);
 bool pv_process_frame_init_GLOBAL(void);
@@ -68,11 +63,6 @@ bool pv_process_frame_init_PSENSOR(void);
 bool pv_process_frame_init_APP(void);
 
 static void pv_init_reconfigure_app_off(void);
-static void pv_init_reconfigure_app_consigna(void);
-static void pv_init_reconfigure_app_perforacion(void);
-static void pv_init_reconfigure_app_tanque(void);
-static void pv_init_reconfigure_app_plantapot(void);
-
 
 //------------------------------------------------------------------------------------
 bool st_gprs_inits(void)
@@ -811,7 +801,7 @@ char *tk_action = NULL;
 char *delim = ",=:><";
 char dlgId[DLGID_LENGTH];
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AUTH");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "AUTH");
 	if ( p == NULL ) {
 		return(false);
 	}
@@ -866,7 +856,7 @@ int8_t xBytes = 0;
 
 
 	// CLOCK
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "CLOCK");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "CLOCK");
 	if ( p != NULL ) {
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -900,7 +890,7 @@ int8_t xBytes = 0;
 	}
 
 	// Flags de configuraciones particulares: BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;OUTS
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "BASE");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "BASE");
 	if ( p != NULL ) {
 		f_send_init_base = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
@@ -908,7 +898,7 @@ int8_t xBytes = 0;
 		}
 	}
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "ANALOG");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "ANALOG");
 	if ( p != NULL ) {
 		f_send_init_analog = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
@@ -916,7 +906,7 @@ int8_t xBytes = 0;
 		}
 	}
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "DIGITAL");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "DIGITAL");
 	if ( p != NULL ) {
 		f_send_init_digital = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
@@ -924,7 +914,7 @@ int8_t xBytes = 0;
 		}
 	}
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "COUNTERS");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "COUNTERS");
 	if ( p != NULL ) {
 		f_send_init_counters = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
@@ -932,7 +922,7 @@ int8_t xBytes = 0;
 		}
 	}
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "RANGE");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "RANGE");
 	if ( p != NULL ) {
 		f_send_init_range = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
@@ -940,7 +930,7 @@ int8_t xBytes = 0;
 		}
 	}
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PSENSOR");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "PSENSOR");
 	if ( p != NULL ) {
 		f_send_init_psensor = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
@@ -948,7 +938,7 @@ int8_t xBytes = 0;
 		}
 	}
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "APLICACION");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "APLICACION");
 	if ( p != NULL ) {
 		f_send_init_app = true;
 		if ( systemVars.debug == DEBUG_GPRS ) {
@@ -975,7 +965,7 @@ char *delim = ",:;><";
 bool save_flag = false;
 
 	// TDIAL
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "TDIAL");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "TDIAL");
 	if ( p != NULL ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
@@ -994,7 +984,7 @@ bool save_flag = false;
 	}
 
 	// TPOLL
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "TPOLL");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "TPOLL");
 	if ( p != NULL ) {
 
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -1012,7 +1002,7 @@ bool save_flag = false;
 	}
 
 	// PWST
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PWST");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "PWST");
 	if ( p != NULL ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
@@ -1031,7 +1021,7 @@ bool save_flag = false;
 	}
 
 	// PWRS
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PWRS");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "PWRS");
 	if ( p != NULL ) {
 		memset( &localStr, '\0', sizeof(localStr) );
 		memcpy(localStr,p,sizeof(localStr));
@@ -1081,7 +1071,7 @@ char str_base[8];
 		snprintf_P( str_base, sizeof(str_base), PSTR("A%d\0"), ch );
 		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
 
-		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
+		p = strstr( (const char *)&commsRxBuffer.buffer, str_base);
 		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
@@ -1131,7 +1121,7 @@ char str_base[8];
 	for (ch=0; ch < NRO_DINPUTS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("D%d\0"), ch );
-		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
+		p = strstr( (const char *)&commsRxBuffer.buffer, str_base);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
 			memcpy(localStr,p,sizeof(localStr));
@@ -1177,7 +1167,7 @@ char str_base[8];
 	for (ch=0; ch < NRO_COUNTERS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("C%d\0"), ch );
-		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
+		p = strstr( (const char *)&commsRxBuffer.buffer, str_base);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
 			memcpy(localStr,p,sizeof(localStr));
@@ -1218,7 +1208,7 @@ char *token = NULL;
 char *delim = ",=:;><";
 
 	// RANGE
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "R0");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "R0");
 	if ( p != NULL ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
@@ -1258,7 +1248,7 @@ char *delim = ",=:;><";
 		xprintf_P( PSTR("GPRS: Reconfig PSENSOR\r\n\0"));
 	}
 
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PS0:");
+	p = strstr( (const char *)&commsRxBuffer.buffer, "PS0:");
 	if ( p != NULL ) {
 		memset( &localStr, '\0', sizeof(localStr) );
 		memcpy(localStr,p,sizeof(localStr));
@@ -1289,37 +1279,37 @@ static void pv_init_reconfigure_params_app_A(void)
 
 	// Aplicacion ALARMAS
 #ifdef APLICACION_PLANTAPOT
-	pv_init_reconfigure_app_plantapot();
+	appalarma_reconfigure_app();
 	return;
 #endif
 
 	// TYPE=INIT&PLOAD=CLASS:APP;AP0:OFF;
-	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:OFF") != NULL ) {
+	if ( strstr( (const char *)&commsRxBuffer.buffer, "AP0:OFF") != NULL ) {
 		pv_init_reconfigure_app_off();
 		return;
 	}
 
 	// TYPE=INIT&PLOAD=CLASS:APP;AP0:CONSIGNA,1230,0940;
-	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:CONSIGNA") != NULL ) {
-		pv_init_reconfigure_app_consigna();
+	if ( strstr( (const char *)&commsRxBuffer.buffer, "AP0:CONSIGNA") != NULL ) {
+		consigna_reconfigure_app();
 		return;
 	}
 
 	// // TYPE=INIT&PLOAD=CLASS:APP;AP0:PERFORACION;
-	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:PERFORACION") != NULL ) {
-		pv_init_reconfigure_app_perforacion();
+	if ( strstr( (const char *)&commsRxBuffer.buffer, "AP0:PERFORACION") != NULL ) {
+		perforacion_reconfigure_app();
 		return;
 	}
 
 	// TYPE=INIT&PLOAD=CLASS:APP;AP0:TANQUE
-	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:TANQUE") != NULL ) {
-		pv_init_reconfigure_app_tanque();
+	if ( strstr( (const char *)&commsRxBuffer.buffer, "AP0:TANQUE") != NULL ) {
+		tanque_reconfigure_app();
 		return;
 	}
 
 	// AP0:PLANTAPOT
-	if ( strstr( (const char *)&pv_gprsRxCbuffer.buffer, "AP0:PLANTAPOT") != NULL ) {
-		pv_init_reconfigure_app_plantapot();
+	if ( strstr( (const char *)&commsRxBuffer.buffer, "AP0:PLANTAPOT") != NULL ) {
+		appalarma_reconfigure_app();
 	}
 
 }
@@ -1330,124 +1320,12 @@ static void pv_init_reconfigure_params_app_B(void)
 	// Debo ver porque razón lo pedi
 
 	if (systemVars.aplicacion == APP_PLANTAPOT ) {
-		pv_init_reconfigure_params_app_B_plantapot();
+		appalarma_reconfigure_sms_by_gprsinit((const char *)&commsRxBuffer.buffer );
 	} else if (systemVars.aplicacion == APP_CONSIGNA ) {
-		pv_init_reconfigure_params_app_B_consigna();
+		consigna_reconfigure_params_gprsinit((const char *)&commsRxBuffer.buffer );
 	}  else if (systemVars.aplicacion == APP_TANQUE ) {
-		pv_init_reconfigure_params_app_B_tanque();
+		tanque_reconfigure_levels_by_gprsinit((const char *)&commsRxBuffer.buffer );
 	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_params_app_B_plantapot(void)
-{
-	// PLANTAPOT SMS
-	// TYPE=INIT&PLOAD=CLASS:APP_B;SMS01:111111,1;SMS02:2222222,2;SMS03:3333333,3;SMS04:4444444,1;...SMS09:9999999,3
-
-char *p = NULL;
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_nro= NULL;
-char *tk_level= NULL;
-char *delim = ",=:;><";
-uint8_t i;
-char id[2];
-char str_base[8];
-
-	// SMS?
-	for (i=0; i < MAX_NRO_SMS; i++ ) {
-		memset( &str_base, '\0', sizeof(str_base) );
-		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
-		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
-		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
-		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
-		if ( p != NULL ) {
-			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
-			stringp = localStr;
-			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
-			tk_nro = strsep(&stringp,delim);		//SMS0x
-			tk_nro = strsep(&stringp,delim);		//09111111
-			tk_level = strsep(&stringp,delim);		//1
-
-			id[0] = '0' + i;
-			id[1] = '\0';
-
-			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
-			appalarma_config("SMS", id, tk_nro, tk_level, NULL );
-
-			if ( systemVars.debug == DEBUG_APLICACION ) {
-				xprintf_P( PSTR("GPRS: Reconfig SMS0%d\r\n\0"), i);
-			}
-		}
-	}
-
-	u_save_params_in_NVMEE();
-
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_params_app_B_consigna(void)
-{
-	// CONSIGNAS:
-	// TYPE=INIT&PLOAD=CLASS:APP_B;HHMM1:1230;HHMM2:0940
-
-char *p = NULL;
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_cons_dia = NULL;
-char *tk_cons_noche = NULL;
-char *delim = ",=:;><";
-
-
-	memset( &localStr, '\0', sizeof(localStr) );
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "HHMM1");
-	memcpy(localStr,p,sizeof(localStr));
-
-	stringp = localStr;
-	tk_cons_dia = strsep(&stringp,delim);	// HHMM1
-	tk_cons_dia = strsep(&stringp,delim);	// 1230
-	tk_cons_noche = strsep(&stringp,delim); // HHMM2
-	tk_cons_noche = strsep(&stringp,delim); // 0940
-	consigna_config(tk_cons_dia, tk_cons_noche );
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
-	}
-
-	u_save_params_in_NVMEE();
-
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_params_app_B_tanque(void)
-{
-	// TANQUE:
-	// TYPE=INIT&PLOAD=CLASS:APP_B;LOW:0.2;HIGH:1.34
-
-char *p = NULL;
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_low_level = NULL;
-char *tk_high_level = NULL;
-char *delim = ",=:;><";
-
-
-	memset( &localStr, '\0', sizeof(localStr) );
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "LOW");
-	memcpy(localStr,p,sizeof(localStr));
-
-	stringp = localStr;
-	tk_low_level = strsep(&stringp,delim);	// LOW
-	tk_low_level = strsep(&stringp,delim);	// 0.2
-	tk_high_level = strsep(&stringp,delim); // HIGH
-	tk_high_level = strsep(&stringp,delim); // 1.34
-	tanque_config("NIVEL","BAJO", tk_low_level);
-	tanque_config("NIVEL","ALTO", tk_high_level);
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig TANQUE. Niveles (low=%s,high=%s)\r\n\0"),tk_low_level, tk_high_level);
-	}
-
-	u_save_params_in_NVMEE();
 
 }
 //------------------------------------------------------------------------------------
@@ -1458,119 +1336,10 @@ static void pv_init_reconfigure_params_app_C(void)
 	// Debo ver porque razón lo pedi
 
 	if (systemVars.aplicacion == APP_PLANTAPOT ) {
-		pv_init_reconfigure_params_app_C_plantapot();
+		appalarma_reconfigure_levels_by_gprsinit((const char *)&commsRxBuffer.buffer );
 	}  else if (systemVars.aplicacion == APP_TANQUE ) {
-		pv_init_reconfigure_params_app_C_tanque();
+		tanque_reconfigure_sms_by_gprsinit((const char *)&commsRxBuffer.buffer );
 	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_params_app_C_plantapot(void)
-{
-	// TYPE=INIT&PLOAD=CLASS:APP_C;CH00:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;CH01:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;..
-
-char *p = NULL;
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_V1_INF = NULL;
-char *tk_V1_SUP = NULL;
-char *tk_V2_INF = NULL;
-char *tk_V2_SUP = NULL;
-char *tk_V3_INF = NULL;
-char *tk_V3_SUP = NULL;
-char *delim = ",=:;><";
-uint8_t i;
-char id[2];
-char str_base[8];
-
-	// LEVELS?
-	for (i=0; i < NRO_CANALES_ALM; i++ ) {
-
-		memset( &str_base, '\0', sizeof(str_base) );
-		snprintf_P( str_base, sizeof(str_base), PSTR("CH%d\0"), i );
-
-		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
-
-		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
-
-		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
-		if ( p != NULL ) {
-			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
-			stringp = localStr;
-			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
-			tk_V1_INF = strsep(&stringp,delim);		//CH0x
-
-			tk_V1_INF = strsep(&stringp,delim);
-			tk_V1_SUP = strsep(&stringp,delim);
-			tk_V2_INF = strsep(&stringp,delim);
-			tk_V2_SUP = strsep(&stringp,delim);
-			tk_V3_INF = strsep(&stringp,delim);
-			tk_V3_SUP = strsep(&stringp,delim);
-
-			id[0] = '0' + i;
-			id[1] = '\0';
-
-			//xprintf_P( PSTR("DEBUG LEVELS: ID:%s\r\n\0"), id );
-
-			appalarma_config("NIVEL", id, "1", "INF", tk_V1_INF );
-			appalarma_config("NIVEL", id, "1", "SUP", tk_V1_SUP );
-			appalarma_config("NIVEL", id, "2", "INF", tk_V2_INF );
-			appalarma_config("NIVEL", id, "2", "SUP", tk_V2_SUP );
-			appalarma_config("NIVEL", id, "3", "INF", tk_V3_INF );
-			appalarma_config("NIVEL", id, "3", "SUP", tk_V3_SUP );
-
-			if ( systemVars.debug == DEBUG_APLICACION ) {
-				xprintf_P( PSTR("GPRS: Reconfig ALM_CH 0%d\r\n\0"), i);
-			}
-		}
-	}
-
-	u_save_params_in_NVMEE();
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_params_app_C_tanque(void)
-{
-	// TANQUE SMS
-	// TYPE=INIT&PLOAD=CLASS:APP_C;SMS01:111111;SMS02:2222222;SMS03:3333333;SMS04:4444444;...SMS09:9999999
-
-char *p = NULL;
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_nro= NULL;
-char *delim = ",=:;><";
-uint8_t i;
-char id[2];
-char str_base[8];
-
-	// SMS?
-	for (i=0; i < MAX_NRO_SMS; i++ ) {
-		memset( &str_base, '\0', sizeof(str_base) );
-		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
-		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
-		p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, str_base);
-		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
-		if ( p != NULL ) {
-			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
-			stringp = localStr;
-			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
-			tk_nro = strsep(&stringp,delim);		//SMS0x
-			tk_nro = strsep(&stringp,delim);		//09111111
-
-			id[0] = '0' + i;
-			id[1] = '\0';
-
-			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
-			tanque_config("SMS", id, tk_nro );
-
-			if ( systemVars.debug == DEBUG_APLICACION ) {
-				xprintf_P( PSTR("GPRS: Reconfig TANQUE SMS0%d\r\n\0"), i);
-			}
-		}
-	}
-
-	u_save_params_in_NVMEE();
 
 }
 //------------------------------------------------------------------------------------
@@ -1584,56 +1353,6 @@ static void pv_init_reconfigure_app_off(void)
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: Reconfig APLICACION:OFF\r\n\0"));
-	}
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_app_consigna(void)
-{
-	systemVars.aplicacion = APP_CONSIGNA;
-	u_save_params_in_NVMEE();
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA\r\n\0"));
-	}
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_app_perforacion(void)
-{
-	// TYPE=INIT&PLOAD=CLASS:APP;AP0:PERFORACION;
-
-	systemVars.aplicacion = APP_PERFORACION;
-	u_save_params_in_NVMEE();
-	//f_reset = true;
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PERFORACION\r\n\0"));
-	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_app_tanque(void)
-{
-	// TYPE=INIT&PLOAD=CLASS:APP;AP0:TANQUE
-
-	systemVars.aplicacion = APP_TANQUE;
-	u_save_params_in_NVMEE();
-	//f_reset = true;
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:TANQUE\r\n\0"));
-	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_init_reconfigure_app_plantapot(void)
-{
-
-	// Como quedan aun 2 frames, no reseteo.
-	systemVars.aplicacion = APP_PLANTAPOT;
-	u_save_params_in_NVMEE();
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PLANTAPOT\r\n\0"));
 	}
 }
 //------------------------------------------------------------------------------------

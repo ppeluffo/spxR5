@@ -361,3 +361,46 @@ uint8_t i = 0;
 
 }
 //------------------------------------------------------------------------------------
+void consigna_reconfigure_app(void)
+{
+	systemVars.aplicacion = APP_CONSIGNA;
+	u_save_params_in_NVMEE();
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA\r\n\0"));
+	}
+}
+//------------------------------------------------------------------------------------
+void consigna_reconfigure_params_gprsinit(const char *gprsbuff)
+{
+	// CONSIGNAS:
+	// TYPE=INIT&PLOAD=CLASS:APP_B;HHMM1:1230;HHMM2:0940
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_cons_dia = NULL;
+char *tk_cons_noche = NULL;
+char *delim = ",=:;><";
+
+
+	memset( &localStr, '\0', sizeof(localStr) );
+	//p = strstr( (const char *)&commsRxBuffer.buffer, "HHMM1");
+	p = strstr( gprsbuff, "HHMM1");
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	tk_cons_dia = strsep(&stringp,delim);	// HHMM1
+	tk_cons_dia = strsep(&stringp,delim);	// 1230
+	tk_cons_noche = strsep(&stringp,delim); // HHMM2
+	tk_cons_noche = strsep(&stringp,delim); // 0940
+	consigna_config(tk_cons_dia, tk_cons_noche );
+
+	if ( systemVars.debug == DEBUG_GPRS ) {
+		xprintf_P( PSTR("GPRS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
+	}
+
+	u_save_params_in_NVMEE();
+
+}
+//------------------------------------------------------------------------------------

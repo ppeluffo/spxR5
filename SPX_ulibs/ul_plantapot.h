@@ -81,5 +81,8 @@ void appalarma_config_defaults(void);
 
 void appalarma_servicio_tecnico( char * action, char * device );
 void appalarma_print_status( bool full );
+void appalarma_reconfigure_app(void);
+void appalarma_reconfigure_sms_by_gprsinit( const char *gprsbuff );
+void appalarma_reconfigure_levels_by_gprsinit(const char *gprsbuff );
 
 #endif /* SRC_SPX_ULIBS_UL_ALARMAS_OSE_H_ */

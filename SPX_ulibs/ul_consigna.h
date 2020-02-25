@@ -16,5 +16,7 @@ void consigna_config_defaults(void);
 bool consigna_write( char *param0, char *param1, char *param2 );
 void consigna_stk(void);
 uint8_t consigna_checksum(void);
+void consigna_reconfigure_app(void);
+void consigna_reconfigure_params_gprsinit(const char *gprsbuff);
 
 #endif /* SRC_SPX_ULIBS_UL_CONSIGNA_H_ */

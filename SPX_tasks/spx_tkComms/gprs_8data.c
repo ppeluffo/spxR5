@@ -5,7 +5,7 @@
  *      Author: pablo
  */
 
-#include <spx_tkComms/gprs.h>
+#include <comms.h>
 
 // La tarea no puede demorar mas de 5m.
 #define WDG_GPRS_DATA	300
@@ -19,8 +19,6 @@ static void pv_tx_data_payload( void );
 static bool pv_procesar_respuesta_server(void);
 static void pv_process_response_RESET(void);
 static void pv_process_response_MEMFORMAT(void);
-static void pv_process_response_PERF_OUTS(void);
-static void pv_process_response_TANQUE(void);
 static uint8_t pv_process_response_OK(void);
 
 FAT_t gprs_fat;
@@ -400,12 +398,12 @@ bool exit_flag = false;
 
 			if ( u_gprs_check_response ("PERF_OUTS\0")) {
 				// El sever mando actualizacion de las salidas
-				pv_process_response_PERF_OUTS();
+				perforacion_process_gprs_response( (const char *)&commsRxBuffer.buffer );
 			}
 
 			if ( u_gprs_check_response ("TQS\0")) {
 				// El sever mando actualizacion de los datos aun tanque
-				pv_process_response_TANQUE();
+				tanque_process_gprs_response( (const char *)&commsRxBuffer.buffer );
 			}
 
 			if ( u_gprs_check_response ("RX_OK\0")) {
@@ -469,83 +467,6 @@ static void pv_process_response_MEMFORMAT(void)
 
 	// Reset
 	CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
-
-}
-//------------------------------------------------------------------------------------
-static void pv_process_response_PERF_OUTS(void)
-{
-	// Recibi algo del estilo PERF_OUTS:245
-	// Es la respuesta del server para activar las salidas en perforaciones o modo remoto.
-
-	// Extraigo el valor de las salidas y las seteo.
-
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_douts = NULL;
-char *delim = ",=:><";
-char *p = NULL;
-
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "PERF_OUTS");
-	if ( p == NULL ) {
-		return;
-	}
-
-	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
-	memset(localStr,'\0',32);
-	memcpy(localStr,p,sizeof(localStr));
-
-	stringp = localStr;
-	tk_douts = strsep(&stringp,delim);	// PERF_OUTS
-	tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
-
-	// Actualizo el status a travez de una funcion propia del modulo de outputs
-	perforacion_set_douts_from_gprs( atoi( tk_douts ));
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: PERF_OUTS\r\n\0"));
-	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_process_response_TANQUE(void)
-{
-	// Recibi algo del estilo TQS:0,110110010
-	// Es la respuesta del server a un frame de datos de un tanque.
-	// El primer dato puede ser 0 o 1.
-	// Si es 0 hay que deshabilitar el SMS
-	// Si es 1 hay que habilitarlo
-	// El segundo dato es un numero que indica el estado de los enlaces
-	// de las perforaciones. 0 indica caido, 1 indica activo.
-	//
-	// Extraigo el valor de las salidas y las seteo.
-
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_sms = NULL;
-char *tk_link = NULL;
-char *delim = ",=:><";
-char *p = NULL;
-
-	p = strstr( (const char *)&pv_gprsRxCbuffer.buffer, "TQS");
-	if ( p == NULL ) {
-		return;
-	}
-
-	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
-	memset(localStr,'\0',32);
-	memcpy(localStr,p,sizeof(localStr));
-
-	stringp = localStr;
-	tk_sms = strsep(&stringp,delim);	// TQS
-	tk_sms = strsep(&stringp,delim);	// Str. con el valor 0,1 del enable del sms
-	tk_link = strsep(&stringp,delim);	// Str. con el valor del estado de los links de las perforaciones
-
-	// Actualizo el status a travez de una funcion propia del modulo de outputs
-	tanque_set_params_from_gprs( tk_sms, tk_link );
-
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: TQS\r\n\0"));
-	}
 
 }
 //------------------------------------------------------------------------------------

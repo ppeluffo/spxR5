@@ -5,9 +5,9 @@
  *      Author: pablo
  */
 
+#include <comms.h>
 #include <SPX_ulibs/ul_consigna.h>
 #include "spx.h"
-#include "gprs.h"
 
 void aplicacion_off_stk(void);
 

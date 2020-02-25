@@ -21,6 +21,7 @@ void perforacion_set_douts_from_gprs( uint8_t dout );
 uint16_t perforacion_read_timer_activo(void);
 uint8_t perforacion_read_control_mode(void);
 uint8_t perforacion_checksum(void);
-
+void perforacion_reconfigure_app(void);
+void perforacion_process_gprs_response( const char *gprsbuff );
 
 #endif /* SRC_SPX_ULIBS_UL_PERFORACION_H_ */
