@@ -658,3 +658,19 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
+void u_debug_printf_P( t_debug dmode,  PGM_P fmt, ...)
+{
+
+	/* Funcion de wrapper que imprime un mensaje de debug siempre que el modo configurado
+	 * coincida con el dmode
+	 */
+
+va_list argp;
+
+	if ( systemVars.debug == dmode ) {
+		va_start(argp, fmt);
+		xfprintf_V( fdTERM, fmt, argp );
+	}
+}
+//------------------------------------------------------------------------------------
+

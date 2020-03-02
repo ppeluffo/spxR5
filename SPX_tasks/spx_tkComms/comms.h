@@ -33,6 +33,21 @@
 // Es del mismo tamanio que el ringBuffer asociado a la uart RX.
 // Es lineal, no ringBuffer !!! ( para poder usar las funciones de busqueda de strings )
 #define COMMS_RXBUFFER_LEN GPRS_RXSTORAGE_SIZE
+
+//-------------------------------------------------------------------------------------
+char xcomms_rx_buffer[COMMS_RXBUFFER_LEN];
+
+typedef struct {
+	char *buff;
+	uint16_t ptr;
+	uint16_t size;
+} t_comms_rx_buffer;
+
+t_comms_rx_buffer xCOMMS_RX_buffer;
+
+//-------------------------------------------------------------------------------------
+
+
 struct {
 	char buffer[COMMS_RXBUFFER_LEN];
 	uint16_t ptr;
@@ -46,6 +61,23 @@ typedef enum { G_ESPERA_APAGADO = 0, G_PRENDER, G_CONFIGURAR, G_MON_SQE, G_SCAN_
 typedef enum { SOCK_CLOSED = 0, SOCK_OPEN, SOCK_ERROR, SOCK_FAIL } t_socket_status;
 typedef enum { FRAME_ERROR = 0, FRAME_SOCK_CLOSE, FRAME_OK, FRAME_NOT_ALLOWED, FRAME_ERR404, FRAME_RETRY, FRAME_SRV_ERR } t_frame_responses;
 typedef enum { INIT_FRAME_A = 0, INIT_FRAME_B, SCAN_FRAME } t_frames;
+
+typedef enum { ST_STANDBY = 0, ST_INIT, ST_DATA } t_comms_states;
+
+typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status;
+
+typedef enum { SGN_RESET_DEVICE = 0 } t_comms_signals;
+
+#define MAX_TRYES_OPEN_COMMLINK	4
+
+void tkComms(void * pvParameters);
+t_comms_states tkComms_st_standby(void);
+t_comms_states tkComms_st_init(void);
+t_comms_states tkComms_st_data(void);
+
+t_link_status linklayer_check_commlink_status(void);
+
+void u_comms_signal (t_comms_signals signal);
 
 struct {
 	bool modem_prendido;
@@ -125,5 +157,42 @@ char *u_gprs_read_and_delete_sms_by_index( uint8_t msg_index );
 void u_gprs_process_sms( char *sms_msg);
 
 bool u_gprs_link_up(void);
+
+
+void xCOMMS_init( t_comms_rx_buffer *comms_buff, char *data_storage, uint16_t max_size );
+void xCOMMS_send_header(char *type);
+void xCOMMS_send_tail(void);
+int xCOMMS_send_P( PGM_P fmt, ...);
+void xCOMMS_send_dr(st_dataRecord_t *dr);
+int xCOMMS_read(void);
+t_link_status xCOMMS_open_link(void);
+t_link_status xCOMMS_link_status(void);
+bool xCOMMS_check_response( const char *rsp );
+
+void xCOMMS_print_RX_buffer(void);
+void xCOMMS_flush_RX(void);
+void xCOMMS_flush_TX(void);
+
+void xCOMMS_flush_commsRxBuffer(void);
+char *xCOMMS_strstr( const char *pattern );
+
+void gprs_flush_RX_buffer(void);
+void gprs_flush_TX_buffer(void);
+t_link_status gprs_check_socket_status(void);
+t_link_status gprs_open_socket(void);
+bool gprs_rxbuffer_poke(char c, t_comms_rx_buffer *comms_buff );
+bool gprs_check_response( const char *rsp, t_comms_rx_buffer *comms_buff  );
+void gprs_print_RX_Buffer(t_comms_rx_buffer *comms_buff);
+
+void xbee_flush_RX_buffer(void);
+void xbee_flush_TX_buffer(void);
+t_link_status xbee_check_socket_status(void);
+t_link_status xbee_open_socket(void);
+bool xbee_rxbuffer_poke(char c, t_comms_rx_buffer *comms_buff );
+bool xbee_check_response( const char *rsp, t_comms_rx_buffer *comms_buff  );
+void xbee_print_RX_Buffer(t_comms_rx_buffer *comms_buff);
+
+//------------------------------------------------------------------------------------
+
 
 #endif /* SRC_SPXR3_TKGPRS_SPXR3_TKGPRS_H_ */

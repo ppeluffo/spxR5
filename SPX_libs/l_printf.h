@@ -25,11 +25,13 @@ void xprintf_init(void);
 int xprintf_P( PGM_P fmt, ...);
 int xprintf( const char *fmt, ...);
 void xputChar(unsigned char c);
-int xCom_printf_P( file_descriptor_t fd, PGM_P fmt, ...);
-int xCom_printf( file_descriptor_t fd, const char *fmt, ...);
 int xnprint( const char *pvBuffer, const uint16_t xBytes );
-int xCom_nprint( file_descriptor_t fd, const char *pvBuffer, const uint16_t xBytes );
-void xCom_putChar(file_descriptor_t fd, unsigned char c);
+
+int xfprintf_P( file_descriptor_t fd, PGM_P fmt, ...);
+int xfprintf_V( file_descriptor_t fd, const char *fmt, va_list argp );
+int xfprintf( file_descriptor_t fd, const char *fmt, ...);
+int xfnprint( file_descriptor_t fd, const char *pvBuffer, const uint16_t xBytes );
+void xfputChar(file_descriptor_t fd, unsigned char c);
 
 #define BYTE_TO_BINARY_PATTERN %c%c%c%c%c%c%c%c
 #define BYTE_TO_BINARY(byte)  \

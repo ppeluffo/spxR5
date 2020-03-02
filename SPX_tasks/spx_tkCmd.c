@@ -1596,7 +1596,7 @@ uint8_t pin = 0;
 			xprintf_P( PSTR("%s\r\0"),argv[3] );
 
 			u_gprs_flush_RX_buffer();
-			xCom_printf_P( fdGPRS,PSTR("%s\r\0"),argv[3] );
+			xfprintf_P( fdGPRS,PSTR("%s\r\0"),argv[3] );
 
 			xprintf_P( PSTR("sent->%s\r\n\0"),argv[3] );
 			return;

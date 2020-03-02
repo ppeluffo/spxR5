@@ -131,7 +131,7 @@
 #define SGN_XBEE_FRAME_READY	0x09	//
 #define SGN_XBEE_ACK			0x0A	//
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_APLICACION } t_debug;
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_COMMS, DEBUG_APLICACION } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
@@ -142,6 +142,8 @@ typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t
 typedef enum { PERF_CTL_BOYA, PERF_CTL_SISTEMA } perforacion_control_t;
 
 typedef enum { ALARMA_NIVEL_0 = 0, ALARMA_NIVEL_1, ALARMA_NIVEL_2, ALARMA_NIVEL_3 } nivel_alarma_t;
+
+typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 
 TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkGprsRx, xHandle_tkGprsTx, xHandle_tkAplicacion;
 
@@ -366,6 +368,8 @@ typedef struct {
 	t_debug debug;
 	uint16_t timerPoll;
 
+	t_comms_channel comms_channel;
+
 	char range_name[PARAMNAME_LENGTH];
 
 	counters_conf_t counters_conf;	// Estructura con la configuracion de los contadores
@@ -403,6 +407,9 @@ bool u_config_aplicacion( char *modo );
 bool u_write_output_pins( uint8_t pin, int8_t val );
 bool u_set_douts( uint8_t dout );
 bool u_sms_send(char *dst_nbr, char *msg );
+
+void u_debug_printf_P( t_debug dmode,  PGM_P fmt, ...);
+
 void appalarma_test(void);
 void appalarma_adjust_vars( st_dataRecord_t *dr);
 

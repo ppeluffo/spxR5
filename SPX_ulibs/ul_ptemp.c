@@ -104,6 +104,6 @@ void tempsensor_print(file_descriptor_t fd, float temp )
 //	if ( ! strcmp ( systemVars.psensor_conf.name, "X" ) )
 //		return;
 
-	xCom_printf_P(fd, PSTR("TEMP:%.01f;"), temp );
+	xfprintf_P(fd, PSTR("TEMP:%.01f;"), temp );
 }
 //------------------------------------------------------------------------------------

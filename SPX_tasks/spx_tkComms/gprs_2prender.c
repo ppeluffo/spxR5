@@ -69,7 +69,7 @@ bool exit_flag = bool_RESTART;
 
 			// Mando un AT y espero un OK para ver si prendio y responde.
 			u_gprs_flush_RX_buffer();
-			xCom_printf_P( fdGPRS, PSTR("AT\r\0"));
+			xfprintf_P( fdGPRS, PSTR("AT\r\0"));
 			vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
 
 			if ( systemVars.debug == DEBUG_GPRS ) {
@@ -124,7 +124,7 @@ uint8_t end = 0;
 
 	// Envio un AT+CGSN para leer el IMEI
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CGSN\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CGSN\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
@@ -182,7 +182,7 @@ uint8_t end = 0;
 
 	// Envio un AT+CGSN para leer el SIM ID
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CCID\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CCID\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();

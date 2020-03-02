@@ -105,7 +105,7 @@ uint8_t tryes = 3;
 	while ( tryes > 0 ) {
 		// Vemos si necesita SIMPIN
 		u_gprs_flush_RX_buffer();
-		xCom_printf_P( fdGPRS,PSTR("AT+CPIN?\r\0"));
+		xfprintf_P( fdGPRS,PSTR("AT+CPIN?\r\0"));
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 		if ( systemVars.debug == DEBUG_GPRS ) {
 			u_gprs_print_RX_Buffer();
@@ -128,10 +128,10 @@ uint8_t tryes = 3;
 
 			if ( tryes == 3 ) {
 				// Ingreso el pin configurado en el systemVars.
-				xCom_printf_P( fdGPRS,PSTR("AT+CPIN=%s\r"), systemVars.gprs_conf.simpwd);
+				xfprintf_P( fdGPRS,PSTR("AT+CPIN=%s\r"), systemVars.gprs_conf.simpwd);
 			} else if ( tryes == 2 ) {
 				// Ingreso el pin por defecto
-				xCom_printf_P( fdGPRS,PSTR("AT+CPIN=%s\r"), SIMPIN_DEFAULT );
+				xfprintf_P( fdGPRS,PSTR("AT+CPIN=%s\r"), SIMPIN_DEFAULT );
 			}
 
 			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
@@ -172,7 +172,7 @@ uint8_t tryes = 0;
 
 	for ( tryes = 0; tryes < 5; tryes++ ) {
 		u_gprs_flush_RX_buffer();
-		xCom_printf_P( fdGPRS,PSTR("AT+CREG?\r\0"));
+		xfprintf_P( fdGPRS,PSTR("AT+CREG?\r\0"));
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 		if ( systemVars.debug == DEBUG_GPRS ) {
 			u_gprs_print_RX_Buffer();
@@ -206,7 +206,7 @@ uint8_t tryes = 0;
 	xprintf_P( PSTR("GPRS: NET attach\r\n\0"));
 
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CGATT=1\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CGATT=1\r\0"));
 	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
@@ -214,7 +214,7 @@ uint8_t tryes = 0;
 
 	for ( tryes = 0; tryes < 3; tryes++ ) {
 		u_gprs_flush_RX_buffer();
-		xCom_printf_P( fdGPRS,PSTR("AT+CGATT?\r\0"));
+		xfprintf_P( fdGPRS,PSTR("AT+CGATT?\r\0"));
 		vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
 		if ( systemVars.debug == DEBUG_GPRS ) {
 			u_gprs_print_RX_Buffer();
@@ -236,7 +236,7 @@ static void pg_gprs_CIPMODE(void)
 	// Funcion que configura el modo transparente.
 
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CIPMODE=1\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CIPMODE=1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
@@ -250,26 +250,26 @@ static void pg_gprs_DCDMODE(void)
 	// el estado del socket.
 
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT&D1\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT&D1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
 	}
 
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CSUART=1\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CSUART=1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
 	}
 /*
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CDCDMD=0\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CDCDMD=0\r\0"));
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
 	u_gprs_print_RX_Buffer();
 */
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT&C1\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT&C1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
@@ -283,7 +283,7 @@ static void pg_gprs_CMGF(void)
 	// Configura para mandar SMS en modo texto
 
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CMGF=1\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CMGF=1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
@@ -298,7 +298,7 @@ static void pg_gprs_CFGRI(void)
 uint8_t pin;
 
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CFGRI=1,1\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CFGRI=1,1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
@@ -306,7 +306,7 @@ uint8_t pin;
 
 	// Reseteo el RI
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CRIRS\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CRIRS\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
@@ -325,7 +325,7 @@ static void pg_gprs_CMGD(void)
 	// Borro todos los mensajes SMS de la memoria
 
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CMGD=,4\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CMGD=,4\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();

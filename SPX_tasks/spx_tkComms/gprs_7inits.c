@@ -461,7 +461,7 @@ static void pv_tx_init_payload(init_frames_t tipo)
 static void pv_tx_init_payload_auth(void)
 {
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
+	xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
 
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
@@ -482,13 +482,13 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 	psens_cks = psensor_checksum();
 	app_cks = u_aplicacion_checksum();
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
-	xCom_printf_P( fdGPRS,PSTR("IMEI:%s;" ), &buff_gprs_imei );
-	xCom_printf_P( fdGPRS,PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
-	xCom_printf_P( fdGPRS,PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
-	xCom_printf_P( fdGPRS,PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
-	xCom_printf_P( fdGPRS,PSTR("PSE:0x%02X;" ), psens_cks );
-	xCom_printf_P( fdGPRS,PSTR("APP:0x%02X;" ), app_cks );
+	xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
+	xfprintf_P( fdGPRS,PSTR("IMEI:%s;" ), &buff_gprs_imei );
+	xfprintf_P( fdGPRS,PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), &buff_gprs_ccid,GPRS_stateVars.dbm, wdg_resetCause );
+	xfprintf_P( fdGPRS,PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
+	xfprintf_P( fdGPRS,PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
+	xfprintf_P( fdGPRS,PSTR("PSE:0x%02X;" ), psens_cks );
+	xfprintf_P( fdGPRS,PSTR("APP:0x%02X;" ), app_cks );
 
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
@@ -508,7 +508,7 @@ static void pv_tx_init_payload_base(void)
 
 	// PLOAD=CLASS:BASE;
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_BASE;"));
+	xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_BASE;"));
 	// DEBUG & LOG
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("&PLOAD=CLASS:CONF_BASE;"));
@@ -522,7 +522,7 @@ static void pv_tx_init_payload_analog(void)
 
 	//  PLOAD=CLASS:ANALOG;
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
+	xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P( PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
 	}
@@ -533,7 +533,7 @@ static void pv_tx_init_payload_digital(void)
 
 	// PLOAD=CLASS:DIGITAL;
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
+	xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P( PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
 	}
@@ -545,7 +545,7 @@ static void pv_tx_init_payload_counters(void)
 
 	// PLOAD=CLASS:COUNTER;
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
+	xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P( PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
 	}
@@ -557,7 +557,7 @@ static void pv_tx_init_payload_range(void)
 
 	// PLOAD=CLASS:RANGE;R0:DIST1
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_RANGE;"));
+	xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_RANGE;"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P( PSTR("&PLOAD=CLASS:CONF_RANGE;"));
 	}
@@ -568,7 +568,7 @@ static void pv_tx_init_payload_psensor(void)
 
 	// PLOAD=CLASS:PSENSOR;PS0:CLORO,0,70
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
+	xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
 
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P( PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
@@ -579,7 +579,7 @@ static void pv_tx_init_payload_psensor(void)
 static void pv_tx_init_payload_app_A(void)
 {
 
-	xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_APP;"));
+	xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_APP;"));
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P( PSTR("&PLOAD=CLASS:CONF_APP;"));
 	}
@@ -591,7 +591,7 @@ static void pv_tx_init_payload_app_B(void)
 
 	// En aplicacion PPOT pido la configuracion de los SMS
 	if ( systemVars.aplicacion == APP_PLANTAPOT ) {
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
+		xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
 			xprintf_P( PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
 		}
@@ -599,7 +599,7 @@ static void pv_tx_init_payload_app_B(void)
 
 	// En aplicacion CONSIGNA pido la configuracion de las consignas
 	} else if ( systemVars.aplicacion == APP_CONSIGNA ) {
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
+		xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
 			xprintf_P( PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
 		}
@@ -607,7 +607,7 @@ static void pv_tx_init_payload_app_B(void)
 
 	// En aplicacion TANQUE pido la configuracion de los niveles
 	} else if ( systemVars.aplicacion == APP_TANQUE ) {
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_TANQUE_LEVELS;"));
+		xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_TANQUE_LEVELS;"));
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
 			xprintf_P( PSTR("&PLOAD=CLASS:CONF_TANQUE_LEVELS;"));
 		}
@@ -620,14 +620,14 @@ static void pv_tx_init_payload_app_C(void)
 
 	// En aplicacion PPOT pido la configuracion de los NIVELES
 	if ( systemVars.aplicacion == APP_PLANTAPOT ) {
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
+		xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
 			xprintf_P( PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
 		}
 
 	// En aplicacion TANQUE pido la configuracion de los niveles
 	} else if ( systemVars.aplicacion == APP_TANQUE ) {
-		xCom_printf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_TANQUE_SMS;"));
+		xfprintf_P( fdGPRS,PSTR("&PLOAD=CLASS:CONF_TANQUE_SMS;"));
 		if ( systemVars.debug ==  DEBUG_GPRS ) {
 			xprintf_P( PSTR("&PLOAD=CLASS:CONF_TANQUE_SMS;"));
 		}

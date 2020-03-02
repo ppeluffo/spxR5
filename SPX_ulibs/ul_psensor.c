@@ -199,7 +199,7 @@ void psensor_print(file_descriptor_t fd, float presion )
 //	if ( ! strcmp ( systemVars.psensor_conf.name, "X" ) )
 //		return;
 
-	xCom_printf_P(fd, PSTR("%s:%.01f;\0"), systemVars.psensor_conf.name, presion );
+	xfprintf_P(fd, PSTR("%s:%.01f;\0"), systemVars.psensor_conf.name, presion );
 
 }
 //------------------------------------------------------------------------------------

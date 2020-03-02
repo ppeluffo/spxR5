@@ -317,13 +317,13 @@ float time_up;
 			continue;
 
 		if ( systemVars.dinputs_conf.wrk_modo[channel] == DIN_NORMAL ) {
-			xCom_printf_P(fd, PSTR("%s:%d;"), systemVars.dinputs_conf.name[channel], src[channel] );
+			xfprintf_P(fd, PSTR("%s:%d;"), systemVars.dinputs_conf.name[channel], src[channel] );
 		} else {
 			// Ajusto los ticks.
 			// El maximo nro. de ticks esta dado por la variable ticks.
 			// El time-up lo expreso en segundos. Como el tick es de 0.1s, divido por 10.
 			time_up = src[channel] / 10;
-			xCom_printf_P(fd, PSTR("%s:%.01f;"), systemVars.dinputs_conf.name[channel], time_up );
+			xfprintf_P(fd, PSTR("%s:%.01f;"), systemVars.dinputs_conf.name[channel], time_up );
 		}
 	}
 

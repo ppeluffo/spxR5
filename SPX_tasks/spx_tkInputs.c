@@ -158,11 +158,11 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
 {
 
 	// timeStamp.
-	xCom_printf_P(fd, PSTR("DATE:%02d"),dr->rtc.year );
-	xCom_printf_P(fd, PSTR("%02d%02d;"),dr->rtc.month, dr->rtc.day );
+	xfprintf_P(fd, PSTR("DATE:%02d"),dr->rtc.year );
+	xfprintf_P(fd, PSTR("%02d%02d;"),dr->rtc.month, dr->rtc.day );
 
-	xCom_printf_P(fd, PSTR("TIME:%02d"), dr->rtc.hour );
-	xCom_printf_P(fd, PSTR("%02d%02d;"), dr->rtc.min, dr->rtc.sec );
+	xfprintf_P(fd, PSTR("TIME:%02d"), dr->rtc.hour );
+	xfprintf_P(fd, PSTR("%02d%02d;"), dr->rtc.min, dr->rtc.sec );
 
 	switch(spx_io_board) {
 	case SPX_IO5CH:
@@ -188,7 +188,7 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
 	// TAIL
 	// Esto es porque en gprs si mando un cr corto el socket !!!
 	if ( fd == fdTERM ) {
-		xCom_printf_P(fd, PSTR("\r\n\0") );
+		xfprintf_P(fd, PSTR("\r\n\0") );
 	}
 }
 //------------------------------------------------------------------------------------

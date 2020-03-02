@@ -119,11 +119,11 @@ bool retS = false;
 
 	// CMGF: Selecciono el modo de mandar sms: 1-> texto
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CMGF=1\r"));
+	xfprintf_P( fdGPRS,PSTR("AT+CMGF=1\r"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 	// CMGS: Envio SMS.
-	xCom_printf_P( fdGPRS,PSTR("AT+CMGS=\"%s\"\r"), dst_nbr);
+	xfprintf_P( fdGPRS,PSTR("AT+CMGS=\"%s\"\r"), dst_nbr);
 
 	// Espero el prompt > para enviar el mensaje.
 	if ( ! u_gprs_check_response_with_to( ">", 10 ) ) {
@@ -139,7 +139,7 @@ bool retS = false;
 
 	// Envio el mensaje:
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("%s\r %c"), msg, ctlz  );
+	xfprintf_P( fdGPRS,PSTR("%s\r %c"), msg, ctlz  );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		xprintf_P( PSTR("GPRS: sms_txt:%s\r\n"), msg);
 	}
@@ -202,12 +202,12 @@ bool retS = false;
 
 	// CMGF: Selecciono el modo de mandar sms: 1-> texto
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CMGF=1\r"));
+	xfprintf_P( fdGPRS,PSTR("AT+CMGF=1\r"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 	// Mando el mensaje
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CMGSO=\"%s\",\"%s\"\r"), dst_nbr, msg);
+	xfprintf_P( fdGPRS,PSTR("AT+CMGSO=\"%s\",\"%s\"\r"), dst_nbr, msg);
 	xprintf_P( PSTR("AT+CMGSO=\"%s\",\"%s\"\r\n"), dst_nbr, msg);
 
 	// Espero el OK
@@ -282,7 +282,7 @@ char *tk_msg= NULL;
 char *delim = "\r";
 
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CMGRD=%d\r"), msg_index);
+	xfprintf_P( fdGPRS,PSTR("AT+CMGRD=%d\r"), msg_index);
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
@@ -328,7 +328,7 @@ char *delim = ",:";
 
 
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CMGL=\"ALL\"\r"));
+	xfprintf_P( fdGPRS,PSTR("AT+CMGL=\"ALL\"\r"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 	retS = u_gprs_check_response_with_to( "+CMGL:", 5 );

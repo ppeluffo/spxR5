@@ -367,7 +367,7 @@ uint8_t i = 0;
 
 	for ( i = 0; i < NRO_ANINPUTS; i++) {
 		if ( strcmp ( systemVars.ainputs_conf.name[i], "X" ) != 0 )
-			xCom_printf_P(fd, PSTR("%s:%.02f;"), systemVars.ainputs_conf.name[i], src[i] );
+			xfprintf_P(fd, PSTR("%s:%.02f;"), systemVars.ainputs_conf.name[i], src[i] );
 	}
 
 }
@@ -376,7 +376,7 @@ void ainputs_battery_print( file_descriptor_t fd, float battery )
 {
 	// bateria
 	if ( spx_io_board == SPX_IO5CH ) {
-		xCom_printf_P(fd, PSTR("bt:%.02f;"), battery );
+		xfprintf_P(fd, PSTR("bt:%.02f;"), battery );
 	}
 }
 //------------------------------------------------------------------------------------

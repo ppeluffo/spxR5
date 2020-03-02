@@ -182,11 +182,11 @@ void counters_print(file_descriptor_t fd, float cnt[] )
 	// Los lee de una estructura array pasada como src
 
 	if ( strcmp ( systemVars.counters_conf.name[0], "X" ) ) {
-		xCom_printf_P(fd, PSTR("%s:%.03f;"),systemVars.counters_conf.name[0], cnt[0] );
+		xfprintf_P(fd, PSTR("%s:%.03f;"),systemVars.counters_conf.name[0], cnt[0] );
 	}
 
 	if ( strcmp ( systemVars.counters_conf.name[1], "X" ) ) {
-		xCom_printf_P(fd, PSTR("%s:%.03f;"),systemVars.counters_conf.name[1], cnt[1] );
+		xfprintf_P(fd, PSTR("%s:%.03f;"),systemVars.counters_conf.name[1], cnt[1] );
 	}
 
 }

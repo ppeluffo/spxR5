@@ -30,6 +30,19 @@
  *  CMA 37384 515 111
  *  22923645
  *
+ *
+ * --------------------------------------------------------------------------------------------------
+ * Version 2.9.9l
+ * Cambio el modelo de trabajo de las comunicaciones
+ * Genero un branch en git llamado 'comms'.
+ * 1-Modifico los nombres de xCom_printf por xfprintf en todas sus variantes.
+ * 2-Defino una nueva funcion de printf que es un wrapper de xprintf_P
+ *   int xfprintf_V( file_descriptor_t fd, const char *fmt, va_list argp )
+ *
+ * int xCOMMS_printf_P() se usa a nivel de aplicacion de usuario
+ * int xGPRS_printf_P() y int xXBEE_printf_P() se usan a nivel de LLC en las funciones que
+ * proveen servicios a la capa de aplicacion.
+ *
  * --------------------------------------------------------------------------------------------------
  * Version 2.9.9.k
  * - Como en la aplicacion TANQUE se requiere de una lista de SMS, para ahorrar memoria la vamos

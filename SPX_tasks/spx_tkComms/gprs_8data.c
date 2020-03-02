@@ -297,7 +297,7 @@ t_socket_status socket_status = 0;
 
 			u_gprs_tx_header("DATA");
 
-			xCom_printf_P( fdGPRS,PSTR("&PLOAD=\0"));
+			xfprintf_P( fdGPRS,PSTR("&PLOAD=\0"));
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
 				xprintf_P( PSTR("&PLOAD=\0"));
 			}
@@ -339,7 +339,7 @@ size_t bRead;
 		return;
 	}
 
-	xCom_printf_P( fdGPRS,PSTR("CTL:%d;\0"),gprs_fat.rdPTR );
+	xfprintf_P( fdGPRS,PSTR("CTL:%d;\0"),gprs_fat.rdPTR );
 	data_print_inputs(fdGPRS, &gprs_dr);
 
 	if ( systemVars.debug ==  DEBUG_GPRS ) {

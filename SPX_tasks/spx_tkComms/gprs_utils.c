@@ -20,8 +20,7 @@ t_socket_status socket_status = SOCK_FAIL;
 		xprintf_P( PSTR("GPRS: try to open socket\r\n\0"));
 	}
 
-	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS, PSTR("AT+CIPOPEN=0,\"TCP\",\"%s\",%s\r\n\0"), GPRS_stateVars.server_ip_address, systemVars.gprs_conf.server_tcp_port);
+	xfprintf_P( fdGPRS, PSTR("AT+CIPOPEN=0,\"TCP\",\"%s\",%s\r\n\0"), GPRS_stateVars.server_ip_address, systemVars.gprs_conf.server_tcp_port);
 	vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
@@ -73,7 +72,7 @@ uint8_t intentos = 4;
 		// Envio el comando para pasar a modo comando
 		// NO lleva CR !!!
 		vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
-		xCom_printf_P( fdGPRS, PSTR("+++"));
+		xfprintf_P( fdGPRS, PSTR("+++"));
 		vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
 
 		if ( IO_read_DCD() == 1 ) {
@@ -87,8 +86,8 @@ uint8_t intentos = 4;
 		// Asumo que con el +++ pase a modo comando.
 		// Doy el comando AT+NETCLOSE
 		u_gprs_flush_RX_buffer();
-		//xCom_printf_P( fdGPRS, PSTR("AT+NETCLOSE\r"));
-		xCom_printf_P( fdGPRS, PSTR("AT+CIPCLOSE=0\r\n\0"));
+		//xfprintf_P( fdGPRS, PSTR("AT+NETCLOSE\r"));
+		xfprintf_P( fdGPRS, PSTR("AT+CIPCLOSE=0\r\n\0"));
 		vTaskDelay( (portTickType)( 500 / portTICK_RATE_MS ) );
 		if ( systemVars.debug == DEBUG_GPRS ) {
 			u_gprs_print_RX_Buffer();
@@ -103,12 +102,12 @@ uint8_t intentos = 4;
 		u_gprs_flush_RX_buffer();
 		// Envio el comando para pasar a modo comando
 		vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
-		xCom_printf_P( fdGPRS, PSTR("+++\r"));
+		xfprintf_P( fdGPRS, PSTR("+++\r"));
 		vTaskDelay( (portTickType)( 500 / portTICK_RATE_MS ) );
 
 		// Pregunto por el estado del socket
 		u_gprs_flush_RX_buffer();
-		xCom_printf_P( fdGPRS, PSTR("AT+CIPCLOSE=?\r\n\0"));
+		xfprintf_P( fdGPRS, PSTR("AT+CIPCLOSE=?\r\n\0"));
 		vTaskDelay( (portTickType)( 500 / portTICK_RATE_MS ) );
 
 		if ( u_gprs_check_response("+CIPCLOSE: 0,") ) {
@@ -117,7 +116,7 @@ uint8_t intentos = 4;
 		} else {
 			// Socket abierto. Mando comando para cerrarlo
 			u_gprs_flush_RX_buffer();
-			xCom_printf_P( fdGPRS, PSTR("AT+CIPCLOSE=0\r\n\0"));
+			xfprintf_P( fdGPRS, PSTR("AT+CIPCLOSE=0\r\n\0"));
 			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 			if ( systemVars.debug == DEBUG_GPRS ) {
 				u_gprs_print_RX_Buffer();
@@ -326,7 +325,7 @@ char *ts = NULL;
 
 	// AT+CSQ
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS, PSTR("AT+CSQ\r\0"));
+	xfprintf_P( fdGPRS, PSTR("AT+CSQ\r\0"));
 	vTaskDelay( (portTickType)( 500 / portTICK_RATE_MS ) );
 
 	if ( systemVars.debug == DEBUG_GPRS ) {
@@ -516,7 +515,7 @@ void u_gprs_set_timeToNextDial( uint32_t time_to_dial )
 void u_gprs_tx_header(char *type)
 {
 
-	xCom_printf_P( fdGPRS,PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), systemVars.gprs_conf.serverScript, systemVars.gprs_conf.dlgId, type, SPX_FW_REV );
+	xfprintf_P( fdGPRS,PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), systemVars.gprs_conf.serverScript, systemVars.gprs_conf.dlgId, type, SPX_FW_REV );
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
 		xprintf_P( PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), systemVars.gprs_conf.serverScript, systemVars.gprs_conf.dlgId, type, SPX_FW_REV );
@@ -528,7 +527,7 @@ void u_gprs_tx_tail(void)
 {
 
 	// ( No mando el close ya que espero la respuesta y no quiero que el socket se cierre )
-	xCom_printf_P( fdGPRS, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
+	xfprintf_P( fdGPRS, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
 
 	// DEBUG & LOG
 	if ( systemVars.debug ==  DEBUG_GPRS ) {
@@ -548,7 +547,7 @@ void gprs_set_apn(char *apn)
 	//Defino el PDP indicando cual es el APN.
 	// AT+CGDCONT
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);
+	xfprintf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
@@ -557,7 +556,7 @@ void gprs_set_apn(char *apn)
 	// Como puedo tener varios PDP definidos, indico cual va a ser el que se deba activar
 	// al usar el comando NETOPEN.
 	u_gprs_flush_RX_buffer();
-	xCom_printf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();
@@ -589,7 +588,7 @@ uint8_t checks = 0;
 		// Envio el comando.
 		// AT+NETOPEN
 		u_gprs_flush_RX_buffer();
-		xCom_printf_P( fdGPRS,PSTR("AT+NETOPEN\r\0"));
+		xfprintf_P( fdGPRS,PSTR("AT+NETOPEN\r\0"));
 		vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
 
 		// Intento 5 veces ver si respondio correctamente.
@@ -650,8 +649,8 @@ char c = '\0';
 
 	// AT+CGPADDR para leer la IP
 	u_gprs_flush_RX_buffer();
-	//xCom_printf_P( fdGPRS,PSTR("AT+CGPADDR\r\0"));
-	xCom_printf_P( fdGPRS,PSTR("AT+IPADDR\r\0"));
+	//xfprintf_P( fdGPRS,PSTR("AT+CGPADDR\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+IPADDR\r\0"));
 	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
 	if ( systemVars.debug == DEBUG_GPRS ) {
 		u_gprs_print_RX_Buffer();

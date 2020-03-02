@@ -197,7 +197,7 @@ t_socket_status socket_status = 0;
 			//
 			u_gprs_tx_header("CTL");
 
-			xCom_printf_P( fdGPRS, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
+			xfprintf_P( fdGPRS, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
 			// DEBUG & LOG
 			if ( systemVars.debug ==  DEBUG_GPRS ) {
 				xprintf_P(  PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
