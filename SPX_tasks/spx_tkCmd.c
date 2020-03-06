@@ -5,8 +5,8 @@
  *      Author: root
  */
 
-#include <comms.h>
 #include "spx.h"
+#include "tkComms.h"
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE USO PRIVADO
@@ -154,7 +154,7 @@ uint8_t i;
 	RTC_read_time();
 
 	// DlgId
-	xprintf_P( PSTR("dlgid: %s\r\n\0"), systemVars.gprs_conf.dlgId );
+	xprintf_P( PSTR("dlgid: %s\r\n\0"), systemVars.comms_conf.dlgId );
 
 	// Memoria
 	FAT_read(&l_fat);
@@ -162,49 +162,13 @@ uint8_t i;
 
 	// SERVER
 	xprintf_P( PSTR(">Server:\r\n\0"));
-	xprintf_P( PSTR("  apn: %s\r\n\0"), systemVars.gprs_conf.apn );
-	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), systemVars.gprs_conf.server_ip_address, systemVars.gprs_conf.server_tcp_port );
-	xprintf_P( PSTR("  server script: %s\r\n\0"), systemVars.gprs_conf.serverScript );
-	xprintf_P( PSTR("  simpwd: %s\r\n\0"), systemVars.gprs_conf.simpwd );
+	xprintf_P( PSTR("  apn: %s\r\n\0"), systemVars.comms_conf.apn );
+	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), systemVars.comms_conf.server_ip_address, systemVars.comms_conf.server_tcp_port );
+	xprintf_P( PSTR("  server script: %s\r\n\0"), systemVars.comms_conf.serverScript );
+	xprintf_P( PSTR("  simpwd: %s\r\n\0"), systemVars.comms_conf.simpwd );
 
-	// MODEM
-	xprintf_P( PSTR(">Modem:\r\n\0"));
-	xprintf_P( PSTR("  signalQ: csq=%d, dBm=%d\r\n\0"), GPRS_stateVars.csq, GPRS_stateVars.dbm );
-	xprintf_P( PSTR("  ip address: %s\r\n\0"), GPRS_stateVars.dlg_ip_address);
-
-	// GPRS STATE
-	switch (GPRS_stateVars.state) {
-	case G_ESPERA_APAGADO:
-		xprintf_P( PSTR("  state: await_off\r\n"));
-		break;
-	case G_PRENDER:
-		xprintf_P( PSTR("  state: prendiendo\r\n"));
-		break;
-	case G_CONFIGURAR:
-		xprintf_P( PSTR("  state: configurando\r\n"));
-		break;
-	case G_MON_SQE:
-		xprintf_P( PSTR("  state: mon_sqe\r\n"));
-		break;
-	case G_SCAN_APN:
-		xprintf_P( PSTR("  state: scan apn\r\n"));
-		break;
-	case G_GET_IP:
-		xprintf_P( PSTR("  state: ip\r\n"));
-		break;
-	case G_INITS:
-		xprintf_P( PSTR("  state: link up: inits\r\n"));
-		break;
-	case G_DATA:
-		xprintf_P( PSTR("  state: link up: data\r\n"));
-		break;
-	case G_DATA_AWAITING:
-		xprintf_P( PSTR("  state: link up: data awaiting\r\n"));
-		break;
-	default:
-		xprintf_P( PSTR("  state: ERROR\r\n"));
-		break;
-	}
+	// COMMS Status
+	xCOMMS_status();
 
 	// MODO DE OPERACION:
 	xprintf_P( PSTR(">Aplicacion:\r\n\0"));
@@ -263,8 +227,8 @@ uint8_t i;
 	case DEBUG_DATA:
 		xprintf_P( PSTR("  debug: data\r\n\0") );
 		break;
-	case DEBUG_GPRS:
-		xprintf_P( PSTR("  debug: gprs\r\n\0") );
+	case DEBUG_COMMS:
+		xprintf_P( PSTR("  debug: comms\r\n\0") );
 		break;
 	case DEBUG_APLICACION:
 		xprintf_P( PSTR("  debug: aplicacion\r\n\0") );
@@ -278,8 +242,8 @@ uint8_t i;
 	xprintf_P( PSTR("  timerPoll: [%d s]/ %d\r\n\0"), systemVars.timerPoll, ctl_readTimeToNextPoll() );
 
 	// Timerdial
-	xprintf_P( PSTR("  timerDial: [%d s]/\0"), systemVars.gprs_conf.timerDial );
-	xprintf_P( PSTR(" %d\r\n\0"), u_gprs_read_timeToNextDial() );
+	xprintf_P( PSTR("  timerDial: [%d s]/\0"), systemVars.comms_conf.timerDial );
+//C	xprintf_P( PSTR(" %d\r\n\0"), xcomms_time_to_next_dial() );
 
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
@@ -288,10 +252,10 @@ uint8_t i;
 	//if ( spx_io_board == SPX_IO5CH ) {
 
 		// PWR SAVE:
-		if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ==  false ) {
+		if ( systemVars.comms_conf.pwrSave.pwrs_enabled ==  false ) {
 			xprintf_P(  PSTR("  pwrsave: OFF\r\n\0"));
 		} else {
-			xprintf_P(  PSTR("  pwrsave: ON, start[%02d:%02d], end[%02d:%02d]\r\n\0"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+			xprintf_P(  PSTR("  pwrsave: ON, start[%02d:%02d], end[%02d:%02d]\r\n\0"), systemVars.comms_conf.pwrSave.hora_start.hour, systemVars.comms_conf.pwrSave.hora_start.min, systemVars.comms_conf.pwrSave.hora_fin.hour, systemVars.comms_conf.pwrSave.hora_fin.min);
 		}
 
 		// RangeMeter: PULSE WIDTH
@@ -381,24 +345,27 @@ st_dataRecord_t dr;
 	RTC_read_time();
 
 	// DlgId
-	xprintf_P( PSTR("dlgid: %s\r\n\0"), systemVars.gprs_conf.dlgId );
+	xprintf_P( PSTR("dlgid: %s\r\n\0"), systemVars.comms_conf.dlgId );
 
 	// Memoria
 	FAT_read(&l_fat);
 	xprintf_P( PSTR("memory: rcdSize=%d, wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), sizeof(st_dataRecord_t), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
 
+	// COMMS Status
+	xCOMMS_status();
+
 	// SERVER
 	xprintf_P( PSTR(">Server:\r\n\0"));
-	xprintf_P( PSTR("  apn: %s\r\n\0"), systemVars.gprs_conf.apn );
-	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), systemVars.gprs_conf.server_ip_address, systemVars.gprs_conf.server_tcp_port );
-	xprintf_P( PSTR("  server script: %s\r\n\0"), systemVars.gprs_conf.serverScript );
-	xprintf_P( PSTR("  simpwd: %s\r\n\0"), systemVars.gprs_conf.simpwd );
+	xprintf_P( PSTR("  apn: %s\r\n\0"), systemVars.comms_conf.apn );
+	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), systemVars.comms_conf.server_ip_address, systemVars.comms_conf.server_tcp_port );
+	xprintf_P( PSTR("  server script: %s\r\n\0"), systemVars.comms_conf.serverScript );
+	xprintf_P( PSTR("  simpwd: %s\r\n\0"), systemVars.comms_conf.simpwd );
 
 	// MODEM
 	xprintf_P( PSTR(">Modem:\r\n\0"));
-	xprintf_P( PSTR("  signalQ: csq=%d, dBm=%d\r\n\0"), GPRS_stateVars.csq, GPRS_stateVars.dbm );
-	xprintf_P( PSTR("  ip address: %s\r\n\0"), GPRS_stateVars.dlg_ip_address);
-
+//C	xprintf_P( PSTR("  signalQ: csq=%d, dBm=%d\r\n\0"), GPRS_stateVars.csq, GPRS_stateVars.dbm );
+//C	xprintf_P( PSTR("  ip address: %s\r\n\0"), GPRS_stateVars.dlg_ip_address);
+/*
 	// GPRS STATE
 	switch (GPRS_stateVars.state) {
 	case G_ESPERA_APAGADO:
@@ -452,7 +419,7 @@ st_dataRecord_t dr;
 		appalarma_print_status(false);
 		break;
 	}
-
+*/
 	//xprintf_P( PSTR(">Aplicacion:\r\n\0"));
 	//appalarma_print_status();
 
@@ -501,8 +468,8 @@ static void cmdResetFunction(void)
 		vTaskSuspend( xHandle_tkInputs );
 		ctl_watchdog_kick(WDG_DIN, 0x8000 );
 
-		vTaskSuspend( xHandle_tkGprsTx );
-		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
+		vTaskSuspend( xHandle_tkComms );
+		ctl_watchdog_kick(WDG_COMMS, 0x8000 );
 
 		if (!strcmp_P( strupr(argv[2]), PSTR("SOFT\0"))) {
 			FF_format(false );
@@ -722,7 +689,7 @@ uint8_t cks;
 
 
 	if (!strcmp_P( strupr(argv[1]), PSTR("TEST\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		//xprintf_P( PSTR("PLOAD=CLASS:BASE;TDIAL:%d;TPOLL:%d;PWRS_MODO:ON;PWRS_START:0630;PWRS_END:1230\r\r\0"), systemVars.gprs_conf.timerDial,systemVars.timerPoll );
+		//xprintf_P( PSTR("PLOAD=CLASS:BASE;TDIAL:%d;TPOLL:%d;PWRS_MODO:ON;PWRS_START:0630;PWRS_END:1230\r\r\0"), systemVars.comms_conf.timerDial,systemVars.timerPoll );
 		/*
 		xprintf_P( PSTR("st_io5_t = %d\r\n\0"), sizeof(st_io5_t) );
 		xprintf_P( PSTR("st_io8_t = %d\r\n\0"), sizeof(st_io8_t) );
@@ -974,9 +941,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.gprs_conf.apn, '\0', sizeof(systemVars.gprs_conf.apn));
-			memcpy(systemVars.gprs_conf.apn, argv[2], sizeof(systemVars.gprs_conf.apn));
-			systemVars.gprs_conf.apn[APN_LENGTH - 1] = '\0';
+			memset(systemVars.comms_conf.apn, '\0', sizeof(systemVars.comms_conf.apn));
+			memcpy(systemVars.comms_conf.apn, argv[2], sizeof(systemVars.comms_conf.apn));
+			systemVars.comms_conf.apn[APN_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -988,9 +955,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.gprs_conf.server_tcp_port, '\0', sizeof(systemVars.gprs_conf.server_tcp_port));
-			memcpy(systemVars.gprs_conf.server_tcp_port, argv[2], sizeof(systemVars.gprs_conf.server_tcp_port));
-			systemVars.gprs_conf.server_tcp_port[PORT_LENGTH - 1] = '\0';
+			memset(systemVars.comms_conf.server_tcp_port, '\0', sizeof(systemVars.comms_conf.server_tcp_port));
+			memcpy(systemVars.comms_conf.server_tcp_port, argv[2], sizeof(systemVars.comms_conf.server_tcp_port));
+			systemVars.comms_conf.server_tcp_port[PORT_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -1002,9 +969,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.gprs_conf.server_ip_address, '\0', sizeof(systemVars.gprs_conf.server_ip_address));
-			memcpy(systemVars.gprs_conf.server_ip_address, argv[2], sizeof(systemVars.gprs_conf.server_ip_address));
-			systemVars.gprs_conf.server_ip_address[IP_LENGTH - 1] = '\0';
+			memset(systemVars.comms_conf.server_ip_address, '\0', sizeof(systemVars.comms_conf.server_ip_address));
+			memcpy(systemVars.comms_conf.server_ip_address, argv[2], sizeof(systemVars.comms_conf.server_ip_address));
+			systemVars.comms_conf.server_ip_address[IP_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -1016,9 +983,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.gprs_conf.serverScript, '\0', sizeof(systemVars.gprs_conf.serverScript));
-			memcpy(systemVars.gprs_conf.serverScript, argv[2], sizeof(systemVars.gprs_conf.serverScript));
-			systemVars.gprs_conf.serverScript[SCRIPT_LENGTH - 1] = '\0';
+			memset(systemVars.comms_conf.serverScript, '\0', sizeof(systemVars.comms_conf.serverScript));
+			memcpy(systemVars.comms_conf.serverScript, argv[2], sizeof(systemVars.comms_conf.serverScript));
+			systemVars.comms_conf.serverScript[SCRIPT_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -1030,9 +997,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 		} else {
-			memset(systemVars.gprs_conf.simpwd, '\0', sizeof(systemVars.gprs_conf.simpwd));
-			memcpy(systemVars.gprs_conf.simpwd, argv[2], sizeof(systemVars.gprs_conf.simpwd));
-			systemVars.gprs_conf.simpwd[SIM_PASSWD_LENGTH - 1] = '\0';
+			memset(systemVars.comms_conf.simpwd, '\0', sizeof(systemVars.comms_conf.simpwd));
+			memcpy(systemVars.comms_conf.simpwd, argv[2], sizeof(systemVars.comms_conf.simpwd));
+			systemVars.comms_conf.simpwd[SIM_PASSWD_LENGTH - 1] = '\0';
 			retS = true;
 		}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -1052,8 +1019,8 @@ bool retS = false;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("DATA\0"))) {
 			systemVars.debug = DEBUG_DATA;
 			retS = true;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("GPRS\0"))) {
-			systemVars.debug = DEBUG_GPRS;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("COMMS\0"))) {
+			systemVars.debug = DEBUG_COMMS;
 			retS = true;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("APLICACION\0"))) {
 			systemVars.debug = DEBUG_APLICACION;
@@ -1107,14 +1074,14 @@ bool retS = false;
 	// TIMERDIAL
 	// config timerdial
 	if ( !strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0"))) {
-		u_gprs_config_timerdial( argv[2] );
+//C		u_gprs_config_timerdial( argv[2] );
 		pv_snprintfP_OK();
 		return;
 	}
 
 	// PWRSAVE
 	if (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0"))) {
-		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
+//C		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -1124,9 +1091,9 @@ bool retS = false;
 		if ( argv[2] == NULL ) {
 			retS = false;
 			} else {
-				memset(systemVars.gprs_conf.dlgId,'\0', sizeof(systemVars.gprs_conf.dlgId) );
-				memcpy(systemVars.gprs_conf.dlgId, argv[2], sizeof(systemVars.gprs_conf.dlgId));
-				systemVars.gprs_conf.dlgId[DLGID_LENGTH - 1] = '\0';
+				memset(systemVars.comms_conf.dlgId,'\0', sizeof(systemVars.comms_conf.dlgId) );
+				memcpy(systemVars.comms_conf.dlgId, argv[2], sizeof(systemVars.comms_conf.dlgId));
+				systemVars.comms_conf.dlgId[DLGID_LENGTH - 1] = '\0';
 				retS = true;
 			}
 		retS ? pv_snprintfP_OK() : 	pv_snprintfP_ERR();
@@ -1219,7 +1186,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  rangemeter {name}\r\n\0"));
 		xprintf_P( PSTR("  psensor name countMin countMax pmin pmax offset\r\n\0"));
 
-		xprintf_P( PSTR("  debug {none,counter,data,gprs,aplicacion }\r\n\0"));
+		xprintf_P( PSTR("  debug {none,counter,data,comms,aplicacion }\r\n\0"));
 
 		xprintf_P( PSTR("  digital {0..%d} dname {normal,timer}\r\n\0"), ( NRO_DINPUTS - 1 ) );
 
@@ -1247,7 +1214,7 @@ static void cmdHelpFunction(void)
 
 	// HELP KILL
 	else if (!strcmp_P( strupr(argv[1]), PSTR("KILL\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		xprintf_P( PSTR("-kill {counter, data, dinputs, doutputs, gprstx, gprsrx }\r\n\0"));
+		xprintf_P( PSTR("-kill {data, commstx }\r\n\0"));
 		return;
 
 	} else {
@@ -1348,20 +1315,12 @@ static void cmdKillFunction(void)
 		return;
 	}
 
-	// KILL GPRSTX
-	if (!strcmp_P( strupr(argv[1]), PSTR("GPRSTX\0"))) {
-		vTaskSuspend( xHandle_tkGprsTx );
-		ctl_watchdog_kick(WDG_GPRSTX, 0x8000 );
+	// KILL COMMSTX
+	if (!strcmp_P( strupr(argv[1]), PSTR("COMMSTX\0"))) {
+		vTaskSuspend( xHandle_tkComms );
+		ctl_watchdog_kick(WDG_COMMS, 0x8000 );
 		// Dejo la flag de modem prendido para poder leer comandos
-		GPRS_stateVars.modem_prendido = true;
-		pv_snprintfP_OK();
-		return;
-	}
-
-	// KILL GPRSRX
-	if (!strcmp_P( strupr(argv[1]), PSTR("GPRSRX\0"))) {
-		vTaskSuspend( xHandle_tkGprsRx );
-		ctl_watchdog_kick(WDG_GPRSRX, 0x8000 );
+//C		GPRS_stateVars.modem_prendido = true;
 		pv_snprintfP_OK();
 		return;
 	}
@@ -1445,13 +1404,9 @@ UBaseType_t uxHighWaterMark;
 	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkInputs );
 	xprintf_P( PSTR("DAT: %03d,%03d,[%03d]\r\n\0"),tkInputs_STACK_SIZE,uxHighWaterMark, (tkInputs_STACK_SIZE - uxHighWaterMark));
 
-	// tkGprsTX
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkGprsTx );
-	xprintf_P( PSTR("TX: %03d,%03d,[%03d]\r\n\0"), tkGprs_tx_STACK_SIZE ,uxHighWaterMark, ( tkGprs_tx_STACK_SIZE - uxHighWaterMark));
-
-	// tkGprsRX
-	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkGprsRx );
-	xprintf_P( PSTR("RX: %03d,%03d,[%03d]\r\n\0"), tkGprs_rx_STACK_SIZE ,uxHighWaterMark, ( tkGprs_rx_STACK_SIZE - uxHighWaterMark));
+	// tkComms
+	uxHighWaterMark = uxTaskGetStackHighWaterMark( xHandle_tkComms );
+	xprintf_P( PSTR("TX: %03d,%03d,[%03d]\r\n\0"), tkComms_STACK_SIZE ,uxHighWaterMark, ( tkComms_STACK_SIZE - uxHighWaterMark));
 
 
 }
@@ -1517,14 +1472,14 @@ uint8_t pin = 0;
 
 		// write gprs sms nbr msg
 		if (!strcmp_P( strupr(argv[2]), PSTR("SMS\0"))) {
-			u_gprs_send_sms( argv[3], argv[4] );
+//C			u_gprs_send_sms( argv[3], argv[4] );
 			pv_snprintfP_OK();
 			return;
 		}
 
 		// write gprs qsms nbr msg
 		if (!strcmp_P( strupr(argv[2]), PSTR("QSMS\0")) ) {
-			u_gprs_quick_send_sms( argv[3], argv[4] );
+//C			u_gprs_quick_send_sms( argv[3], argv[4] );
 			pv_snprintfP_OK();
 			return;
 		}
@@ -1587,7 +1542,7 @@ uint8_t pin = 0;
 
 		// write gprs redial
 		if (!strcmp_P( strupr(argv[2]), PSTR("REDIAL\0")) ) {
-			u_gprs_redial();
+			SPX_SEND_SIGNAL( SGN_REDIAL );
 			return;
 		}
 		// ATCMD
@@ -1595,7 +1550,7 @@ uint8_t pin = 0;
 		if (!strcmp_P(strupr(argv[2]), PSTR("CMD\0"))) {
 			xprintf_P( PSTR("%s\r\0"),argv[3] );
 
-			u_gprs_flush_RX_buffer();
+			gprs_flush_RX_buffer();
 			xfprintf_P( fdGPRS,PSTR("%s\r\0"),argv[3] );
 
 			xprintf_P( PSTR("sent->%s\r\n\0"),argv[3] );
@@ -1612,14 +1567,14 @@ uint8_t pin = 0;
 		// SMS
 		// read gprs sms
 		if (!strcmp_P(strupr(argv[2]), PSTR("SMS\0"))) {
-			u_gprs_sms_rxcheckpoint();
+//C			u_gprs_sms_rxcheckpoint();
 			return;
 		}
 
 		// ATCMD RSP
 		// read gprs rsp
 		if (!strcmp_P(strupr(argv[2]), PSTR("RSP\0"))) {
-			u_gprs_print_RX_Buffer();
+			gprs_print_RX_buffer();
 			//p = pub_gprs_rxbuffer_getPtr();
 			//xprintf_P( PSTR("rx->%s\r\n\0"),p );
 			return;
@@ -1721,28 +1676,28 @@ uint8_t ch = 0;
 		xprintf_P( PSTR("UID=%s\r\n\0"), NVMEE_readID() );
 
 	} else if (!strcmp_P( strupr(argv[1]), PSTR("DLGID\0")) ) {
-		xprintf_P( PSTR("DLGID=%s\r\n\0"), systemVars.gprs_conf.dlgId );
+		xprintf_P( PSTR("DLGID=%s\r\n\0"), systemVars.comms_conf.dlgId );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("APN\0")) ) {
-		xprintf_P( PSTR("APN=%s\r\n\0"), systemVars.gprs_conf.apn );
+		xprintf_P( PSTR("APN=%s\r\n\0"), systemVars.comms_conf.apn );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PORT\0")) ) {
-		xprintf_P( PSTR("PORT=%s\r\n\0"), systemVars.gprs_conf.server_tcp_port );
+		xprintf_P( PSTR("PORT=%s\r\n\0"), systemVars.comms_conf.server_tcp_port );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("IP\0")) ) {
-		xprintf_P( PSTR("IP=%s\r\n\0"), systemVars.gprs_conf.server_ip_address );
+		xprintf_P( PSTR("IP=%s\r\n\0"), systemVars.comms_conf.server_ip_address );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SCRIPT\0")) ) {
-		xprintf_P( PSTR("SCRIPT=%s\r\n\0"), systemVars.gprs_conf.serverScript );
+		xprintf_P( PSTR("SCRIPT=%s\r\n\0"), systemVars.comms_conf.serverScript );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SIMPWD\0")) ) {
-		xprintf_P( PSTR("SIMPWD=%s\r\n\0"), systemVars.gprs_conf.simpwd );
+		xprintf_P( PSTR("SIMPWD=%s\r\n\0"), systemVars.comms_conf.simpwd );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERPOLL\0")) ) {
 		xprintf_P( PSTR("TIMERPOLL=%d\r\n\0"), systemVars.timerPoll );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0")) ) {
-		xprintf_P( PSTR("TIMERDIAL=%d\r\n\0"), systemVars.gprs_conf.timerDial );
+		xprintf_P( PSTR("TIMERDIAL=%d\r\n\0"), systemVars.comms_conf.timerDial );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("timepwrsensor\0")) ) {
 		xprintf_P( PSTR("TIMEPWRSENSOR=%d\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
@@ -1754,7 +1709,7 @@ uint8_t ch = 0;
 //		xprintf_P( PSTR("RANGEMETER=%d\r\n\0"), systemVars.rangeMeter_enabled );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0")) ) {
-		xprintf_P( PSTR("PWRSAVE=%d,%d,%d\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled, systemVars.gprs_conf.pwrSave.hora_start, systemVars.gprs_conf.pwrSave.hora_fin  );
+		xprintf_P( PSTR("PWRSAVE=%d,%d,%d\r\n\0"), systemVars.comms_conf.pwrSave.pwrs_enabled, systemVars.comms_conf.pwrSave.hora_start, systemVars.comms_conf.pwrSave.hora_fin  );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) && ( argv[2] != NULL )) {
 		ch = atoi( argv[2]);
@@ -1790,34 +1745,34 @@ static void cmdPokeFunction(void)
 
 	if (!strcmp_P( strupr(argv[1]), PSTR("DLGID\0")) ) {
 
-		memset(systemVars.gprs_conf.dlgId,'\0', sizeof(systemVars.gprs_conf.dlgId) );
-		memcpy(systemVars.gprs_conf.dlgId, argv[2], sizeof(systemVars.gprs_conf.dlgId));
-		systemVars.gprs_conf.dlgId[DLGID_LENGTH - 1] = '\0';
+		memset(systemVars.comms_conf.dlgId,'\0', sizeof(systemVars.comms_conf.dlgId) );
+		memcpy(systemVars.comms_conf.dlgId, argv[2], sizeof(systemVars.comms_conf.dlgId));
+		systemVars.comms_conf.dlgId[DLGID_LENGTH - 1] = '\0';
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("APN\0")) ) {
-		memset(systemVars.gprs_conf.apn, '\0', sizeof(systemVars.gprs_conf.apn));
-		memcpy(systemVars.gprs_conf.apn, argv[2], sizeof(systemVars.gprs_conf.apn));
-		systemVars.gprs_conf.apn[APN_LENGTH - 1] = '\0';
+		memset(systemVars.comms_conf.apn, '\0', sizeof(systemVars.comms_conf.apn));
+		memcpy(systemVars.comms_conf.apn, argv[2], sizeof(systemVars.comms_conf.apn));
+		systemVars.comms_conf.apn[APN_LENGTH - 1] = '\0';
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PORT\0")) ) {
-		memset(systemVars.gprs_conf.server_tcp_port, '\0', sizeof(systemVars.gprs_conf.server_tcp_port));
-		memcpy(systemVars.gprs_conf.server_tcp_port, argv[2], sizeof(systemVars.gprs_conf.server_tcp_port));
-		systemVars.gprs_conf.server_tcp_port[PORT_LENGTH - 1] = '\0';
+		memset(systemVars.comms_conf.server_tcp_port, '\0', sizeof(systemVars.comms_conf.server_tcp_port));
+		memcpy(systemVars.comms_conf.server_tcp_port, argv[2], sizeof(systemVars.comms_conf.server_tcp_port));
+		systemVars.comms_conf.server_tcp_port[PORT_LENGTH - 1] = '\0';
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("IP\0")) ) {
-		memset(systemVars.gprs_conf.server_ip_address, '\0', sizeof(systemVars.gprs_conf.server_ip_address));
-		memcpy(systemVars.gprs_conf.server_ip_address, argv[2], sizeof(systemVars.gprs_conf.server_ip_address));
-		systemVars.gprs_conf.server_ip_address[IP_LENGTH - 1] = '\0';
+		memset(systemVars.comms_conf.server_ip_address, '\0', sizeof(systemVars.comms_conf.server_ip_address));
+		memcpy(systemVars.comms_conf.server_ip_address, argv[2], sizeof(systemVars.comms_conf.server_ip_address));
+		systemVars.comms_conf.server_ip_address[IP_LENGTH - 1] = '\0';
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SCRIPT\0")) ) {
-		memset(systemVars.gprs_conf.serverScript, '\0', sizeof(systemVars.gprs_conf.serverScript));
-		memcpy(systemVars.gprs_conf.serverScript, argv[2], sizeof(systemVars.gprs_conf.serverScript));
-		systemVars.gprs_conf.serverScript[SCRIPT_LENGTH - 1] = '\0';
+		memset(systemVars.comms_conf.serverScript, '\0', sizeof(systemVars.comms_conf.serverScript));
+		memcpy(systemVars.comms_conf.serverScript, argv[2], sizeof(systemVars.comms_conf.serverScript));
+		systemVars.comms_conf.serverScript[SCRIPT_LENGTH - 1] = '\0';
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SIMPWD\0")) ) {
-		memset(systemVars.gprs_conf.simpwd, '\0', sizeof(systemVars.gprs_conf.simpwd));
-		memcpy(systemVars.gprs_conf.simpwd, argv[2], sizeof(systemVars.gprs_conf.simpwd));
-		systemVars.gprs_conf.simpwd[PASSWD_LENGTH - 1] = '\0';
+		memset(systemVars.comms_conf.simpwd, '\0', sizeof(systemVars.comms_conf.simpwd));
+		memcpy(systemVars.comms_conf.simpwd, argv[2], sizeof(systemVars.comms_conf.simpwd));
+		systemVars.comms_conf.simpwd[PASSWD_LENGTH - 1] = '\0';
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERPOLL\0")) ) {
 		u_config_timerpoll( argv[2] );

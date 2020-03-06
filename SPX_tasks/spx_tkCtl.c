@@ -24,7 +24,6 @@
  *
  */
 
-#include <comms.h>
 #include "spx.h"
 
 //------------------------------------------------------------------------------------
@@ -70,6 +69,9 @@ void tkCtl(void * pvParameters)
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 
 	pv_ctl_init_system();
+
+	systemVars.debug = DEBUG_COMMS;
+	systemVars.comms_channel = COMMS_CHANNEL_GPRS;
 
 	xprintf_P( PSTR("\r\nstarting tkControl..\r\n\0"));
 
@@ -141,12 +143,16 @@ uint16_t recSize = 0;
 		spx_io_board = SPX_IO8CH;
 	}
 
-
 	// Luego del posible error del bus I2C espero para que se reponga !!!
 	vTaskDelay( ( TickType_t)( 100 ) );
 
-	// Configuro los pines
-	u_gprs_init_pines();
+	// Configuro los pines del dispositivo de comunicaciones
+	// Lo paso a la tkComms init.
+
+	// Inicializo las señales
+	SPX_CLEAR_SIGNAL( SGN_MON_SQE );
+	SPX_CLEAR_SIGNAL( SGN_REDIAL );
+	SPX_CLEAR_SIGNAL( SGN_FRAME_READY );
 
 	// Leo los parametros del la EE y si tengo error, cargo por defecto
 	if ( ! u_load_params_from_NVMEE() ) {
@@ -229,9 +235,9 @@ static void pv_ctl_wink_led(void)
 
 	// Prendo los leds
 	IO_set_LED_KA();
-	if ( u_gprs_modem_prendido() ) {
+//C	if ( u_gprs_modem_prendido() ) {
 		IO_set_LED_COMMS();
-	}
+//	}
 
 	vTaskDelay( ( TickType_t)( 10 ) );
 	//taskYIELD();

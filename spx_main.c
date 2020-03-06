@@ -212,9 +212,9 @@ int main( void )
 	xTaskCreate(tkCtl, "CTL", tkCtl_STACK_SIZE, NULL, tkCtl_TASK_PRIORITY,  &xHandle_tkCtl );
 	xTaskCreate(tkCmd, "CMD", tkCmd_STACK_SIZE, NULL, tkCmd_TASK_PRIORITY,  &xHandle_tkCmd);
 	xTaskCreate(tkInputs, "IN", tkInputs_STACK_SIZE, NULL, tkInputs_TASK_PRIORITY,  &xHandle_tkInputs);
-	xTaskCreate(tkGprsRx, "RX", tkGprs_rx_STACK_SIZE, NULL, tkGprs_rx_TASK_PRIORITY,  &xHandle_tkGprsRx );
-	xTaskCreate(tkGprsTx, "TX", tkGprs_tx_STACK_SIZE, NULL, tkGprs_tx_TASK_PRIORITY,  &xHandle_tkGprsTx );
 	xTaskCreate(tkAplicacion, "APP", tkAplicacion_STACK_SIZE, NULL, tkAplicacion_TASK_PRIORITY,  &xHandle_tkAplicacion );
+	xTaskCreate(tkComms, "COMMS", tkComms_STACK_SIZE, NULL, tkComms_TASK_PRIORITY,  &xHandle_tkComms );
+	xTaskCreate(tkCommsRX, "RX", tkCommsRX_STACK_SIZE, NULL, tkCommsRX_TASK_PRIORITY,  &xHandle_tkCommsRX );
 
 	/* Arranco el RTOS. */
 	vTaskStartScheduler();

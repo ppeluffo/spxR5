@@ -5,7 +5,6 @@
  *      Author: pablo
  */
 
-#include <comms.h>
 #include "spx.h"
 #include "ul_consigna.h"
 
@@ -252,11 +251,10 @@ void u_load_defaults( char *opt )
 	psensor_config_defaults();
 	range_config_defaults();
 
-
 	counters_config_defaults();
 	dinputs_config_defaults();
 	ainputs_config_defaults();
-	u_gprs_load_defaults( opt );
+	xCOMMS_config_defaults(opt);
 
 	// Modo de operacion
 	// Aplicacion ALARMAS
@@ -396,8 +394,8 @@ FAT_t fat;
 		retS = true;
 	} else {
 		retS = false;
-		if ( systemVars.debug == DEBUG_GPRS ) {
-			xprintf_P( PSTR("GPRS: bd EMPTY\r\n\0"));
+		if ( systemVars.debug == DEBUG_COMMS ) {
+			xprintf_P( PSTR("COMMS: bd EMPTY\r\n\0"));
 		}
 	}
 
@@ -425,21 +423,21 @@ uint8_t i = 0;
 	memset(dst,'\0', sizeof(dst));
 
 	// Timerdial
-	i = snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.gprs_conf.timerDial );
+	i = snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.comms_conf.timerDial );
 	// TimerPoll
 	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.timerPoll );
 	// TimepwrSensor
 	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.ainputs_conf.pwr_settle_time );
 
 	// PwrSave
-	if ( systemVars.gprs_conf.pwrSave.pwrs_enabled ) {
+	if ( systemVars.comms_conf.pwrSave.pwrs_enabled ) {
 		i += snprintf_P( &dst[i], sizeof(dst), PSTR("ON,"));
 	} else {
 		i += snprintf_P( &dst[i], sizeof(dst), PSTR("OFF,"));
 	}
 
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min );
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min );
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), systemVars.comms_conf.pwrSave.hora_start.hour, systemVars.comms_conf.pwrSave.hora_start.min );
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), systemVars.comms_conf.pwrSave.hora_fin.hour, systemVars.comms_conf.pwrSave.hora_fin.min );
 
 
 	//xprintf_P( PSTR("DEBUG: BCKS = [%s]\r\n\0"), dst );
@@ -658,19 +656,97 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-void u_debug_printf_P( t_debug dmode,  PGM_P fmt, ...)
+void u1_debug_printf_P( t_debug dmode,  PGM_P fmt, ...)
 {
 
 	/* Funcion de wrapper que imprime un mensaje de debug siempre que el modo configurado
 	 * coincida con el dmode
+	 * http://c-faq.com/varargs/handoff.html
 	 */
 
 va_list argp;
 
 	if ( systemVars.debug == dmode ) {
 		va_start(argp, fmt);
+
 		xfprintf_V( fdTERM, fmt, argp );
+		va_end(argp);
 	}
+}
+//------------------------------------------------------------------------------------
+bool SPX_SIGNAL( uint8_t signal )
+{
+
+bool retS = false;
+
+	switch(signal) {
+	case SGN_MON_SQE:
+		retS = system_signals.sgn_mon_sqe;
+		break;
+	case SGN_REDIAL:
+		retS = system_signals.sgn_redial;
+		break;
+	case SGN_FRAME_READY:
+		retS = system_signals.sgn_frame_ready;
+		break;
+	default:
+		break;
+	}
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+bool SPX_SEND_SIGNAL( uint8_t signal )
+{
+	/*
+	 * El envio de señales a otras partes del sistema es prendiendo la
+	 * flag correspondiente.
+	 */
+
+bool retS = false;
+
+	switch(signal) {
+	case SGN_MON_SQE:
+		system_signals.sgn_mon_sqe = true;
+		retS = true;
+		break;
+	case SGN_REDIAL:
+		system_signals.sgn_redial = true;
+		retS = true;
+		break;
+	case SGN_FRAME_READY:
+		system_signals.sgn_frame_ready = true;
+		retS = true;
+		break;
+	default:
+		retS = false;
+		break;
+	}
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+bool SPX_CLEAR_SIGNAL( uint8_t signal )
+{
+
+bool retS = false;
+
+	switch(signal) {
+	case SGN_MON_SQE:
+		system_signals.sgn_mon_sqe = false;
+		retS = true;
+		break;
+	case SGN_REDIAL:
+		system_signals.sgn_redial = false;
+		retS = true;
+		break;
+	case SGN_FRAME_READY:
+		system_signals.sgn_frame_ready = false;
+		retS = true;
+		break;
+	default:
+		retS = false;
+		break;
+	}
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 

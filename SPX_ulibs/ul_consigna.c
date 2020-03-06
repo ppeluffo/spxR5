@@ -366,8 +366,8 @@ void consigna_reconfigure_app(void)
 	systemVars.aplicacion = APP_CONSIGNA;
 	u_save_params_in_NVMEE();
 
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:CONSIGNA\r\n\0"));
+	if ( systemVars.debug == DEBUG_COMMS ) {
+		xprintf_P( PSTR("COMMS: Reconfig APLICACION:CONSIGNA\r\n\0"));
 	}
 }
 //------------------------------------------------------------------------------------
@@ -396,8 +396,8 @@ char *delim = ",=:;><";
 	tk_cons_noche = strsep(&stringp,delim); // 0940
 	consigna_config(tk_cons_dia, tk_cons_noche );
 
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
+	if ( systemVars.debug == DEBUG_COMMS ) {
+		xprintf_P( PSTR("COMMS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
 	}
 
 	u_save_params_in_NVMEE();

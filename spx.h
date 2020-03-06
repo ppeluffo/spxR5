@@ -63,11 +63,12 @@
 #include "SPX_ulibs/ul_consigna.h"
 #include "SPX_ulibs/ul_perforacion.h"
 #include "SPX_ulibs/ul_plantapot.h"
+
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "2.9.9k"
-#define SPX_FW_DATE "@ 20200213"
+#define SPX_FW_DATE "@ 20200305"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -102,21 +103,21 @@
 #define tkCtl_STACK_SIZE		512
 #define tkCmd_STACK_SIZE		512
 #define tkInputs_STACK_SIZE		512
-#define tkGprs_rx_STACK_SIZE	512
-#define tkGprs_tx_STACK_SIZE	1024
+#define tkComms_STACK_SIZE		1024
+#define tkCommsRX_STACK_SIZE	512
 #define tkAplicacion_STACK_SIZE	512
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkInputs_TASK_PRIORITY	 	( tskIDLE_PRIORITY + 1 )
-#define tkGprs_rx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
-#define tkGprs_tx_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define tkComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define tkCommsRX_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkAplicacion_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
 
 
 #define TDIAL_MIN_DISCRETO 900
 
-#define MODO_DISCRETO ( (systemVars.gprs_conf.timerDial >= TDIAL_MIN_DISCRETO ) ? true : false )
+#define MODO_DISCRETO ( (systemVars.comms_conf.timerDial >= TDIAL_MIN_DISCRETO ) ? true : false )
 
 // Mensajes entre tareas
 #define TK_FRAME_READY			0x01	//
@@ -130,8 +131,17 @@
 #define SGN_GPRS_QUERY			0x08	//
 #define SGN_XBEE_FRAME_READY	0x09	//
 #define SGN_XBEE_ACK			0x0A	//
+#define SGN_MON_SQE				0x0B
+#define SGN_REDIAL				0x0C
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_GPRS, DEBUG_COMMS, DEBUG_APLICACION } t_debug;
+// Estructura que maneja las señales del sistema
+struct {
+	bool sgn_mon_sqe;
+	bool sgn_redial;
+	bool sgn_frame_ready;
+} system_signals;
+
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_COMMS, DEBUG_APLICACION } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
@@ -145,7 +155,7 @@ typedef enum { ALARMA_NIVEL_0 = 0, ALARMA_NIVEL_1, ALARMA_NIVEL_2, ALARMA_NIVEL_
 
 typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkGprsRx, xHandle_tkGprsTx, xHandle_tkAplicacion;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkComms, xHandle_tkCommsRX, xHandle_tkAplicacion;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -165,8 +175,8 @@ StaticSemaphore_t DATA_xMutexBuffer;
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
 void tkInputs(void * pvParameters);
-void tkGprsRx(void * pvParameters);
-void tkGprsTx(void * pvParameters);
+void tkComms(void * pvParameters);
+void tkCommsRX(void * pvParameters);
 void tkAplicacion(void * pvParameters);
 
 #define DLGID_LENGTH		12
@@ -261,7 +271,7 @@ typedef struct {
 	char simpwd[SIM_PASSWD_LENGTH];
 	uint32_t timerDial;
 	st_pwrsave_t pwrSave;
-} gprs_conf_t;
+} xComms_conf_t;
 
 // Configuracion del sensor i2c de presion
 typedef struct {
@@ -375,7 +385,7 @@ typedef struct {
 	counters_conf_t counters_conf;	// Estructura con la configuracion de los contadores
 	dinputs_conf_t dinputs_conf;	// Estructura con la configuracion de las entradas digitales
 	ainputs_conf_t ainputs_conf;	// Estructura con la configuracion de las entradas analogicas
-	gprs_conf_t	gprs_conf;
+	xComms_conf_t comms_conf;
 	psensor_conf_t psensor_conf;
 
 	aplicacion_t aplicacion;				// Modo de operacion del datalogger
@@ -389,6 +399,9 @@ typedef struct {
 systemVarsType systemVars;
 
 // UTILS
+void xCOMMS_config_defaults( char *opt );
+void xCOMMS_status(void);
+
 void initMCU(void);
 void u_configure_systemMainClock(void);
 void u_configure_RTC32(void);
@@ -406,9 +419,7 @@ uint8_t u_aplicacion_checksum( void );
 bool u_config_aplicacion( char *modo );
 bool u_write_output_pins( uint8_t pin, int8_t val );
 bool u_set_douts( uint8_t dout );
-bool u_sms_send(char *dst_nbr, char *msg );
 
-void u_debug_printf_P( t_debug dmode,  PGM_P fmt, ...);
 
 void appalarma_test(void);
 void appalarma_adjust_vars( st_dataRecord_t *dr);
@@ -419,7 +430,6 @@ void ctl_print_wdg_timers(void);
 uint16_t ctl_readTimeToNextPoll(void);
 void ctl_reload_timerPoll( uint16_t new_time );
 bool ctl_terminal_connected(void);
-
 uint32_t ctl_read_timeToNextDial(void);
 void ctl_set_timeToNextDial( uint32_t new_time );
 
@@ -499,6 +509,9 @@ void tanque_process_gprs_response( const char *gprsbuff );
 void tanque_reconfigure_levels_by_gprsinit(const char *gprsbuff);
 void tanque_reconfigure_sms_by_gprsinit(const char *gprsbuff);
 
+bool SPX_SIGNAL( uint8_t signal );
+bool SPX_SEND_SIGNAL( uint8_t signal );
+bool SPX_CLEAR_SIGNAL( uint8_t signal );
 
 // WATCHDOG
 uint8_t wdg_resetCause;
@@ -506,12 +519,20 @@ uint8_t wdg_resetCause;
 #define WDG_CTL			0
 #define WDG_CMD			1
 #define WDG_DIN			2
-#define WDG_GPRSRX		3
-#define WDG_GPRSTX		4
+#define WDG_COMMS		3
+#define WDG_COMMSRX		4
 #define WDG_DINPUTS		5
 #define WDG_APP			6
 #define NRO_WDGS		7
 
 #define WDG_APP_TIMEOUT	100
+
+
+//------------------------------------------------------------------------
+void u_sms_init(void);
+bool u_sms_send(char *dst_nbr, char *msg );
+char *u_format_date_sms(char *msg);
+
+#define SMS_MSG_LENGTH 10
 
 #endif /* SRC_SPX_H_ */

@@ -5,7 +5,6 @@
  *      Author: pablo
  */
 
-#include <comms.h>
 #include <SPX_ulibs/ul_consigna.h>
 #include "spx.h"
 

@@ -33,6 +33,8 @@ int xfprintf( file_descriptor_t fd, const char *fmt, ...);
 int xfnprint( file_descriptor_t fd, const char *pvBuffer, const uint16_t xBytes );
 void xfputChar(file_descriptor_t fd, unsigned char c);
 
+int xprintf_PD( bool dflag,  PGM_P fmt, ...);
+
 #define BYTE_TO_BINARY_PATTERN %c%c%c%c%c%c%c%c
 #define BYTE_TO_BINARY(byte)  \
   (byte & 0x80 ? '1' : '0'), \

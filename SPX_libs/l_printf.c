@@ -152,15 +152,15 @@ int xfprintf_V( file_descriptor_t fd, const char *fmt, va_list argp )
 int i;
 
 	// Espero el semaforo del buffer en forma persistente.
-	while ( xSemaphoreTake( sem_STDOUT, ( TickType_t ) 5 ) != pdTRUE )
-		vTaskDelay( ( TickType_t)( 5 ) );
+//	while ( xSemaphoreTake( sem_STDOUT, ( TickType_t ) 5 ) != pdTRUE )
+//		vTaskDelay( ( TickType_t)( 5 ) );
 
 	// Ahora tengo en stdout_buff formateado para imprimir
 	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
-	vsnprintf( (char *)stdout_buff,sizeof(stdout_buff),fmt, argp);
+	vsnprintf( (char *)stdout_buff, sizeof(stdout_buff), fmt, argp);
 	i = frtos_write(fd, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
 
-	xSemaphoreGive( sem_STDOUT );
+//	xSemaphoreGive( sem_STDOUT );
 	return(i);
 
 }
@@ -194,5 +194,34 @@ char cChar;
 void xprintf_init(void)
 {
 	sem_STDOUT = xSemaphoreCreateMutexStatic( &STDOUT_xMutexBuffer );
+}
+//------------------------------------------------------------------------------------
+int xprintf_PD( bool dflag,  PGM_P fmt, ...)
+{
+
+	/*
+	 * Funcion que muestra el mensaje formateado en consola siempre que la dflag sea true
+	 * http://c-faq.com/varargs/handoff.html
+	 */
+
+va_list args;
+int i;
+
+	if ( !dflag )
+		return(-1);
+
+	// Espero el semaforo del buffer en forma persistente.
+	while ( xSemaphoreTake( sem_STDOUT, ( TickType_t ) 5 ) != pdTRUE )
+		vTaskDelay( ( TickType_t)( 5 ) );
+
+	// Ahora tengo en stdout_buff formateado para imprimir
+	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
+	va_start(args, fmt);
+	vsnprintf_P( (char *)stdout_buff,sizeof(stdout_buff),fmt, args);
+	i = frtos_write(fdTERM, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
+
+	xSemaphoreGive( sem_STDOUT );
+	return(i);
+
 }
 //------------------------------------------------------------------------------------

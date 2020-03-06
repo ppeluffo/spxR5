@@ -19,7 +19,6 @@
  * 	si ack
  */
 
-#include <comms.h>
 #include "spx.h"
 
 typedef enum { ST_TQ_NORMAL = 0, ST_TQ_LOWLEVEL, ST_TQ_HIGHLEVEL } t_tanque_states;
@@ -497,8 +496,8 @@ void tanque_reconfigure_app(void)
 	u_save_params_in_NVMEE();
 	//f_reset = true;
 
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:TANQUE\r\n\0"));
+	if ( systemVars.debug == DEBUG_COMMS ) {
+		xprintf_P( PSTR("COMMS: Reconfig APLICACION:TANQUE\r\n\0"));
 	}
 
 }
@@ -540,8 +539,8 @@ char *p = NULL;
 	// Actualizo el status a travez de una funcion propia del modulo de outputs
 	tanque_set_params_from_gprs( tk_sms, tk_link );
 
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: TQS\r\n\0"));
+	if ( systemVars.debug == DEBUG_COMMS ) {
+		xprintf_P( PSTR("COMMS: TQS\r\n\0"));
 	}
 
 }
@@ -572,8 +571,8 @@ char *delim = ",=:;><";
 	tanque_config("NIVEL","BAJO", tk_low_level);
 	tanque_config("NIVEL","ALTO", tk_high_level);
 
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig TANQUE. Niveles (low=%s,high=%s)\r\n\0"),tk_low_level, tk_high_level);
+	if ( systemVars.debug == DEBUG_COMMS ) {
+		xprintf_P( PSTR("COMMS: Reconfig TANQUE. Niveles (low=%s,high=%s)\r\n\0"),tk_low_level, tk_high_level);
 	}
 
 	u_save_params_in_NVMEE();

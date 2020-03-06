@@ -229,8 +229,8 @@ void perforacion_reconfigure_app(void)
 	u_save_params_in_NVMEE();
 	//f_reset = true;
 
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PERFORACION\r\n\0"));
+	if ( systemVars.debug == DEBUG_COMMS ) {
+		xprintf_P( PSTR("COMMS: Reconfig APLICACION:PERFORACION\r\n\0"));
 	}
 
 }
@@ -265,8 +265,8 @@ char *p = NULL;
 	// Actualizo el status a travez de una funcion propia del modulo de outputs
 	perforacion_set_douts_from_gprs( atoi( tk_douts ));
 
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: PERF_OUTS\r\n\0"));
+	if ( systemVars.debug == DEBUG_COMMS ) {
+		xprintf_P( PSTR("COMMS: PERF_OUTS\r\n\0"));
 	}
 
 }

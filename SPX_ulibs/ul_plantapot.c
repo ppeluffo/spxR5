@@ -5,7 +5,6 @@
  *      Author: pablo
  */
 
-#include <comms.h>
 #include "spx.h"
 
 bool flash_luz_verde;
@@ -826,7 +825,7 @@ uint8_t pos;
 
 		xprintf_P( PSTR("ALARMA L%d: pos=%d smsLevel=%d, SMSnro=%s, MSG=%s !!\r\n"), level, pos, level, systemVars.aplicacion_conf.l_sms[pos] , sms_msg );
 
-		if ( ! u_sms_send( systemVars.aplicacion_conf.l_sms[pos] , u_format_date_sms(sms_msg) ) ) {
+		if ( ! u_sms_send( systemVars.aplicacion_conf.l_sms[pos] , (char *) u_format_date_sms(sms_msg) ) ) {
 			xprintf_P( PSTR("ERROR: ALARMA SMS NIVEL %d NO PUEDE SER ENVIADA !!!\r\n"),level );
 		}
 	}
@@ -1356,8 +1355,8 @@ void appalarma_reconfigure_app(void)
 	systemVars.aplicacion = APP_PLANTAPOT;
 	u_save_params_in_NVMEE();
 
-	if ( systemVars.debug == DEBUG_GPRS ) {
-		xprintf_P( PSTR("GPRS: Reconfig APLICACION:PLANTAPOT\r\n\0"));
+	if ( systemVars.debug == DEBUG_COMMS ) {
+		xprintf_P( PSTR("COMMS: Reconfig APLICACION:PLANTAPOT\r\n\0"));
 	}
 }
 //------------------------------------------------------------------------------------
