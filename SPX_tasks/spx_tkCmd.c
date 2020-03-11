@@ -242,8 +242,7 @@ uint8_t i;
 	xprintf_P( PSTR("  timerPoll: [%d s]/ %d\r\n\0"), systemVars.timerPoll, ctl_readTimeToNextPoll() );
 
 	// Timerdial
-	xprintf_P( PSTR("  timerDial: [%d s]/\0"), systemVars.comms_conf.timerDial );
-//C	xprintf_P( PSTR(" %d\r\n\0"), xcomms_time_to_next_dial() );
+	xprintf_P( PSTR("  timerDial: [%d s]/ %d\r\n\0"), systemVars.comms_conf.timerDial, xcomms_time_to_next_dial() );
 
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
@@ -1074,14 +1073,14 @@ bool retS = false;
 	// TIMERDIAL
 	// config timerdial
 	if ( !strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0"))) {
-//C		u_gprs_config_timerdial( argv[2] );
+		u_config_timerdial( argv[2] );
 		pv_snprintfP_OK();
 		return;
 	}
 
 	// PWRSAVE
 	if (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0"))) {
-//C		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
+		u_configPwrSave ( argv[2], argv[3], argv[4] );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -1139,7 +1138,7 @@ static void cmdHelpFunction(void)
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|cts|dtr) {on|off}\r\n\0"));
-			xprintf_P( PSTR("       cmd {atcmd}, redial\r\n\0"));
+			xprintf_P( PSTR("       cmd {atcmd}, redial, monsqe\r\n\0"));
 			xprintf_P( PSTR("       sms,qsms,fsms {nbr,msg}\r\n\0"));
 
 		}
@@ -1540,11 +1539,17 @@ uint8_t pin = 0;
 			return;
 		}
 
+		// write gprs monsqe
+		if (!strcmp_P( strupr(argv[2]), PSTR("MONSQE\0")) ) {
+			SPX_SEND_SIGNAL( SGN_MON_SQE );
+			return;
+		}
 		// write gprs redial
 		if (!strcmp_P( strupr(argv[2]), PSTR("REDIAL\0")) ) {
 			SPX_SEND_SIGNAL( SGN_REDIAL );
 			return;
 		}
+
 		// ATCMD
 		// // write gprs cmd {atcmd}
 		if (!strcmp_P(strupr(argv[2]), PSTR("CMD\0"))) {

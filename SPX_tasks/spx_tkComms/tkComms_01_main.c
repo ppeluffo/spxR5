@@ -30,10 +30,10 @@ void tkComms(void * pvParameters)
 		case ST_ENTRY:
 			tkComms_state = tkComms_st_entry();
 			break;
-		case  ST_ESPERA_APAGADO:
+		case ST_ESPERA_APAGADO:
 			tkComms_state = tkComms_st_espera_apagado();
 			break;
-		case  ST_ESPERA_PRENDIDO:
+		case ST_ESPERA_PRENDIDO:
 			tkComms_state = tkComms_st_espera_prendido();
 			break;
 		case ST_PRENDER:
@@ -54,7 +54,9 @@ void tkComms(void * pvParameters)
 		case ST_INITFRAME:
 			tkComms_state = tkComms_st_initframe();
 			break;
-
+		case ST_DATAFRAME:
+			tkComms_state = tkComms_st_dataframe();
+			break;
 		default:
 			tkComms_state = ST_ENTRY;
 			xprintf_P( PSTR("COMMS: state ERROR !!.\r\n\0"));
@@ -96,5 +98,4 @@ char c;
 	}
 }
 //------------------------------------------------------------------------------------
-
 

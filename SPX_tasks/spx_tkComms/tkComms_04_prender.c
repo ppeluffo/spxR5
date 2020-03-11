@@ -25,13 +25,12 @@ t_comms_states tkComms_st_prender(void)
 	// Mientras lo intento prender no atiendo mensajes ( cambio de configuracion / flooding / Redial )
 
 uint8_t intentos = 0;
-t_comms_states exit_flag = ST_ENTRY;
+t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_PRENDER);
 
 	// Debo poner esta flag en true para que el micro no entre en sleep y pueda funcionar el puerto
 	// serial y leer la respuesta del AT del modem.
-	// GPRS_stateVars.modem_prendido = true;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_prender.\r\n\0"));
 	xprintf_P( PSTR("COMMS: prendo dispositivo...\r\n\0"));
@@ -41,21 +40,26 @@ t_comms_states exit_flag = ST_ENTRY;
 
 		// Prendo la fuente
 		if ( xCOMMS_prender_dispositivo( DF_COMMS, intentos ) == true ) {
-			exit_flag = ST_CONFIGURAR;
+			next_state = ST_CONFIGURAR;
 			goto EXIT;
 		}
+
+		// Proceso las señales:
+		if ( xCOMMS_procesar_senales( ST_PRENDER , &next_state ) )
+			goto EXIT;
+
 	}
 
 	// Si salgo por aqui es que el modem no prendio luego de todos los reintentos
 
 	xprintf_P( PSTR("COMMS: ERROR!! Dispositivo no prendio en HW %d intentos\r\n\0"), MAX_TRIES_PWRON );
-	exit_flag = ST_ENTRY;
+	next_state = ST_ENTRY;
 
 // Exit:
 EXIT:
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_prender.\r\n\0"));
-	return(exit_flag);
+	return(next_state);
 
 }
 //------------------------------------------------------------------------------------

@@ -31,6 +31,24 @@
  *  22923645
  *
  *
+ * -Mejorar el conseguir la IP
+ * -scan
+ * -APP_A / APP_B / APP_C
+ * -SMS
+ * -Testing general GPRS
+ * -logs COMMS
+ * -app_consigna
+ * -app_plantapot
+ * -app_tanques/perforaciones
+ * -Testing XBEE
+ * -Server XBEE
+ * -Manual
+ * -GUI
+ * -app_piloto
+
+ * -PwrSave
+ *
+ *
  * --------------------------------------------------------------------------------------------------
  * Version 2.9.9l
  * Cambio el modelo de trabajo de las comunicaciones

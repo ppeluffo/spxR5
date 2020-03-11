@@ -689,6 +689,9 @@ bool retS = false;
 	case SGN_FRAME_READY:
 		retS = system_signals.sgn_frame_ready;
 		break;
+	case SGN_RESET_COMMS_DEV:
+		retS = system_signals.sgn_reset_comms_device;
+		break;
 	default:
 		break;
 	}
@@ -717,6 +720,10 @@ bool retS = false;
 		system_signals.sgn_frame_ready = true;
 		retS = true;
 		break;
+	case SGN_RESET_COMMS_DEV:
+		system_signals.sgn_reset_comms_device = true;
+		retS = true;
+		break;
 	default:
 		retS = false;
 		break;
@@ -742,6 +749,10 @@ bool retS = false;
 		system_signals.sgn_frame_ready = false;
 		retS = true;
 		break;
+	case SGN_RESET_COMMS_DEV:
+		system_signals.sgn_reset_comms_device = false;
+		retS = true;
+		break;
 	default:
 		retS = false;
 		break;
@@ -749,4 +760,86 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
+void u_config_timerdial ( char *s_timerdial )
+{
+	// El timer dial puede ser 0 si vamos a trabajar en modo continuo o mayor a
+	// 15 minutos.
+	// Es una variable de 32 bits para almacenar los segundos de 24hs.
+
+
+	//xprintf_P( PSTR("DEBUG_A TDIAL CONFIG: [%s]\r\n\0"), s_timerdial );
+
+	// Aplicacion ALARMAS
+#ifdef APLICACION_PLANTAPOT
+	systemVars.gprs_conf.timerDial = 0;
+	return;
+#endif
+
+	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
+	systemVars.comms_conf.timerDial = atoi(s_timerdial);
+
+	// Controlo que este en los rangos permitidos
+	if ( (systemVars.comms_conf.timerDial > 0) && (systemVars.comms_conf.timerDial < TDIAL_MIN_DISCRETO ) ) {
+		//systemVars.gprs_conf.timerDial = 0;
+		//xprintf_P( PSTR("TDIAL warn !! Default to 0. ( continuo TDIAL=0, discreto TDIAL > 900)\r\n\0"));
+		xprintf_P( PSTR("TDIAL warn: continuo TDIAL < 900, discreto TDIAL >= 900)\r\n\0"));
+	}
+
+	xSemaphoreGive( sem_SYSVars );
+	//xprintf_P( PSTR("DEBUG_B TDIAL CONFIG: [%d]\r\n\0"), systemVars.gprs_conf.timerDial );
+	return;
+}
+//------------------------------------------------------------------------------------
+void u_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime)
+{
+	// Recibe como parametros el modo ( 0,1) y punteros a string con las horas de inicio y fin del pwrsave
+	// expresadas en minutos.
+
+	// Aplicacion ALARMAS
+/*
+#ifdef APLICACION_PLANTAPOT
+	systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
+	return;
+#endif
+*/
+
+	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
+	//xprintf_P( PSTR("DEBUG_A: PWRS modo=%s, startitme=%s, endtime=%s\r\n\0"), s_modo, s_startTime, s_endTime );
+
+	if (!strcmp_P( strupr(s_modo), PSTR( "OFF"))) {
+		systemVars.comms_conf.pwrSave.pwrs_enabled = false;
+		//xprintf_P( PSTR("DEBUG: pwrsave off(%d)\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled );
+		if ( s_startTime != NULL ) { u_convert_str_to_time_t( s_startTime, &systemVars.comms_conf.pwrSave.hora_start); }
+		if ( s_endTime != NULL ) { u_convert_str_to_time_t( s_endTime, &systemVars.comms_conf.pwrSave.hora_fin); }
+
+		goto quit;
+	}
+
+	if (!strcmp_P( strupr(s_modo), PSTR( "ON"))) {
+		systemVars.comms_conf.pwrSave.pwrs_enabled = true;
+		//xprintf_P( PSTR("DEBUG: pwrsave ON(%d)\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled );
+		if ( s_startTime != NULL ) { u_convert_str_to_time_t( s_startTime, &systemVars.comms_conf.pwrSave.hora_start); }
+		if ( s_endTime != NULL ) { u_convert_str_to_time_t( s_endTime, &systemVars.comms_conf.pwrSave.hora_fin); }
+		//xprintf_P( PSTR("DEBUG: pwrsave start_time = %02d%02d\r\n\0"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min);
+		//xprintf_P( PSTR("DEBUG: pwrsave end_time = %02d%02d\r\n\0"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
+		goto quit;
+	}
+
+quit:
+
+	xSemaphoreGive( sem_SYSVars );
+
+	// En los SPXIO8 no se usa el pwrsave !!!!. Siempre debe venir OFF de la BD.
+	//if ( spx_io_board == SPX_IO8CH ) {
+	//	systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
+	//}
+	//xprintf_P( PSTR("DEBUG_B: PWRS modo=%d, startitme=%02d%02d, endtime=%02d%02d\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled, systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min, systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min );
+
+}
+//------------------------------------------------------------------------------------
+
 

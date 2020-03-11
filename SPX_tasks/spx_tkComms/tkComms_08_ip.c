@@ -18,20 +18,26 @@ t_comms_states tkComms_st_ip(void)
 	 */
 
 uint8_t err_code;
-t_comms_states exit_flag = ST_ENTRY;
+t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_IP );
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_ip.\r\n\0"));
 	xprintf_P( PSTR("COMMS: ip.\r\n\0"));
 
 	if ( xCOMMS_ip( DF_COMMS, systemVars.comms_conf.apn, xCOMMS_stateVars.ip_assigned, &err_code ) == true ) {
-		exit_flag = ST_INITFRAME;
+		next_state = ST_INITFRAME;
 	} else {
-		exit_flag = ST_ENTRY;
+		next_state = ST_ENTRY;
 	}
 
+	// Proceso las señales:
+	if ( xCOMMS_procesar_senales( ST_IP , &next_state ) )
+		goto EXIT;
+
+EXIT:
+
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_ip.\r\n\0"));
-	return(exit_flag);
+	return(next_state);
 
 }
 //------------------------------------------------------------------------------------

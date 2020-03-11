@@ -67,8 +67,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9k"
-#define SPX_FW_DATE "@ 20200305"
+#define SPX_FW_REV "2.9.9m"
+#define SPX_FW_DATE "@ 20200310"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -120,25 +120,18 @@
 #define MODO_DISCRETO ( (systemVars.comms_conf.timerDial >= TDIAL_MIN_DISCRETO ) ? true : false )
 
 // Mensajes entre tareas
-#define TK_FRAME_READY			0x01	//
+
 #define SGN_FRAME_READY			0x01
-#define SGN_PRENDER_GPRS		0x02	//
-#define SGN_APAGAR_GPRS			0x03	//
-#define SGN_XBEE_IS_DOWN		0x04	//
-#define SGN_XBEE_IS_UP			0x05	//
-#define SGN_LOCAL_GPRS_IS_DOWN	0x06	//
-#define SGN_LOCAL_GPRS_IS_UP	0x07	//
-#define SGN_GPRS_QUERY			0x08	//
-#define SGN_XBEE_FRAME_READY	0x09	//
-#define SGN_XBEE_ACK			0x0A	//
-#define SGN_MON_SQE				0x0B
-#define SGN_REDIAL				0x0C
+#define SGN_MON_SQE				0x02
+#define SGN_REDIAL				0x03
+#define SGN_RESET_COMMS_DEV		0x04
 
 // Estructura que maneja las señales del sistema
 struct {
 	bool sgn_mon_sqe;
 	bool sgn_redial;
 	bool sgn_frame_ready;
+	bool sgn_reset_comms_device;
 } system_signals;
 
 typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_COMMS, DEBUG_APLICACION } t_debug;
@@ -419,7 +412,8 @@ uint8_t u_aplicacion_checksum( void );
 bool u_config_aplicacion( char *modo );
 bool u_write_output_pins( uint8_t pin, int8_t val );
 bool u_set_douts( uint8_t dout );
-
+void u_config_timerdial ( char *s_timerdial );
+void u_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime);
 
 void appalarma_test(void);
 void appalarma_adjust_vars( st_dataRecord_t *dr);
@@ -512,6 +506,8 @@ void tanque_reconfigure_sms_by_gprsinit(const char *gprsbuff);
 bool SPX_SIGNAL( uint8_t signal );
 bool SPX_SEND_SIGNAL( uint8_t signal );
 bool SPX_CLEAR_SIGNAL( uint8_t signal );
+
+int32_t xcomms_time_to_next_dial(void);
 
 // WATCHDOG
 uint8_t wdg_resetCause;

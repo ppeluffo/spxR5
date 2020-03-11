@@ -72,12 +72,10 @@ TickType_t xLastWakeTime = 0;
 			pv_data_guardar_en_BD();
 
 			// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
-/*			if ( ! MODO_DISCRETO ) {
-				while ( xTaskNotify(xHandle_tkGprsRx, TK_FRAME_READY , eSetBits ) != pdPASS ) {
-					vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
-				}
+			if ( ! MODO_DISCRETO ) {
+				SPX_SEND_SIGNAL( SGN_FRAME_READY );
 			}
-*/		}
+		}
 
 		// Calculo el tiempo para una nueva espera
 		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )

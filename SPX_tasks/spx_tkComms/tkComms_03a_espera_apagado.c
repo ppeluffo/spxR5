@@ -32,8 +32,9 @@ t_comms_states tkComms_st_espera_apagado(void)
 // Entry:
 	// Apago el dispositivo de comunicaciones.
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_apagado.\r\n\0"));
-
+	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_ESPERA_OFF );
 	xCOMMS_apagar_dispositivo();
+
 	configurar_tiempo_espera_apagado();
 
 // Loop:
@@ -73,12 +74,13 @@ static bool starting_flag = true;
 		time_to_next_dial = 60;
 	}
 
-EXIT:
+	// En modo CONTINUO prendo enseguida
+	if ( ! MODO_DISCRETO ) {
+		time_to_next_dial = 10;
+		goto EXIT;
+	}
 
-	/*
-	 * Arranco el timer que va a generar la espera.
-	 */
-	ctl_set_timeToNextDial( time_to_next_dial );
+EXIT:
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: await %lu s\r\n\0"), time_to_next_dial );
 
@@ -115,25 +117,10 @@ static void esperar_apagado(void)
 			}
 		}
 
-		// D) Proceso las señales:
-		if ( SPX_SIGNAL( SGN_MON_SQE )) {
-			/*
-			 * La señal de monitorear sqe no la borro nunca ya que es un
-			 * estado en el que entro en modo diagnostico y no debo salir mas.
-			 */
-			xprintf_PD( DF_COMMS, PSTR("COMMS: st_espera_apagado. SGN_MON_SQE rcvd.\r\n\0"));
-			goto EXIT;
-		}
-
-		if ( SPX_SIGNAL( SGN_REDIAL )) {
-			/*
-			 * Debo apagar y prender el dispositivo. Como ya estoy apagado
-			 * salgo para pasar al estado PRENDIENDO.
-			 */
-			xprintf_PD( DF_COMMS, PSTR("COMMS: st_espera_apagado. SGN_REDIAL rcvd.\r\n\0"));
+		// Proceso las señales:
+		if ( xCOMMS_procesar_senales( ST_ESPERA_APAGADO , NULL ) )
 			goto EXIT;
 
-		}
 
 		// E) Veo si expiro el tiempo de espera.
 		if ( time_to_next_dial == 0 ) {
@@ -152,7 +139,7 @@ static void esperar_apagado(void)
 	}
 
 EXIT:
-	//xprintf_PD( DF_COMMS, PSTR("COMMS: st_espera_apagado.(3)TND=%d\r\n\0"), time_to_next_dial );
+
 	return;
 
 }

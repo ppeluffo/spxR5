@@ -22,7 +22,7 @@ t_comms_states tkComms_st_scan(void)
 	 */
 
 uint8_t err_code;
-t_comms_states exit_flag = ST_ENTRY;
+t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_SCAN );
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.\r\n\0"));
@@ -30,7 +30,7 @@ t_comms_states exit_flag = ST_ENTRY;
 
 
 	if ( xCOMMS_scan(DF_COMMS, systemVars.comms_conf.apn ,systemVars.comms_conf.server_ip_address, systemVars.comms_conf.dlgId, &err_code ) == true ) {
-		exit_flag = ST_IP;
+		next_state = ST_IP;
 		goto EXIT;
 	}
 
@@ -57,7 +57,7 @@ t_comms_states exit_flag = ST_ENTRY;
 EXIT:
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.\r\n\0"));
-	return(exit_flag);
+	return(next_state);
 
 }
 //------------------------------------------------------------------------------------

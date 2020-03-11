@@ -128,6 +128,7 @@ void xCOMMS_init(void)
 		gprs_init();
 	}
 
+	xCOMMS_stateVars.dispositivo_prendido = false;
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_apagar_dispositivo(void)
@@ -139,6 +140,7 @@ void xCOMMS_apagar_dispositivo(void)
 		gprs_apagar();
 	}
 
+	xCOMMS_stateVars.dispositivo_prendido = false;
 }
 //------------------------------------------------------------------------------------
 bool xCOMMS_prender_dispositivo(bool f_debug, uint8_t delay_factor)
@@ -156,6 +158,9 @@ bool retS = false;
 	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
 		retS = gprs_prender( f_debug, delay_factor);
 	}
+
+	if (retS )
+		xCOMMS_stateVars.dispositivo_prendido = true;
 
 	return(retS);
 }
@@ -232,3 +237,232 @@ bool retS = false;
 		return(retS);
 }
 //------------------------------------------------------------------------------------
+t_link_status xCOMMS_link_status(void)
+{
+
+t_link_status lstatus = LINK_CLOSED;
+
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		lstatus = xbee_check_socket_status();
+	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		lstatus = gprs_check_socket_status();
+	}
+
+	return(lstatus);
+}
+//------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
+void xCOMMS_flush_RX(void)
+{
+	/*
+	 * Inicializa todos los buffers de recepcion para el canal activo.
+	 * Reinicia el buffer que recibe de la uart del dispositivo
+	 * de comunicaciones, y el buffer comun commsRxBuffer
+	 */
+
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		xbee_flush_RX_buffer();
+	} else	if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		gprs_flush_RX_buffer();
+	}
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_flush_TX(void)
+{
+	/*
+	 * Inicializa todos los buffers de trasmision para el canal activo.
+	 * Reinicia el buffer que transmite en la uart del dispositivo
+	 * de comunicaciones
+	 */
+
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		xbee_flush_TX_buffer();
+	} else	if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		gprs_flush_TX_buffer();
+	}
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_send_header(char *type)
+{
+
+	xprintf_PVD( xCOMMS_get_fd(), DF_COMMS, PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), systemVars.comms_conf.serverScript, systemVars.comms_conf.dlgId, type, SPX_FW_REV );
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_send_tail(void)
+{
+
+	// ( No mando el close ya que espero la respuesta y no quiero que el socket se cierre )
+	xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
+
+	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
+}
+//------------------------------------------------------------------------------------
+t_link_status xCOMMS_open_link(void)
+{
+	/*
+	 * Intenta abrir el link hacia el servidor
+	 * En caso de XBEE no hay que hacer nada
+	 * En caso de GPRS se debe intentar abrir el socket
+	 *
+	 */
+
+t_link_status lstatus = LINK_CLOSED;
+
+	xCOMMS_flush_RX();
+
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		lstatus = xbee_open_socket();
+	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		lstatus = gprs_open_socket();
+	}
+
+	return(lstatus);
+
+}
+//------------------------------------------------------------------------------------
+file_descriptor_t xCOMMS_get_fd(void)
+{
+
+file_descriptor_t fd = fdGPRS;
+
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		fd = fdXBEE;
+	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		fd = fdGPRS;
+	}
+	return(fd);
+
+}
+//------------------------------------------------------------------------------------
+void xCOMM_send_global_params(void)
+{
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:0000;SIMID:000;CSQ:0;WRST:%02X;" ),wdg_resetCause );
+
+	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;" ), gprs_get_imei() );
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
+
+	}
+
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_check_response( const char *pattern )
+{
+
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		return( xbee_check_response(pattern)) ;
+	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		return( gprs_check_response(pattern));
+	}
+
+	return(false);
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_print_RX_buffer(bool d_flag)
+{
+	if ( d_flag ) {
+		if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+			xbee_print_RX_buffer();
+		} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+			gprs_print_RX_buffer();
+		}
+	}
+}
+//------------------------------------------------------------------------------------
+char *xCOMM_get_buffer_ptr( char *pattern)
+{
+
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		return( xbee_get_buffer_ptr(pattern));
+	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		return( gprs_get_buffer_ptr(pattern));
+	}
+
+	return(NULL);
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr)
+{
+	/*
+	 * Imprime un datarecord en un file descriptor dado.
+	 * En caso de debug, lo muestra en xTERM.
+	 */
+
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		data_print_inputs(fdXBEE, dr);
+	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		data_print_inputs(fdGPRS, dr);
+	} else {
+		return;
+	}
+
+	if (d_flag ) {
+		data_print_inputs(fdTERM, dr);
+	}
+
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
+{
+	if ( SPX_SIGNAL( SGN_REDIAL )) {
+		/*
+		 * Debo apagar y prender el dispositivo. Como ya estoy apagado
+		 * salgo para pasar al estado PRENDIENDO.
+		 */
+		SPX_CLEAR_SIGNAL( SGN_REDIAL );
+		xCOMMS_apagar_dispositivo();
+		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_REDIAL rcvd.\r\n\0"));
+		*next_state = ST_PRENDER;
+		return(true);
+	}
+
+	if ( SPX_SIGNAL( SGN_FRAME_READY )) {
+		/*
+		 * En ESPERA_PRENDIDO debo salir al modo DATAFRAME a procesar el FRAME
+		 * En los otros casos solo la ignoro ( borro ) pero no tomo acciones.
+		 */
+		SPX_CLEAR_SIGNAL( SGN_FRAME_READY );
+		if ( state == ST_ESPERA_PRENDIDO ) {
+			xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_FRAME_READY rcvd.\r\n\0"));
+			*next_state = ST_DATAFRAME;
+			return(true);
+		}
+	}
+
+	if ( SPX_SIGNAL( SGN_MON_SQE )) {
+		/*
+		 * La señal de monitorear sqe no la borro nunca ya que es un
+		 * estado en el que entro en modo diagnostico y no debo salir mas.
+		 * Aqui lo que hago es salir a prender el dispositivo y entrar a monitorear el sqe
+		 */
+		switch(state) {
+		case ST_PRENDER:		// Ignoro
+			break;
+		case ST_CONFIGURAR:		// Ignoro
+			break;
+		case ST_MON_SQE:		// Ignoro
+			break;
+		default:
+			xCOMMS_apagar_dispositivo();
+			xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_MON_SQE rcvd.\r\n\0"));
+			*next_state = ST_PRENDER;
+			return(true);
+		}
+	}
+
+	if ( SPX_SIGNAL( SGN_RESET_COMMS_DEV )) {
+		/*
+		 * Debo resetear el dispositivo.
+		 * Esto implica apagarlo y prenderlo
+		 */
+		SPX_CLEAR_SIGNAL( SGN_RESET_COMMS_DEV );
+		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_RESET_COMMS_DEV rcvd.\r\n\0"));
+		*next_state = ST_PRENDER;
+		return(true);
+	}
+
+	return(false);
+}
+//------------------------------------------------------------------------------------
+

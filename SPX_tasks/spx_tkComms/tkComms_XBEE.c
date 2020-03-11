@@ -114,4 +114,24 @@ bool xbee_ip( void )
 	return(true);
 }
 //------------------------------------------------------------------------------------
+t_link_status xbee_check_socket_status(void)
+{
+	/*
+	 * En XBEE el enlace P2P por lo tanto no hay sockets y el
+	 * canal esta siempre abierto al estar el dispositivo prendido
+	 */
+	return(LINK_OPEN);
+}
+//------------------------------------------------------------------------------------
+t_link_status xbee_open_socket(void)
+{
+	return(LINK_OPEN);
+}
+//------------------------------------------------------------------------------------
+char *xbee_get_buffer_ptr( char *pattern)
+{
+
+	return( strstr( xbeeRxBuffer.buffer, pattern) );
+}
+//------------------------------------------------------------------------------------
 
