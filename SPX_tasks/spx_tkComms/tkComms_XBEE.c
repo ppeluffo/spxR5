@@ -104,7 +104,12 @@ void xbee_mon_sqe( void )
 	return;
 }
 //------------------------------------------------------------------------------------
-bool xbee_scan(bool f_debug,char *ip_server, char *dlgid, uint8_t *err_code )
+bool xbee_scan( t_scan_struct scan_boundle )
+{
+	return(true);
+}
+//------------------------------------------------------------------------------------
+bool xbee_need_scan( t_scan_struct scan_boundle )
 {
 	return(true);
 }
@@ -114,7 +119,7 @@ bool xbee_ip( void )
 	return(true);
 }
 //------------------------------------------------------------------------------------
-t_link_status xbee_check_socket_status(void)
+t_link_status xbee_check_socket_status(bool f_debug)
 {
 	/*
 	 * En XBEE el enlace P2P por lo tanto no hay sockets y el
@@ -123,7 +128,7 @@ t_link_status xbee_check_socket_status(void)
 	return(LINK_OPEN);
 }
 //------------------------------------------------------------------------------------
-t_link_status xbee_open_socket(void)
+t_link_status xbee_open_socket(bool f_debug, char *ip, char *port)
 {
 	return(LINK_OPEN);
 }

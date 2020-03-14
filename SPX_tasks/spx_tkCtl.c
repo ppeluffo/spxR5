@@ -70,7 +70,7 @@ void tkCtl(void * pvParameters)
 
 	pv_ctl_init_system();
 
-	systemVars.debug = DEBUG_COMMS;
+	//systemVars.debug = DEBUG_COMMS;
 	systemVars.comms_channel = COMMS_CHANNEL_GPRS;
 
 	xprintf_P( PSTR("\r\nstarting tkControl..\r\n\0"));

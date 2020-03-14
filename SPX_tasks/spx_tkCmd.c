@@ -7,6 +7,7 @@
 
 #include "spx.h"
 #include "tkComms.h"
+#include "SPX_tasks/spx_tkApp/tkApp.h"
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE USO PRIVADO
@@ -242,7 +243,8 @@ uint8_t i;
 	xprintf_P( PSTR("  timerPoll: [%d s]/ %d\r\n\0"), systemVars.timerPoll, ctl_readTimeToNextPoll() );
 
 	// Timerdial
-	xprintf_P( PSTR("  timerDial: [%d s]/ %d\r\n\0"), systemVars.comms_conf.timerDial, xcomms_time_to_next_dial() );
+	xprintf_P( PSTR("  timerDial: [%d s]/\0"), systemVars.comms_conf.timerDial );
+	xprintf_P( PSTR(" %d \r\n\0"), xcomms_time_to_next_dial() );
 
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
@@ -539,7 +541,7 @@ char l_data[10] = { '\0' };
 	//		          pulse (A|B) (secs)
 	//		          power {on|off}
 	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		consigna_write( argv[2],argv[3],argv[4] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
+		xAPP_consigna_write( argv[2],argv[3],argv[4] ) ?  pv_snprintfP_OK() : 	pv_snprintfP_ERR();
 		return;
 	}
 
@@ -870,7 +872,7 @@ bool retS = false;
 	// CONSIGNA
 	// config consigna {hhmm1} {hhmm2}
 	if (!strcmp_P( strupr(argv[1]), PSTR("CONSIGNA\0")) ) {
-		retS = consigna_config( argv[2], argv[3]);
+		retS = xAPP_consigna_config( argv[2], argv[3]);
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -1579,7 +1581,7 @@ uint8_t pin = 0;
 		// ATCMD RSP
 		// read gprs rsp
 		if (!strcmp_P(strupr(argv[2]), PSTR("RSP\0"))) {
-			gprs_print_RX_buffer();
+			gprs_print_RX_buffer(true);
 			//p = pub_gprs_rxbuffer_getPtr();
 			//xprintf_P( PSTR("rx->%s\r\n\0"),p );
 			return;

@@ -6,7 +6,7 @@
  */
 
 #include "spx.h"
-#include "ul_consigna.h"
+#include "tkApp.h"
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -264,7 +264,7 @@ void u_load_defaults( char *opt )
 	systemVars.aplicacion = APP_OFF;
 #endif
 
-	consigna_config_defaults();
+	xAPP_consigna_config_defaults();
 	appalarma_config_defaults();
 	tanque_config_defaults();
 
@@ -475,7 +475,7 @@ char *p;
 		break;
 
 	case APP_CONSIGNA:
-		checksum = consigna_checksum();
+		checksum = xAPP_consigna_checksum();
 		break;
 
 	case APP_PERFORACION:

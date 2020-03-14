@@ -23,7 +23,7 @@ t_comms_states tkComms_st_mon_sqe(void)
 
 	ctl_watchdog_kick(WDG_COMMS,WDG_GPRS_TO_SQE);
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_mon_sqe.\r\n\0"));
-	xprintf_P( PSTR("COMMS: mon_sqe.\r\n\0"));
+	//xprintf_P( PSTR("COMMS: mon_sqe.\r\n\0"));
 
 	/*
 	 * Si esta activada la senal, monitoreo en modo continuo

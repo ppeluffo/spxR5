@@ -5,10 +5,9 @@
  *      Author: pablo
  */
 
-#include <SPX_ulibs/ul_consigna.h>
-#include "spx.h"
 
-void aplicacion_off_stk(void);
+#include "spx.h"
+#include "tkApp.h"
 
 //------------------------------------------------------------------------------------
 void tkAplicacion(void * pvParameters)
@@ -39,10 +38,10 @@ void tkAplicacion(void * pvParameters)
 	case APP_OFF:
 		// Es el caso en que no debo hacer nada con las salidas.
 		// Duermo 25s para entrar en pwrdown.
-		aplicacion_off_stk();
+		tkApp_off();
 		break;
 	case APP_CONSIGNA:
-		consigna_stk();
+		tkApp_consigna();
 		break;
 	case APP_PERFORACION:
 		perforacion_stk();
@@ -53,24 +52,10 @@ void tkAplicacion(void * pvParameters)
 		tanque_stk();
 		break;
 	case APP_PLANTAPOT:
-		appalarma_stk();
+		app_plantapot();
 		break;
 	}
 
-	aplicacion_off_stk();
+	tkApp_off();
 }
 //------------------------------------------------------------------------------------
-void aplicacion_off_stk(void)
-{
-	// Cuando no hay una funcion especifica habilidada en el datalogger
-	// ( solo monitoreo ), debemos dormir para que pueda entrar en
-	// tickless
-
-	for( ;; )
-	{
-		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
-		vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
-	}
-}
-//------------------------------------------------------------------------------------
-

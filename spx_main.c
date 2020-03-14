@@ -32,12 +32,10 @@
  *
  *
  * -Mejorar el conseguir la IP
- * -scan
  * -APP_A / APP_B / APP_C
  * -SMS
  * -Testing general GPRS
- * -logs COMMS
- * -app_consigna
+
  * -app_plantapot
  * -app_tanques/perforaciones
  * -Testing XBEE
@@ -48,6 +46,11 @@
 
  * -PwrSave
  *
+ * 
+ * AT+CIPOPEN=0,"TCP","192.168.0.9",80
++CIPOPEN: 0,2
+ *
+ * Revisar en el servidor que grabe el UID en los inits. !!!
  *
  * --------------------------------------------------------------------------------------------------
  * Version 2.9.9l

@@ -7,6 +7,25 @@
 
 #include "tkComms.h"
 
+const char apn_spy[] PROGMEM = "SPYMOVIL.VPNANTEL";		// SPYMOVIL | UTE | TAHONA
+const char apn_ose[] PROGMEM = "STG1.VPNANTEL";			// OSE
+const char apn_claro[] PROGMEM = "ipgrs.claro.com.uy";	// CLARO
+
+const char ip_server_spy1[] PROGMEM = "192.168.0.9\0";		// SPYMOVIL
+const char ip_server_spy2[] PROGMEM = "190.64.69.34\0";		// SPYMOVIL PUBLICA (CLARO)
+const char ip_server_ose[] PROGMEM = "172.27.0.26\0";		// OSE
+const char ip_server_ute[] PROGMEM = "192.168.1.9\0";		// UTE
+
+//const char * const scan_list1[] PROGMEM = { apn_spy, ip_server_spy1 };
+PGM_P const scan_list1[] PROGMEM = { apn_spy, ip_server_spy1 };
+PGM_P const scan_list2[] PROGMEM = { apn_spy, ip_server_ute };
+PGM_P const scan_list3[] PROGMEM = { apn_ose, ip_server_ose };
+PGM_P const scan_list4[] PROGMEM = { apn_claro, ip_server_spy2 };
+
+bool gprs_scan_try (t_scan_struct scan_boundle, PGM_P *dlist );
+bool gprs_send_scan_frame( t_scan_struct scan_boundle, char *ip_tmp );
+bool gprs_process_scan_response(t_scan_struct scan_boundle);
+void gprs_extract_dlgid(t_scan_struct scan_boundle);
 //------------------------------------------------------------------------------------
 
 struct {
@@ -86,10 +105,7 @@ uint8_t tries;
 	 */
 	for ( tries = 0; tries < 3; tries++ ) {
 
-		if ( f_debug ) {
-			xprintf_P(PSTR("COMMS: gprs intentos: SW=%d\r\n\0"), tries);
-		}
-
+		xprintf_PD( f_debug, PSTR("COMMS: gprs intentos: SW=%d\r\n\0"), tries);
 
 		// Genero un pulso en el pin SW para prenderlo logicamente
 		gprs_sw_pwr();
@@ -103,21 +119,17 @@ uint8_t tries;
 		xfprintf_P( fdGPRS, PSTR("AT\r\0"));
 		vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 
-		if ( f_debug ) {
-			gprs_print_RX_buffer();
-		}
+		gprs_print_RX_buffer( f_debug);
 
 		if ( gprs_check_response("OK\0") ) {
 			// Respondio OK. Esta prendido; salgo
-			xprintf_P( PSTR("COMMS: gprs Modem on.\r\n\0"));
+			xprintf_PD( f_debug, PSTR("COMMS: gprs Modem on.\r\n\0"));
 			gprs_readImei(f_debug);
 			gprs_readCcid(f_debug);
 			return(true);
 
 		} else {
-			if ( f_debug ) {
-				xprintf_P(PSTR("COMMS: gprs Modem No prendio!!\r\n\0"));
-			}
+			xprintf_PD( f_debug, PSTR("COMMS: gprs Modem No prendio!!\r\n\0"));
 		}
 
 	}
@@ -172,15 +184,17 @@ void gprs_flush_TX_buffer(void)
 
 }
 //------------------------------------------------------------------------------------
-void gprs_print_RX_buffer(void)
+void gprs_print_RX_buffer( bool f_debug )
 {
 
-	// Imprimo todo el buffer local de RX. Sale por \0.
-	xprintf_P( PSTR ("GPRS: rxbuff>\r\n\0"));
+	if ( f_debug ) {
+		// Imprimo todo el buffer local de RX. Sale por \0.
+		xprintf_P( PSTR ("GPRS: rxbuff>\r\n\0"));
 
-	// Uso esta funcion para imprimir un buffer largo, mayor al que utiliza xprintf_P. !!!
-	xnprint( gprsRxBuffer.buffer, GPRS_RXBUFFER_LEN );
-	xprintf_P( PSTR ("\r\n[%d]\r\n\0"), gprsRxBuffer.ptr );
+		// Uso esta funcion para imprimir un buffer largo, mayor al que utiliza xprintf_P. !!!
+		xnprint( gprsRxBuffer.buffer, GPRS_RXBUFFER_LEN );
+		xprintf_P( PSTR ("\r\n[%d]\r\n\0"), gprsRxBuffer.ptr );
+	}
 }
 //------------------------------------------------------------------------------------
 bool gprs_check_response( const char *rsp )
@@ -210,9 +224,7 @@ uint8_t end = 0;
 	xfprintf_P( fdGPRS,PSTR("AT+CGSN\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 	// Leo y Evaluo la respuesta al comando AT+CGSN
 	if ( gprs_check_response("OK\0") ) {
@@ -245,7 +257,7 @@ uint8_t end = 0;
 // Exit
 EXIT:
 
-	xprintf_P( PSTR("COMMS: gprs IMEI[%s]\r\n\0"), gprs_status.buff_gprs_imei);
+	xprintf_PD( f_debug,  PSTR("COMMS: gprs IMEI[%s]\r\n\0"), gprs_status.buff_gprs_imei);
 
 
 }
@@ -284,9 +296,7 @@ uint8_t end = 0;
 	xfprintf_P( fdGPRS,PSTR("AT+CCID\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 	// Leo y Evaluo la respuesta al comando AT+CCID
 	if ( gprs_check_response("OK\0") ) {
@@ -322,7 +332,7 @@ uint8_t end = 0;
 // Exit
 EXIT:
 
-	xprintf_P( PSTR("COMMS: gprs CCID[%s]\r\n\0"),gprs_status.buff_gprs_ccid);
+	xprintf_PD( f_debug, PSTR("COMMS: gprs CCID[%s]\r\n\0"),gprs_status.buff_gprs_ccid);
 
 
 }
@@ -368,18 +378,14 @@ bool gprs_CPIN( bool f_debug, char *pin )
 
 uint8_t tryes = 3;
 
-	if ( f_debug ) {
-		xprintf_P( PSTR("GPRS:gprs CPIN\r\n\0"));
-	}
+	xprintf_PD( f_debug, PSTR("GPRS: gprs CPIN\r\n\0"));
 
 	while ( tryes > 0 ) {
 		// Vemos si necesita SIMPIN
 		gprs_flush_RX_buffer();
 		xfprintf_P( fdGPRS , PSTR("AT+CPIN?\r\0"));
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( f_debug ) {
-			gprs_print_RX_buffer();
-		}
+		gprs_print_RX_buffer(f_debug);
 
 		// Pin desbloqueado
 		if ( gprs_check_response("+CPIN: READY\0") ) {
@@ -405,9 +411,7 @@ uint8_t tryes = 3;
 			}
 
 			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			if ( f_debug ) {
-				gprs_print_RX_buffer();
-			}
+			gprs_print_RX_buffer(f_debug);
 		}
 
 		tryes--;
@@ -436,16 +440,14 @@ bool gprs_CGREG( bool f_debug )
 bool retS = false;
 uint8_t tryes = 0;
 
-	xprintf_P( PSTR("COMMS: gprs NET registation\r\n\0"));
+	xprintf_PD( f_debug,  PSTR("COMMS: gprs NET registation\r\n\0"));
 
 	for ( tryes = 0; tryes < 5; tryes++ ) {
 
 		gprs_flush_RX_buffer();
 		xfprintf_P( fdGPRS, PSTR("AT+CREG?\r\0"));
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( f_debug ) {
-			gprs_print_RX_buffer();
-		}
+		gprs_print_RX_buffer(f_debug);
 
 		vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
 
@@ -470,22 +472,18 @@ bool gprs_CGATT(bool f_debug)
 
 uint8_t tryes = 0;
 
-	xprintf_P( PSTR("COMMS: gprs NET attach\r\n\0"));
+	xprintf_PD( f_debug,  PSTR("COMMS: gprs NET attach\r\n\0"));
 
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CGATT=1\r\0"));
 	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 	for ( tryes = 0; tryes < 3; tryes++ ) {
 		gprs_flush_RX_buffer();
 		xfprintf_P( fdGPRS,PSTR("AT+CGATT?\r\0"));
 		vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
-		if ( f_debug ) {
-			gprs_print_RX_buffer();
-		}
+		gprs_print_RX_buffer(f_debug);
 
 		if ( gprs_check_response("+CGATT: 1\0") ) {
 			return(true);
@@ -503,9 +501,7 @@ void gprs_CIPMODE(bool f_debug)
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CIPMODE=1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 }
 //------------------------------------------------------------------------------------
@@ -517,16 +513,12 @@ void gprs_DCDMODE( bool f_debug )
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT&D1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CSUART=1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 /*
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CDCDMD=0\r\0"));
@@ -536,9 +528,7 @@ void gprs_DCDMODE( bool f_debug )
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT&C1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 }
 //------------------------------------------------------------------------------------
@@ -549,9 +539,7 @@ void gprs_CMGF( bool f_debug )
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CMGF=1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 }
 //------------------------------------------------------------------------------------
@@ -559,28 +547,24 @@ void gprs_CFGRI (bool f_debug)
 {
 	// Configura para que RI sea ON y al recibir un SMS haga un pulso
 
-uint8_t pin;
+//uint8_t pin;
 
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CFGRI=1,1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 	// Reseteo el RI
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CRIRS\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 	// Leo el RI
-	pin = IO_read_RI();
-	xprintf_P( PSTR("RI=%d\r\n\0"),pin);
+	//pin = IO_read_RI();
+	//xprintf_P( PSTR("RI=%d\r\n\0"),pin);
 
 }
 //------------------------------------------------------------------------------------
@@ -599,10 +583,7 @@ uint8_t csq, dbm;
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS, PSTR("AT+CSQ\r\0"));
 	vTaskDelay( (portTickType)( 500 / portTICK_RATE_MS ) );
-
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 	memcpy(csqBuffer, &gprsRxBuffer.buffer[0], sizeof(csqBuffer) );
 	if ( (ts = strchr(csqBuffer, ':')) ) {
@@ -612,7 +593,7 @@ uint8_t csq, dbm;
 	}
 
 	// LOG
-	xprintf_P ( PSTR("COMMS: gprs signalQ CSQ=%d,DBM=%d\r\n\0"), csq, dbm );
+	xprintf_PD( f_debug,  PSTR("COMMS: gprs signalQ CSQ=%d,DBM=%d\r\n\0"), csq, dbm );
 	return(csq);
 }
 //------------------------------------------------------------------------------------
@@ -641,12 +622,6 @@ uint8_t timer = 1;
 			timer = 10;
 		}
 	}
-}
-//------------------------------------------------------------------------------------
-bool gprs_scan(bool f_debug, char *apn, char *ip_server, char *dlgid, uint8_t *err_code )
-{
-
-	return(true);
 }
 //------------------------------------------------------------------------------------
 bool gprs_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
@@ -679,25 +654,21 @@ void gprs_set_apn(bool f_debug, char *apn)
 
 	// Configura el APN de trabajo.
 
-	xprintf_P( PSTR("COMMS: gprs set APN\r\n\0") );
+	xprintf_PD( f_debug, PSTR("COMMS: gprs set APN\r\n\0") );
 
 	//Defino el PDP indicando cual es el APN.
 	// AT+CGDCONT
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 	// Como puedo tener varios PDP definidos, indico cual va a ser el que se deba activar
 	// al usar el comando NETOPEN.
 	gprs_flush_RX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 }
 //------------------------------------------------------------------------------------
@@ -712,15 +683,13 @@ bool gprs_netopen(bool f_debug)
 uint8_t reintentos = MAX_TRYES_NET_ATTCH;
 uint8_t checks = 0;
 
-	xprintf_P( PSTR("COMMS: gprs netopen (get IP).\r\n\0") );
+	xprintf_PD( f_debug,  PSTR("COMMS: gprs netopen (get IP).\r\n\0") );
 	// Espero 2s para dar el comando
 	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
 
 	while ( reintentos-- > 0 ) {
 
-		if ( f_debug ) {
-			xprintf_P( PSTR("COMMS: gprs send NETOPEN cmd (%d)\r\n\0"),reintentos );
-		}
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs send NETOPEN cmd (%d)\r\n\0"),reintentos );
 
 		// Envio el comando.
 		// AT+NETOPEN
@@ -731,13 +700,9 @@ uint8_t checks = 0;
 		// Intento 5 veces ver si respondio correctamente.
 		for ( checks = 0; checks < 5; checks++) {
 
-			if ( f_debug ) {
-				xprintf_P( PSTR("COMMS: gprs netopen check.(%d)\r\n\0"),checks );
-			}
+			xprintf_PD( f_debug,  PSTR("COMMS: gprs netopen check.(%d)\r\n\0"),checks );
 
-			if ( f_debug ) {
-				gprs_print_RX_buffer();
-			}
+			gprs_print_RX_buffer(f_debug);
 
 			// Evaluo las respuestas del modem.
 			if ( gprs_check_response("+NETOPEN: 0")) {
@@ -745,14 +710,14 @@ uint8_t checks = 0;
 				return(true);
 
 			} else if ( gprs_check_response("Network opened")) {
-				xprintf_P( PSTR("COMMS: gprs NETOPEN OK !.\r\n\0") );
+				xprintf_PD( f_debug,  PSTR("COMMS: gprs NETOPEN OK !.\r\n\0") );
 				return(true);
 
 			} else if ( gprs_check_response("+IP ERROR: Network is already opened")) {
 				return(true);
 
 			} else if ( gprs_check_response("+NETOPEN: 1")) {
-				xprintf_P( PSTR("COMMS: gprs NETOPEN FAIL !!.\r\n\0") );
+				xprintf_PD( f_debug,  PSTR("COMMS: gprs NETOPEN FAIL !!.\r\n\0") );
 				return(false);
 
 			} else if ( gprs_check_response("ERROR")) {
@@ -770,7 +735,7 @@ uint8_t checks = 0;
 	}
 
 	// Luego de varios reintentos no pude conectarme a la red.
-	xprintf_P( PSTR("COMMS: gprs NETOPEN FAIL !!.\r\n\0"));
+	xprintf_PD( f_debug,  PSTR("COMMS: gprs NETOPEN FAIL !!.\r\n\0"));
 	return(false);
 
 }
@@ -798,9 +763,7 @@ char *ptr = NULL;
 	//xfprintf_P( fdGPRS,PSTR("AT+CGPADDR\r\0"));
 	xfprintf_P( fdGPRS,PSTR("AT+IPADDR\r\0"));
 	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
-	if ( f_debug ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer(f_debug);
 
 	if ( gprs_check_response("+IP ERROR: Network not opened")) {
 		// No tengo la IP.
@@ -817,7 +780,7 @@ char *ptr = NULL;
 		}
 		*ptr = '\0';
 
-		xprintf_P( PSTR("COMMS: gprs ip address=[%s]\r\n\0"), ip_assigned );
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs ip address=[%s]\r\n\0"), ip_assigned );
 		return(true);
 
 	} else {
@@ -827,7 +790,7 @@ char *ptr = NULL;
 	return(false);
 }
 //------------------------------------------------------------------------------------
-t_link_status gprs_check_socket_status(void)
+t_link_status gprs_check_socket_status(bool f_debug)
 {
 	/* En el caso de un link GPRS, el socket puede estar abierto
 	 * o no.
@@ -847,24 +810,24 @@ t_link_status socket_status = LINK_CLOSED;
 //	if ( ( gprs_status.modem_prendido == true ) && ( pin_dcd == 0 ) ){
 	if (  pin_dcd == 0 ) {
 		socket_status = LINK_OPEN;
-		xprintf_PD( DF_COMMS, PSTR("COMMS: gprs sckt is open (dcd=%d)\r\n\0"),pin_dcd);
+		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt is open (dcd=%d)\r\n\0"),pin_dcd);
 
 	} else if ( gprs_check_response("Operation not supported")) {
 		socket_status = LINK_ERROR;
-		xprintf_PD( DF_COMMS , PSTR("COMMS: gprs sckt ERROR\r\n\0"));
+		xprintf_PD( f_debug , PSTR("COMMS: gprs sckt ERROR\r\n\0"));
 
 	} else if ( gprs_check_response("ERROR")) {
 		socket_status = LINK_ERROR;
-		xprintf_PD( DF_COMMS, PSTR("GPRS: sckt ERROR\r\n\0"));
+		xprintf_PD( f_debug, PSTR("GPRS: sckt ERROR\r\n\0"));
 
 	} else if ( gprs_check_response("+CIPEVENT:")) {
 		// El socket no se va a recuperar. Hay que cerrar el net y volver a abrirlo.
 		socket_status = LINK_FAIL;
-		xprintf_PD( DF_COMMS, PSTR("COMMS: gprs sckt FAIL +CIPEVENT:\r\n\0"));
+		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt FAIL +CIPEVENT:\r\n\0"));
 
 	} else {
 		socket_status = LINK_CLOSED;
-		xprintf_PD( DF_COMMS, PSTR("COMMS: gprs sckt is close (dcd=%d)\r\n\0"),pin_dcd);
+		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt is close (dcd=%d)\r\n\0"),pin_dcd);
 
 	}
 
@@ -872,7 +835,7 @@ t_link_status socket_status = LINK_CLOSED;
 
 }
 //------------------------------------------------------------------------------------
-t_link_status gprs_open_socket(void)
+t_link_status gprs_open_socket(bool f_debug, char *ip, char *port)
 {
 
 uint8_t timeout = 0;
@@ -880,15 +843,13 @@ uint8_t await_loops = 0;
 t_link_status link_status = LINK_FAIL;
 
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: try to open gprs socket\r\n\0"));
+	xprintf_PD( f_debug, PSTR("COMMS: try to open gprs socket\r\n\0"));
 
 	/* Mando el comando y espero */
-	xfprintf_P( fdGPRS, PSTR("AT+CIPOPEN=0,\"TCP\",\"%s\",%s\r\n\0"), systemVars.comms_conf.server_ip_address, systemVars.comms_conf.server_tcp_port);
+	xfprintf_P( fdGPRS, PSTR("AT+CIPOPEN=0,\"TCP\",\"%s\",%s\r\n\0"), ip, port);
 	vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
 
-	if ( systemVars.debug == DEBUG_COMMS ) {
-		gprs_print_RX_buffer();
-	}
+	gprs_print_RX_buffer( ( systemVars.debug == DEBUG_COMMS ));
 
 	await_loops = ( 10 * 1000 / 3000 ) + 1;
 	// Y espero hasta 30s que abra.
@@ -896,7 +857,7 @@ t_link_status link_status = LINK_FAIL;
 
 		vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
 
-		link_status = gprs_check_socket_status();
+		link_status = gprs_check_socket_status(f_debug);
 
 		// Si el socket abrio, salgo para trasmitir el frame de init.
 		if ( link_status == LINK_OPEN ) {
@@ -924,3 +885,269 @@ char *gprs_get_buffer_ptr( char *pattern)
 	return( strstr( gprsRxBuffer.buffer, pattern) );
 }
 //------------------------------------------------------------------------------------
+bool gprs_scan( t_scan_struct scan_boundle )
+{
+
+	// Inicio un ciclo de SCAN
+	xprintf_PD( scan_boundle.f_debug, PSTR("COMMS: GPRS_SCAN: starting to scan...\r\n\0" ));
+
+	// scan_list1: datos de Spymovil.
+	if ( gprs_scan_try( scan_boundle , (PGM_P *)scan_list1 ))
+		return(true);
+
+	// scan_list2: datos de UTE.
+	if ( gprs_scan_try( scan_boundle , (PGM_P *)scan_list2 ))
+		return(true);
+
+	// scan_list3: datos de OSE.
+	if ( gprs_scan_try( scan_boundle , (PGM_P *)scan_list3 ))
+		return(true);
+
+	// scan_list4: datos de SPY PUBLIC_IP.
+	if ( gprs_scan_try( scan_boundle , (PGM_P *)scan_list4 ))
+		return(true);
+
+	return(false);
+
+}
+//------------------------------------------------------------------------------------
+bool gprs_need_scan( t_scan_struct scan_boundle )
+{
+
+	// Veo si es necesario hacer un SCAN de la IP del server
+	if ( ( strcmp_P( scan_boundle.apn, PSTR("DEFAULT\0")) == 0 ) ||
+			( strcmp_P( scan_boundle.server_ip, PSTR("DEFAULT\0")) == 0 ) ||
+			( strcmp_P( scan_boundle.dlgid, PSTR("DEFAULT\0")) == 0 ) ) {
+		// Alguno de los parametros estan en DEFAULT.
+		return(true);
+	}
+
+	return(false);
+
+}
+//------------------------------------------------------------------------------------
+bool gprs_scan_try (t_scan_struct scan_boundle, PGM_P *dlist )
+{
+	/*
+	 * Recibe una lista de PGM_P cuyo primer elemento es un APN y el segundo una IP.
+	 * Intenta configurar el APN y abrir un socket a la IP.
+	 *
+	 */
+char apn_tmp[APN_LENGTH];
+char ip_tmp[IP_LENGTH];
+uint8_t intentos;
+
+	strcpy_P( apn_tmp, (PGM_P)pgm_read_word( &dlist[0]));
+	strcpy_P( ip_tmp, (PGM_P)pgm_read_word( &dlist[1]));
+
+	xprintf_PD( scan_boundle.f_debug, PSTR("COMMS: GPRS_SCAN trying APN:%s, IP:%s\r\n\0"), apn_tmp, ip_tmp );
+
+	// Apago
+	gprs_apagar();
+	vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+
+	// Prendo
+	if ( ! gprs_prender( scan_boundle.f_debug, 1) )
+		return(false);
+
+	// Configuro
+	// EL pin es el de default ya que si estoy aqui es porque no tengo configuracion valida.
+	if (  ! gprs_configurar_dispositivo( scan_boundle.f_debug, scan_boundle.cpin, NULL ) ) {
+		return(false);
+	}
+
+	// Apn
+	gprs_set_apn(scan_boundle.f_debug,  apn_tmp );
+
+	// Intento pedir una IP
+	if ( ! gprs_netopen(scan_boundle.f_debug) ) {
+		return(false);
+	}
+
+	// Tengo la IP. La leo.
+	gprs_read_ip_assigned(scan_boundle.f_debug, NULL);
+
+	// Envio un frame de SCAN al servidor.
+	for( intentos= 0; intentos < 3 ; intentos++ )
+	{
+		if ( gprs_send_scan_frame(scan_boundle, ip_tmp) ) {
+			if ( gprs_process_scan_response( scan_boundle )) {
+				// Resultado OK. Los parametros son correctos asi que los salvo.
+				memset( scan_boundle.apn,'\0', APN_LENGTH );
+				strncpy(scan_boundle.apn, apn_tmp, APN_LENGTH);
+				memset( scan_boundle.server_ip,'\0', IP_LENGTH );
+				strncpy(scan_boundle.server_ip, ip_tmp, IP_LENGTH);
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+
+}
+//------------------------------------------------------------------------------------
+bool gprs_send_scan_frame(t_scan_struct scan_boundle, char *ip_tmp )
+{
+	//  DLGID=DEFAULT&TYPE=CTL&VER=2.9.9k&PLOAD=CLASS:SCAN;UID:3046323334331907001300
+
+uint8_t i = 0;
+
+	// Loop
+	for ( i = 0; i < 3; i++ ) {
+
+		if (  gprs_check_socket_status( scan_boundle.f_debug) == LINK_OPEN ) {
+
+			gprs_flush_RX_buffer();
+			gprs_flush_TX_buffer();
+			xprintf_PVD( fdGPRS, scan_boundle.f_debug, PSTR("GET %s?DLGID=%s&TYPE=CTL&VER=%s\0" ), scan_boundle.script, scan_boundle.dlgid, SPX_FW_REV );
+			xprintf_PVD(  fdGPRS, scan_boundle.f_debug, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
+			xprintf_PVD(  xCOMMS_get_fd(), scan_boundle.f_debug, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
+			vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
+			return(true);
+
+		} else {
+			// No tengo enlace al server. Intento abrirlo
+			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
+			gprs_open_socket(scan_boundle.f_debug, ip_tmp, scan_boundle.tcp_port );
+		}
+	}
+
+	/*
+	 * Despues de varios reintentos no logre enviar el frame
+	 */
+	return(false);
+
+}
+//------------------------------------------------------------------------------------
+bool gprs_process_scan_response(t_scan_struct scan_boundle)
+{
+uint8_t timeout = 0;
+
+	for ( timeout = 0; timeout < 10; timeout++) {
+
+		vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );	// Espero 1s
+
+		// El socket se cerro
+		if ( gprs_check_socket_status( scan_boundle.f_debug) != LINK_OPEN ) {
+			return(false);
+		}
+
+		//xCOMMS_print_RX_buffer(true);
+
+		// Recibi un ERROR de respuesta
+		if ( gprs_check_response("ERROR") ) {
+			gprs_print_RX_buffer(true);
+			return(false);
+		}
+
+		// Recibi un ERROR http 401: No existe el recurso
+		if ( gprs_check_response("404 Not Found") ) {
+			gprs_print_RX_buffer(true);
+			return(false);
+		}
+
+		// Recibi un ERROR http 500: No existe el recurso
+		if ( gprs_check_response("Internal Server Error") ) {
+			gprs_print_RX_buffer(true);
+			return(false);
+		}
+
+		// Respuesta completa del server
+		if ( gprs_check_response("</h1>") ) {
+
+			gprs_print_RX_buffer( scan_boundle.f_debug );
+
+			// Respuesta correcta. El dlgid esta definido en la BD
+			if ( gprs_check_response ("STATUS:OK")) {
+				return(true);
+
+			} else if ( gprs_check_response ("STATUS:RECONF")) {
+				// Respuesta correcta
+				// Configure el DLGID correcto y la SERVER_IP usada es la correcta.
+				gprs_extract_dlgid(scan_boundle);
+				return(true);
+
+			} else if ( gprs_check_response ("STATUS:UNDEF")) {
+				// Datalogger esta usando un script incorrecto
+				xprintf_P( PSTR("COMMS: GPRS_SCAN SCRIPT ERROR !!.\r\n\0" ));
+				return(false);
+
+			} else if ( gprs_check_response ("NOTDEFINED")) {
+				// Datalogger esta usando un script incorrecto
+				xprintf_P( PSTR("COMMS: GPRS_SCAN dlg not defined in BD\r\n\0" ));
+				return(false);
+
+			} else {
+				// Frame no reconocido !!!
+				xprintf_P( PSTR("COMMS: GPRS_SCAN frame desconocido\r\n\0" ));
+				return(false);
+			}
+		}
+	}
+
+	return(false);
+}
+//------------------------------------------------------------------------------------
+void gprs_extract_dlgid(t_scan_struct scan_boundle)
+{
+	// La linea recibida es del tipo: <h1>TYPE=CTL&PLOAD=CLASS:SCAN;STATUS:RECONF;DLGID:TEST01</h1>
+	// Es la respuesta del server a un frame de SCAN.
+	// Indica 2 cosas: - El server es el correcto por lo que debo salvar la IP
+	//                 - Me pasa el DLGID correcto.
+
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *token = NULL;
+char *delim = ",=:><";
+
+	p = gprs_get_buffer_ptr("DLGID");
+	if ( p == NULL ) {
+		return;
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	token = strsep(&stringp,delim);	// DLGID
+	token = strsep(&stringp,delim);	// TH001
+
+	// Copio el dlgid recibido al systemVars.dlgid que esta en el scan_boundle
+	memset( scan_boundle.dlgid,'\0', DLGID_LENGTH );
+	strncpy(scan_boundle.dlgid, token, DLGID_LENGTH);
+	xprintf_P( PSTR("COMMS: GPRS_SCAN discover DLGID to %s\r\n\0"), scan_boundle.dlgid );
+}
+//------------------------------------------------------------------------------------
+/*
+void gprs_test(void)
+{
+
+	xprintf_P( PSTR("TEST start...\r\n\0" ));
+	gprs_scan_test((PGM_P *)scan_list1 );
+	xprintf_P( PSTR("TEST end...\r\n\0" ));
+
+}
+//------------------------------------------------------------------------------------
+void gprs_scan_test (PGM_P *dlist )
+{
+//	const char apn_0[] PROGMEM = "SPYMOVIL.VPNANTEL";	// SPYMOVIL | UTE | TAHONA
+//	const char server_ip_0[] PROGMEM = "192.168.0.9\0";		// SPYMOVIL
+//	const char server_ip_2[] PROGMEM = "192.168.1.9\0";		// UTE
+
+char apn_tmp[APN_LENGTH];
+char ip_tmp[IP_LENGTH];
+
+	//strcpy_P( apn_tmp, (PGM_P)pgm_read_word( &scan_list1[0]));
+	//strcpy_P( ip_tmp, (PGM_P)pgm_read_word( &scan_list1[1]));
+	strcpy_P( apn_tmp, (PGM_P)pgm_read_word( &dlist[0]));
+	strcpy_P( ip_tmp, (PGM_P)pgm_read_word( &dlist[1]));
+
+	xprintf_P( PSTR("TEST SCAN: APN:%s, IP:%s\r\n\0"), apn_tmp, ip_tmp );
+
+}
+//------------------------------------------------------------------------------------
+ *
+ */

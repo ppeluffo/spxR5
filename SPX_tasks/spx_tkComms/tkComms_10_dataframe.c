@@ -196,7 +196,7 @@ uint8_t i = 0;
 	// Loop
 	for ( i = 0; i < MAX_TRYES_OPEN_COMMLINK; i++ ) {
 
-		if (  xCOMMS_link_status() == LINK_OPEN ) {
+		if (  xCOMMS_link_status(DF_COMMS ) == LINK_OPEN ) {
 			// Envio un window frame
 			registros_trasmitidos = 0;
 			FF_rewind();
@@ -222,7 +222,7 @@ uint8_t i = 0;
 		} else {
 			// No tengo enlace al server. Intento abrirlo
 			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			xCOMMS_open_link();
+			xCOMMS_open_link( DF_COMMS, systemVars.comms_conf.server_ip_address, systemVars.comms_conf.server_tcp_port );
 		}
 	}
 	/*
@@ -249,7 +249,7 @@ uint8_t timeout = 0;
 		vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );	// Espero 1s
 
 		// El socket se cerro
-		if ( xCOMMS_link_status() != LINK_OPEN ) {
+		if ( xCOMMS_link_status( DF_COMMS ) != LINK_OPEN ) {
 			return(false);
 		}
 

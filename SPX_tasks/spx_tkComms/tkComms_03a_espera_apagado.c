@@ -14,8 +14,6 @@ static bool dentro_de_pwrSave(void);
 // La tarea pasa por el mismo lugar c/1s.
 #define WDG_COMMS_TO_ESPERA_OFF	30
 
-static int32_t time_to_next_dial;
-
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_espera_apagado(void)
 {
@@ -110,7 +108,7 @@ static void esperar_apagado(void)
 		if ( time_to_next_dial > 0) {
 			// Expiro el tiempo ?.
 			time_to_next_dial = time_to_next_dial - 10;
-			//xprintf_PD( DF_COMMS, PSTR("COMMS: st_espera_apagado.(2)TND=%d\r\n\0"), time_to_next_dial );
+			//xprintf_PD( DF_COMMS, PSTR("DEBUG COMMS: TND=%d\r\n\0"), time_to_next_dial );
 			if (  time_to_next_dial <= 0 ) {
 				time_to_next_dial = 0;
 

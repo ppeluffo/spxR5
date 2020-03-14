@@ -33,7 +33,7 @@ t_comms_states next_state = ST_ENTRY;
 	// serial y leer la respuesta del AT del modem.
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_prender.\r\n\0"));
-	xprintf_P( PSTR("COMMS: prendo dispositivo...\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: prendo dispositivo...\r\n\0"));
 
 // Loop:
 	for ( intentos = 0; intentos < MAX_TRIES_PWRON; intentos++ ) {

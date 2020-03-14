@@ -198,7 +198,7 @@ void xCOMMS_mon_sqe(bool f_debug, bool modo_continuo, uint8_t *csq )
 	}
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_scan(bool f_debug, char *apn, char *ip_server, char *dlgid, uint8_t *err_code )
+bool xCOMMS_scan(t_scan_struct scan_boundle )
 {
 
 	/*
@@ -210,12 +210,26 @@ bool xCOMMS_scan(bool f_debug, char *apn, char *ip_server, char *dlgid, uint8_t 
 bool retS = false;
 
 		if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
-			retS = xbee_scan(f_debug, ip_server, dlgid, err_code);
+			retS = xbee_scan(scan_boundle);
 		} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
-			retS = gprs_scan(f_debug, apn, ip_server, dlgid, err_code);
+			retS = gprs_scan(scan_boundle);
 		}
 
 		return(retS);
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_need_scan( t_scan_struct scan_boundle )
+{
+
+bool retS = false;
+
+	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		retS = xbee_need_scan(scan_boundle);
+	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		retS = gprs_need_scan(scan_boundle);
+	}
+
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 bool xCOMMS_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
@@ -237,15 +251,15 @@ bool retS = false;
 		return(retS);
 }
 //------------------------------------------------------------------------------------
-t_link_status xCOMMS_link_status(void)
+t_link_status xCOMMS_link_status( bool f_debug )
 {
 
 t_link_status lstatus = LINK_CLOSED;
 
 	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
-		lstatus = xbee_check_socket_status();
+		lstatus = xbee_check_socket_status( f_debug);
 	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
-		lstatus = gprs_check_socket_status();
+		lstatus = gprs_check_socket_status( f_debug);
 	}
 
 	return(lstatus);
@@ -297,7 +311,7 @@ void xCOMMS_send_tail(void)
 	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 }
 //------------------------------------------------------------------------------------
-t_link_status xCOMMS_open_link(void)
+t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port)
 {
 	/*
 	 * Intenta abrir el link hacia el servidor
@@ -311,9 +325,9 @@ t_link_status lstatus = LINK_CLOSED;
 	xCOMMS_flush_RX();
 
 	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
-		lstatus = xbee_open_socket();
+		lstatus = xbee_open_socket(f_debug, ip, port);
 	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
-		lstatus = gprs_open_socket();
+		lstatus = gprs_open_socket(f_debug, ip, port);
 	}
 
 	return(lstatus);
@@ -365,7 +379,7 @@ void xCOMMS_print_RX_buffer(bool d_flag)
 		if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
 			xbee_print_RX_buffer();
 		} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
-			gprs_print_RX_buffer();
+			gprs_print_RX_buffer(d_flag);
 		}
 	}
 }

@@ -26,7 +26,7 @@ t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_CONFIG);
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_configurar.\r\n\0"));
-	xprintf_P( PSTR("COMMS: configurar.\r\n\0"));
+	//xprintf_PD( DF_COMMS, PSTR("COMMS: configurar.\r\n\0"));
 
 	if ( xCOMMS_configurar_dispositivo(DF_COMMS, systemVars.comms_conf.simpwd, &err_code ) == true ) {
 		next_state = ST_MON_SQE;

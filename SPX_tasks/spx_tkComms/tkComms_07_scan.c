@@ -21,40 +21,45 @@ t_comms_states tkComms_st_scan(void)
 	 * El concepto de APN e IPserver solo se aplica a GPRS.
 	 */
 
-uint8_t err_code;
 t_comms_states next_state = ST_ENTRY;
+t_scan_struct scan_boundle;
 
 	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_SCAN );
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.\r\n\0"));
-	xprintf_P( PSTR("COMMS: scan.\r\n\0"));
+	//xprintf_P( PSTR("COMMS: scan.\r\n\0"));
+
+	scan_boundle.apn = systemVars.comms_conf.apn;
+	scan_boundle.dlgid = systemVars.comms_conf.dlgId;
+	scan_boundle.server_ip = systemVars.comms_conf.server_ip_address;
+	scan_boundle.tcp_port = systemVars.comms_conf.server_tcp_port;
+	scan_boundle.f_debug = DF_COMMS;
+	scan_boundle.cpin = systemVars.comms_conf.simpwd;
+	scan_boundle.script = systemVars.comms_conf.serverScript;
+
+	if ( xCOMMS_need_scan( scan_boundle ) == true ) {
+		// Necesito descubir los parametros.
+
+		if ( xCOMMS_scan( scan_boundle ) == true ) {
+			// Descubri los parametros. Salgo a reiniciarme con estos.
+			u_save_params_in_NVMEE();
+			xprintf_P( PSTR("COMMS: SCAN APN=[%s]\r\n\0"), systemVars.comms_conf.apn );
+			xprintf_P( PSTR("COMMS: SCAN IP=[%s]\r\n\0"), systemVars.comms_conf.server_ip_address );
+			xprintf_P( PSTR("COMMS: SCAN DLGID=[%s]\r\n\0"), systemVars.comms_conf.dlgId );
+			xCOMMS_apagar_dispositivo();
+			systemVars.comms_conf.timerDial = 10;	// Debo arrancar enseguida. Luego me reconfiguro
+			next_state = ST_ENTRY;
+		} else {
+			// No pude descubrir los parametros. Espero 1H para reintentar.
+			systemVars.comms_conf.timerDial = 3600;
+			next_state = ST_ENTRY;
+		}
 
 
-	if ( xCOMMS_scan(DF_COMMS, systemVars.comms_conf.apn ,systemVars.comms_conf.server_ip_address, systemVars.comms_conf.dlgId, &err_code ) == true ) {
+	} else {
+		// No need scan: go ahead to ST_IP
 		next_state = ST_IP;
-		goto EXIT;
 	}
 
-	switch (err_code) {
-	case ERR_APN_FAIL:
-		/*
-		 * No tengo el pin correcto. Reintento dentro de 1 hora
-		 */
-		xprintf_P( PSTR("COMMS: APN ERROR: Reconfiguro timerdial para 1H\r\n\0"));
-		systemVars.comms_conf.timerDial = 3600;
-		break;
-	case ERR_IPSERVER_FAIL:
-		xprintf_P( PSTR("COMMS: IPServer ERRROR: Reconfiguro timerdial para 1H.\r\n\0"));
-		systemVars.comms_conf.timerDial = 3600;
-		break;
-	case ERR_DLGID_FAIL:
-		xprintf_P( PSTR("COMMS: DLGID ERRROR: Reconfiguro timerdial para 1H.\r\n\0"));
-		systemVars.comms_conf.timerDial = 3600;
-		break;
-	default:
-		break;
-	}
-
-EXIT:
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.\r\n\0"));
 	return(next_state);

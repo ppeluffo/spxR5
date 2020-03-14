@@ -27,6 +27,29 @@ typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status
 
 #define DF_COMMS ( systemVars.debug == DEBUG_COMMS )
 
+int32_t time_to_next_dial;
+
+t_comms_states tkComms_state;
+
+typedef struct {
+	uint8_t csq;
+	char ip_assigned[IP_LENGTH];
+	bool dispositivo_prendido;
+
+} t_xCOMMS_stateVars;
+
+t_xCOMMS_stateVars xCOMMS_stateVars;
+
+typedef struct {
+	bool f_debug;
+	char *apn;
+	char *server_ip;
+	char *tcp_port;
+	char *dlgid;
+	char *cpin;
+	char *script;
+} t_scan_struct;
+
 t_comms_states tkComms_st_entry(void);
 t_comms_states tkComms_st_espera_apagado(void);
 t_comms_states tkComms_st_espera_prendido(void);
@@ -43,15 +66,16 @@ file_descriptor_t xCOMMS_get_fd(void);
 void xCOMMS_apagar_dispositivo(void);
 bool xCOMMS_prender_dispositivo(bool f_debug, uint8_t delay_factor);
 bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, uint8_t *err_code );
-bool xCOMMS_scan(bool f_debug, char *apn, char *ip_server, char *dlgid, uint8_t *err_code );
+bool xCOMMS_scan( t_scan_struct scan_boundle );
+bool xCOMMS_need_scan( t_scan_struct scan_boundle );
 void xCOMMS_mon_sqe(bool f_debug,  bool modo_continuo, uint8_t *csq );
 bool xCOMMS_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
-t_link_status xCOMMS_link_status(void);
+t_link_status xCOMMS_link_status(bool f_debug);
 void xCOMMS_flush_RX(void);
 void xCOMMS_flush_TX(void);
 void xCOMMS_send_header(char *type);
 void xCOMMS_send_tail(void);
-t_link_status xCOMMS_open_link(void);
+t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port);
 void xCOMM_send_global_params(void);
 bool xCOMMS_check_response( const char *pattern );
 void xCOMMS_print_RX_buffer(bool d_flag );
@@ -69,17 +93,18 @@ bool xbee_prender( bool debug, uint8_t delay_factor );
 void xbee_apagar(void);
 bool xbee_configurar_dispositivo( uint8_t *err_code );
 void xbee_mon_sqe( void );
-bool xbee_scan(bool f_debug,char *ip_server, char *dlgid, uint8_t *err_code );
+bool xbee_scan( t_scan_struct scan_boundle );
+bool xbee_need_scan( t_scan_struct scan_boundle );
 bool xbee_ip( void );
-t_link_status xbee_check_socket_status(void);
-t_link_status xbee_open_socket(void);
+t_link_status xbee_check_socket_status(bool f_debug);
+t_link_status xbee_open_socket(bool f_debug, char *ip, char *port);
 char *xbee_get_buffer_ptr( char *pattern);
 
 void gprs_init(void);
 void gprs_rxBuffer_fill(char c);
 void gprs_flush_RX_buffer(void);
 void gprs_flush_TX_buffer(void);
-void gprs_print_RX_buffer(void);
+void gprs_print_RX_buffer(bool f_debug );
 bool gprs_check_response( const char *rsp );
 bool gprs_prender(bool f_debug, uint8_t delay_factor );
 void gprs_hw_pwr_on(uint8_t delay_factor);
@@ -99,24 +124,18 @@ void gprs_DCDMODE( bool f_debug );
 void gprs_CMGF( bool f_debug );
 void gprs_CFGRI (bool f_debug);
 void gprs_mon_sqe( bool f_debug,  bool modo_continuo, uint8_t *csq);
-bool gprs_scan(bool f_debug, char *apn, char *ip_server, char *dlgid, uint8_t *err_code );
+bool gprs_scan( t_scan_struct scan_boundle );
+bool gprs_need_scan( t_scan_struct scan_boundle );
 bool gprs_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
 void gprs_set_apn(bool f_debug, char *apn);
 bool gprs_netopen(bool f_debug);
 bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned );
-t_link_status gprs_check_socket_status(void);
-t_link_status gprs_open_socket(void);
+t_link_status gprs_check_socket_status(bool f_debug);
+t_link_status gprs_open_socket(bool f_debug, char *ip, char *port);
 char *gprs_get_buffer_ptr( char *pattern);
 
-t_comms_states tkComms_state;
+//void gprs_test(void);
+//void gprs_scan_test (PGM_P *dlist );
 
-typedef struct {
-	uint8_t csq;
-	char ip_assigned[IP_LENGTH];
-	bool dispositivo_prendido;
-
-} t_xCOMMS_stateVars;
-
-t_xCOMMS_stateVars xCOMMS_stateVars;
 
 #endif /* SRC_SPX_TASKS_SPX_TKCOMMS_TKCOMMS_H_ */

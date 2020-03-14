@@ -60,15 +60,13 @@
 #include "l_bytes.h"
 #include "l_bps120.h"
 #include "l_adt7410.h"
-#include "SPX_ulibs/ul_consigna.h"
 #include "SPX_ulibs/ul_perforacion.h"
-#include "SPX_ulibs/ul_plantapot.h"
 
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9m"
-#define SPX_FW_DATE "@ 20200310"
+#define SPX_FW_REV "2.9.9o"
+#define SPX_FW_DATE "@ 20200314"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -502,6 +500,7 @@ void tanque_reconfigure_app(void);
 void tanque_process_gprs_response( const char *gprsbuff );
 void tanque_reconfigure_levels_by_gprsinit(const char *gprsbuff);
 void tanque_reconfigure_sms_by_gprsinit(const char *gprsbuff);
+
 
 bool SPX_SIGNAL( uint8_t signal );
 bool SPX_SEND_SIGNAL( uint8_t signal );

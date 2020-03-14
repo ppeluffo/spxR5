@@ -5,10 +5,12 @@
  *      Author: pablo
  */
 
-#include "ul_consigna.h"
+#include "tkApp.h"
+
+bool xAPP_consigna_init(void);
 
 //------------------------------------------------------------------------------------
-void consigna_stk(void)
+void tkApp_consigna(void)
 {
 	// Las salidas estan configuradas para modo consigna.
 	// c/25s reviso si debo aplicar una o la otra y aplico
@@ -16,7 +18,7 @@ void consigna_stk(void)
 
 RtcTimeType_t rtcDateTime;
 
-	if ( !consigna_init() )
+	if ( !xAPP_consigna_init() )
 		return;
 
 
@@ -30,7 +32,7 @@ RtcTimeType_t rtcDateTime;
 		// Las consignas se chequean y/o setean en cualquier modo de trabajo, continuo o discreto
 		memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
 		if ( ! RTC_read_dtime(&rtcDateTime) ) {
-			xprintf_P(PSTR("ERROR: I2C:RTC:pv_dout_chequear_consignas\r\n\0"));
+			xprintf_P(PSTR("APP_CONS: ERROR: I2C:RTC:pv_dout_chequear_consignas\r\n\0"));
 			continue;
 		}
 
@@ -40,7 +42,7 @@ RtcTimeType_t rtcDateTime;
 
 			DRV8814_set_consigna_diurna();
 			systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
-			xprintf_P(PSTR("Set consigna diurna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
+			xprintf_P(PSTR("APP_CONS: Set consigna diurna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 			continue;
 		}
 
@@ -50,14 +52,14 @@ RtcTimeType_t rtcDateTime;
 
 			DRV8814_set_consigna_nocturna();
 			systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
-			xprintf_P(PSTR("Set consigna nocturna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
+			xprintf_P(PSTR("APP_CONS: Set consigna nocturna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 			continue;
 		}
 
 	}
 }
 //------------------------------------------------------------------------------------
-bool consigna_init(void)
+bool xAPP_consigna_init(void)
 {
 	// Configuracion inicial cuando las salidas estan en CONSIGNA.
 	// Solo es para SPX_IO5CH.
@@ -71,7 +73,7 @@ uint8_t consigna_a_aplicar = 99;
 	memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
 
 	if ( spx_io_board != SPX_IO5CH ) {
-		xprintf_P(PSTR("MODO OPERACION Init ERROR: Consigna only in IO_5CH.\r\n\0"));
+		xprintf_P(PSTR("APP_CONS: MODO OPERACION Init ERROR: Consigna only in IO_5CH.\r\n\0"));
 		systemVars.aplicacion = APP_OFF;
 		u_save_params_in_NVMEE();
 		return(false);
@@ -81,7 +83,7 @@ uint8_t consigna_a_aplicar = 99;
 
 	// Hora actual en minutos.
 	if ( ! RTC_read_dtime(&rtcDateTime) )
-		xprintf_P(PSTR("ERROR: I2C:RTC:pv_out_init_consignas\r\n\0"));
+		xprintf_P(PSTR("APP_CONS: ERROR: I2C:RTC:pv_out_init_consignas\r\n\0"));
 
 	// Caso 1: C.Diurna < C.Nocturna
 	//           C.diurna                      C.nocturna
@@ -143,12 +145,12 @@ uint8_t consigna_a_aplicar = 99;
 	case CONSIGNA_DIURNA:
 		DRV8814_set_consigna_diurna();
 		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
-		xprintf_P(PSTR("Set consigna diurna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
+		xprintf_P(PSTR("APP_CONS: Set consigna diurna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		break;
 	case CONSIGNA_NOCTURNA:
 		DRV8814_set_consigna_nocturna();
 		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
-		xprintf_P(PSTR("Set consigna nocturna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
+		xprintf_P(PSTR("APP_CONS: Set consigna nocturna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		break;
 	}
 
@@ -156,7 +158,7 @@ uint8_t consigna_a_aplicar = 99;
 
 }
 //------------------------------------------------------------------------------------
-bool consigna_config ( char *hhmm1, char *hhmm2 )
+bool xAPP_consigna_config ( char *hhmm1, char *hhmm2 )
 {
 
 //	xprintf_P(PSTR("DEBUG CONSIGNA: %s, %s\r\n"), hhmm1, hhmm2);
@@ -178,7 +180,7 @@ bool consigna_config ( char *hhmm1, char *hhmm2 )
 
 }
 //------------------------------------------------------------------------------------
-void consigna_config_defaults(void)
+void xAPP_consigna_config_defaults(void)
 {
 
 	systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour = 05;
@@ -188,7 +190,7 @@ void consigna_config_defaults(void)
 
 }
 //------------------------------------------------------------------------------------
-bool consigna_write( char *param0, char *param1, char *param2 )
+bool xAPP_consigna_write( char *param0, char *param1, char *param2 )
 {
 	// write consigna
 	// 		(diurna|nocturna)
@@ -332,7 +334,7 @@ bool consigna_write( char *param0, char *param1, char *param2 )
 	return(false);
 }
 //------------------------------------------------------------------------------------
-uint8_t consigna_checksum(void)
+uint8_t xAPP_consigna_checksum(void)
 {
 
 uint8_t checksum = 0;
@@ -361,17 +363,7 @@ uint8_t i = 0;
 
 }
 //------------------------------------------------------------------------------------
-void consigna_reconfigure_app(void)
-{
-	systemVars.aplicacion = APP_CONSIGNA;
-	u_save_params_in_NVMEE();
-
-	if ( systemVars.debug == DEBUG_COMMS ) {
-		xprintf_P( PSTR("COMMS: Reconfig APLICACION:CONSIGNA\r\n\0"));
-	}
-}
-//------------------------------------------------------------------------------------
-void consigna_reconfigure_params_gprsinit(const char *gprsbuff)
+void xAPP_reconfigure_consigna(void)
 {
 	// CONSIGNAS:
 	// TYPE=INIT&PLOAD=CLASS:APP_B;HHMM1:1230;HHMM2:0940
@@ -385,22 +377,20 @@ char *delim = ",=:;><";
 
 
 	memset( &localStr, '\0', sizeof(localStr) );
-	//p = strstr( (const char *)&commsRxBuffer.buffer, "HHMM1");
-	p = strstr( gprsbuff, "HHMM1");
-	memcpy(localStr,p,sizeof(localStr));
+	p = xCOMM_get_buffer_ptr("HHMM1");
+	if ( p != NULL ) {
+		memcpy(localStr,p,sizeof(localStr));
+		stringp = localStr;
+		tk_cons_dia = strsep(&stringp,delim);	// HHMM1
+		tk_cons_dia = strsep(&stringp,delim);	// 1230
+		tk_cons_noche = strsep(&stringp,delim); // HHMM2
+		tk_cons_noche = strsep(&stringp,delim); // 0940
+		xAPP_consigna_config(tk_cons_dia, tk_cons_noche );
 
-	stringp = localStr;
-	tk_cons_dia = strsep(&stringp,delim);	// HHMM1
-	tk_cons_dia = strsep(&stringp,delim);	// 1230
-	tk_cons_noche = strsep(&stringp,delim); // HHMM2
-	tk_cons_noche = strsep(&stringp,delim); // 0940
-	consigna_config(tk_cons_dia, tk_cons_noche );
+		xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
 
-	if ( systemVars.debug == DEBUG_COMMS ) {
-		xprintf_P( PSTR("COMMS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
+		u_save_params_in_NVMEE();
 	}
-
-	u_save_params_in_NVMEE();
 
 }
 //------------------------------------------------------------------------------------

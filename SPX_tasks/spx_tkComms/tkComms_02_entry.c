@@ -31,11 +31,11 @@ t_comms_states next_state = ST_ESPERA_APAGADO;
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_ENTRY);
 
 	if ( MODO_DISCRETO ) {
-
+		// Modo discreto: Espero apagado
 		next_state = ST_ESPERA_APAGADO;
 
 	} else {
-
+		// Modo continuo: Espero prendido ( si el modem esta prendido )
 		if ( ! xCOMMS_stateVars.dispositivo_prendido ) {
 			// Modo continuo pero dispositivo apagado: salgo a prenderlo
 			next_state = ST_PRENDER;

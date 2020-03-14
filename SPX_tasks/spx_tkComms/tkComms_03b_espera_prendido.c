@@ -25,7 +25,7 @@ int8_t timer = 60;
 // Entry:
 	ctl_watchdog_kick(WDG_COMMS,WDG_COMMS_TO_ESPERA_ON );
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_prendido.\r\n\0"));
-	xprintf_P( PSTR("COMMS: espera_prendido.\r\n\0"));
+	//xprintf_P( PSTR("COMMS: espera_prendido.\r\n\0"));
 
 // Loop:
 	while (true) {

@@ -22,6 +22,10 @@ void tkComms(void * pvParameters)
 	tkComms_state = ST_ENTRY;
 	xprintf_P( PSTR("starting tkComms..\r\n\0"));
 
+//	gprs_test();
+//	while(true)
+//		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+
 	// loop
 	for( ;; )
 	{
