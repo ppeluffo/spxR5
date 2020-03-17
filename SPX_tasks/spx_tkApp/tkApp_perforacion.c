@@ -5,20 +5,24 @@
  *      Author: pablo
  */
 
-
-#include "ul_perforacion.h"
+#include "tkApp.h"
 
 uint8_t o_control = 0;
 uint16_t o_timer_boya = 0;
 uint16_t o_timer_sistema = 0;
+
+#define TIMEOUT_O_TIMER_BOYA	 60
+#define TIMEOUT_O_TIMER_SISTEMA	 600
 
 #define RELOAD_TIMER_SISTEMA()	(  o_timer_sistema = TIMEOUT_O_TIMER_SISTEMA )
 #define RELOAD_TIMER_BOYA()		( o_timer_boya = TIMEOUT_O_TIMER_BOYA )
 #define STOP_TIMER_SISTEMA() 	(o_timer_sistema = 0)
 #define STOP_TIMER_BOYA()		( o_timer_boya = 0 )
 
+static bool xAPP_perforacion_init(void);
+
 //------------------------------------------------------------------------------------
-void perforacion_stk(void)
+void tkApp_perforacion(void)
 {
 	// Corre en los 2 ioboards. El control se hace a c/segundo por lo tanto en SPX_IO5
 	// no puede entrar en pwrsave !!!
@@ -26,7 +30,7 @@ void perforacion_stk(void)
 	// El control a las BOYAS se pasa aqui estando en modo SISTEMA, si expiro el timer de los datos.
 	// El control al SISTEMA los pasa el recibir datos de GPRS.
 
-	if ( !perforacion_init() )
+	if ( !xAPP_perforacion_init() )
 		return;
 
 
@@ -45,8 +49,8 @@ void perforacion_stk(void)
 				o_timer_boya--;
 				if ( o_timer_boya == 0 ) {
 					RELOAD_TIMER_BOYA();
-					perforacion_set_douts ( systemVars.aplicacion_conf.perforacion.outs );
-					xprintf_P( PSTR("PERFORACION: MODO BOYA: reload timer boya. DOUTS=0x%0X\r\n\0"), systemVars.aplicacion_conf.perforacion.outs );
+					xAPP_perforacion_set_douts ( systemVars.aplicacion_conf.perforacion.outs );
+					xprintf_P( PSTR("APP: PERFORACION MODO BOYA: reload timer boya. DOUTS=0x%0X\r\n\0"), systemVars.aplicacion_conf.perforacion.outs );
 				}
 			}
 			break;
@@ -57,29 +61,29 @@ void perforacion_stk(void)
 				o_timer_sistema--;
 				if ( o_timer_sistema == 0 ) {
 					// Expiro: Paso el control a modo BOYA y las salidas a 0x00
-					perforacion_set_douts( 0x00 );
+					xAPP_perforacion_set_douts( 0x00 );
 					o_control = PERF_CTL_BOYA;			// Paso el control a las boyas.
 					RELOAD_TIMER_BOYA();				// Arranco el timer de las boyas
 					systemVars.aplicacion_conf.perforacion.control = PERF_CTL_BOYA;
-					xprintf_P( PSTR("PERFORACION: CTL to BOYAS !!!. (set outputs to 0x00)\r\n\0"));
+					xprintf_P( PSTR("APP: PERFORACION CTL to BOYAS !!!. (set outputs to 0x00)\r\n\0"));
 				}
 			}
 			break;
 
 		default:
 			// Paso a control de boyas
-			perforacion_set_douts( 0x00 );
+			xAPP_perforacion_set_douts( 0x00 );
 			o_control = PERF_CTL_BOYA;			// Paso el control a las boyas.
 			RELOAD_TIMER_BOYA();	// Arranco el timer de las boyas
 			systemVars.aplicacion_conf.perforacion.control = PERF_CTL_BOYA;
-			xprintf_P( PSTR("PERFORACION ERROR: Control outputs: Pasa a BOYA !!\r\n\0"));
+			xprintf_P( PSTR("APP: PERFORACION ERROR: Control outputs: Pasa a BOYA !!\r\n\0"));
 			break;
 		}
 
 	}
 }
 //------------------------------------------------------------------------------------
-bool perforacion_init(void)
+static bool xAPP_perforacion_init(void)
 {
 	// Inicializa las salidas con el modo de trabajo PERFORACIONES.
 	// Puede ser en cualquiera de las ioboards
@@ -92,7 +96,7 @@ uint8_t data = 0;
 bool retS = false;
 
 	if ( spx_io_board != SPX_IO8CH ) {
-		xprintf_P(PSTR("PERFORACION: Init ERROR: Perforaciones only in IO_8CH.\r\n\0"));
+		xprintf_P(PSTR("APP: PERFORACION Init ERROR: run only in IO_8CH.\r\n\0"));
 		systemVars.aplicacion = APP_OFF;
 		u_save_params_in_NVMEE();
 		return(retS);
@@ -103,7 +107,7 @@ bool retS = false;
 	if ( spx_io_board == SPX_IO8CH ) {
 		xBytes = MCP_read( MCP_OLATB, (char *)&data, 1 );
 		if ( xBytes == -1 ) {
-			xprintf_P(PSTR("PERFORACION: Perforaciones INIT ERROR: I2C:MCP:pv_cmd_rwMCP\r\n\0"));
+			xprintf_P(PSTR("APP: PERFORACION INIT ERROR: I2C:MCP:pv_cmd_rwMCP\r\n\0"));
 			data = 0x00;
 			retS = false;
 		}
@@ -129,14 +133,14 @@ bool retS = false;
 		}
 
 		// Pongo las salidas que ya tenia.
-		perforacion_set_douts( data );
+		xAPP_perforacion_set_douts( data );
 	}
 
 	return(retS);
 
 }
 //------------------------------------------------------------------------------------
-void perforacion_set_douts( uint8_t dout )
+void xAPP_perforacion_set_douts( uint8_t dout )
 {
 	// Funcion para setear el valor de las salidas desde el resto del programa.
 	// La usamos desde tkGprs cuando en un frame nos indican cambiar las salidas.
@@ -163,49 +167,30 @@ int8_t xBytes = 0;
 	data = twiddle_bits(data);
 	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
 	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("PEFORACION ERROR: perforacion_set_douts MCP write\r\n\0"));
+		xprintf_P(PSTR("APP: PEFORACION ERROR: set_douts MCP write\r\n\0"));
 		return;
 	}
 
-	xprintf_P( PSTR("PERFORACION: set outputs to 0x%02x\r\n\0"),dout);
+	xprintf_P( PSTR("APP: PERFORACION set outputs to 0x%02x\r\n\0"),dout);
 }
 //------------------------------------------------------------------------------------
-void perforacion_set_douts_from_gprs( uint8_t dout )
+void xAPP_perforacion_set_douts_remote( uint8_t dout )
 {
 	// El GPRS recibio datos de setear la salida.
 	// El control debe ser de SISTEMA y reiniciar el timer_SISTEMA
 
 	if ( o_control == PERF_CTL_BOYA ) {
-		xprintf_P( PSTR("PERFORACION: CTL to SISTEMA !!!. (set outputs to 0x%02x)\r\n\0"),dout);
+		xprintf_P( PSTR("APP: PERFORACION CTL to SISTEMA !!!. (set outputs to 0x%02x)\r\n\0"),dout);
 	}
 
 	o_control = PERF_CTL_SISTEMA;
 	RELOAD_TIMER_SISTEMA();
 	systemVars.aplicacion_conf.perforacion.control = PERF_CTL_SISTEMA;
 
-	perforacion_set_douts( dout );
+	xAPP_perforacion_set_douts( dout );
 }
 //------------------------------------------------------------------------------------
-uint16_t perforacion_read_timer_activo(void)
-{
-	// Devuelve el valor del timer. Se usa en tkCMD.status
-	switch (o_control ) {
-	case PERF_CTL_BOYA:
-		return(o_timer_boya);
-		break;
-	case PERF_CTL_SISTEMA:
-		return(o_timer_sistema);
-		break;
-	}
-	return(0);
-}
-//------------------------------------------------------------------------------------
-uint8_t perforacion_read_control_mode(void)
-{
-	return(o_control);
-}
-//------------------------------------------------------------------------------------
-uint8_t perforacion_checksum(void)
+uint8_t xAPP_perforacion_checksum(void)
 {
 uint8_t checksum = 0;
 char dst[32];
@@ -221,53 +206,24 @@ char *p;
 
 }
 //------------------------------------------------------------------------------------
-void perforacion_reconfigure_app(void)
+void xAPP_perforacion_print_status( void )
 {
-	// TYPE=INIT&PLOAD=CLASS:APP;AP0:PERFORACION;
 
-	systemVars.aplicacion = APP_PERFORACION;
-	u_save_params_in_NVMEE();
-	//f_reset = true;
+uint8_t olatb = 0 ;
 
-	if ( systemVars.debug == DEBUG_COMMS ) {
-		xprintf_P( PSTR("COMMS: Reconfig APLICACION:PERFORACION\r\n\0"));
+	xprintf_P( PSTR("  modo: Perforacion\r\n\0"));
+	MCP_read( 0x15, (char *)&olatb, 1 );
+	xprintf_P( PSTR("  outs=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), systemVars.aplicacion_conf.perforacion.outs, systemVars.aplicacion_conf.perforacion.outs, BYTE_TO_BINARY( systemVars.aplicacion_conf.perforacion.outs ), olatb );
+
+	switch( o_control ) {
+	case PERF_CTL_BOYA:
+		xprintf_P( PSTR("  control=BOYA, timer=%d\r\n\0"), o_timer_boya );
+		break;
+	case PERF_CTL_SISTEMA:
+		xprintf_P( PSTR("  control=SISTEMA, timer=%d\r\n\0"), o_timer_sistema );
+		break;
 	}
 
 }
 //------------------------------------------------------------------------------------
-void perforacion_process_gprs_response( const char *gprsbuff )
-{
-	// Recibi algo del estilo PERF_OUTS:245
-	// Es la respuesta del server para activar las salidas en perforaciones o modo remoto.
 
-	// Extraigo el valor de las salidas y las seteo.
-
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_douts = NULL;
-char *delim = ",=:><";
-char *p = NULL;
-
-	//p = strstr( (const char *)&commsRxBuffer.buffer, "PERF_OUTS");
-	p = strstr( gprsbuff , "PERF_OUTS");
-	if ( p == NULL ) {
-		return;
-	}
-
-	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
-	memset(localStr,'\0',32);
-	memcpy(localStr,p,sizeof(localStr));
-
-	stringp = localStr;
-	tk_douts = strsep(&stringp,delim);	// PERF_OUTS
-	tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
-
-	// Actualizo el status a travez de una funcion propia del modulo de outputs
-	perforacion_set_douts_from_gprs( atoi( tk_douts ));
-
-	if ( systemVars.debug == DEBUG_COMMS ) {
-		xprintf_P( PSTR("COMMS: PERF_OUTS\r\n\0"));
-	}
-
-}
-//------------------------------------------------------------------------------------

@@ -11,6 +11,8 @@
 #include "spx.h"
 #include "tkComms.h"
 
+#define DF_APP ( systemVars.debug == DEBUG_APLICACION )
+
 void tkApp_off(void);
 
 // CONSIGNA
@@ -21,20 +23,21 @@ bool xAPP_consigna_write( char *param0, char *param1, char *param2 );
 uint8_t xAPP_consigna_checksum(void);
 void xAPP_reconfigure_consigna(void);
 
-
 // PLANTAPOT
-void app_plantapot(void);
-bool appalarma_init(void);
+void tkApp_plantapot(void);
+uint8_t xAPP_plantapot_checksum(void);
+bool xAPP_plantapot_config( char *param0,char *param1, char *param2, char *param3, char *param4 );
+void xAPP_plantapot_config_defaults(void);
+void xAPP_plantapot_servicio_tecnico( char * action, char * device );
+void xAPP_plantapot_print_status( bool full );
+void xAPP_plantapot_test(void);
+void xAPP_plantapot_adjust_vars( st_dataRecord_t *dr);
 
-uint8_t appalarma_checksum(void);
-bool appalarma_config( char *param0,char *param1, char *param2, char *param3, char *param4 );
-void appalarma_config_defaults(void);
-
-void appalarma_servicio_tecnico( char * action, char * device );
-void appalarma_print_status( bool full );
-void appalarma_reconfigure_app(void);
-void appalarma_reconfigure_sms_by_gprsinit( const char *gprsbuff );
-void appalarma_reconfigure_levels_by_gprsinit(const char *gprsbuff );
-
+// PERFORACION
+void tkApp_perforacion(void);
+uint8_t xAPP_perforacion_checksum(void);
+void xAPP_perforacion_print_status( void );
+void xAPP_perforacion_set_douts_remote( uint8_t dout );
+void xAPP_perforacion_set_douts( uint8_t dout );
 
 #endif /* SRC_SPX_TASKS_SPX_TKAPP_TKAPP_H_ */

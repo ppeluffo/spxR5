@@ -6,6 +6,7 @@
  */
 
 #include <tkComms.h>
+#include <../spx_tkApp/tkApp.h>
 
 // La tarea no puede demorar mas de 300s.
 
@@ -30,6 +31,7 @@ static bool EV_procesar_respuesta(void);
 static void ac_send_data_record( void );
 static void ac_process_response_RESET(void);
 static void ac_process_response_MEMFORMAT(void);
+static void ac_process_response_PERF_OUTS(void);
 static uint8_t ac_process_response_OK(void);
 
 //------------------------------------------------------------------------------------
@@ -281,12 +283,12 @@ uint8_t timeout = 0;
 				ac_process_response_MEMFORMAT();
 			}
 
-			/*
 			if ( xCOMMS_check_response ("PERF_OUTS\0")) {
 				// El sever mando actualizacion de las salidas
-				perforacion_process_gprs_response( (const char *)&commsRxBuffer.buffer );
+				ac_process_response_PERF_OUTS();
 			}
 
+			/*
 			if ( xCOMMS_check_response ("TQS\0")) {
 				// El sever mando actualizacion de los datos aun tanque
 				tanque_process_gprs_response( (const char *)&commsRxBuffer.buffer );
@@ -381,6 +383,41 @@ static void ac_process_response_MEMFORMAT(void)
 	// Reset
 	CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
 
+}
+//------------------------------------------------------------------------------------
+static void ac_process_response_PERF_OUTS(void)
+{
+	/*
+	 * Recibo una respuesta que me dice que valores poner en las salidas
+	 * de modo de controlar las bombas de una perforacion.
+	 * Recibi algo del estilo PERF_OUTS:245
+	 * Extraigo el valor de las salidas y las seteo.
+	 */
+
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_douts = NULL;
+char *delim = ",=:><";
+char *p = NULL;
+uint8_t douts;
+
+	p = xCOMM_get_buffer_ptr("PERF_OUTS");
+	if ( p != NULL ) {
+		memset( &localStr, '\0', sizeof(localStr) );
+		memcpy(localStr,p,sizeof(localStr));
+
+		stringp = localStr;
+		tk_douts = strsep(&stringp,delim);	// PERF_OUTS
+		tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
+		douts = atoi( tk_douts );
+
+		// Actualizo el status a travez de una funcion propia del modulo de outputs
+		xAPP_perforacion_set_douts_remote( douts);
+
+		xprintf_PD( DF_COMMS, PSTR("COMMS: PERF_OUTS [0x%0X]\r\n\0"), douts);
+
+	}
 }
 //------------------------------------------------------------------------------------
 static uint8_t ac_process_response_OK(void)

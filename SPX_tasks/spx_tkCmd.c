@@ -124,7 +124,6 @@ static void cmdStatusFunction(void)
 FAT_t l_fat;
 uint8_t channel = 0;
 st_dataRecord_t dr;
-uint8_t olatb = 0 ;
 uint8_t i;
 
 	FRTOS_CMD_makeArgv();
@@ -185,32 +184,10 @@ uint8_t i;
 		}
 		break;
 	case APP_PERFORACION:
-		xprintf_P( PSTR("  modo: Perforacion\r\n\0"));
-		MCP_read( 0x15, (char *)&olatb, 1 );
-		xprintf_P( PSTR("  outs=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), systemVars.aplicacion_conf.perforacion.outs, systemVars.aplicacion_conf.perforacion.outs, BYTE_TO_BINARY( systemVars.aplicacion_conf.perforacion.outs ), olatb );
-		switch( perforacion_read_control_mode()) {
-		case PERF_CTL_BOYA:
-			xprintf_P( PSTR("  control=BOYA, timer=%d\r\n\0"), perforacion_read_timer_activo() );
-			break;
-		case PERF_CTL_SISTEMA:
-			xprintf_P( PSTR("  control=SISTEMA, timer=%d\r\n\0"), perforacion_read_timer_activo() );
-			break;
-		}
-		break;
-	case APP_TANQUE:
-		xprintf_P( PSTR("  modo: TANQUE\r\n\0"));
-		xprintf_P( PSTR("  low_level: %0.3f, high_level: %0.03f \r\n\0"), systemVars.aplicacion_conf.tanque.low_level, systemVars.aplicacion_conf.tanque.high_level  );
-		if ( systemVars.aplicacion_conf.tanque.sms_enabled == true ) {
-			xprintf_P( PSTR("  sms: Enabled\r\n\0"));
-		} else {
-			xprintf_P( PSTR("  sms: Disabled\r\n\0"));
-		}
-		for ( i = 0; i < NRO_PERFXTANQUE; i++ ) {
-			xprintf_P( PSTR("  sms%02d: %s\r\n\0"), i, systemVars.aplicacion_conf.l_sms[i]);
-		}
+		xAPP_perforacion_print_status();
 		break;
 	case APP_PLANTAPOT:
-		appalarma_print_status(false);
+		xAPP_plantapot_print_status(false);
 		break;
 	}
 
@@ -363,66 +340,7 @@ st_dataRecord_t dr;
 	xprintf_P( PSTR("  simpwd: %s\r\n\0"), systemVars.comms_conf.simpwd );
 
 	// MODEM
-	xprintf_P( PSTR(">Modem:\r\n\0"));
-//C	xprintf_P( PSTR("  signalQ: csq=%d, dBm=%d\r\n\0"), GPRS_stateVars.csq, GPRS_stateVars.dbm );
-//C	xprintf_P( PSTR("  ip address: %s\r\n\0"), GPRS_stateVars.dlg_ip_address);
-/*
-	// GPRS STATE
-	switch (GPRS_stateVars.state) {
-	case G_ESPERA_APAGADO:
-		xprintf_P( PSTR("  state: await_off\r\n"));
-		break;
-	case G_PRENDER:
-		xprintf_P( PSTR("  state: prendiendo\r\n"));
-		break;
-	case G_CONFIGURAR:
-		xprintf_P( PSTR("  state: configurando\r\n"));
-		break;
-	case G_MON_SQE:
-		xprintf_P( PSTR("  state: mon_sqe\r\n"));
-		break;
-	case G_SCAN_APN:
-		xprintf_P( PSTR("  state: scan apn\r\n"));
-		break;
-	case G_GET_IP:
-		xprintf_P( PSTR("  state: ip\r\n"));
-		break;
-	case G_INITS:
-		xprintf_P( PSTR("  state: link up: inits\r\n"));
-		break;
-	case G_DATA:
-		xprintf_P( PSTR("  state: link up: data\r\n"));
-		break;
-	case G_DATA_AWAITING:
-		xprintf_P( PSTR("  state: link up: data awaiting\r\n"));
-		break;
-	default:
-		xprintf_P( PSTR("  state: ERROR\r\n"));
-		break;
-	}
-
-	// MODO DE OPERACION:
-	xprintf_P( PSTR(">Aplicacion:\r\n\0"));
-	switch (systemVars.aplicacion ) {
-	case APP_OFF:
-		xprintf_P( PSTR("  modo: OFF\r\n\0"));
-		break;
-	case APP_CONSIGNA:
-		xprintf_P( PSTR("  modo: Consignas\r\n") );
-		break;
-	case APP_PERFORACION:
-		xprintf_P( PSTR("  modo: Perforacion\r\n\0"));
-		break;
-	case APP_TANQUE:
-		xprintf_P( PSTR("  modo: TANQUE\r\n\0"));
-		break;
-	case APP_PLANTAPOT:
-		appalarma_print_status(false);
-		break;
-	}
-*/
-	//xprintf_P( PSTR(">Aplicacion:\r\n\0"));
-	//appalarma_print_status();
+	//xprintf_P( PSTR(">Modem:\r\n\0"));
 
 	// CONFIG
 	xprintf_P( PSTR(">Config:\r\n\0"));
@@ -504,7 +422,7 @@ char l_data[10] = { '\0' };
 	// APPALARMA
 	// write appalarma (prender/apagar) (lroja,lverde,lamarilla,lnaranja, sirena)
 	if (!strcmp_P( strupr(argv[1]), PSTR("APPALARMA\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		appalarma_servicio_tecnico( argv[2], argv[3]);
+		xAPP_plantapot_servicio_tecnico( argv[2], argv[3]);
 		return;
 	}
 
@@ -529,7 +447,7 @@ char l_data[10] = { '\0' };
 	// OUTPUTS
 	// outputs (val dec.)
 	if (!strcmp_P( strupr(argv[1]), PSTR("DOUT\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		perforacion_set_douts( atoi(argv[2]) );
+		xAPP_perforacion_set_douts( atoi(argv[2]) );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -663,7 +581,7 @@ uint8_t cks;
 	// ALMTEST
 	// read almtest
 	if (!strcmp_P( strupr(argv[1]), PSTR("ALMTEST\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		 appalarma_test();
+		xAPP_plantapot_test();
 		 return;
 	}
 
@@ -842,21 +760,12 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
-	// TANQUE
-	// config tanque sms {id} nro
-	// config tanque nivel {BAJO|ALTO} valor
-	if (!strcmp_P( strupr(argv[1]), PSTR("TANQUE\0")) ) {
-		retS = tanque_config( argv[2], argv[3], argv[4] );
-		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
-		return;
-	}
-
 	// APPALARM
 	// config appalarma
 	//                  sms {id} {nro} {almlevel}\r\n\0"));
 	//                  nivel {chid} {alerta} {inf|sup} val\r\n\0"));
 	if (!strcmp_P( strupr(argv[1]), PSTR("APPALARMA\0")) ) {
-		retS = appalarma_config( argv[2], argv[3], argv[4], argv[5],argv[6] );
+		retS = xAPP_plantapot_config( argv[2], argv[3], argv[4], argv[5],argv[6] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}

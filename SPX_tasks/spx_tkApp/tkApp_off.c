@@ -16,6 +16,8 @@ void tkApp_off(void)
 	// ( solo monitoreo ), debemos dormir para que pueda entrar en
 	// tickless
 
+	xprintf_PD(DF_APP, PSTR("APP: Off\r\n\0"));
+
 	for( ;; )
 	{
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );

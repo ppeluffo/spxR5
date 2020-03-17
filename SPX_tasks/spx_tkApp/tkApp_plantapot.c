@@ -77,26 +77,24 @@ bool flash_luz_naranja;
 
 static int16_t timer_en_standby;
 
-static void pv_appalarma_TimerCallback( TimerHandle_t xTimer );
-static void pv_appalarma_leer_entradas(void);
-static void pv_appalarma_check_inband(void);
-static bool pv_fire_alarmas(void);
-static void pv_apagar_alarmas(void);
-static void pv_resetear_timers(void);
-static void pv_reset_almVars(void);
+static void xAPP_plantapot_TimerCallback( TimerHandle_t xTimer );
+static void xAPP_plantapot_leer_entradas(void);
+static void xAPP_plantapot_check_inband(void);
+static bool xAPP_plantapot_fire_alarmas(void);
+static bool xAPP_plantapot_init(void);
 
-TimerHandle_t appalarma_timerAlarmas;
-StaticTimer_t appalarma_xTimerAlarmas;
+TimerHandle_t plantapot_timerAlarmas;
+StaticTimer_t plantapot_xTimerAlarmas;
 
 uint16_t din[IO8_DINPUTS_CHANNELS];
 
-static t_appalm_states appalarma_state;
+static t_appalm_states plantapot_state;
 
 // Estados
-void st_appalarma_normal(void);
-void st_appalarma_alarmado(void);
-void st_appalarma_mantenimiento(void);
-void st_appalarma_standby(void);
+void sst_app_plantapot_normal(void);
+void sst_app_plantapot_alarmado(void);
+void sst_app_plantapot_mantenimiento(void);
+void sst_app_plantapot_standby(void);
 
 // Acciones
 static void ac_luz_verde( t_dev_action action);
@@ -106,51 +104,46 @@ static void ac_luz_naranja( t_dev_action action);
 static void ac_luz_azul( t_dev_action action);
 static void ac_sirena(t_dev_action action);
 static void ac_send_smsAlarm( int8_t level, uint8_t channel );
-/*
-static uint8_t ac_read_status_sensor_puerta_1(void);
-static uint8_t ac_read_status_sensor_puerta_2(void);
-static uint8_t ac_read_status_mantenimiento(void);
-static uint8_t ac_read_status_boton_alarma(void);
-*/
+
 //------------------------------------------------------------------------------------
-void app_plantapot(void)
+void tkApp_plantapot(void)
 {
 
 	if ( spx_io_board != SPX_IO8CH ) {
-		xprintf_P(PSTR("ALARMAS: Init ERROR: Control Alarmas only in IO_8CH.\r\n\0"));
+		xprintf_P(PSTR("APP: PLANTAPOT Init ERROR: run only in IO_8CH.\r\n\0"));
 		systemVars.aplicacion = APP_OFF;
 		u_save_params_in_NVMEE();
 		return;
 	}
 
 	// Creo y arranco el timer de control del tiempo de alarmas
-	appalarma_timerAlarmas = xTimerCreateStatic ("PPOT",
+	plantapot_timerAlarmas = xTimerCreateStatic ("PPOT",
 			pdMS_TO_TICKS( 1000 ),
 			pdTRUE,
 			( void * ) 0,
-			pv_appalarma_TimerCallback,
-			&appalarma_xTimerAlarmas
+			xAPP_plantapot_TimerCallback,
+			&plantapot_xTimerAlarmas
 			);
 
-	xTimerStart(appalarma_timerAlarmas, 10);
+	xTimerStart(plantapot_timerAlarmas, 10);
 
 	for (;;) {
 
-		switch(appalarma_state) {
+		switch(plantapot_state) {
 		case st_NORMAL:
-			st_appalarma_normal();
+			sst_app_plantapot_normal();
 			break;
 		case st_ALARMADO:
-			st_appalarma_alarmado();
+			sst_app_plantapot_alarmado();
 			break;
 		case st_STANDBY:
-			st_appalarma_standby();
+			sst_app_plantapot_standby();
 			break;
 		case st_MANTENIMIENTO:
-			st_appalarma_mantenimiento();
+			sst_app_plantapot_mantenimiento();
 			break;
 		default:
-			xprintf_P(PSTR("MODO OPERACION ERROR: Plantapot state unknown (%d)\r\n\0"), appalarma_state );
+			xprintf_P(PSTR("APP: PLANTAPOT state unknown (%d)\r\n\0"), plantapot_state );
 			systemVars.aplicacion = APP_OFF;
 			u_save_params_in_NVMEE();
 			return;
@@ -161,54 +154,53 @@ void app_plantapot(void)
 //------------------------------------------------------------------------------------
 // ESTADOS
 //------------------------------------------------------------------------------------
-void st_appalarma_normal(void)
+void sst_app_plantapot_normal(void)
 {
 
 // Entry:
-	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Normal.\r\n\0"));
-	}
+	xprintf_PD( DF_APP, PSTR("APP: PLANTAPOT modo Normal in\r\n\0"));
 
-	appalarma_init();
+	xAPP_plantapot_init();
 	ac_luz_verde( act_ON );
 
 // Loop:
 	// Genero un ciclo por segundo !!!
 
-	while ( appalarma_state == st_NORMAL ) {
+	while ( plantapot_state == st_NORMAL ) {
 
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		// Espera de 1s
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
 		// Leo los datos
-		pv_appalarma_leer_entradas();
+		xAPP_plantapot_leer_entradas();
 		// Veo si hay alguna medida en una region de alarma
-		pv_appalarma_check_inband();
+		xAPP_plantapot_check_inband();
 
 		// CAMBIO DE ESTADO.
 		// Disparo alarmas si es necesario
-		if ( pv_fire_alarmas() ) {
+		if ( xAPP_plantapot_fire_alarmas() ) {
 			// Si dispare una alarma, paso al estado de sistema alarmado
-			appalarma_state = st_ALARMADO;
+			plantapot_state = st_ALARMADO;
 			break;
 		}
 
 		// Veo si se activo la llave de mantenimiento.
 		if ( alarmVars.llave_mantenimiento_on.master == true ) {
 			// Activaron la llave de mantenimiento. Salgo
-			appalarma_state = st_MANTENIMIENTO;
+			plantapot_state = st_MANTENIMIENTO;
 			break;
 		}
 	}
 
 // Exit
 	ac_luz_verde( act_OFF );
+	xprintf_PD( DF_APP, PSTR("APP: PLANTAPOT modo Normal out\r\n\0"));
 	return;
 
 }
 //------------------------------------------------------------------------------------
-void st_appalarma_alarmado(void)
+void sst_app_plantapot_alarmado(void)
 {
 	// En este estado tengo al menos una alarma disparada.
 	// Sigo monitoreando pero ahora controlo que presiones el botón de reset
@@ -216,27 +208,25 @@ void st_appalarma_alarmado(void)
 
 uint8_t timer_boton_pressed = SECS_BOTON_PRESSED;
 
-	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Alarmado.\r\n\0"));
-	}
+	xprintf_PD( DF_APP, PSTR("APP: PLANTAPOT modo Alarmado in\r\n\0"));
 
 	ac_luz_verde( act_OFF );
 
 	// Loop:
 	// Genero un ciclo por segundo !!!
 
-	while ( appalarma_state == st_ALARMADO ) {
+	while ( plantapot_state == st_ALARMADO ) {
 
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		// Espera de 1s
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
 		// Leo los datos
-		pv_appalarma_leer_entradas();
+		xAPP_plantapot_leer_entradas();
 		// Veo si hay alguna medida en una region de alarma
-		pv_appalarma_check_inband();
+		xAPP_plantapot_check_inband();
 		// Disparo alarmas si es necesario
-		pv_fire_alarmas();
+		xAPP_plantapot_fire_alarmas();
 
 		// CAMBIO DE ESTADO
 		// Veo si presiono el boton de reset de alarma por mas de 5secs.
@@ -248,24 +238,25 @@ uint8_t timer_boton_pressed = SECS_BOTON_PRESSED;
 
 		if ( timer_boton_pressed == 0 ) {
 			// Reconoci la alarma por tener apretado el boton de pressed mas de 5s
-			appalarma_state = st_STANDBY;
+			plantapot_state = st_STANDBY;
 			break;
 		}
 
 		// Veo si se activo la llave de mantenimiento.
 		if ( alarmVars.llave_mantenimiento_on.master == true ) {
 			// Activaron la llave de mantenimiento. Salgo
-			appalarma_state = st_MANTENIMIENTO;
+			plantapot_state = st_MANTENIMIENTO;
 			break;
 		}
 
 	}
 
 // Exit
+	xprintf_PD( DF_APP, PSTR("APP: PLANTAPOT modo Alarmado out\r\n\0"));
 	return;
 }
 //------------------------------------------------------------------------------------
-void st_appalarma_mantenimiento(void)
+void sst_app_plantapot_mantenimiento(void)
 {
 	// Este estado es en mantenimiento ( llave de mantenimiento en on)
 	// Solo se polean los datos cada 30s y se guardan en la base de datos pero no
@@ -280,18 +271,17 @@ void st_appalarma_mantenimiento(void)
 
 
 // Entry:
-	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Mantenimiento.\r\n\0"));
-	}
+	xprintf_PD( DF_APP, PSTR("APP: PLANTAPOT modo Mantenimiento in\r\n\0"));
+
 	// Al entrar en mantenimiento apago todas las posibles señales activas.
 	// Solo debe flashear la luz verde.
-	appalarma_init();
+	xAPP_plantapot_init();
 
 	// Flasheo luz azul
 	ac_luz_azul(act_FLASH);
 
 // Loop:
-	while ( appalarma_state == st_MANTENIMIENTO ) {
+	while ( plantapot_state == st_MANTENIMIENTO ) {
 
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		// Espera de 1s
@@ -300,18 +290,19 @@ void st_appalarma_mantenimiento(void)
 		// Veo si apagaron la llave de mantenimiento.
 		if ( alarmVars.llave_mantenimiento_on.master == false ) {
 			// Apagaron la llave de mantenimiento. Salgo
-			appalarma_state = st_NORMAL;
+			plantapot_state = st_NORMAL;
 		}
 
 	}
 
 // Exit
 	ac_luz_azul(act_OFF);
+	xprintf_PD( DF_APP, PSTR("APP: PLANTAPOT modo Mantenimiento out\r\n\0"));
 	return;
 
 }
 //------------------------------------------------------------------------------------
-void st_appalarma_standby(void)
+void sst_app_plantapot_standby(void)
 {
 	// Este estado es en standby. Entro luego de estar alarmado y que se presiono
 	// el boton de reset.
@@ -328,18 +319,17 @@ void st_appalarma_standby(void)
 
 
 // Entry:
-	if ( systemVars.debug == DEBUG_APLICACION ) {
-		xprintf_P(PSTR("APP_PLANTAPOT: Ingreso en modo Standby.\r\n\0"));
-	}
+	xprintf_PD( DF_APP, PSTR("APP: PLANTAPOT modo Standby in\r\n\0"));
+
 	// Debo permancer 30 minutos.
 	timer_en_standby = TIME_IN_STANDBY;
 
 	// Apago todas las alarmas
-	appalarma_init();
+	xAPP_plantapot_init();
 	ac_luz_verde(act_FLASH);
 
 // Loop:
-	while ( appalarma_state == st_STANDBY ) {
+	while ( plantapot_state == st_STANDBY ) {
 
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		// Espera de 1s
@@ -348,13 +338,13 @@ void st_appalarma_standby(void)
 		// CAMBIO DE ESTADO
 		// Veo si activaron la llave de mantenimiento.
 		if ( alarmVars.llave_mantenimiento_on.master == true ) {
-			appalarma_state = st_MANTENIMIENTO;
+			plantapot_state = st_MANTENIMIENTO;
 			break;
 		}
 
 		// Veo si expiro el tiempo para salir y volver al estado NORMAL
 		if ( timer_en_standby-- <= 1 ) {
-			appalarma_state = st_NORMAL;
+			plantapot_state = st_NORMAL;
 			break;
 		}
 
@@ -363,26 +353,51 @@ void st_appalarma_standby(void)
 // Exit
 	timer_en_standby = 0;
 	ac_luz_verde(act_OFF);
+	xprintf_PD( DF_APP, PSTR("APP: PLANTAPOT modo Standby out\r\n\0"));
 
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES GENERALES PRIVADAS
 //------------------------------------------------------------------------------------
-bool appalarma_init(void)
+static bool xAPP_plantapot_init(void)
 {
 
 	// Inicializa las salidas y las variables de trabajo.
-	pv_apagar_alarmas();
-	pv_reset_almVars();
-	pv_resetear_timers();
-	//
+
+uint8_t i;
+
+	// 1- Apagar alarmas
+	ac_luz_verde( act_OFF );
+	ac_luz_roja( act_OFF );
+	ac_luz_amarilla( act_OFF );
+	ac_luz_naranja( act_OFF );
+	ac_luz_azul(act_OFF);
+	ac_sirena( act_OFF );
+
+	// 2- Reset AlmVars
+	alarmVars.boton_alarma_pressed.master = false;
+	alarmVars.llave_mantenimiento_on.master = false;
+	alarmVars.sensor_puerta_1_open.master = false;
+	alarmVars.sensor_puerta_2_open.master = false;
+
+	// 3- Reset Timers
+	// Inicializo los timers por canal y por nivel de alamra
+	for ( i = 0; i < NRO_CANALES_MONITOREO; i++) {
+		alm_sysVars[i].enabled = false;
+
+		alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1;
+		alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2;
+		alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3;
+		//alm_sysVars[i].alm_fired = alm_NOT_FIRED;
+	}
+
 	// Borro los SMS de alarmas pendientes
 	u_sms_init();
 
 	return(true);
 }
 //------------------------------------------------------------------------------------
-static void pv_appalarma_TimerCallback( TimerHandle_t xTimer )
+static void xAPP_plantapot_TimerCallback( TimerHandle_t xTimer )
 {
 	// Se ejecuta cada 1s como callback del timer.
 
@@ -454,7 +469,7 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-static void pv_appalarma_leer_entradas(void)
+static void xAPP_plantapot_leer_entradas(void)
 {
 	// El poleo de las entradas lo hace la tarea tkInputs. Esta debe tener un timerpoll de 30s
 	// Aqui c/1s leo las entradas en modo 'copy' ( sin poleo ).
@@ -494,7 +509,7 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-static void pv_appalarma_check_inband(void)
+static void xAPP_plantapot_check_inband(void)
 {
 	// Para cada canal, veo si el nivel actual esta en alguna banda de alarma.
 	// En caso afirmativo decremento el contador hasta 0.
@@ -568,7 +583,7 @@ float value;
 	}
 }
 //------------------------------------------------------------------------------------
-static bool pv_fire_alarmas(void)
+static bool xAPP_plantapot_fire_alarmas(void)
 {
 	// Revisa si hay algún canal que deba disparar alguna alarma.
 	// En caso afirmativo la dispara.
@@ -631,41 +646,6 @@ bool alm_fired = false;	// Variable de retorno para el cambio de estado
 
 	return(alm_fired);
 
-}
-//------------------------------------------------------------------------------------
-static void pv_apagar_alarmas(void)
-{
-	ac_luz_verde( act_OFF );
-	ac_luz_roja( act_OFF );
-	ac_luz_amarilla( act_OFF );
-	ac_luz_naranja( act_OFF );
-	ac_luz_azul(act_OFF);
-	ac_sirena( act_OFF );
-}
-//------------------------------------------------------------------------------------
-static void pv_reset_almVars(void)
-{
-	alarmVars.boton_alarma_pressed.master = false;
-	alarmVars.llave_mantenimiento_on.master = false;
-	alarmVars.sensor_puerta_1_open.master = false;
-	alarmVars.sensor_puerta_2_open.master = false;
-
-}
-//------------------------------------------------------------------------------------
-static void pv_resetear_timers(void)
-{
-
-uint8_t i;
-
-	// Inicializo los timers por canal y por nivel de alamra
-	for ( i = 0; i < NRO_CANALES_MONITOREO; i++) {
-		alm_sysVars[i].enabled = false;
-
-		alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1;
-		alm_sysVars[i].L2_timer = SECS_ALM_LEVEL_2;
-		alm_sysVars[i].L3_timer = SECS_ALM_LEVEL_3;
-		//alm_sysVars[i].alm_fired = alm_NOT_FIRED;
-	}
 }
 //------------------------------------------------------------------------------------
 // ACCIONES
@@ -895,7 +875,7 @@ uint8_t pos;
 //------------------------------------------------------------------------------------
 // GENERAL
 //------------------------------------------------------------------------------------
-uint8_t appalarma_checksum( void )
+uint8_t xAPP_plantapot_checksum( void )
 {
 
 	// En app_A_cks ponemos el checksum de los SMS y en app_B_cks los niveles de alarma
@@ -955,7 +935,7 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-bool appalarma_config( char *param0,char *param1, char *param2, char *param3, char *param4 )
+bool xAPP_plantapot_config( char *param0,char *param1, char *param2, char *param3, char *param4 )
 {
 	// config appalarm sms {id} {nro} {almlevel}\r\n\0"));
 	// config appalarm nivel {chid} {alerta} {inf|sup} val\r\n\0"));
@@ -1077,7 +1057,7 @@ uint8_t pos;
 
 }
 //------------------------------------------------------------------------------------
-void appalarma_config_defaults(void)
+void xAPP_plantapot_config_defaults(void)
 {
 
 uint8_t i;
@@ -1128,7 +1108,7 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-void appalarma_servicio_tecnico( char *action, char *device )
+void xAPP_plantapot_servicio_tecnico( char *action, char *device )
 {
 	// action: (prender/apagar/flash,rtimers )
 	// device: (lroja,lverde,lamarilla,lnaranja, sirena)
@@ -1235,7 +1215,7 @@ void appalarma_servicio_tecnico( char *action, char *device )
 	return;
 }
 //------------------------------------------------------------------------------------
-void appalarma_print_status( bool full )
+void xAPP_plantapot_print_status( bool full )
 {
 
 uint8_t pos;
@@ -1319,7 +1299,7 @@ uint8_t pos;
 
 	// Estado del programa
 	xprintf_P( PSTR("  Estado:"));
-	switch (appalarma_state) {
+	switch (plantapot_state) {
 	case st_NORMAL:
 		xprintf_P( PSTR(" NORMAL (0)\r\n"));
 		break;
@@ -1337,14 +1317,14 @@ uint8_t pos;
 
 }
 //------------------------------------------------------------------------------------
-void appalarma_test(void)
+void xAPP_plantapot_test(void)
 {
 	// Funcion invocada desde el modo comando para ver como evolucionan
 	// las variables de la aplicacion
 
 uint8_t i;
 
-	appalarma_print_status(true);
+	xAPP_plantapot_print_status(true);
 
 	dinputs_service_read();
 
@@ -1366,7 +1346,7 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-void appalarma_adjust_vars( st_dataRecord_t *dr)
+void xAPP_plantapot_adjust_vars( st_dataRecord_t *dr)
 {
 
 uint8_t i;
@@ -1384,7 +1364,7 @@ uint8_t i;
 		}
 
 		// Si estoy en modo standby, reseteo los nivels de disparo.
-		if ( ( appalarma_state == st_STANDBY ) || ( appalarma_state == st_NORMAL ))  {
+		if ( ( plantapot_state == st_STANDBY ) || ( plantapot_state == st_NORMAL ))  {
 			alm_sysVars[i].alm_fired = alm_NOT_FIRED;
 		}
 
@@ -1405,134 +1385,9 @@ uint8_t i;
 	alarmVars.sensor_puerta_2_open.slave = alarmVars.sensor_puerta_2_open.master;
 
 	// Estado en que se encuentra el sistema de alarmas.
-	dr->df.io8.ainputs[7] = appalarma_state;
+	dr->df.io8.ainputs[7] = plantapot_state;
 
 
-}
-//------------------------------------------------------------------------------------
-void appalarma_reconfigure_app(void)
-{
-
-	// Como quedan aun 2 frames, no reseteo.
-	systemVars.aplicacion = APP_PLANTAPOT;
-	u_save_params_in_NVMEE();
-
-	if ( systemVars.debug == DEBUG_COMMS ) {
-		xprintf_P( PSTR("COMMS: Reconfig APLICACION:PLANTAPOT\r\n\0"));
-	}
-}
-//------------------------------------------------------------------------------------
-void appalarma_reconfigure_sms_by_gprsinit( const char *gprsbuff )
-{
-	// PLANTAPOT SMS
-	// TYPE=INIT&PLOAD=CLASS:APP_B;SMS01:111111,1;SMS02:2222222,2;SMS03:3333333,3;SMS04:4444444,1;...SMS09:9999999,3
-
-char *p = NULL;
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_nro= NULL;
-char *tk_level= NULL;
-char *delim = ",=:;><";
-uint8_t i;
-char id[2];
-char str_base[8];
-
-	// SMS?
-	for (i=0; i < MAX_NRO_SMS; i++ ) {
-		memset( &str_base, '\0', sizeof(str_base) );
-		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
-		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
-		//p = strstr( (const char *)&commsRxBuffer.buffer, str_base);
-		p = strstr( gprsbuff, str_base);
-		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
-		if ( p != NULL ) {
-			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
-			stringp = localStr;
-			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
-			tk_nro = strsep(&stringp,delim);		//SMS0x
-			tk_nro = strsep(&stringp,delim);		//09111111
-			tk_level = strsep(&stringp,delim);		//1
-
-			id[0] = '0' + i;
-			id[1] = '\0';
-
-			//xprintf_P( PSTR("DEBUG SMS: ID:%s, NRO=%s, LEVEL=%s\r\n\0"), id, tk_nro,tk_level);
-			appalarma_config("SMS", id, tk_nro, tk_level, NULL );
-
-			if ( systemVars.debug == DEBUG_APLICACION ) {
-				xprintf_P( PSTR("GPRS: Reconfig SMS0%d\r\n\0"), i);
-			}
-		}
-	}
-
-	u_save_params_in_NVMEE();
-
-}
-//------------------------------------------------------------------------------------
-void appalarma_reconfigure_levels_by_gprsinit(const char *gprsbuff )
-{
-	// TYPE=INIT&PLOAD=CLASS:APP_C;CH00:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;CH01:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;..
-
-char *p = NULL;
-char localStr[32] = { 0 };
-char *stringp = NULL;
-char *tk_V1_INF = NULL;
-char *tk_V1_SUP = NULL;
-char *tk_V2_INF = NULL;
-char *tk_V2_SUP = NULL;
-char *tk_V3_INF = NULL;
-char *tk_V3_SUP = NULL;
-char *delim = ",=:;><";
-uint8_t i;
-char id[2];
-char str_base[8];
-
-	// LEVELS?
-	for (i=0; i < NRO_CANALES_ALM; i++ ) {
-
-		memset( &str_base, '\0', sizeof(str_base) );
-		snprintf_P( str_base, sizeof(str_base), PSTR("CH%d\0"), i );
-
-		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
-
-		// p = strstr( (const char *)&commsRxBuffer.buffer, str_base);
-		p = strstr( gprsbuff, str_base);
-
-		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
-		if ( p != NULL ) {
-			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
-			stringp = localStr;
-			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
-			tk_V1_INF = strsep(&stringp,delim);		//CH0x
-
-			tk_V1_INF = strsep(&stringp,delim);
-			tk_V1_SUP = strsep(&stringp,delim);
-			tk_V2_INF = strsep(&stringp,delim);
-			tk_V2_SUP = strsep(&stringp,delim);
-			tk_V3_INF = strsep(&stringp,delim);
-			tk_V3_SUP = strsep(&stringp,delim);
-
-			id[0] = '0' + i;
-			id[1] = '\0';
-
-			//xprintf_P( PSTR("DEBUG LEVELS: ID:%s\r\n\0"), id );
-
-			appalarma_config("NIVEL", id, "1", "INF", tk_V1_INF );
-			appalarma_config("NIVEL", id, "1", "SUP", tk_V1_SUP );
-			appalarma_config("NIVEL", id, "2", "INF", tk_V2_INF );
-			appalarma_config("NIVEL", id, "2", "SUP", tk_V2_SUP );
-			appalarma_config("NIVEL", id, "3", "INF", tk_V3_INF );
-			appalarma_config("NIVEL", id, "3", "SUP", tk_V3_SUP );
-
-			if ( systemVars.debug == DEBUG_APLICACION ) {
-				xprintf_P( PSTR("GPRS: Reconfig ALM_CH 0%d\r\n\0"), i);
-			}
-		}
-	}
-
-	u_save_params_in_NVMEE();
 }
 //------------------------------------------------------------------------------------
 

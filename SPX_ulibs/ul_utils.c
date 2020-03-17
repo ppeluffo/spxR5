@@ -265,8 +265,7 @@ void u_load_defaults( char *opt )
 #endif
 
 	xAPP_consigna_config_defaults();
-	appalarma_config_defaults();
-	tanque_config_defaults();
+	xAPP_plantapot_config_defaults();
 
 }
 //------------------------------------------------------------------------------------
@@ -479,15 +478,11 @@ char *p;
 		break;
 
 	case APP_PERFORACION:
-		checksum = perforacion_checksum();
-		break;
-
-	case APP_TANQUE:
-		checksum = 0;
+		checksum = xAPP_perforacion_checksum();
 		break;
 
 	case APP_PLANTAPOT:
-		checksum = appalarma_checksum();
+		checksum = xAPP_plantapot_checksum();
 		break;
 	}
 
@@ -516,11 +511,6 @@ bool u_config_aplicacion( char *modo )
 
 	if (!strcmp_P( strupr(modo), PSTR("PERFORACION\0")) &&  ( spx_io_board == SPX_IO8CH ) ) {
 		systemVars.aplicacion = APP_PERFORACION;
-		return(true);
-	}
-
-	if (!strcmp_P( strupr(modo), PSTR("TANQUE\0")) &&  ( spx_io_board == SPX_IO5CH ) ) {
-		systemVars.aplicacion = APP_TANQUE;
 		return(true);
 	}
 
@@ -771,7 +761,7 @@ void u_config_timerdial ( char *s_timerdial )
 
 	// Aplicacion ALARMAS
 #ifdef APLICACION_PLANTAPOT
-	systemVars.gprs_conf.timerDial = 0;
+	systemVars.comms_conf.timerDial = 0;
 	return;
 #endif
 

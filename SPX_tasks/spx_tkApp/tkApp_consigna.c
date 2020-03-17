@@ -1,5 +1,5 @@
 /*
- * ul_consignas.c
+ * tkApp_consignas.c
  *
  *  Created on: 23 oct. 2019
  *      Author: pablo
@@ -18,9 +18,10 @@ void tkApp_consigna(void)
 
 RtcTimeType_t rtcDateTime;
 
+	xprintf_PD(DF_APP,"APP: CONSIGNA start\r\n\0");
+
 	if ( !xAPP_consigna_init() )
 		return;
-
 
 	for (;;) {
 
@@ -32,7 +33,7 @@ RtcTimeType_t rtcDateTime;
 		// Las consignas se chequean y/o setean en cualquier modo de trabajo, continuo o discreto
 		memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
 		if ( ! RTC_read_dtime(&rtcDateTime) ) {
-			xprintf_P(PSTR("APP_CONS: ERROR: I2C:RTC:pv_dout_chequear_consignas\r\n\0"));
+			xprintf_P(PSTR("APP: CONSIGNA ERROR: I2C:RTC:pv_dout_chequear_consignas\r\n\0"));
 			continue;
 		}
 
@@ -42,7 +43,7 @@ RtcTimeType_t rtcDateTime;
 
 			DRV8814_set_consigna_diurna();
 			systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
-			xprintf_P(PSTR("APP_CONS: Set consigna diurna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
+			xprintf_P(PSTR("APP: CONSIGNA diurna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 			continue;
 		}
 
@@ -52,7 +53,7 @@ RtcTimeType_t rtcDateTime;
 
 			DRV8814_set_consigna_nocturna();
 			systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
-			xprintf_P(PSTR("APP_CONS: Set consigna nocturna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
+			xprintf_P(PSTR("APP: CONSIGNA nocturna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 			continue;
 		}
 
@@ -73,7 +74,7 @@ uint8_t consigna_a_aplicar = 99;
 	memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
 
 	if ( spx_io_board != SPX_IO5CH ) {
-		xprintf_P(PSTR("APP_CONS: MODO OPERACION Init ERROR: Consigna only in IO_5CH.\r\n\0"));
+		xprintf_P(PSTR("APP: CONSIGNA ERROR: Modo Consigna only in IO_5CH.\r\n\0"));
 		systemVars.aplicacion = APP_OFF;
 		u_save_params_in_NVMEE();
 		return(false);
@@ -83,7 +84,7 @@ uint8_t consigna_a_aplicar = 99;
 
 	// Hora actual en minutos.
 	if ( ! RTC_read_dtime(&rtcDateTime) )
-		xprintf_P(PSTR("APP_CONS: ERROR: I2C:RTC:pv_out_init_consignas\r\n\0"));
+		xprintf_P(PSTR("APP: CONSIGNA ERROR: I2C:RTC:pv_out_init_consignas\r\n\0"));
 
 	// Caso 1: C.Diurna < C.Nocturna
 	//           C.diurna                      C.nocturna
@@ -136,7 +137,7 @@ uint8_t consigna_a_aplicar = 99;
 	switch (consigna_a_aplicar) {
 	case 99:
 		// Incompatibilidad: seteo por default.
-		xprintf_P( PSTR("OUTPUTS: INIT ERROR al setear consignas: horas incompatibles\r\n\0"));
+		xprintf_P( PSTR("APP: CONSIGNA ERROR al setear consignas: horas incompatibles\r\n\0"));
 		systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour = 05;
 		systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min = 30;
 		systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour = 23;
@@ -145,12 +146,12 @@ uint8_t consigna_a_aplicar = 99;
 	case CONSIGNA_DIURNA:
 		DRV8814_set_consigna_diurna();
 		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
-		xprintf_P(PSTR("APP_CONS: Set consigna diurna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
+		xprintf_P(PSTR("APP: CONSIGNA diurna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		break;
 	case CONSIGNA_NOCTURNA:
 		DRV8814_set_consigna_nocturna();
 		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
-		xprintf_P(PSTR("APP_CONS: Set consigna nocturna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
+		xprintf_P(PSTR("APP: CONSIGNA nocturna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		break;
 	}
 
@@ -290,7 +291,7 @@ bool xAPP_consigna_write( char *param0, char *param1, char *param2 )
 		// Espero 10s que se carguen los condensasores
 		vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
 
-		xprintf_P( PSTR("VALVE OPEN %c\r\n\0"), strupr(param1[0]));
+		xprintf_P( PSTR("VALVE OPEN %c\r\n\0"), strupr(param1[0]) );
 		DRV8814_vopen(toupper(param1[0]), 100);
 
 		DRV8814_power_off();

@@ -50,6 +50,19 @@ typedef struct {
 	char *script;
 } t_scan_struct;
 
+typedef struct {
+//	char dlgId[DLGID_LENGTH];
+	char apn[APN_LENGTH];
+//	char server_tcp_port[PORT_LENGTH];
+//	char server_ip_address[IP_LENGTH];
+//	char serverScript[SCRIPT_LENGTH];
+//	char simpwd[SIM_PASSWD_LENGTH];
+//	uint32_t timerDial;
+//	st_pwrsave_t pwrSave;
+} xComms_conf_t1;
+
+xComms_conf_t1 systemVarsComms;
+
 t_comms_states tkComms_st_entry(void);
 t_comms_states tkComms_st_espera_apagado(void);
 t_comms_states tkComms_st_espera_prendido(void);

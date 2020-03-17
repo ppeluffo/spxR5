@@ -381,7 +381,6 @@ int8_t channel;
 uint8_t din_val;
 uint8_t port = 0;
 int8_t rdBytes = 0;
-bool retS = false;
 uint8_t dst[IO8_DINPUTS_CHANNELS];
 	switch (spx_io_board ) {
 

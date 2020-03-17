@@ -60,13 +60,12 @@
 #include "l_bytes.h"
 #include "l_bps120.h"
 #include "l_adt7410.h"
-#include "SPX_ulibs/ul_perforacion.h"
 
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9o"
-#define SPX_FW_DATE "@ 20200314"
+#define SPX_FW_REV "2.9.9p"
+#define SPX_FW_DATE "@ 20200317"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -138,7 +137,7 @@ typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 typedef enum { DIN_NORMAL = 0, DIN_TIMER  } dinputs_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
-typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_TANQUE, APP_PLANTAPOT } aplicacion_t;
+typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT } aplicacion_t;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { PERF_CTL_BOYA, PERF_CTL_SISTEMA } perforacion_control_t;
 
@@ -287,18 +286,11 @@ typedef struct {
 	uint8_t	control;
 } st_perforacion_t;
 
-// TANQUES
-#define NRO_PERFXTANQUE		10
-
 // Numeros de SMS a los que enviar las alarmas
 #define MAX_NRO_SMS 		9
 #define SMS_NRO_LENGTH		10
 
-typedef struct {
-	float low_level;
-	float high_level;
-	bool sms_enabled;
-} st_tanque_t;
+
 //---------------------------------------------------------------------------
 // Estructuras para el manejo del sistema de alarmas en plantas de potabilizacion de OSE
 // Cada canal tiene 3 alarmas asociadas.
@@ -356,7 +348,6 @@ typedef struct {
 	st_consigna_t consigna;
 	st_perforacion_t perforacion;
 	st_alarmas_t alarma_ppot;
-	st_tanque_t tanque;
 	// Estructura usada en común con la aplicacion de TANQUES y ALARMAS
 	char l_sms[MAX_NRO_SMS][SMS_NRO_LENGTH];
 } aplicacion_conf_t;
@@ -413,8 +404,6 @@ bool u_set_douts( uint8_t dout );
 void u_config_timerdial ( char *s_timerdial );
 void u_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime);
 
-void appalarma_test(void);
-void appalarma_adjust_vars( st_dataRecord_t *dr);
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -488,19 +477,6 @@ uint8_t ainputs_checksum(void);
 // TKDATA
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );
 void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr);
-
-// TANQUE
-void tanque_stk(void);
-bool tanque_config ( char *param1, char *param2, char *param3 );
-void tanque_config_defaults(void);
-uint8_t tanque_checksum(void);
-void tanque_set_params_from_gprs( char *tk_sms, char *tk_link );
-void tanque_process_rxsms(char *sms_msg);
-void tanque_reconfigure_app(void);
-void tanque_process_gprs_response( const char *gprsbuff );
-void tanque_reconfigure_levels_by_gprsinit(const char *gprsbuff);
-void tanque_reconfigure_sms_by_gprsinit(const char *gprsbuff);
-
 
 bool SPX_SIGNAL( uint8_t signal );
 bool SPX_SEND_SIGNAL( uint8_t signal );

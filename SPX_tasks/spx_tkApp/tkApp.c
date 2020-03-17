@@ -44,15 +44,12 @@ void tkAplicacion(void * pvParameters)
 		tkApp_consigna();
 		break;
 	case APP_PERFORACION:
-		perforacion_stk();
-		break;
-	case APP_TANQUE:
-		// Es el caso en que no debo hacer nada con las salidas.
-		// Duermo 25s para entrar en pwrdown.
-		tanque_stk();
+		tkApp_perforacion();
 		break;
 	case APP_PLANTAPOT:
-		app_plantapot();
+		tkApp_plantapot();
+		break;
+	default:
 		break;
 	}
 
