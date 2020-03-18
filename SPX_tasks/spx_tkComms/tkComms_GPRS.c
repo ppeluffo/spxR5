@@ -207,6 +207,27 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
+bool gprs_check_response_with_to( const char *rsp, uint8_t timeout )
+{
+	// Espera una respuesta durante un tiempo dado.
+	// Hay que tener cuidado que no expire el watchdog por eso lo kickeo aqui. !!!!
+
+bool retS = false;
+
+	while ( timeout > 0 ) {
+		timeout--;
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+		// Veo si tengo la respuesta correcta.
+		if ( strstr( gprsRxBuffer.buffer, rsp) != NULL ) {
+			retS = true;
+			break;
+		}
+	}
+
+	return(retS);
+}
+//------------------------------------------------------------------------------------
 void gprs_readImei( bool f_debug )
 {
 	// Leo el imei del modem para poder trasmitirlo al server y asi
@@ -825,6 +846,11 @@ t_link_status socket_status = LINK_CLOSED;
 		socket_status = LINK_FAIL;
 		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt FAIL +CIPEVENT:\r\n\0"));
 
+	} else if ( gprs_check_response("+CIPOPEN: 0,2")) {
+		// El socket no se va a recuperar. Hay que cerrar el net y volver a abrirlo.
+		socket_status = LINK_FAIL;
+		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt FAIL +CIPOPEN: 0,2\r\n\0"));
+
 	} else {
 		socket_status = LINK_CLOSED;
 		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt is close (dcd=%d)\r\n\0"),pin_dcd);
@@ -1100,7 +1126,7 @@ char *p = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
-char *delim = ",=:><";
+char *delim = ",;:=><";
 
 	p = gprs_get_buffer_ptr("DLGID");
 	if ( p == NULL ) {

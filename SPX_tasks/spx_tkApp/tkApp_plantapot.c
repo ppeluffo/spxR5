@@ -111,7 +111,7 @@ void tkApp_plantapot(void)
 
 	if ( spx_io_board != SPX_IO8CH ) {
 		xprintf_P(PSTR("APP: PLANTAPOT Init ERROR: run only in IO_8CH.\r\n\0"));
-		systemVars.aplicacion = APP_OFF;
+		sVarsApp.aplicacion = APP_OFF;
 		u_save_params_in_NVMEE();
 		return;
 	}
@@ -144,7 +144,7 @@ void tkApp_plantapot(void)
 			break;
 		default:
 			xprintf_P(PSTR("APP: PLANTAPOT state unknown (%d)\r\n\0"), plantapot_state );
-			systemVars.aplicacion = APP_OFF;
+			sVarsApp.aplicacion = APP_OFF;
 			u_save_params_in_NVMEE();
 			return;
 			break;
@@ -392,7 +392,7 @@ uint8_t i;
 	}
 
 	// Borro los SMS de alarmas pendientes
-	u_sms_init();
+	xSMS_init();
 
 	return(true);
 }
@@ -530,12 +530,12 @@ float value;
 
 		// Countdown para ALARMA NIVEL_3
 		if (alm_sysVars[i].L3_timer > 0 ) {
-			if ( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup ) {
+			if ( value > sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_sup ) {
 				alm_sysVars[i].L3_timer--;
 				continue;
 			}
 
-			if ( value < systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf ) {
+			if ( value < sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_inf ) {
 				alm_sysVars[i].L3_timer--;
 				continue;
 			}
@@ -543,14 +543,14 @@ float value;
 
 		// Countdown para ALARMA NIVEL_2
 		if (alm_sysVars[i].L2_timer > 0 ) {
-			if ( ( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup ) &&
-				( value < systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup ) ) {
+			if ( ( value > sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_sup ) &&
+				( value < sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_sup ) ) {
 				alm_sysVars[i].L2_timer--;
 				continue;
 			}
 
-			if ( ( value < systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf ) &&
-				( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf ) ) {
+			if ( ( value < sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_inf ) &&
+				( value > sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_inf ) ) {
 				alm_sysVars[i].L2_timer--;
 				continue;
 			}
@@ -559,21 +559,21 @@ float value;
 		// Countdown para ALARMA NIVEL_1
 		if (alm_sysVars[i].L1_timer > 0 ) {
 
-			if ( ( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup ) &&
-				( value < systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup ) ) {
+			if ( ( value > sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_sup ) &&
+				( value < sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_sup ) ) {
 				alm_sysVars[i].L1_timer--;
 				continue;
 			}
-			if ( ( value < systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf ) &&
-				( value > systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf ) ) {
+			if ( ( value < sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_inf ) &&
+				( value > sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_inf ) ) {
 				alm_sysVars[i].L1_timer--;
 				continue;
 			}
 		}
 
 		// Reset a NIVELES NORMALES
-		if ( ( value <  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup ) &&
-				( value >= systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf ) ) {
+		if ( ( value <  sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_sup ) &&
+				( value >= sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_inf ) ) {
 
 			// Estoy en la banda normal. Reseteo los timers
 			alm_sysVars[i].L1_timer = SECS_ALM_LEVEL_1;
@@ -852,22 +852,22 @@ uint8_t pos;
 	for (pos = 0; pos < MAX_NRO_SMS; pos++) {
 
 		// Envio a todos los numeros configurados para nivel level.
-		if ( systemVars.aplicacion_conf.alarma_ppot.alm_level[pos] != level ) {
+		if ( sVarsApp.plantapot.alm_level[pos] != level ) {
 			// Salto las posiciones que no tienen igual level
-			//xprintf_P(PSTR("ALARMA L%d: pos=%d, Level(%d)\r\n"), level, pos, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].alm_level );
+			//xprintf_P(PSTR("ALARMA L%d: pos=%d, Level(%d)\r\n"), level, pos, sVarsApp.plantapot.l_sms[pos].alm_level );
 			continue;
 		}
 
 
-		if ( strcmp ( systemVars.aplicacion_conf.l_sms[pos] , "X" ) == 0 ) {
+		if ( strcmp ( sVarsApp.l_sms[pos] , "X" ) == 0 ) {
 			// Salto las posiciones que no tienen un nro.configurado
-			//xprintf_P(PSTR("ALARMA L%d: pos=%d, Name(%s)\r\n"), level, pos, systemVars.aplicacion_conf.alarma_ppot.l_sms[pos].sms_nro );
+			//xprintf_P(PSTR("ALARMA L%d: pos=%d, Name(%s)\r\n"), level, pos, sVarsApp.plantapot.l_sms[pos].sms_nro );
 			continue;
 		}
 
-		xprintf_P( PSTR("ALARMA L%d: pos=%d smsLevel=%d, SMSnro=%s, MSG=%s !!\r\n"), level, pos, level, systemVars.aplicacion_conf.l_sms[pos] , sms_msg );
+		xprintf_P( PSTR("ALARMA L%d: pos=%d smsLevel=%d, SMSnro=%s, MSG=%s !!\r\n"), level, pos, level, sVarsApp.l_sms[pos] , sms_msg );
 
-		if ( ! u_sms_send( systemVars.aplicacion_conf.l_sms[pos] , (char *) u_format_date_sms(sms_msg) ) ) {
+		if ( ! xSMS_send( sVarsApp.l_sms[pos] , (char *) xSMS_format(sms_msg) ) ) {
 			xprintf_P( PSTR("ERROR: ALARMA SMS NIVEL %d NO PUEDE SER ENVIADA !!!\r\n"),level );
 		}
 	}
@@ -902,7 +902,7 @@ uint8_t i;
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-		snprintf_P( dst, sizeof(dst), PSTR("SMS%02d:%s,%d;"), i, systemVars.aplicacion_conf.l_sms[i], systemVars.aplicacion_conf.alarma_ppot.alm_level[i]);
+		snprintf_P( dst, sizeof(dst), PSTR("SMS%02d:%s,%d;"), i, sVarsApp.l_sms[i], sVarsApp.plantapot.alm_level[i]);
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
 		// Mientras no sea NULL calculo el checksum deol buffer
@@ -919,9 +919,9 @@ uint8_t i;
 
 		memset(dst,'\0', sizeof(dst));
 		snprintf_P( dst, sizeof(dst), PSTR("LCH%d:%.02f,%.02f,%.02f,%.02f,%.02f,%.02f;"), i,
-			systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup,
-			systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup,
-			systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf,systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup );
+			sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_inf,sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_sup,
+			sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_inf,sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_sup,
+			sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_inf,sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_sup );
 		p = dst;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
@@ -960,7 +960,7 @@ uint8_t pos;
 	}
 
 	// config appalarm sms {id} {nro} {almlevel}\r\n\0"));
-	if (!strcmp_P( strupr(param0), PSTR("SMS\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("SMS\0")) == 0 ) {
 
 		pos = atoi(param1);
 		if (pos >= MAX_NRO_SMS ){
@@ -972,14 +972,14 @@ uint8_t pos;
 			return(false);
 		}
 
-		memcpy( systemVars.aplicacion_conf.l_sms[pos], param2, SMS_NRO_LENGTH );
-		systemVars.aplicacion_conf.alarma_ppot.alm_level[pos] = nivel_alarma;
+		memcpy( sVarsApp.l_sms[pos], param2, SMS_NRO_LENGTH );
+		sVarsApp.plantapot.alm_level[pos] = nivel_alarma;
 		return(true);
 
 	}
 
 	// config appalarm nivel {chid} {alerta} {inf|sup} val\r\n\0"));
-	if (!strcmp_P( strupr(param0), PSTR("NIVEL\0")) ) {
+	if ( strcmp_P( strupr(param0), PSTR("NIVEL\0")) == 0 ) {
 
 		if ( param4 == NULL ) {
 			return(false);
@@ -1004,9 +1004,9 @@ uint8_t pos;
 			return(false);
 		}
 
-		if (!strcmp_P( strupr(param3), PSTR("INF\0")) ) {
+		if ( strcmp_P( strupr(param3), PSTR("INF\0")) == 0 ) {
 			limite = 0;
-		} else 	if (!strcmp_P( strupr(param3), PSTR("SUP\0")) ) {
+		} else 	if ( strcmp_P( strupr(param3), PSTR("SUP\0")) == 0 ) {
 			limite = 1;
 		} else {
 			return(false);
@@ -1015,9 +1015,9 @@ uint8_t pos;
 		valor = atof(param4);
 
 		// Limite INF/SUP
-		if (!strcmp_P( strupr(param3), PSTR("INF\0")) ) {
+		if ( strcmp_P( strupr(param3), PSTR("INF\0")) == 0 ) {
 			limite = 0;
-		} else 	if (!strcmp_P( strupr(param3), PSTR("SUP\0")) ) {
+		} else 	if ( strcmp_P( strupr(param3), PSTR("SUP\0")) == 0 ) {
 			limite = 1;
 		} else {
 			return(false);
@@ -1029,23 +1029,23 @@ uint8_t pos;
 			break;
 		case ALARMA_NIVEL_1:
 			if ( limite == 0 ) {
-				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma1.lim_inf = valor;
+				sVarsApp.plantapot.l_niveles_alarma[pos].alarma1.lim_inf = valor;
 			} else 	if ( limite == 1 ) {
-				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma1.lim_sup = valor;
+				sVarsApp.plantapot.l_niveles_alarma[pos].alarma1.lim_sup = valor;
 			}
 			break;
 		case ALARMA_NIVEL_2:
 			if ( limite == 0 ) {
-				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma2.lim_inf = valor;
+				sVarsApp.plantapot.l_niveles_alarma[pos].alarma2.lim_inf = valor;
 			} else 	if ( limite == 1 ) {
-				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma2.lim_sup = valor;
+				sVarsApp.plantapot.l_niveles_alarma[pos].alarma2.lim_sup = valor;
 			}
 			break;
 		case ALARMA_NIVEL_3:
 			if ( limite == 0 ) {
-				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma3.lim_inf = valor;
+				sVarsApp.plantapot.l_niveles_alarma[pos].alarma3.lim_inf = valor;
 			} else 	if ( limite == 1 ) {
-				systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma3.lim_sup = valor;
+				sVarsApp.plantapot.l_niveles_alarma[pos].alarma3.lim_sup = valor;
 			}
 			break;
 		}
@@ -1063,46 +1063,46 @@ void xAPP_plantapot_config_defaults(void)
 uint8_t i;
 
 	// Canal 0: PH
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[0].alarma1.lim_inf = 6.7;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[0].alarma1.lim_sup = 8.3;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[0].alarma2.lim_inf = 6.0;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[0].alarma2.lim_sup = 9.0;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[0].alarma3.lim_inf = 5.5;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[0].alarma3.lim_sup = 9.5;
+	sVarsApp.plantapot.l_niveles_alarma[0].alarma1.lim_inf = 6.7;
+	sVarsApp.plantapot.l_niveles_alarma[0].alarma1.lim_sup = 8.3;
+	sVarsApp.plantapot.l_niveles_alarma[0].alarma2.lim_inf = 6.0;
+	sVarsApp.plantapot.l_niveles_alarma[0].alarma2.lim_sup = 9.0;
+	sVarsApp.plantapot.l_niveles_alarma[0].alarma3.lim_inf = 5.5;
+	sVarsApp.plantapot.l_niveles_alarma[0].alarma3.lim_sup = 9.5;
 
 	// Canal 1: TURBIDEZ
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[1].alarma1.lim_inf = -1.0;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[1].alarma1.lim_sup = 0.9;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[1].alarma2.lim_inf = -1.0;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[1].alarma2.lim_sup = 4.0;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[1].alarma3.lim_inf = -1.0;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[1].alarma3.lim_sup = 9.0;
+	sVarsApp.plantapot.l_niveles_alarma[1].alarma1.lim_inf = -1.0;
+	sVarsApp.plantapot.l_niveles_alarma[1].alarma1.lim_sup = 0.9;
+	sVarsApp.plantapot.l_niveles_alarma[1].alarma2.lim_inf = -1.0;
+	sVarsApp.plantapot.l_niveles_alarma[1].alarma2.lim_sup = 4.0;
+	sVarsApp.plantapot.l_niveles_alarma[1].alarma3.lim_inf = -1.0;
+	sVarsApp.plantapot.l_niveles_alarma[1].alarma3.lim_sup = 9.0;
 
 	// Canal 2: CLORO
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[2].alarma1.lim_inf = 0.7;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[2].alarma1.lim_sup = 2.3;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[2].alarma2.lim_inf = 0.5;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[2].alarma2.lim_sup = 3.5;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[2].alarma3.lim_inf = -1.0;
-	systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[2].alarma3.lim_sup = 5.0;
+	sVarsApp.plantapot.l_niveles_alarma[2].alarma1.lim_inf = 0.7;
+	sVarsApp.plantapot.l_niveles_alarma[2].alarma1.lim_sup = 2.3;
+	sVarsApp.plantapot.l_niveles_alarma[2].alarma2.lim_inf = 0.5;
+	sVarsApp.plantapot.l_niveles_alarma[2].alarma2.lim_sup = 3.5;
+	sVarsApp.plantapot.l_niveles_alarma[2].alarma3.lim_inf = -1.0;
+	sVarsApp.plantapot.l_niveles_alarma[2].alarma3.lim_sup = 5.0;
 
 	for ( i = 3; i < NRO_CANALES_ALM; i++) {
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_inf = 4.1;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma1.lim_sup = 6.1;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_inf = 3.1;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma2.lim_sup = 7.1;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_inf = 2.1;
-		systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[i].alarma3.lim_sup = 8.1;
+		sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_inf = 4.1;
+		sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_sup = 6.1;
+		sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_inf = 3.1;
+		sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_sup = 7.1;
+		sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_inf = 2.1;
+		sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_sup = 8.1;
 	}
 
 	for ( i = 0; i < MAX_NRO_SMS; i++) {
-		memcpy( systemVars.aplicacion_conf.l_sms[i], "X", SMS_NRO_LENGTH );
+		memcpy( sVarsApp.l_sms[i], "X", SMS_NRO_LENGTH );
 		if ( i < 3 ) {
-			systemVars.aplicacion_conf.alarma_ppot.alm_level[i] = 1;
+			sVarsApp.plantapot.alm_level[i] = 1;
 		} else if ( ( i >= 3) && ( i < 6 )) {
-			systemVars.aplicacion_conf.alarma_ppot.alm_level[i] = 2;
+			sVarsApp.plantapot.alm_level[i] = 2;
 		} else {
-			systemVars.aplicacion_conf.alarma_ppot.alm_level[i] = 3;
+			sVarsApp.plantapot.alm_level[i] = 3;
 		}
 	}
 
@@ -1116,7 +1116,7 @@ void xAPP_plantapot_servicio_tecnico( char *action, char *device )
 //uint8_t i;
 
 	/*
-	if ( !strcmp_P( strupr(action), PSTR("RTIMERS\0"))) {
+	if ( strcmp_P( strupr(action), PSTR("RTIMERS\0")) == 0) {
 		for (i=0; i<NRO_CANALES_MONITOREO; i++) {
 			xprintf_P(PSTR("DEBUG: timer[%d] status[%d] value[%d]\r\n"), i, l_ppot_input_channels[i].enabled, l_ppot_input_channels[i].timer );
 		}
@@ -1124,14 +1124,14 @@ void xAPP_plantapot_servicio_tecnico( char *action, char *device )
 	}
 	**/
 
-	if ( !strcmp_P( strupr(device), PSTR("LROJA\0"))) {
-		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
+	if ( strcmp_P( strupr(device), PSTR("LROJA\0")) == 0 ) {
+		if ( strcmp_P( strupr(action), PSTR("PRENDER\0")) == 0 ) {
 			ac_luz_roja(act_ON);
 			return;
-		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
+		} else 	if ( strcmp_P( strupr(action), PSTR("APAGAR\0")) == 0 ) {
 			ac_luz_roja(act_OFF);
 			return;
-		}  else if ( !strcmp_P( strupr(action), PSTR("FLASH\0"))) {
+		}  else if ( strcmp_P( strupr(action), PSTR("FLASH\0")) == 0 ) {
 			ac_luz_roja(act_FLASH);
 			return;
 		}
@@ -1139,14 +1139,14 @@ void xAPP_plantapot_servicio_tecnico( char *action, char *device )
 		return;
 	}
 
-	if ( !strcmp_P( strupr(device), PSTR("LVERDE\0"))) {
-		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
+	if ( strcmp_P( strupr(device), PSTR("LVERDE\0")) == 0 ) {
+		if ( strcmp_P( strupr(action), PSTR("PRENDER\0")) == 0 ) {
 			ac_luz_verde(act_ON);
 			return;
-		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
+		} else 	if ( strcmp_P( strupr(action), PSTR("APAGAR\0")) == 0) {
 			ac_luz_verde(act_OFF);
 			return;
-		}  else if ( !strcmp_P( strupr(action), PSTR("FLASH\0"))) {
+		}  else if ( strcmp_P( strupr(action), PSTR("FLASH\0")) == 0) {
 			ac_luz_verde(act_FLASH);
 			return;
 		}
@@ -1154,14 +1154,14 @@ void xAPP_plantapot_servicio_tecnico( char *action, char *device )
 		return;
 	}
 
-	if ( !strcmp_P( strupr(device), PSTR("LAMARILLA\0"))) {
-		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
+	if ( strcmp_P( strupr(device), PSTR("LAMARILLA\0")) == 0) {
+		if ( strcmp_P( strupr(action), PSTR("PRENDER\0")) == 0) {
 			ac_luz_amarilla(act_ON);
 			return;
-		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
+		} else 	if ( strcmp_P( strupr(action), PSTR("APAGAR\0")) == 0) {
 			ac_luz_amarilla(act_OFF);
 			return;
-		}  else if ( !strcmp_P( strupr(action), PSTR("FLASH\0"))) {
+		}  else if ( strcmp_P( strupr(action), PSTR("FLASH\0")) == 0) {
 			ac_luz_amarilla(act_FLASH);
 			return;
 		}
@@ -1169,14 +1169,14 @@ void xAPP_plantapot_servicio_tecnico( char *action, char *device )
 		return;
 	}
 
-	if ( !strcmp_P( strupr(device), PSTR("LNARANJA\0"))) {
-		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
+	if ( strcmp_P( strupr(device), PSTR("LNARANJA\0")) == 0) {
+		if ( strcmp_P( strupr(action), PSTR("PRENDER\0")) == 0) {
 			ac_luz_naranja(act_ON);
 			return;
-		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
+		} else 	if ( strcmp_P( strupr(action), PSTR("APAGAR\0")) == 0) {
 			ac_luz_naranja(act_OFF);
 			return;
-		} else if ( !strcmp_P( strupr(action), PSTR("FLASH\0"))) {
+		} else if ( strcmp_P( strupr(action), PSTR("FLASH\0")) == 0) {
 			ac_luz_naranja(act_FLASH);
 			return;
 		}
@@ -1184,14 +1184,14 @@ void xAPP_plantapot_servicio_tecnico( char *action, char *device )
 		return;
 	}
 
-	if ( !strcmp_P( strupr(device), PSTR("LAZUL\0"))) {
-		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
+	if ( strcmp_P( strupr(device), PSTR("LAZUL\0")) == 0) {
+		if ( strcmp_P( strupr(action), PSTR("PRENDER\0")) == 0) {
 			ac_luz_azul(act_ON);
 			return;
-		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
+		} else 	if ( strcmp_P( strupr(action), PSTR("APAGAR\0")) == 0) {
 			ac_luz_azul(act_OFF);
 			return;
-		}  else if ( !strcmp_P( strupr(action), PSTR("FLASH\0"))) {
+		}  else if ( strcmp_P( strupr(action), PSTR("FLASH\0")) == 0) {
 			ac_luz_azul(act_FLASH);
 			return;
 		}
@@ -1199,11 +1199,11 @@ void xAPP_plantapot_servicio_tecnico( char *action, char *device )
 		return;
 	}
 
-	if ( !strcmp_P( strupr(device), PSTR("SIRENA\0"))) {
-		if ( !strcmp_P( strupr(action), PSTR("PRENDER\0"))) {
+	if ( strcmp_P( strupr(device), PSTR("SIRENA\0")) == 0) {
+		if ( strcmp_P( strupr(action), PSTR("PRENDER\0")) == 0) {
 			ac_sirena(act_ON);
 			return;
-		} else 	if ( !strcmp_P( strupr(action), PSTR("APAGAR\0"))) {
+		} else 	if ( strcmp_P( strupr(action), PSTR("APAGAR\0")) == 0) {
 			ac_sirena(act_OFF);
 			return;
 		}
@@ -1224,15 +1224,15 @@ uint8_t pos;
 	// Configuracion de los SMS
 	xprintf_P( PSTR("  Nros.SMS configurados:\r\n"));
 	for (pos = 0; pos < MAX_NRO_SMS; pos++) {
-		xprintf_P( PSTR("   (%02d): %s, Nivel_%d\r\n"), pos, systemVars.aplicacion_conf.l_sms[pos], systemVars.aplicacion_conf.alarma_ppot.alm_level[pos] );
+		xprintf_P( PSTR("   (%02d): %s, Nivel_%d\r\n"), pos, sVarsApp.l_sms[pos], sVarsApp.plantapot.alm_level[pos] );
 	}
 
 	// Configuracion de los canales y niveles de alarma configurados
 	xprintf_P( PSTR("  Niveles de alarma:\r\n\0"));
 	for ( pos=0; pos<NRO_CANALES_ALM; pos++) {
-		xprintf_P( PSTR("    ch%d: ALM_L1:(%.02f,%.02f),"),pos, systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma1.lim_inf,  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma1.lim_sup);
-		xprintf_P( PSTR(" ALM_L2:(%.02f,%.02f),"), systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma2.lim_inf,  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma2.lim_sup);
-		xprintf_P( PSTR(" ALM_L3:(%.02f,%.02f) \r\n\0"),  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma3.lim_inf,  systemVars.aplicacion_conf.alarma_ppot.l_niveles_alarma[pos].alarma3.lim_sup);
+		xprintf_P( PSTR("    ch%d: ALM_L1:(%.02f,%.02f),"),pos, sVarsApp.plantapot.l_niveles_alarma[pos].alarma1.lim_inf,  sVarsApp.plantapot.l_niveles_alarma[pos].alarma1.lim_sup);
+		xprintf_P( PSTR(" ALM_L2:(%.02f,%.02f),"), sVarsApp.plantapot.l_niveles_alarma[pos].alarma2.lim_inf,  sVarsApp.plantapot.l_niveles_alarma[pos].alarma2.lim_sup);
+		xprintf_P( PSTR(" ALM_L3:(%.02f,%.02f) \r\n\0"),  sVarsApp.plantapot.l_niveles_alarma[pos].alarma3.lim_inf,  sVarsApp.plantapot.l_niveles_alarma[pos].alarma3.lim_sup);
 	}
 
 	// Entradas digitales

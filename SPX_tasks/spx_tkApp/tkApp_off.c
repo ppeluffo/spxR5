@@ -18,6 +18,9 @@ void tkApp_off(void)
 
 	xprintf_PD(DF_APP, PSTR("APP: Off\r\n\0"));
 
+	// Borro los SMS de alarmas pendientes
+	xSMS_init();
+
 	for( ;; )
 	{
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );

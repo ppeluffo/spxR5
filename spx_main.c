@@ -30,25 +30,15 @@
  *  CMA 37384 515 111
  *  22923645
  *
+ * -Manual
+ *  Reintentos de mandar un SMS que falla.
  *
- * -Mejorar el conseguir la IP
- * -APP_A / APP_B / APP_C
- * -SMS
- * -Testing general GPRS
-
- * -app_plantapot
- * -app_tanques/perforaciones
  * -Testing XBEE
  * -Server XBEE
- * -Manual
+ *
  * -GUI
- * -app_piloto
-
  * -PwrSave
  *
- * 
- * AT+CIPOPEN=0,"TCP","192.168.0.9",80
-+CIPOPEN: 0,2
  *
  * Revisar en el servidor que grabe el UID en los inits. !!!
  *

@@ -224,7 +224,7 @@ uint8_t i = 0;
 		} else {
 			// No tengo enlace al server. Intento abrirlo
 			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			xCOMMS_open_link( DF_COMMS, systemVars.comms_conf.server_ip_address, systemVars.comms_conf.server_tcp_port );
+			xCOMMS_open_link( DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		}
 	}
 	/*
@@ -398,7 +398,7 @@ static void ac_process_response_PERF_OUTS(void)
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_douts = NULL;
-char *delim = ",=:><";
+char *delim = ",;:=><";
 char *p = NULL;
 uint8_t douts;
 

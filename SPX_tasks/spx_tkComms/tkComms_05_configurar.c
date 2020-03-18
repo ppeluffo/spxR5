@@ -28,7 +28,7 @@ t_comms_states next_state = ST_ENTRY;
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_configurar.\r\n\0"));
 	//xprintf_PD( DF_COMMS, PSTR("COMMS: configurar.\r\n\0"));
 
-	if ( xCOMMS_configurar_dispositivo(DF_COMMS, systemVars.comms_conf.simpwd, &err_code ) == true ) {
+	if ( xCOMMS_configurar_dispositivo(DF_COMMS, sVarsComms.simpwd, &err_code ) == true ) {
 		next_state = ST_MON_SQE;
 		goto EXIT;
 	}
@@ -40,17 +40,17 @@ t_comms_states next_state = ST_ENTRY;
 		 * No tengo el pin correcto. Reintento dentro de 1 hora
 		 */
 		xprintf_P( PSTR("COMMS: pin ERROR: Reconfiguro timerdial para 1H\r\n\0"));
-		systemVars.comms_conf.timerDial = 3600;
+		sVarsComms.timerDial = 3600;
 		next_state = ST_ENTRY;
 		break;
 	case ERR_NETATTACH_FAIL:
 		xprintf_P( PSTR("COMMS: net ERRROR: Reconfiguro timerdial para 30min.\r\n\0"));
-		systemVars.comms_conf.timerDial = 1800;
+		sVarsComms.timerDial = 1800;
 		next_state = ST_ENTRY;
 		break;
 	default:
 		xprintf_P( PSTR("COMMS: config ERRROR: Reconfiguro timerdial para 30min.\r\n\0"));
-		systemVars.comms_conf.timerDial = 1800;
+		sVarsComms.timerDial = 1800;
 		next_state = ST_ENTRY;
 		break;
 	}

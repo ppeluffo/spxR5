@@ -14,6 +14,7 @@
 typedef enum { ST_ENTRY = 0, ST_ESPERA_APAGADO, ST_ESPERA_PRENDIDO, ST_PRENDER, ST_CONFIGURAR, ST_MON_SQE, ST_SCAN, ST_IP, ST_INITFRAME, ST_DATAFRAME } t_comms_states;
 typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ERR_IPSERVER_FAIL, ERR_DLGID_FAIL } t_comms_error_code;
 typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status;
+typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 
 #define MAX_TRIES_PWRON 		3	// Intentos de prender HW el modem
 #define MAX_TRYES_NET_ATTCH		6	// Intentos de atachearme a la red GPRS
@@ -26,6 +27,10 @@ typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status
 #define SIMPIN_DEFAULT	"1234\0"
 
 #define DF_COMMS ( systemVars.debug == DEBUG_COMMS )
+
+#define TDIAL_MIN_DISCRETO 900
+
+#define MODO_DISCRETO ( (sVarsComms.timerDial >= TDIAL_MIN_DISCRETO ) ? true : false )
 
 int32_t time_to_next_dial;
 
@@ -51,17 +56,22 @@ typedef struct {
 } t_scan_struct;
 
 typedef struct {
-//	char dlgId[DLGID_LENGTH];
+	t_comms_channel comms_channel;
+	char dlgId[DLGID_LENGTH];
 	char apn[APN_LENGTH];
-//	char server_tcp_port[PORT_LENGTH];
-//	char server_ip_address[IP_LENGTH];
-//	char serverScript[SCRIPT_LENGTH];
-//	char simpwd[SIM_PASSWD_LENGTH];
-//	uint32_t timerDial;
-//	st_pwrsave_t pwrSave;
-} xComms_conf_t1;
+	char server_tcp_port[PORT_LENGTH];
+	char server_ip_address[IP_LENGTH];
+	char serverScript[SCRIPT_LENGTH];
+	char simpwd[SIM_PASSWD_LENGTH];
+	uint32_t timerDial;
+	st_pwrsave_t pwrSave;
+} xComms_conf_t;
 
-xComms_conf_t1 systemVarsComms;
+xComms_conf_t sVarsComms;
+
+#define SMS_NRO_LENGTH			10
+#define SMS_MSG_LENGTH 			70
+#define SMS_MSG_QUEUE_LENGTH 	9
 
 t_comms_states tkComms_st_entry(void);
 t_comms_states tkComms_st_espera_apagado(void);
@@ -119,6 +129,7 @@ void gprs_flush_RX_buffer(void);
 void gprs_flush_TX_buffer(void);
 void gprs_print_RX_buffer(bool f_debug );
 bool gprs_check_response( const char *rsp );
+bool gprs_check_response_with_to( const char *rsp, uint8_t timeout );
 bool gprs_prender(bool f_debug, uint8_t delay_factor );
 void gprs_hw_pwr_on(uint8_t delay_factor);
 void gprs_sw_pwr(void);
@@ -146,9 +157,18 @@ bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned );
 t_link_status gprs_check_socket_status(bool f_debug);
 t_link_status gprs_open_socket(bool f_debug, char *ip, char *port);
 char *gprs_get_buffer_ptr( char *pattern);
-
 //void gprs_test(void);
 //void gprs_scan_test (PGM_P *dlist );
+
+void xSMS_init(void);
+bool xSMS_enqueue(char *dst_nbr, char *msg );
+void xSMS_txcheckpoint(void);
+bool xSMS_send( char *dst_nbr, char *msg );
+char *xSMS_format(char *msg);
+void xSMS_rxcheckpoint(void);
+char *xSMS_read_and_delete_by_index( uint8_t msg_index );
+bool xSMS_received( uint8_t *first_msg_index );
+void xSMS_process( char *sms_msg);
 
 
 #endif /* SRC_SPX_TASKS_SPX_TKCOMMS_TKCOMMS_H_ */

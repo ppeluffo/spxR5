@@ -6,6 +6,7 @@
  */
 
 #include <tkComms.h>
+#include "spx_tkApp/tkApp.h"
 
 // La tarea no puede demorar mas de 30s.
 #define WDG_COMMS_TO_ESPERA_ON 30
@@ -49,6 +50,9 @@ int8_t timer = 60;
 	}
 
 EXIT:
+
+	// Checkpoint de SMS's
+	xAPP_sms_checkpoint();
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_prendido.\r\n\0"));
 	return(next_state);

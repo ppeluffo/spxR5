@@ -262,10 +262,10 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 		if ( s_period != NULL ) { systemVars.counters_conf.period[channel] = atoi(s_period); }
 
 		// SPEED
-		if ( !strcmp_P( s_speed, PSTR("LS\0"))) {
+		if ( strcmp_P( s_speed, PSTR("LS\0")) == 0 ) {
 			 systemVars.counters_conf.speed[channel] = CNT_LOW_SPEED;
 
-		} else if ( !strcmp_P( s_speed , PSTR("HS\0"))) {
+		} else if ( strcmp_P( s_speed , PSTR("HS\0")) == 0 ) {
 			systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
 		}
 

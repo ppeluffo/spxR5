@@ -17,49 +17,49 @@ char l_data[10] = { 0 };
 	strupr(l_data);
 
 	if ( spx_io_board == SPX_IO8CH ) {
-		systemVars.comms_conf.timerDial = 0;
+		sVarsComms.timerDial = 0;
 	} else if ( spx_io_board == SPX_IO5CH ) {
-		systemVars.comms_conf.timerDial = 900;
+		sVarsComms.timerDial = 900;
 	}
 
-	if (!strcmp_P( l_data, PSTR("SPY\0"))) {
-		snprintf_P( systemVars.comms_conf.apn, APN_LENGTH, PSTR("SPYMOVIL.VPNANTEL\0") );
-		strncpy_P(systemVars.comms_conf.server_ip_address, PSTR("192.168.0.9\0"),16);
+	if ( strcmp_P( l_data, PSTR("SPY\0")) == 0) {
+		snprintf_P( sVarsComms.apn, APN_LENGTH, PSTR("SPYMOVIL.VPNANTEL\0") );
+		strncpy_P(sVarsComms.server_ip_address, PSTR("192.168.0.9\0"),16);
 
-	} else if (!strcmp_P( l_data, PSTR("UTE\0"))) {
-		snprintf_P( systemVars.comms_conf.apn, APN_LENGTH, PSTR("SPYMOVIL.VPNANTEL\0") );
-		strncpy_P(systemVars.comms_conf.server_ip_address, PSTR("192.168.1.9\0"),16);
+	} else if (strcmp_P( l_data, PSTR("UTE\0")) == 0) {
+		snprintf_P( sVarsComms.apn, APN_LENGTH, PSTR("SPYMOVIL.VPNANTEL\0") );
+		strncpy_P(sVarsComms.server_ip_address, PSTR("192.168.1.9\0"),16);
 
-	} else if (!strcmp_P( l_data, PSTR("OSE\0"))) {
-		snprintf_P( systemVars.comms_conf.apn, APN_LENGTH, PSTR("STG1.VPNANTEL\0") );
-		strncpy_P(systemVars.comms_conf.server_ip_address, PSTR("172.27.0.26\0"),16);
+	} else if (strcmp_P( l_data, PSTR("OSE\0")) == 0) {
+		snprintf_P( sVarsComms.apn, APN_LENGTH, PSTR("STG1.VPNANTEL\0") );
+		strncpy_P(sVarsComms.server_ip_address, PSTR("172.27.0.26\0"),16);
 
-	} else if (!strcmp_P( l_data, PSTR("CLARO\0"))) {
-		snprintf_P( systemVars.comms_conf.apn, APN_LENGTH, PSTR("ipgrs.claro.com.uy\0") );
-		strncpy_P(systemVars.comms_conf.server_ip_address, PSTR("190.64.69.34\0"),16);
+	} else if (strcmp_P( l_data, PSTR("CLARO\0")) == 0) {
+		snprintf_P( sVarsComms.apn, APN_LENGTH, PSTR("ipgrs.claro.com.uy\0") );
+		strncpy_P(sVarsComms.server_ip_address, PSTR("190.64.69.34\0"),16);
 
 	} else {
-		snprintf_P( systemVars.comms_conf.apn, APN_LENGTH, PSTR("DEFAULT\0") );
-		strncpy_P(systemVars.comms_conf.server_ip_address, PSTR("DEFAULT\0"),16);
+		snprintf_P( sVarsComms.apn, APN_LENGTH, PSTR("DEFAULT\0") );
+		strncpy_P(sVarsComms.server_ip_address, PSTR("DEFAULT\0"),16);
 	}
 
-	snprintf_P( systemVars.comms_conf.dlgId, DLGID_LENGTH, PSTR("DEFAULT\0") );
+	snprintf_P( sVarsComms.dlgId, DLGID_LENGTH, PSTR("DEFAULT\0") );
 	//strncpy_P(systemVars.gprs_conf.serverScript, PSTR("/cgi-bin/PY/spy.py\0"),SCRIPT_LENGTH);
-	strncpy_P(systemVars.comms_conf.serverScript, PSTR("/cgi-bin/SPY/spy.py\0"),SCRIPT_LENGTH);
-	strncpy_P(systemVars.comms_conf.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
-    snprintf_P(systemVars.comms_conf.simpwd, sizeof(systemVars.comms_conf.simpwd), PSTR("%s\0"), SIMPIN_DEFAULT );
+	strncpy_P(sVarsComms.serverScript, PSTR("/cgi-bin/SPY/spy.py\0"),SCRIPT_LENGTH);
+	strncpy_P(sVarsComms.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
+    snprintf_P(sVarsComms.simpwd, sizeof(sVarsComms.simpwd), PSTR("%s\0"), SIMPIN_DEFAULT );
 
 	// PWRSAVE
 	if ( spx_io_board == SPX_IO5CH ) {
-		systemVars.comms_conf.pwrSave.pwrs_enabled = true;
+		sVarsComms.pwrSave.pwrs_enabled = true;
 	} else if ( spx_io_board == SPX_IO8CH ) {
-		systemVars.comms_conf.pwrSave.pwrs_enabled = false;
+		sVarsComms.pwrSave.pwrs_enabled = false;
 	}
 
-	systemVars.comms_conf.pwrSave.hora_start.hour = 23;
-	systemVars.comms_conf.pwrSave.hora_start.min = 30;
-	systemVars.comms_conf.pwrSave.hora_fin.hour = 5;
-	systemVars.comms_conf.pwrSave.hora_fin.min = 30;
+	sVarsComms.pwrSave.hora_start.hour = 23;
+	sVarsComms.pwrSave.hora_start.min = 30;
+	sVarsComms.pwrSave.hora_fin.hour = 5;
+	sVarsComms.pwrSave.hora_fin.min = 30;
 
 }
 //------------------------------------------------------------------------------------
@@ -68,11 +68,11 @@ void xCOMMS_status(void)
 
 uint8_t dbm;
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		xprintf_P( PSTR(">Device Xbee:\r\n\0"));
 		return;
 
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 
 		// Imprime todo lo referente al GPRS
 		// MODEM
@@ -122,9 +122,9 @@ uint8_t dbm;
 void xCOMMS_init(void)
 {
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		xbee_init();
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_init();
 	}
 
@@ -134,9 +134,9 @@ void xCOMMS_init(void)
 void xCOMMS_apagar_dispositivo(void)
 {
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		xbee_apagar();
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_apagar();
 	}
 
@@ -153,9 +153,9 @@ bool xCOMMS_prender_dispositivo(bool f_debug, uint8_t delay_factor)
 
 bool retS = false;
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		retS = xbee_prender( f_debug, delay_factor);
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		retS = gprs_prender( f_debug, delay_factor);
 	}
 
@@ -175,9 +175,9 @@ bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, uint8_t *err_code )
 
 bool retS = false;
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		retS = xbee_configurar_dispositivo(err_code);
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		retS = gprs_configurar_dispositivo( f_debug, pin, err_code );
 	}
 
@@ -191,9 +191,9 @@ void xCOMMS_mon_sqe(bool f_debug, bool modo_continuo, uint8_t *csq )
 	 */
 
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		xbee_mon_sqe();
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_mon_sqe( f_debug, modo_continuo, csq);
 	}
 }
@@ -209,9 +209,9 @@ bool xCOMMS_scan(t_scan_struct scan_boundle )
 
 bool retS = false;
 
-		if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 			retS = xbee_scan(scan_boundle);
-		} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 			retS = gprs_scan(scan_boundle);
 		}
 
@@ -223,9 +223,9 @@ bool xCOMMS_need_scan( t_scan_struct scan_boundle )
 
 bool retS = false;
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		retS = xbee_need_scan(scan_boundle);
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		retS = gprs_need_scan(scan_boundle);
 	}
 
@@ -242,9 +242,9 @@ bool xCOMMS_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
 
 bool retS = false;
 
-		if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 			retS = xbee_ip();
-		} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 			retS = gprs_ip(f_debug, apn, ip_assigned, err_code);
 		}
 
@@ -256,9 +256,9 @@ t_link_status xCOMMS_link_status( bool f_debug )
 
 t_link_status lstatus = LINK_CLOSED;
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		lstatus = xbee_check_socket_status( f_debug);
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		lstatus = gprs_check_socket_status( f_debug);
 	}
 
@@ -274,9 +274,9 @@ void xCOMMS_flush_RX(void)
 	 * de comunicaciones, y el buffer comun commsRxBuffer
 	 */
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		xbee_flush_RX_buffer();
-	} else	if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else	if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_flush_RX_buffer();
 	}
 }
@@ -289,9 +289,9 @@ void xCOMMS_flush_TX(void)
 	 * de comunicaciones
 	 */
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		xbee_flush_TX_buffer();
-	} else	if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else	if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_flush_TX_buffer();
 	}
 }
@@ -299,7 +299,7 @@ void xCOMMS_flush_TX(void)
 void xCOMMS_send_header(char *type)
 {
 
-	xprintf_PVD( xCOMMS_get_fd(), DF_COMMS, PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), systemVars.comms_conf.serverScript, systemVars.comms_conf.dlgId, type, SPX_FW_REV );
+	xprintf_PVD( xCOMMS_get_fd(), DF_COMMS, PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), sVarsComms.serverScript, sVarsComms.dlgId, type, SPX_FW_REV );
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_send_tail(void)
@@ -324,9 +324,9 @@ t_link_status lstatus = LINK_CLOSED;
 
 	xCOMMS_flush_RX();
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		lstatus = xbee_open_socket(f_debug, ip, port);
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		lstatus = gprs_open_socket(f_debug, ip, port);
 	}
 
@@ -339,9 +339,9 @@ file_descriptor_t xCOMMS_get_fd(void)
 
 file_descriptor_t fd = fdGPRS;
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		fd = fdXBEE;
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		fd = fdGPRS;
 	}
 	return(fd);
@@ -350,10 +350,10 @@ file_descriptor_t fd = fdGPRS;
 //------------------------------------------------------------------------------------
 void xCOMM_send_global_params(void)
 {
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:0000;SIMID:000;CSQ:0;WRST:%02X;" ),wdg_resetCause );
 
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;" ), gprs_get_imei() );
 		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
 
@@ -364,9 +364,9 @@ void xCOMM_send_global_params(void)
 bool xCOMMS_check_response( const char *pattern )
 {
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		return( xbee_check_response(pattern)) ;
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		return( gprs_check_response(pattern));
 	}
 
@@ -376,9 +376,9 @@ bool xCOMMS_check_response( const char *pattern )
 void xCOMMS_print_RX_buffer(bool d_flag)
 {
 	if ( d_flag ) {
-		if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+		if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 			xbee_print_RX_buffer();
-		} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+		} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 			gprs_print_RX_buffer(d_flag);
 		}
 	}
@@ -387,9 +387,9 @@ void xCOMMS_print_RX_buffer(bool d_flag)
 char *xCOMM_get_buffer_ptr( char *pattern)
 {
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		return( xbee_get_buffer_ptr(pattern));
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		return( gprs_get_buffer_ptr(pattern));
 	}
 
@@ -403,9 +403,9 @@ void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr)
 	 * En caso de debug, lo muestra en xTERM.
 	 */
 
-	if ( systemVars.comms_channel == COMMS_CHANNEL_XBEE ) {
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
 		data_print_inputs(fdXBEE, dr);
-	} else if ( systemVars.comms_channel == COMMS_CHANNEL_GPRS ) {
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		data_print_inputs(fdGPRS, dr);
 	} else {
 		return;
@@ -476,7 +476,30 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		return(true);
 	}
 
+
+	if ( SPX_SIGNAL( SGN_SMS )) {
+		/*
+		 * Solo las atiendo mientras estoy en modo espera.
+		 * No borro la señal sino solo luego de haberlos procesado
+		 */
+		switch(state) {
+		case ST_ESPERA_APAGADO:
+			*next_state = ST_PRENDER;
+			break;
+		case ST_ESPERA_PRENDIDO:
+			*next_state = ST_DATAFRAME;
+			break;
+		default:
+			// Ignoro
+			break;
+		}
+
+		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_SMS rcvd.\r\n\0"));
+		return(true);
+	}
+
 	return(false);
 }
 //------------------------------------------------------------------------------------
+
 

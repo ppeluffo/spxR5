@@ -64,8 +64,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9p"
-#define SPX_FW_DATE "@ 20200317"
+#define SPX_FW_REV "2.9.9q"
+#define SPX_FW_DATE "@ 20200318"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -111,17 +111,12 @@
 #define tkCommsRX_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkAplicacion_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
 
-
-#define TDIAL_MIN_DISCRETO 900
-
-#define MODO_DISCRETO ( (systemVars.comms_conf.timerDial >= TDIAL_MIN_DISCRETO ) ? true : false )
-
 // Mensajes entre tareas
-
 #define SGN_FRAME_READY			0x01
 #define SGN_MON_SQE				0x02
 #define SGN_REDIAL				0x03
 #define SGN_RESET_COMMS_DEV		0x04
+#define SGN_SMS					0x05
 
 // Estructura que maneja las señales del sistema
 struct {
@@ -129,6 +124,7 @@ struct {
 	bool sgn_redial;
 	bool sgn_frame_ready;
 	bool sgn_reset_comms_device;
+	bool sgn_sms;
 } system_signals;
 
 typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_COMMS, DEBUG_APLICACION } t_debug;
@@ -137,13 +133,6 @@ typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 typedef enum { DIN_NORMAL = 0, DIN_TIMER  } dinputs_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
-typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT } aplicacion_t;
-typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
-typedef enum { PERF_CTL_BOYA, PERF_CTL_SISTEMA } perforacion_control_t;
-
-typedef enum { ALARMA_NIVEL_0 = 0, ALARMA_NIVEL_1, ALARMA_NIVEL_2, ALARMA_NIVEL_3 } nivel_alarma_t;
-
-typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 
 TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkComms, xHandle_tkCommsRX, xHandle_tkAplicacion;
 
@@ -252,17 +241,6 @@ typedef struct {
 	float ieq_max[MAX_ANALOG_CHANNELS];
 } ainputs_conf_t;
 
-typedef struct {
-	char dlgId[DLGID_LENGTH];
-	char apn[APN_LENGTH];
-	char server_tcp_port[PORT_LENGTH];
-	char server_ip_address[IP_LENGTH];
-	char serverScript[SCRIPT_LENGTH];
-	char simpwd[SIM_PASSWD_LENGTH];
-	uint32_t timerDial;
-	st_pwrsave_t pwrSave;
-} xComms_conf_t;
-
 // Configuracion del sensor i2c de presion
 typedef struct {
 	char name[PARAMNAME_LENGTH];
@@ -273,85 +251,6 @@ typedef struct {
 	float offset;
 } psensor_conf_t;
 
-// CONSIGNA
-typedef struct {
-	st_time_t hhmm_c_diurna;
-	st_time_t hhmm_c_nocturna;
-	consigna_t c_aplicada;
-} st_consigna_t;
-
-// PERFORACION
-typedef struct {
-	uint8_t outs;
-	uint8_t	control;
-} st_perforacion_t;
-
-// Numeros de SMS a los que enviar las alarmas
-#define MAX_NRO_SMS 		9
-#define SMS_NRO_LENGTH		10
-
-
-//---------------------------------------------------------------------------
-// Estructuras para el manejo del sistema de alarmas en plantas de potabilizacion de OSE
-// Cada canal tiene 3 alarmas asociadas.
-// Cada alarma tiene un nivel superior y uno inferior.
-// Debemos tener entonces una lista l_niveles_alarma de tamanio NRO_CANALES_ALM donde almacenemos
-// los mismos.
-//
-// Por otro lado, cada SMS tiene un nivel de alarma asociado.
-// Cuando se genera una alarma de un tipo, se debe mandar un SMS a todos los nros. con dicho
-// nivel asociado.
-// Creamos una lista alm_level de tamanio MAX_NRO_SMS con el nivel asociado a dicho SMS.
-//
-
-// Canales de datos de entradas.
-#define NRO_CANALES_ALM	6
-
-typedef struct {
-	float lim_inf;
-	float lim_sup;
-} st_limites_alarma_t;
-
-/* Estructura que define un nro.de sms que se usa con las alarmas.
- * Tiene asociado el nivel de disparo
- */
-
-// Estructura usada en común con la aplicacion de TANQUES
-/*
-typedef struct {
-	char sms_nro[SMS_NRO_LENGTH];
-	nivel_alarma_t alm_level;
-} st_alarma_sms_t;
-*/
-
-typedef struct {
-	st_limites_alarma_t alarma0;		// Banda normal
-	st_limites_alarma_t alarma1;		// Alarma 1: Amarillo
-	st_limites_alarma_t alarma2;		// Alarma 2: Naranja
-	st_limites_alarma_t alarma3;		// Alarma 3: Rojo
-} st_limites_alarma_ch_t;
-
-/*
- * Estructura que define una lista de canales con los niveles de c/alarma
- * y una lista de sms con niveles asociados.
- */
-
-typedef struct {
-	st_limites_alarma_ch_t l_niveles_alarma[NRO_CANALES_ALM];
-	nivel_alarma_t alm_level[MAX_NRO_SMS];
-} st_alarmas_t;
-
-
-//---------------------------------------------------------------------------
-
-typedef struct {
-	st_consigna_t consigna;
-	st_perforacion_t perforacion;
-	st_alarmas_t alarma_ppot;
-	// Estructura usada en común con la aplicacion de TANQUES y ALARMAS
-	char l_sms[MAX_NRO_SMS][SMS_NRO_LENGTH];
-} aplicacion_conf_t;
-
 
 typedef struct {
 
@@ -360,18 +259,12 @@ typedef struct {
 	t_debug debug;
 	uint16_t timerPoll;
 
-	t_comms_channel comms_channel;
-
 	char range_name[PARAMNAME_LENGTH];
 
 	counters_conf_t counters_conf;	// Estructura con la configuracion de los contadores
 	dinputs_conf_t dinputs_conf;	// Estructura con la configuracion de las entradas digitales
 	ainputs_conf_t ainputs_conf;	// Estructura con la configuracion de las entradas analogicas
-	xComms_conf_t comms_conf;
 	psensor_conf_t psensor_conf;
-
-	aplicacion_t aplicacion;				// Modo de operacion del datalogger
-	aplicacion_conf_t aplicacion_conf;
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -391,7 +284,7 @@ uint8_t u_control_string( char *s_name );
 void u_convert_str_to_time_t ( char *time_str, st_time_t *time_struct );
 void u_convert_int_to_time_t ( int int16time, st_time_t *time_struct );
 void u_load_defaults( char *opt );
-uint8_t u_save_params_in_NVMEE(void);
+void u_save_params_in_NVMEE(void);
 bool u_load_params_from_NVMEE(void);
 void u_config_timerpoll ( char *s_timerpoll );
 bool u_check_more_Rcds4Del ( FAT_t *fat );
@@ -403,7 +296,7 @@ bool u_write_output_pins( uint8_t pin, int8_t val );
 bool u_set_douts( uint8_t dout );
 void u_config_timerdial ( char *s_timerdial );
 void u_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime);
-
+uint8_t u_checksum( uint8_t *s, uint16_t size );
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -504,6 +397,5 @@ void u_sms_init(void);
 bool u_sms_send(char *dst_nbr, char *msg );
 char *u_format_date_sms(char *msg);
 
-#define SMS_MSG_LENGTH 10
 
 #endif /* SRC_SPX_H_ */

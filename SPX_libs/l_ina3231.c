@@ -86,23 +86,23 @@ char l_data[10] = { ' ' };
 
 //	xprintf_P( PSTR("in->DEBUG=[%02x][%02x]\r\n\0"), data[0], data[1]);
 
-	if (!strcmp_P( l_data, PSTR("CONF\0"))) {
+	if (strcmp_P( l_data, PSTR("CONF\0")) == 0 ) {
 		xBytes = INA_read(  ina_id, INA3231_CONF, data, 2 );
-	} else if (!strcmp_P( l_data, PSTR("CH1SHV\0"))) {
+	} else if (strcmp_P( l_data, PSTR("CH1SHV\0")) == 0) {
 		xBytes = INA_read(  ina_id, INA3221_CH1_SHV, data, 2 );
-	} else if (!strcmp_P( l_data, PSTR("CH1BUSV\0"))) {
+	} else if (strcmp_P( l_data, PSTR("CH1BUSV\0")) == 0) {
 		xBytes = INA_read(  ina_id, INA3221_CH1_BUSV, data, 2 );
-	} else if (!strcmp_P( l_data, PSTR("CH2SHV\0"))) {
+	} else if (strcmp_P( l_data, PSTR("CH2SHV\0")) == 0) {
 		xBytes = INA_read(  ina_id, INA3221_CH2_SHV, data, 2 );
-	} else if (!strcmp_P( l_data, PSTR("CH2BUSV\0"))) {
+	} else if (strcmp_P( l_data, PSTR("CH2BUSV\0")) == 0) {
 		xBytes = INA_read(  ina_id, INA3221_CH2_BUSV, data, 2 );
-	} else if (!strcmp_P( l_data, PSTR("CH3SHV\0"))) {
+	} else if (strcmp_P( l_data, PSTR("CH3SHV\0")) == 0) {
 		xBytes = INA_read(  ina_id, INA3221_CH3_SHV, data, 2 );
-	} else if (!strcmp_P( l_data, PSTR("CH3BUSV\0"))) {
+	} else if (strcmp_P( l_data, PSTR("CH3BUSV\0")) == 0) {
 		xBytes = INA_read(  ina_id, INA3221_CH3_BUSV, data, 2 );
-	} else if (!strcmp_P( l_data, PSTR("MFID\0"))) {
+	} else if (strcmp_P( l_data, PSTR("MFID\0")) == 0) {
 		xBytes = INA_read(  ina_id, INA3221_MFID, data, 2 );
-	} else if (!strcmp_P( l_data, PSTR("DIEID\0"))) {
+	} else if (strcmp_P( l_data, PSTR("DIEID\0")) == 0) {
 		xBytes = INA_read(  ina_id, INA3221_DIEID, data, 2 );
 	} else {
 		xBytes = -1;

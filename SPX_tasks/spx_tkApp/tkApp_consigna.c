@@ -38,21 +38,21 @@ RtcTimeType_t rtcDateTime;
 		}
 
 		// Consigna diurna ?
-		if ( ( rtcDateTime.hour == systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour ) &&
-				( rtcDateTime.min == systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min )  ) {
+		if ( ( rtcDateTime.hour == sVarsApp.consigna.hhmm_c_diurna.hour ) &&
+				( rtcDateTime.min == sVarsApp.consigna.hhmm_c_diurna.min )  ) {
 
 			DRV8814_set_consigna_diurna();
-			systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
+			sVarsApp.consigna.c_aplicada = CONSIGNA_DIURNA;
 			xprintf_P(PSTR("APP: CONSIGNA diurna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 			continue;
 		}
 
 		// Consigna nocturna ?
-		if ( ( rtcDateTime.hour == systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour ) &&
-				( rtcDateTime.min == systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min )  ) {
+		if ( ( rtcDateTime.hour == sVarsApp.consigna.hhmm_c_nocturna.hour ) &&
+				( rtcDateTime.min == sVarsApp.consigna.hhmm_c_nocturna.min )  ) {
 
 			DRV8814_set_consigna_nocturna();
-			systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
+			sVarsApp.consigna.c_aplicada = CONSIGNA_NOCTURNA;
 			xprintf_P(PSTR("APP: CONSIGNA nocturna %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 			continue;
 		}
@@ -75,12 +75,15 @@ uint8_t consigna_a_aplicar = 99;
 
 	if ( spx_io_board != SPX_IO5CH ) {
 		xprintf_P(PSTR("APP: CONSIGNA ERROR: Modo Consigna only in IO_5CH.\r\n\0"));
-		systemVars.aplicacion = APP_OFF;
+		sVarsApp.aplicacion = APP_OFF;
 		u_save_params_in_NVMEE();
 		return(false);
 	}
 
 	DRV8814_init();
+
+	// Borro los SMS de alarmas pendientes
+	xSMS_init();
 
 	// Hora actual en minutos.
 	if ( ! RTC_read_dtime(&rtcDateTime) )
@@ -93,8 +96,8 @@ uint8_t consigna_a_aplicar = 99;
 	//   nocturna             diurna                 nocturna
 
 	now = rtcDateTime.hour * 60 + rtcDateTime.min;
-	horaConsDia = systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour * 60 + systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min;
-	horaConsNoc = systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour * 60 + systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min;
+	horaConsDia = sVarsApp.consigna.hhmm_c_diurna.hour * 60 + sVarsApp.consigna.hhmm_c_diurna.min;
+	horaConsNoc = sVarsApp.consigna.hhmm_c_nocturna.hour * 60 + sVarsApp.consigna.hhmm_c_nocturna.min;
 
 	if ( horaConsDia < horaConsNoc ) {
 		// Caso A:
@@ -138,19 +141,19 @@ uint8_t consigna_a_aplicar = 99;
 	case 99:
 		// Incompatibilidad: seteo por default.
 		xprintf_P( PSTR("APP: CONSIGNA ERROR al setear consignas: horas incompatibles\r\n\0"));
-		systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour = 05;
-		systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min = 30;
-		systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour = 23;
-		systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min = 30;
+		sVarsApp.consigna.hhmm_c_diurna.hour = 05;
+		sVarsApp.consigna.hhmm_c_diurna.min = 30;
+		sVarsApp.consigna.hhmm_c_nocturna.hour = 23;
+		sVarsApp.consigna.hhmm_c_nocturna.min = 30;
 		break;
 	case CONSIGNA_DIURNA:
 		DRV8814_set_consigna_diurna();
-		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
+		sVarsApp.consigna.c_aplicada = CONSIGNA_DIURNA;
 		xprintf_P(PSTR("APP: CONSIGNA diurna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		break;
 	case CONSIGNA_NOCTURNA:
 		DRV8814_set_consigna_nocturna();
-		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
+		sVarsApp.consigna.c_aplicada = CONSIGNA_NOCTURNA;
 		xprintf_P(PSTR("APP: CONSIGNA nocturna init: %02d:%02d\r\n\0"),rtcDateTime.hour,rtcDateTime.min);
 		break;
 	}
@@ -165,16 +168,16 @@ bool xAPP_consigna_config ( char *hhmm1, char *hhmm2 )
 //	xprintf_P(PSTR("DEBUG CONSIGNA: %s, %s\r\n"), hhmm1, hhmm2);
 
 	if ( hhmm1 != NULL ) {
-//		xprintf_P(PSTR("DEBUG HHMM1: %02d,%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min );
-		u_convert_int_to_time_t( atoi( hhmm1), &systemVars.aplicacion_conf.consigna.hhmm_c_diurna );
-//		xprintf_P(PSTR("DEBUG HHMM1: %02d,%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min );
+//		xprintf_P(PSTR("DEBUG HHMM1: %02d,%02d"), sVarsApp.consigna.hhmm_c_diurna.hour, sVarsApp.consigna.hhmm_c_diurna.min );
+		u_convert_int_to_time_t( atoi( hhmm1), &sVarsApp.consigna.hhmm_c_diurna );
+//		xprintf_P(PSTR("DEBUG HHMM1: %02d,%02d"), sVarsApp.consigna.hhmm_c_diurna.hour, sVarsApp.consigna.hhmm_c_diurna.min );
 
 	}
 
 	if ( hhmm2 != NULL ) {
-//		xprintf_P(PSTR("DEBUG HHMM2: %02d,%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min );
-		u_convert_int_to_time_t( atoi(hhmm2), &systemVars.aplicacion_conf.consigna.hhmm_c_nocturna );
-//		xprintf_P(PSTR("DEBUG HHMM2: %02d,%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min );
+//		xprintf_P(PSTR("DEBUG HHMM2: %02d,%02d"), sVarsApp.consigna.hhmm_c_nocturna.hour, sVarsApp.consigna.hhmm_c_nocturna.min );
+		u_convert_int_to_time_t( atoi(hhmm2), &sVarsApp.consigna.hhmm_c_nocturna );
+//		xprintf_P(PSTR("DEBUG HHMM2: %02d,%02d"), sVarsApp.consigna.hhmm_c_nocturna.hour, sVarsApp.consigna.hhmm_c_nocturna.min );
 	}
 
 	return(true);
@@ -184,15 +187,16 @@ bool xAPP_consigna_config ( char *hhmm1, char *hhmm2 )
 void xAPP_consigna_config_defaults(void)
 {
 
-	systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour = 05;
-	systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min = 30;
-	systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour = 23;
-	systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min = 30;
+	sVarsApp.consigna.hhmm_c_diurna.hour = 05;
+	sVarsApp.consigna.hhmm_c_diurna.min = 30;
+	sVarsApp.consigna.hhmm_c_nocturna.hour = 23;
+	sVarsApp.consigna.hhmm_c_nocturna.min = 30;
 
 }
 //------------------------------------------------------------------------------------
 bool xAPP_consigna_write( char *param0, char *param1, char *param2 )
 {
+
 	// write consigna
 	// 		(diurna|nocturna)
 	//		(enable|disable),(set|reset),(sleep|awake),(ph01|ph10) } {A/B}
@@ -209,62 +213,62 @@ bool xAPP_consigna_write( char *param0, char *param1, char *param2 )
 //	xprintf_P(PSTR("DEBUG: param2: %s\r\n"), param2);
 
 	// (diurna|nocturna)
-	if (!strcmp_P( strupr(param0) , PSTR("DIURNA\0")) ) {
-		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_DIURNA;
+	if ( strcmp_P( strupr(param0) , PSTR("DIURNA\0")) == 0 ) {
+		sVarsApp.consigna.c_aplicada = CONSIGNA_DIURNA;
 		DRV8814_set_consigna_diurna();
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(param0), PSTR("NOCTURNA\0")) ) {
-		systemVars.aplicacion_conf.consigna.c_aplicada = CONSIGNA_NOCTURNA;
+	if (strcmp_P( strupr(param0), PSTR("NOCTURNA\0")) == 0 ) {
+		sVarsApp.consigna.c_aplicada = CONSIGNA_NOCTURNA;
 		DRV8814_set_consigna_nocturna();
 		return(true);
 	}
 
 	// {(enable|disable),(set|reset),(sleep|awake),(ph01|ph10)} {A/B}
-	if (!strcmp_P( strupr(param0), PSTR("ENABLE\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("ENABLE\0")) == 0 ) {
 		DRV8814_enable_pin( toupper(param1[0]), 1);
 		return(true);
 	}
 
 	// disable (A|B)
-	if (!strcmp_P( strupr(param0), PSTR("DISABLE\0")) ) {
+	if ( strcmp_P( strupr(param0), PSTR("DISABLE\0")) == 0 ) {
 		DRV8814_enable_pin( toupper(param1[0]), 0);
 		return(true);
 	}
 
 	// set
-	if (!strcmp_P( strupr(param0), PSTR("SET\0")) ) {
+	if ( strcmp_P( strupr(param0), PSTR("SET\0")) == 0 ) {
 		DRV8814_reset_pin(1);
 		return(true);
 	}
 
 	// reset
-	if (!strcmp_P( strupr(param0), PSTR("RESET\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("RESET\0")) == 0 ) {
 		DRV8814_reset_pin(0);
 		return(true);
 	}
 
 	// sleep
-	if (!strcmp_P( strupr(param0), PSTR("SLEEP\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("SLEEP\0")) == 0 ) {
 		DRV8814_sleep_pin(1);
 		return(true);
 	}
 
 	// awake
-	if (!strcmp_P( strupr(param0), PSTR("AWAKE\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("AWAKE\0")) == 0 ) {
 		DRV8814_sleep_pin(0);
 		return(true);
 	}
 
 	// ph01 (A|B)
-	if (!strcmp_P( strupr(param0), PSTR("PH01\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("PH01\0")) == 0 ) {
 		DRV8814_phase_pin( toupper(param1[0]), 1);
 		return(true);
 	}
 
 	//  ph10 (A|B)
-	if (!strcmp_P( strupr(param0), PSTR("PH10\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("PH10\0")) == 0 ) {
 		DRV8814_phase_pin( toupper(param1[0]), 0);
 		return(true);
 	}
@@ -284,35 +288,35 @@ bool xAPP_consigna_write( char *param0, char *param1, char *param2 )
 	}
 
 	//  (open|close) (A|B) (ms)
-	if (!strcmp_P( strupr(param0), PSTR("OPEN\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("OPEN\0")) == 0 ) {
 
 		// Proporciono corriente.
 		DRV8814_power_on();
 		// Espero 10s que se carguen los condensasores
 		vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
 
-		xprintf_P( PSTR("VALVE OPEN %c\r\n\0"), strupr(param1[0]) );
+		xprintf_P( PSTR("VALVE OPEN %c\r\n\0"), strupr(param1)[0] );
 		DRV8814_vopen(toupper(param1[0]), 100);
 
 		DRV8814_power_off();
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(param0), PSTR("CLOSE\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("CLOSE\0")) == 0 ) {
 		// Proporciono corriente.
 		DRV8814_power_on();
 		// Espero 10s que se carguen los condensasores
 		vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
 
 		DRV8814_vclose( toupper(param1[0]), 100);
-		xprintf_P( PSTR("VALVE CLOSE %c\r\n\0"), strupr(param1[0] ));
+		xprintf_P( PSTR("VALVE CLOSE %c\r\n\0"), strupr(param1)[0] );
 
 		DRV8814_power_off();
 		return(true);
 	}
 
 	// pulse (A/B) ms
-	if (!strcmp_P( strupr(param0), PSTR("PULSE\0")) ) {
+	if (strcmp_P( strupr(param0), PSTR("PULSE\0")) == 0 ) {
 		// Proporciono corriente.
 		DRV8814_power_on();
 		// Espero 10s que se carguen los condensasores
@@ -348,8 +352,8 @@ uint8_t i = 0;
 	memset(dst,'\0', sizeof(dst));
 
 	i = snprintf_P( &dst[i], sizeof(dst), PSTR("CONSIGNA,"));
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), systemVars.aplicacion_conf.consigna.hhmm_c_diurna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_diurna.min );
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.hour, systemVars.aplicacion_conf.consigna.hhmm_c_nocturna.min );
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), sVarsApp.consigna.hhmm_c_diurna.hour, sVarsApp.consigna.hhmm_c_diurna.min );
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), sVarsApp.consigna.hhmm_c_nocturna.hour, sVarsApp.consigna.hhmm_c_nocturna.min );
 
 	//xprintf_P( PSTR("DEBUG: CONS = [%s]\r\n\0"), dst );
 	// Apunto al comienzo para recorrer el buffer

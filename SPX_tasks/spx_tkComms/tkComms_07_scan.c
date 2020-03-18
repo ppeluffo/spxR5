@@ -6,6 +6,7 @@
  */
 
 #include <tkComms.h>
+#include "spx_tkApp/tkApp.h"
 
 // La tarea no puede demorar mas de 180s.
 #define WDG_COMMS_TO_SCAN	180
@@ -28,13 +29,13 @@ t_scan_struct scan_boundle;
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.\r\n\0"));
 	//xprintf_P( PSTR("COMMS: scan.\r\n\0"));
 
-	scan_boundle.apn = systemVars.comms_conf.apn;
-	scan_boundle.dlgid = systemVars.comms_conf.dlgId;
-	scan_boundle.server_ip = systemVars.comms_conf.server_ip_address;
-	scan_boundle.tcp_port = systemVars.comms_conf.server_tcp_port;
+	scan_boundle.apn = sVarsComms.apn;
+	scan_boundle.dlgid = sVarsComms.dlgId;
+	scan_boundle.server_ip = sVarsComms.server_ip_address;
+	scan_boundle.tcp_port = sVarsComms.server_tcp_port;
 	scan_boundle.f_debug = DF_COMMS;
-	scan_boundle.cpin = systemVars.comms_conf.simpwd;
-	scan_boundle.script = systemVars.comms_conf.serverScript;
+	scan_boundle.cpin = sVarsComms.simpwd;
+	scan_boundle.script = sVarsComms.serverScript;
 
 	if ( xCOMMS_need_scan( scan_boundle ) == true ) {
 		// Necesito descubir los parametros.
@@ -42,15 +43,15 @@ t_scan_struct scan_boundle;
 		if ( xCOMMS_scan( scan_boundle ) == true ) {
 			// Descubri los parametros. Salgo a reiniciarme con estos.
 			u_save_params_in_NVMEE();
-			xprintf_P( PSTR("COMMS: SCAN APN=[%s]\r\n\0"), systemVars.comms_conf.apn );
-			xprintf_P( PSTR("COMMS: SCAN IP=[%s]\r\n\0"), systemVars.comms_conf.server_ip_address );
-			xprintf_P( PSTR("COMMS: SCAN DLGID=[%s]\r\n\0"), systemVars.comms_conf.dlgId );
+			xprintf_P( PSTR("COMMS: SCAN APN=[%s]\r\n\0"), sVarsComms.apn );
+			xprintf_P( PSTR("COMMS: SCAN IP=[%s]\r\n\0"), sVarsComms.server_ip_address );
+			xprintf_P( PSTR("COMMS: SCAN DLGID=[%s]\r\n\0"), sVarsComms.dlgId );
 			xCOMMS_apagar_dispositivo();
-			systemVars.comms_conf.timerDial = 10;	// Debo arrancar enseguida. Luego me reconfiguro
+			sVarsComms.timerDial = 10;	// Debo arrancar enseguida. Luego me reconfiguro
 			next_state = ST_ENTRY;
 		} else {
 			// No pude descubrir los parametros. Espero 1H para reintentar.
-			systemVars.comms_conf.timerDial = 3600;
+			sVarsComms.timerDial = 3600;
 			next_state = ST_ENTRY;
 		}
 
@@ -60,6 +61,8 @@ t_scan_struct scan_boundle;
 		next_state = ST_IP;
 	}
 
+	// Checkpoint de SMS's
+	xAPP_sms_checkpoint();
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.\r\n\0"));
 	return(next_state);

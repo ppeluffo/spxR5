@@ -114,10 +114,10 @@ bool retS = false;
 
 		systemVars.dinputs_conf.wrk_modo[channel] = DIN_NORMAL;
 		if ( s_tmodo != NULL ) {
-			if  ( !strcmp_P( strupr(s_tmodo), PSTR("NORMAL\0"))) {
+			if  ( strcmp_P( strupr(s_tmodo), PSTR("NORMAL\0")) == 0 ) {
 				systemVars.dinputs_conf.wrk_modo[channel] = DIN_NORMAL;
 			}
-			if  ( !strcmp_P( strupr(s_tmodo), PSTR("TIMER\0"))) {
+			if  ( strcmp_P( strupr(s_tmodo), PSTR("TIMER\0")) == 0 ) {
 				systemVars.dinputs_conf.wrk_modo[channel] = DIN_TIMER;
 			}
 		}

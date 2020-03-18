@@ -13,6 +13,84 @@
 
 #define DF_APP ( systemVars.debug == DEBUG_APLICACION )
 
+typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT } aplicacion_t;
+typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
+typedef enum { PERF_CTL_BOYA, PERF_CTL_SISTEMA } perforacion_control_t;
+typedef enum { ALARMA_NIVEL_0 = 0, ALARMA_NIVEL_1, ALARMA_NIVEL_2, ALARMA_NIVEL_3 } nivel_alarma_t;
+
+// CONSIGNA
+typedef struct {
+	st_time_t hhmm_c_diurna;
+	st_time_t hhmm_c_nocturna;
+	consigna_t c_aplicada;
+} st_consigna_t;
+
+// PERFORACION
+typedef struct {
+	uint8_t outs;
+	uint8_t	control;
+} st_perforacion_t;
+
+// Numeros de SMS a los que enviar las alarmas
+#define MAX_NRO_SMS 		9
+
+//---------------------------------------------------------------------------
+// Estructuras para el manejo del sistema de alarmas en plantas de potabilizacion de OSE
+// Cada canal tiene 3 alarmas asociadas.
+// Cada alarma tiene un nivel superior y uno inferior.
+// Debemos tener entonces una lista l_niveles_alarma de tamanio NRO_CANALES_ALM donde almacenemos
+// los mismos.
+//
+// Por otro lado, cada SMS tiene un nivel de alarma asociado.
+// Cuando se genera una alarma de un tipo, se debe mandar un SMS a todos los nros. con dicho
+// nivel asociado.
+// Creamos una lista alm_level de tamanio MAX_NRO_SMS con el nivel asociado a dicho SMS.
+//
+
+// Canales de datos de entradas.
+#define NRO_CANALES_ALM	6
+
+typedef struct {
+	float lim_inf;
+	float lim_sup;
+} st_limites_alarma_t;
+
+/* Estructura que define un nro.de sms que se usa con las alarmas.
+ * Tiene asociado el nivel de disparo
+ */
+
+typedef struct {
+	st_limites_alarma_t alarma0;		// Banda normal
+	st_limites_alarma_t alarma1;		// Alarma 1: Amarillo
+	st_limites_alarma_t alarma2;		// Alarma 2: Naranja
+	st_limites_alarma_t alarma3;		// Alarma 3: Rojo
+} st_limites_alarma_ch_t;
+
+/*
+ * Estructura que define una lista de canales con los niveles de c/alarma
+ * y una lista de sms con niveles asociados.
+ */
+
+typedef struct {
+	st_limites_alarma_ch_t l_niveles_alarma[NRO_CANALES_ALM];
+	nivel_alarma_t alm_level[MAX_NRO_SMS];
+} st_alarmas_t;
+
+
+typedef struct {
+	aplicacion_t aplicacion;				// Modo de operacion del datalogger
+	st_consigna_t consigna;
+	st_perforacion_t perforacion;
+	st_alarmas_t plantapot;
+	// Estructura usada en común con la aplicacion de TANQUES y ALARMAS
+	char l_sms[MAX_NRO_SMS][SMS_NRO_LENGTH];
+} aplicacion_conf_t;
+
+aplicacion_conf_t sVarsApp;
+
+void xAPP_sms_checkpoint(void);
+
+// APP_OFF
 void tkApp_off(void);
 
 // CONSIGNA

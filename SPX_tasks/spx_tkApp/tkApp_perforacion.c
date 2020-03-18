@@ -49,8 +49,8 @@ void tkApp_perforacion(void)
 				o_timer_boya--;
 				if ( o_timer_boya == 0 ) {
 					RELOAD_TIMER_BOYA();
-					xAPP_perforacion_set_douts ( systemVars.aplicacion_conf.perforacion.outs );
-					xprintf_P( PSTR("APP: PERFORACION MODO BOYA: reload timer boya. DOUTS=0x%0X\r\n\0"), systemVars.aplicacion_conf.perforacion.outs );
+					xAPP_perforacion_set_douts ( sVarsApp.perforacion.outs );
+					xprintf_P( PSTR("APP: PERFORACION MODO BOYA: reload timer boya. DOUTS=0x%0X\r\n\0"), sVarsApp.perforacion.outs );
 				}
 			}
 			break;
@@ -64,7 +64,7 @@ void tkApp_perforacion(void)
 					xAPP_perforacion_set_douts( 0x00 );
 					o_control = PERF_CTL_BOYA;			// Paso el control a las boyas.
 					RELOAD_TIMER_BOYA();				// Arranco el timer de las boyas
-					systemVars.aplicacion_conf.perforacion.control = PERF_CTL_BOYA;
+					sVarsApp.perforacion.control = PERF_CTL_BOYA;
 					xprintf_P( PSTR("APP: PERFORACION CTL to BOYAS !!!. (set outputs to 0x00)\r\n\0"));
 				}
 			}
@@ -75,7 +75,7 @@ void tkApp_perforacion(void)
 			xAPP_perforacion_set_douts( 0x00 );
 			o_control = PERF_CTL_BOYA;			// Paso el control a las boyas.
 			RELOAD_TIMER_BOYA();	// Arranco el timer de las boyas
-			systemVars.aplicacion_conf.perforacion.control = PERF_CTL_BOYA;
+			sVarsApp.perforacion.control = PERF_CTL_BOYA;
 			xprintf_P( PSTR("APP: PERFORACION ERROR: Control outputs: Pasa a BOYA !!\r\n\0"));
 			break;
 		}
@@ -97,7 +97,7 @@ bool retS = false;
 
 	if ( spx_io_board != SPX_IO8CH ) {
 		xprintf_P(PSTR("APP: PERFORACION Init ERROR: run only in IO_8CH.\r\n\0"));
-		systemVars.aplicacion = APP_OFF;
+		sVarsApp.aplicacion = APP_OFF;
 		u_save_params_in_NVMEE();
 		return(retS);
 	}
@@ -123,12 +123,12 @@ bool retS = false;
 		if ( ( data & 0x5 ) == 0 ) {
 			// Modo BOYA
 			o_control = PERF_CTL_BOYA;
-			systemVars.aplicacion_conf.perforacion.control = PERF_CTL_BOYA;
+			sVarsApp.perforacion.control = PERF_CTL_BOYA;
 			RELOAD_TIMER_BOYA();
 		} else {
 			// Modo SISTEMA
 			o_control = PERF_CTL_SISTEMA;
-			systemVars.aplicacion_conf.perforacion.control = PERF_CTL_SISTEMA;
+			sVarsApp.perforacion.control = PERF_CTL_SISTEMA;
 			RELOAD_TIMER_SISTEMA();
 		}
 
@@ -160,7 +160,7 @@ int8_t xBytes = 0;
 
 	// Guardo el valor recibido
 	data = dout;
-	systemVars.aplicacion_conf.perforacion.outs = dout;
+	sVarsApp.perforacion.outs = dout;
 	MCP_update_olatb( dout );
 
 	// Invierto el byte antes de escribirlo !!!
@@ -185,7 +185,7 @@ void xAPP_perforacion_set_douts_remote( uint8_t dout )
 
 	o_control = PERF_CTL_SISTEMA;
 	RELOAD_TIMER_SISTEMA();
-	systemVars.aplicacion_conf.perforacion.control = PERF_CTL_SISTEMA;
+	sVarsApp.perforacion.control = PERF_CTL_SISTEMA;
 
 	xAPP_perforacion_set_douts( dout );
 }
@@ -213,7 +213,7 @@ uint8_t olatb = 0 ;
 
 	xprintf_P( PSTR("  modo: Perforacion\r\n\0"));
 	MCP_read( 0x15, (char *)&olatb, 1 );
-	xprintf_P( PSTR("  outs=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), systemVars.aplicacion_conf.perforacion.outs, systemVars.aplicacion_conf.perforacion.outs, BYTE_TO_BINARY( systemVars.aplicacion_conf.perforacion.outs ), olatb );
+	xprintf_P( PSTR("  outs=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), sVarsApp.perforacion.outs, sVarsApp.perforacion.outs, BYTE_TO_BINARY( sVarsApp.perforacion.outs ), olatb );
 
 	switch( o_control ) {
 	case PERF_CTL_BOYA:

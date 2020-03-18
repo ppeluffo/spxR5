@@ -7,6 +7,7 @@
 
 #include "spx.h"
 #include "tkApp.h"
+#include "tkComms.h"
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
@@ -261,7 +262,7 @@ void u_load_defaults( char *opt )
 #ifdef APLICACION_PLANTAPOT
 	systemVars.aplicacion = APP_PLANTAPOT;
 #else
-	systemVars.aplicacion = APP_OFF;
+	sVarsApp.aplicacion = APP_OFF;
 #endif
 
 	xAPP_consigna_config_defaults();
@@ -269,66 +270,117 @@ void u_load_defaults( char *opt )
 
 }
 //------------------------------------------------------------------------------------
-uint8_t u_save_params_in_NVMEE(void)
+uint8_t u_checksum( uint8_t *s, uint16_t size )
 {
-	// Calculo el checksum del systemVars.
-	// Considero el systemVars como un array de chars.
+	/*
+	 * Recibe un puntero a una estructura y un tamaño.
+	 * Recorre la estructura en forma lineal y calcula el checksum
+	 */
 
 uint8_t *p = NULL;
 uint8_t checksum = 0;
-uint16_t data_length = 0;
 uint16_t i = 0;
 
-	// Calculo el checksum del systemVars.
-	systemVars.checksum = 0;
-	data_length = sizeof(systemVars);
-	p = (uint8_t *)&systemVars;
 	checksum = 0;
-	// Recorro todo el systemVars considerando c/byte como un char, hasta
-	// llegar al ultimo ( checksum ) que no lo incluyo !!!.
-	for ( i = 0; i < (data_length - 1) ; i++) {
+	p = s;
+	for ( i = 0; i < size ; i++) {
 		checksum += p[i];
 	}
 	checksum = ~checksum;
-	systemVars.checksum = checksum;
-
-	// Guardo systemVars en la EE
-	nvm_eeprom_erase_and_write_buffer(0x00, &systemVars, sizeof(systemVars));
-
 	return(checksum);
+}
+//------------------------------------------------------------------------------------
+void u_save_params_in_NVMEE(void)
+{
+	/*
+	 *  Tengo 3 estructuras de variables que debo guardar:
+	 *  systemVars, sVarsApp, sVarsComms
+	 *  Las guardo en este orden y luego de grabarlas, grabo un byte con el checksum de c/u
+	 *
+	 *  sVarsComms.checksum
+	 *  sVarsComms
+	 *  sVarsApp.checksum
+	 *  sVarsApp
+	 *  systemVars.checksum
+	 *  systemVars	ADD 0x00
+	 *
+	 */
+
+
+uint8_t checksum = 0;
+uint16_t ee_wr_addr;
+
+	// SystemVars.
+	// Guardo systemVars en la EE
+	ee_wr_addr = 0x00;
+	nvm_eeprom_erase_and_write_buffer(ee_wr_addr, &systemVars, sizeof(systemVars));
+
+	ee_wr_addr += sizeof(systemVars);
+	checksum = u_checksum( (uint8_t *)&systemVars, sizeof(systemVars) );
+	nvm_eeprom_erase_and_write_buffer(ee_wr_addr, &checksum, sizeof(checksum));
+
+	// sVarsApp
+	ee_wr_addr += 1;
+	nvm_eeprom_erase_and_write_buffer(ee_wr_addr, &sVarsApp, sizeof(sVarsApp));
+
+	ee_wr_addr += sizeof(sVarsApp);
+	checksum = u_checksum( (uint8_t *)&sVarsApp, sizeof(sVarsApp) );
+	nvm_eeprom_erase_and_write_buffer(ee_wr_addr, &checksum, sizeof(checksum));
+
+	// sVarsComms
+	ee_wr_addr += 1;
+	nvm_eeprom_erase_and_write_buffer(ee_wr_addr, &sVarsComms, sizeof(sVarsComms));
+
+	ee_wr_addr += sizeof(sVarsComms);
+	checksum = u_checksum( (uint8_t *)&sVarsComms, sizeof(sVarsComms) );
+	nvm_eeprom_erase_and_write_buffer(ee_wr_addr, &checksum, sizeof(checksum));
+
 
 }
 //------------------------------------------------------------------------------------
 bool u_load_params_from_NVMEE(void)
 {
-	// Leo el systemVars desde la EE.
-	// Calculo el checksum. Si no coincide es que hubo algun
-	// error por lo que cargo el default.
+	/*
+	 * Leo el systemVars desde la EE.
+	 * Calculo el checksum. Si no coincide es que hubo algun
+	 * error por lo que cargo el default.
+	 * Hago el proceso inverso de save
+	 */
 
+uint8_t stored_checksum;
+uint8_t calculated_checksum;
+uint16_t ee_rd_addr;
 
-uint8_t *p = NULL;
-uint8_t stored_checksum = 0;
-uint8_t checksum = 0;
-uint16_t data_length = 0;
-uint16_t i = 0;
-
-	// Leo de la EE es systemVars.
-	nvm_eeprom_read_buffer(0x00, (char *)&systemVars, sizeof(systemVars));
-
-	// Guardo el checksum que lei.
-	stored_checksum = systemVars.checksum;
-
-	// Calculo el checksum del systemVars leido
-	systemVars.checksum = 0;
-	data_length = sizeof(systemVars);
-	p = ( uint8_t *)&systemVars;	// Recorro el systemVars como si fuese un array de int8.
-	checksum = 0;
-	for ( i = 0; i < ( data_length - 1 ); i++) {
-		checksum += p[i];
+	// systemVars.
+	ee_rd_addr = 0x00;
+	nvm_eeprom_read_buffer(ee_rd_addr, (char *)&systemVars, sizeof(systemVars));
+	calculated_checksum = u_checksum( (uint8_t *)&systemVars, sizeof(systemVars) );
+	ee_rd_addr += sizeof(systemVars);
+	nvm_eeprom_read_buffer(ee_rd_addr, (char *)&stored_checksum, sizeof(stored_checksum));
+	if ( calculated_checksum != stored_checksum ) {
+		xprintf_P( PSTR("ERROR: Checksum systemVars failed: calc[0x%0x], sto[0x%0x]\r\n"), calculated_checksum, stored_checksum );
+		return(false);
 	}
-	checksum = ~checksum;
 
-	if ( stored_checksum != checksum ) {
+	// sVarsApp
+	ee_rd_addr += 1;
+	nvm_eeprom_read_buffer(ee_rd_addr, (char *)&sVarsApp, sizeof(sVarsApp));
+	calculated_checksum = u_checksum( (uint8_t *)&sVarsApp, sizeof(sVarsApp) );
+	ee_rd_addr += sizeof(sVarsApp);
+	nvm_eeprom_read_buffer(ee_rd_addr, (char *)&stored_checksum, sizeof(stored_checksum));
+	if ( calculated_checksum != stored_checksum ) {
+		xprintf_P( PSTR("ERROR: Checksum sVarsApp failed: calc[0x%0x], sto[0x%0x]\r\n"), calculated_checksum, stored_checksum );
+		return(false);
+	}
+
+	// sVarsComms
+	ee_rd_addr += 1;
+	nvm_eeprom_read_buffer(ee_rd_addr, (char *)&sVarsComms, sizeof(sVarsComms));
+	calculated_checksum = u_checksum( (uint8_t *)&sVarsComms, sizeof(sVarsComms) );
+	ee_rd_addr += sizeof(sVarsComms);
+	nvm_eeprom_read_buffer(ee_rd_addr, (char *)&stored_checksum, sizeof(stored_checksum));
+	if ( calculated_checksum != stored_checksum ) {
+		xprintf_P( PSTR("ERROR: Checksum sVarsComms failed: calc[0x%0x], sto[0x%0x]\r\n"), calculated_checksum, stored_checksum );
 		return(false);
 	}
 
@@ -422,21 +474,21 @@ uint8_t i = 0;
 	memset(dst,'\0', sizeof(dst));
 
 	// Timerdial
-	i = snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.comms_conf.timerDial );
+	i = snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), sVarsComms.timerDial );
 	// TimerPoll
 	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.timerPoll );
 	// TimepwrSensor
 	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.ainputs_conf.pwr_settle_time );
 
 	// PwrSave
-	if ( systemVars.comms_conf.pwrSave.pwrs_enabled ) {
+	if ( sVarsComms.pwrSave.pwrs_enabled ) {
 		i += snprintf_P( &dst[i], sizeof(dst), PSTR("ON,"));
 	} else {
 		i += snprintf_P( &dst[i], sizeof(dst), PSTR("OFF,"));
 	}
 
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), systemVars.comms_conf.pwrSave.hora_start.hour, systemVars.comms_conf.pwrSave.hora_start.min );
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), systemVars.comms_conf.pwrSave.hora_fin.hour, systemVars.comms_conf.pwrSave.hora_fin.min );
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_start.hour, sVarsComms.pwrSave.hora_start.min );
+	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), sVarsComms.pwrSave.hora_fin.hour, sVarsComms.pwrSave.hora_fin.min );
 
 
 	//xprintf_P( PSTR("DEBUG: BCKS = [%s]\r\n\0"), dst );
@@ -463,7 +515,7 @@ uint8_t checksum = 0;
 char dst[32];
 char *p;
 
-	switch(systemVars.aplicacion) {
+	switch(sVarsApp.aplicacion) {
 	case APP_OFF:
 		memset(dst,'\0', sizeof(dst));
 		snprintf_P(dst, sizeof(dst), PSTR("OFF"));
@@ -499,18 +551,18 @@ bool u_config_aplicacion( char *modo )
 	return(true);
 #endif
 
-	if (!strcmp_P( strupr(modo), PSTR("OFF\0"))) {
-		systemVars.aplicacion = APP_OFF;
+	if ( strcmp_P( strupr(modo), PSTR("OFF\0")) == 0) {
+		sVarsApp.aplicacion = APP_OFF;
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(modo), PSTR("CONSIGNA\0")) &&  ( spx_io_board == SPX_IO5CH ) ) {
-		systemVars.aplicacion = APP_CONSIGNA;
+	if ( ( strcmp_P( strupr(modo), PSTR("CONSIGNA\0"))  == 0) &&  ( spx_io_board == SPX_IO5CH ) ) {
+		sVarsApp.aplicacion = APP_CONSIGNA;
 		return(true);
 	}
 
-	if (!strcmp_P( strupr(modo), PSTR("PERFORACION\0")) &&  ( spx_io_board == SPX_IO8CH ) ) {
-		systemVars.aplicacion = APP_PERFORACION;
+	if ( (strcmp_P( strupr(modo), PSTR("PERFORACION\0")) == 0) &&  ( spx_io_board == SPX_IO8CH ) ) {
+		sVarsApp.aplicacion = APP_PERFORACION;
 		return(true);
 	}
 
@@ -682,6 +734,9 @@ bool retS = false;
 	case SGN_RESET_COMMS_DEV:
 		retS = system_signals.sgn_reset_comms_device;
 		break;
+	case SGN_SMS:
+		retS = system_signals.sgn_sms;
+		break;
 	default:
 		break;
 	}
@@ -714,6 +769,10 @@ bool retS = false;
 		system_signals.sgn_reset_comms_device = true;
 		retS = true;
 		break;
+	case SGN_SMS:
+		system_signals.sgn_sms = true;
+		retS = true;
+		break;
 	default:
 		retS = false;
 		break;
@@ -743,6 +802,10 @@ bool retS = false;
 		system_signals.sgn_reset_comms_device = false;
 		retS = true;
 		break;
+	case SGN_SMS:
+		system_signals.sgn_sms = false;
+		retS = true;
+		break;
 	default:
 		retS = false;
 		break;
@@ -761,17 +824,17 @@ void u_config_timerdial ( char *s_timerdial )
 
 	// Aplicacion ALARMAS
 #ifdef APLICACION_PLANTAPOT
-	systemVars.comms_conf.timerDial = 0;
+	sVarsComms.timerDial = 0;
 	return;
 #endif
 
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();
 
-	systemVars.comms_conf.timerDial = atoi(s_timerdial);
+	sVarsComms.timerDial = atoi(s_timerdial);
 
 	// Controlo que este en los rangos permitidos
-	if ( (systemVars.comms_conf.timerDial > 0) && (systemVars.comms_conf.timerDial < TDIAL_MIN_DISCRETO ) ) {
+	if ( (sVarsComms.timerDial > 0) && (sVarsComms.timerDial < TDIAL_MIN_DISCRETO ) ) {
 		//systemVars.gprs_conf.timerDial = 0;
 		//xprintf_P( PSTR("TDIAL warn !! Default to 0. ( continuo TDIAL=0, discreto TDIAL > 900)\r\n\0"));
 		xprintf_P( PSTR("TDIAL warn: continuo TDIAL < 900, discreto TDIAL >= 900)\r\n\0"));
@@ -800,20 +863,20 @@ void u_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime)
 
 	//xprintf_P( PSTR("DEBUG_A: PWRS modo=%s, startitme=%s, endtime=%s\r\n\0"), s_modo, s_startTime, s_endTime );
 
-	if (!strcmp_P( strupr(s_modo), PSTR( "OFF"))) {
-		systemVars.comms_conf.pwrSave.pwrs_enabled = false;
+	if (strcmp_P( strupr(s_modo), PSTR( "OFF")) == 0 ) {
+		sVarsComms.pwrSave.pwrs_enabled = false;
 		//xprintf_P( PSTR("DEBUG: pwrsave off(%d)\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled );
-		if ( s_startTime != NULL ) { u_convert_str_to_time_t( s_startTime, &systemVars.comms_conf.pwrSave.hora_start); }
-		if ( s_endTime != NULL ) { u_convert_str_to_time_t( s_endTime, &systemVars.comms_conf.pwrSave.hora_fin); }
+		if ( s_startTime != NULL ) { u_convert_str_to_time_t( s_startTime, &sVarsComms.pwrSave.hora_start); }
+		if ( s_endTime != NULL ) { u_convert_str_to_time_t( s_endTime, &sVarsComms.pwrSave.hora_fin); }
 
 		goto quit;
 	}
 
-	if (!strcmp_P( strupr(s_modo), PSTR( "ON"))) {
-		systemVars.comms_conf.pwrSave.pwrs_enabled = true;
+	if (strcmp_P( strupr(s_modo), PSTR( "ON")) == 0) {
+		sVarsComms.pwrSave.pwrs_enabled = true;
 		//xprintf_P( PSTR("DEBUG: pwrsave ON(%d)\r\n\0"), systemVars.gprs_conf.pwrSave.pwrs_enabled );
-		if ( s_startTime != NULL ) { u_convert_str_to_time_t( s_startTime, &systemVars.comms_conf.pwrSave.hora_start); }
-		if ( s_endTime != NULL ) { u_convert_str_to_time_t( s_endTime, &systemVars.comms_conf.pwrSave.hora_fin); }
+		if ( s_startTime != NULL ) { u_convert_str_to_time_t( s_startTime, &sVarsComms.pwrSave.hora_start); }
+		if ( s_endTime != NULL ) { u_convert_str_to_time_t( s_endTime, &sVarsComms.pwrSave.hora_fin); }
 		//xprintf_P( PSTR("DEBUG: pwrsave start_time = %02d%02d\r\n\0"), systemVars.gprs_conf.pwrSave.hora_start.hour, systemVars.gprs_conf.pwrSave.hora_start.min);
 		//xprintf_P( PSTR("DEBUG: pwrsave end_time = %02d%02d\r\n\0"), systemVars.gprs_conf.pwrSave.hora_fin.hour, systemVars.gprs_conf.pwrSave.hora_fin.min);
 		goto quit;

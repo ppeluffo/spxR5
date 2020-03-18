@@ -34,7 +34,7 @@ void tkAplicacion(void * pvParameters)
 	// De acuedo al modo de operacion disparo la tarea que realiza la
 	// funcion especializada del datalogger.
 
-	switch( systemVars.aplicacion ) {
+	switch( sVarsApp.aplicacion ) {
 	case APP_OFF:
 		// Es el caso en que no debo hacer nada con las salidas.
 		// Duermo 25s para entrar en pwrdown.
@@ -54,5 +54,19 @@ void tkAplicacion(void * pvParameters)
 	}
 
 	tkApp_off();
+}
+//------------------------------------------------------------------------------------
+void xAPP_sms_checkpoint(void)
+{
+	/*
+	 * Los SMS los chequeamos solo en las aplicaciones que los usan
+	 */
+
+	if ( ( sVarsApp.aplicacion == APP_PLANTAPOT ) ||
+			 ( sVarsApp.aplicacion == APP_OFF )) {
+		// Checkpoint de SMS's
+		xSMS_txcheckpoint();
+		xSMS_rxcheckpoint();
+	}
 }
 //------------------------------------------------------------------------------------

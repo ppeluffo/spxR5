@@ -24,7 +24,7 @@ t_comms_states next_state = ST_ENTRY;
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_ip.\r\n\0"));
 	//xprintf_P( PSTR("COMMS: ip.\r\n\0"));
 
-	if ( xCOMMS_ip( DF_COMMS, systemVars.comms_conf.apn, xCOMMS_stateVars.ip_assigned, &err_code ) == true ) {
+	if ( xCOMMS_ip( DF_COMMS, sVarsComms.apn, xCOMMS_stateVars.ip_assigned, &err_code ) == true ) {
 		next_state = ST_INITFRAME;
 	} else {
 		next_state = ST_ENTRY;

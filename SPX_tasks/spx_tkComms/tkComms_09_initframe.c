@@ -210,18 +210,18 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 				break;
 
 			case INIT_APP_B:
-				if ( systemVars.aplicacion == APP_PLANTAPOT ) {
+				if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
 					// En aplicacion PPOT pido la configuracion de los SMS
 					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
 
-				} else if ( systemVars.aplicacion == APP_CONSIGNA ) {
+				} else if ( sVarsApp.aplicacion == APP_CONSIGNA ) {
 					// En aplicacion CONSIGNA pido la configuracion de las consignas
 					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
 				}
 				break;
 
 			case INIT_APP_C:
-				if ( systemVars.aplicacion == APP_PLANTAPOT ) {
+				if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
 					// En aplicacion PPOT pido la configuracion de los NIVELES DE ALARMA
 					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
 				}
@@ -239,7 +239,7 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 		} else {
 			// No tengo enlace al server. Intento abrirlo
 			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			xCOMMS_open_link(DF_COMMS, systemVars.comms_conf.server_ip_address, systemVars.comms_conf.server_tcp_port );
+			xCOMMS_open_link(DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		}
 	}
 
@@ -413,6 +413,7 @@ bool retS = false;
 	f_send_init_frame_counters = false;
 	f_send_init_frame_range = false;
 	f_send_init_frame_psensor = false;
+	f_send_init_frame_app = false;
 
 	retS = process_frame( INIT_GLOBAL);
 	return(retS);
@@ -520,7 +521,7 @@ bool retS = true;
 		 * A partir de aqui veo que parte de la aplicacion debo seguir
 		 * configurando
 		 */
-		switch(systemVars.aplicacion) {
+		switch(sVarsApp.aplicacion) {
 		case APP_OFF:
 			f_send_init_frame_app = false;
 			break;
@@ -563,7 +564,7 @@ char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
 char *tk_action = NULL;
-char *delim = ",=:><";
+char *delim = ",;:=><";
 char dlgId[DLGID_LENGTH];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_AUTH\r\n\0"));
@@ -582,13 +583,13 @@ char dlgId[DLGID_LENGTH];
 	token = strsep(&stringp,delim);	    // STATUS
 	tk_action = strsep(&stringp,delim);	// Action
 
-	if ( strcmp_P(tk_action, PSTR("OK")) == 0 ) {
+	if ( strcmp_P(tk_action, PSTR("OK")) == 0) {
 		// Autorizado por el server.
 		return(true);
-	} else if ( strcmp_P (tk_action, PSTR("ERROR_DS")) ) {
+	} else if ( strcmp_P (tk_action, PSTR("ERROR_DS")) == 0) {
 		// No autorizado
 		return(false);
-	} else if ( strcmp_P (tk_action, PSTR("RECONF"))) {
+	} else if ( strcmp_P (tk_action, PSTR("RECONF")) == 0) {
 		// Autorizado. Debo reconfigurar el DLGID
 		token = strsep(&stringp,delim);	 // DLGID
 		token = strsep(&stringp,delim);	 // TEST01
@@ -598,6 +599,8 @@ char dlgId[DLGID_LENGTH];
 		u_save_params_in_NVMEE();
 		xprintf_P( PSTR("COMMS_INIT_AUTH: reconfig DLGID to %s\r\n\0"), dlgId );
 		return(true);
+	} else {
+		xprintf_P( PSTR("COMMS: ERROR INIT_AUTH: unknown response [%s]\r\n\0"), tk_action );
 	}
 
 	return(false);
@@ -614,7 +617,7 @@ char *p = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
-char *delim = ":;><";
+char *delim = ",;:=><";
 char rtcStr[12];
 uint8_t i = 0;
 char c = '\0';
@@ -690,6 +693,11 @@ int8_t xBytes = 0;
 		f_send_init_frame_psensor = true;
 	}
 
+	p = xCOMM_get_buffer_ptr("APLICACION");
+	if ( p != NULL ) {
+		f_send_init_frame_app = true;
+	}
+
 	return(true);
 }
 //------------------------------------------------------------------------------------
@@ -704,7 +712,7 @@ char *token = NULL;
 char *tk_pws_modo = NULL;
 char *tk_pws_start = NULL;
 char *tk_pws_end = NULL;
-char *delim = ",:;><";
+char *delim = ",;:=><";
 bool save_flag = false;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_BASE\r\n\0"));
@@ -806,7 +814,7 @@ char *tk_iMax = NULL;
 char *tk_mMin = NULL;
 char *tk_mMax = NULL;
 char *tk_offset = NULL;
-char *delim = ",=:;><";
+char *delim = ",;:=><";
 bool save_flag = false;
 uint8_t ch;
 char str_base[8];
@@ -858,7 +866,7 @@ char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_name= NULL;
 char *tk_type= NULL;
-char *delim = ",=:;><";
+char *delim = ",;:=><";
 bool save_flag = false;
 uint8_t ch;
 char str_base[8];
@@ -906,7 +914,7 @@ char *tk_magpp = NULL;
 char *tk_pwidth = NULL;
 char *tk_period = NULL;
 char *tk_speed = NULL;
-char *delim = ",=:;><";
+char *delim = ",;:=><";
 bool save_flag = false;
 uint8_t ch;
 char str_base[8];
@@ -955,7 +963,7 @@ char *p = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
-char *delim = ",=:;><";
+char *delim = ",;:=><";
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_RANGE\r\n\0"));
 
@@ -994,7 +1002,7 @@ char *tk_countMax = NULL;
 char *tk_pMin = NULL;
 char *tk_pMax = NULL;
 char *tk_offset = NULL;
-char *delim = ",=:;><";
+char *delim = ",;:=><";
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_PSENSOR\r\n\0"));
 
@@ -1032,23 +1040,23 @@ static bool init_reconfigure_params_app_A(void)
 
 	// Aplicacion ALARMAS
 #ifdef APLICACION_PLANTAPOT
-	systemVars.aplicacion = APP_PLANTAPOT;
+	sVarsApp.aplicacion = APP_PLANTAPOT;
 	u_save_params_in_NVMEE();
 	return(true);
 #endif
 
 
 	if ( xCOMMS_check_response("AP0:OFF") ) {
-		systemVars.aplicacion = APP_OFF;
+		sVarsApp.aplicacion = APP_OFF;
 
 	} else if ( xCOMMS_check_response("AP0:CONSIGNA") ) {
-		systemVars.aplicacion = APP_CONSIGNA;
+		sVarsApp.aplicacion = APP_CONSIGNA;
 
 	} else if ( xCOMMS_check_response("AP0:PERFORACION") ) {
-		systemVars.aplicacion = APP_PERFORACION;
+		sVarsApp.aplicacion = APP_PERFORACION;
 
-	} if ( xCOMMS_check_response("AP0:PLANTAPOT") ) {
-		systemVars.aplicacion = APP_PLANTAPOT;
+	} else if ( xCOMMS_check_response("AP0:PLANTAPOT") ) {
+		sVarsApp.aplicacion = APP_PLANTAPOT;
 
 	} else {
 		return(false);
@@ -1064,9 +1072,9 @@ static bool init_reconfigure_params_app_B(void)
 	// El frame B se manda en plantapot para pedir los SMS y en consigna para pedir la hhmm1, hhmm2
 	// Debo ver porque razón lo pedi
 
-	if (systemVars.aplicacion == APP_PLANTAPOT ) {
+	if (sVarsApp.aplicacion == APP_PLANTAPOT ) {
 		init_reconfigure_params_app_B_plantapot();
-	} else if (systemVars.aplicacion == APP_CONSIGNA ) {
+	} else if (sVarsApp.aplicacion == APP_CONSIGNA ) {
 		init_reconfigure_params_app_B_consigna();
 	}
 	return(true);
@@ -1083,7 +1091,7 @@ char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_nro= NULL;
 char *tk_level= NULL;
-char *delim = ",=:;><";
+char *delim = ",;:=><";
 uint8_t i;
 char id[2];
 char str_base[8];
@@ -1125,7 +1133,7 @@ char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_cons_dia = NULL;
 char *tk_cons_noche = NULL;
-char *delim = ",=:;><";
+char *delim = ",;:=><";
 
 	p = xCOMM_get_buffer_ptr("HHMM1");
 	if ( p != NULL ) {
@@ -1153,7 +1161,7 @@ static bool init_reconfigure_params_app_C(void)
 	// pedir los SMS
 	// Debo ver porque razón lo pedi
 
-	if (systemVars.aplicacion == APP_PLANTAPOT ) {
+	if (sVarsApp.aplicacion == APP_PLANTAPOT ) {
 		init_reconfigure_params_app_C_plantapot();
 	}
 	return(true);
@@ -1172,7 +1180,7 @@ char *tk_V2_INF = NULL;
 char *tk_V2_SUP = NULL;
 char *tk_V3_INF = NULL;
 char *tk_V3_SUP = NULL;
-char *delim = ",=:;><";
+char *delim = ",;:=><";
 uint8_t i;
 char id[2];
 char str_base[8];

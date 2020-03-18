@@ -66,7 +66,7 @@ static bool starting_flag = true;
 
 	// En modo DISCRETO ( timerDial > 900 )
 	if ( MODO_DISCRETO ) {
-		time_to_next_dial = systemVars.comms_conf.timerDial;
+		time_to_next_dial = sVarsComms.timerDial;
 		goto EXIT;
 	} else {
 		time_to_next_dial = 60;
@@ -163,7 +163,7 @@ int8_t xBytes = 0;
 	memset( &rtc, '\0', sizeof(RtcTimeType_t));
 
 	// Estoy en modo PWR_DISCRETO con PWR SAVE ACTIVADO
-	if ( ( MODO_DISCRETO ) && ( spx_io_board == SPX_IO5CH ) && ( systemVars.comms_conf.pwrSave.pwrs_enabled == true )) {
+	if ( ( MODO_DISCRETO ) && ( spx_io_board == SPX_IO5CH ) && ( sVarsComms.pwrSave.pwrs_enabled == true )) {
 
 		// Cuando arranco siempre me conecto sin importar si estoy o no en pwr save !!
 		if ( starting_flag_pws ) {
@@ -177,8 +177,8 @@ int8_t xBytes = 0;
 			xprintf_P(PSTR("ERROR: I2C:RTC:pv_tkGprs_check_inside_pwrSave\r\n\0"));
 
 		now = rtc.hour * 60 + rtc.min;
-		pwr_save_start = systemVars.comms_conf.pwrSave.hora_start.hour * 60 + systemVars.comms_conf.pwrSave.hora_start.min;
-		pwr_save_end = systemVars.comms_conf.pwrSave.hora_fin.hour * 60 + systemVars.comms_conf.pwrSave.hora_fin.min;
+		pwr_save_start = sVarsComms.pwrSave.hora_start.hour * 60 + sVarsComms.pwrSave.hora_start.min;
+		pwr_save_end = sVarsComms.pwrSave.hora_fin.hour * 60 + sVarsComms.pwrSave.hora_fin.min;
 
 		if ( pwr_save_start < pwr_save_end ) {
 			// Caso A:
