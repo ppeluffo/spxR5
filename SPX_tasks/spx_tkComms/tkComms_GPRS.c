@@ -96,7 +96,11 @@ bool gprs_prender(bool f_debug, uint8_t delay_factor )
 
 uint8_t tries;
 
-	xCOMMS_stateVars.dispositivo_prendido = false;
+	// Aviso a la tarea de RX que se despierte!!!
+	xCOMMS_stateVars.dispositivo_prendido = true;
+	while ( xTaskNotify( xHandle_tkCommsRX, SGN_WAKEUP , eSetBits ) != pdPASS ) {
+		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
+	}
 	gprs_hw_pwr_on(delay_factor);
 
 // Loop:
@@ -137,6 +141,7 @@ uint8_t tries;
 	// No prendio luego de 3 intentos SW.
 	// Apago y prendo de nuevo
 	// Espero 10s antes de reintentar
+	xCOMMS_stateVars.dispositivo_prendido = false;
 	gprs_apagar();
 	vTaskDelay( (portTickType)( 10000 / portTICK_RATE_MS ) );
 
@@ -371,7 +376,7 @@ bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code )
 		return(false);
 	}
 
-	// Vemos que el modem este registrado en la red
+	// Vemos que el modem este registrado en la red. Pude demorar hasta 1 minuto ( CLARO )
 	if ( ! gprs_CGREG(f_debug) ) {
 		return(false);
 	}
@@ -456,6 +461,8 @@ bool gprs_CGREG( bool f_debug )
 	 Solo chequeamos que este registrado con CGREG.
 	 AT+CGREG?
 	 +CGREG: 0,1
+	 HAy casos como con los sims CLARO que puede llegar hasta 1 minuto a demorar conectarse
+	 a la red, por eso esperamos mas.
 	*/
 
 bool retS = false;
@@ -463,7 +470,7 @@ uint8_t tryes = 0;
 
 	xprintf_PD( f_debug,  PSTR("COMMS: gprs NET registation\r\n\0"));
 
-	for ( tryes = 0; tryes < 5; tryes++ ) {
+	for ( tryes = 0; tryes < 12; tryes++ ) {
 
 		gprs_flush_RX_buffer();
 		xfprintf_P( fdGPRS, PSTR("AT+CREG?\r\0"));
@@ -474,11 +481,12 @@ uint8_t tryes = 0;
 
 		if ( gprs_check_response("+CREG: 0,1\0") ) {
 			retS = true;
-			break;
+			xprintf_PD( f_debug,  PSTR("COMMS: gprs NET registation OK en %d secs\r\n\0"), ( tryes * 5 ));
+			return(true);
 		}
 
 	}
-
+	xprintf_PD( f_debug,  PSTR("COMMS: ERROR gprs NET registation FAIL !!.\r\n\0"));
 	return(retS);
 
 }
@@ -489,6 +497,7 @@ bool gprs_CGATT(bool f_debug)
 	 AT+CGATT=1
 	 AT+CGATT?
 	 +CGATT: 1
+	 Puede demorar mucho ( 1 min en CLARO )
 	*/
 
 uint8_t tryes = 0;
@@ -500,17 +509,19 @@ uint8_t tryes = 0;
 	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
 
-	for ( tryes = 0; tryes < 3; tryes++ ) {
+	for ( tryes = 0; tryes < 12; tryes++ ) {
 		gprs_flush_RX_buffer();
 		xfprintf_P( fdGPRS,PSTR("AT+CGATT?\r\0"));
-		vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
+		vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
 		gprs_print_RX_buffer(f_debug);
 
 		if ( gprs_check_response("+CGATT: 1\0") ) {
+			xprintf_PD( f_debug,  PSTR("COMMS: gprs NET attached OK en %d secs\r\n\0"), ( tryes * 5 ));
 			return(true);
 		}
 	}
 
+	xprintf_PD( f_debug,  PSTR("COMMS: ERROR gprs NET attach FAIL !!.\r\n\0"));
 	return(false);
 
 }

@@ -77,6 +77,8 @@ void tkCommsRX(void * pvParameters)
 
 ( void ) pvParameters;
 char c;
+uint32_t ulNotifiedValue;
+
 
 	// Espero la notificacion para arrancar
 	while ( !startTask )
@@ -87,18 +89,21 @@ char c;
 	// loop
 	for( ;; )
 	{
+		if ( xCOMMS_stateVars.dispositivo_prendido == true ) {
+			// Leo el UART de GPRS
+			if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
+				gprs_rxBuffer_fill(c);
+			}
 
-		// Leo el UART de GPRS
-		if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
-			gprs_rxBuffer_fill(c);
+			// Leo el UART de XBEE
+			if ( frtos_read( fdXBEE, &c, 1 ) == 1 ) {
+				xbee_rxBuffer_fill(c);
+			}
+
+		} else {
+			// Espero hasta 25s o que me llegue una señal
+			xTaskNotifyWait( 0x00, ULONG_MAX, &ulNotifiedValue, ((TickType_t) 25000 / portTICK_RATE_MS ) );
 		}
-
-		// Leo el UART de XBEE
-		if ( frtos_read( fdXBEE, &c, 1 ) == 1 ) {
-			xbee_rxBuffer_fill(c);
-		}
-
-
 	}
 }
 //------------------------------------------------------------------------------------

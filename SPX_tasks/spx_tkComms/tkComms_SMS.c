@@ -8,17 +8,13 @@
 #include "spx.h"
 #include "tkComms.h"
 
-
-typedef struct {
-	char nro[SMS_NRO_LENGTH];
-	char msg[SMS_MSG_LENGTH];
-} t_sms;
-
-
 struct {
 	t_sms queue[SMS_MSG_QUEUE_LENGTH];
 	int8_t ptr;
 } qsms;
+
+#define xSMS_queue_is_empty() ( qsms.ptr == -1 )
+
 
 //------------------------------------------------------------------------------------
 void xSMS_init(void)
@@ -56,10 +52,11 @@ bool xSMS_enqueue(char *dst_nbr, char *msg )
 	// El puntero apunta siempre a una posicion libre.
 
 	qsms.ptr++;
-	memcpy( qsms.queue[qsms.ptr].nro, dst_nbr, SMS_NRO_LENGTH );
+
+	strncpy( qsms.queue[qsms.ptr].nro, dst_nbr, SMS_NRO_LENGTH );
 	qsms.queue[qsms.ptr].nro[SMS_NRO_LENGTH - 1] = '\0';
 
-	memcpy(qsms.queue[qsms.ptr].msg, msg, SMS_MSG_LENGTH );
+	strncpy(qsms.queue[qsms.ptr].msg, msg, SMS_MSG_LENGTH );
 	qsms.queue[qsms.ptr].msg[SMS_MSG_LENGTH - 1] = '\0';
 
 	xprintf_PD( DF_COMMS, PSTR("SMS enq ptr = %d\r\n"), qsms.ptr );
@@ -73,6 +70,38 @@ bool xSMS_enqueue(char *dst_nbr, char *msg )
 
 }
 //------------------------------------------------------------------------------------
+t_sms *xSMS_dequeue(void)
+{
+	/*
+	 * Desencola un mensaje de la cola de SMS
+	 *
+	 */
+	if ( ! xSMS_queue_is_empty() ) {
+		return( &qsms.queue[qsms.ptr]);
+	}
+
+	return(NULL);
+
+}
+//------------------------------------------------------------------------------------
+void xSMS_delete(void)
+{
+	/*
+	 * Borra el ultimo SMS de la cola
+	 */
+
+	if ( ! xSMS_queue_is_empty() ) {
+		memset( qsms.queue[qsms.ptr].nro, '\0', SMS_NRO_LENGTH );
+		memset(qsms.queue[qsms.ptr].msg, '\0', SMS_MSG_LENGTH );
+		qsms.ptr--;
+
+		//xprintf_PD( DF_COMMS, PSTR("SMS del ptr = %d\r\n"), qsms.ptr );
+		//xprintf_PD( DF_COMMS, PSTR("SMS del nbr = %s\r\n"), qsms.queue[qsms.ptr].nro );
+		//xprintf_PD( DF_COMMS, PSTR("SMS del msg = [%s]\r\n"), qsms.queue[qsms.ptr].msg );
+
+	}
+}
+//------------------------------------------------------------------------------------
 void xSMS_txcheckpoint(void)
 {
 	// Funcion que la tarea de gprs utiliza en determinados puntos para ver
@@ -81,44 +110,53 @@ void xSMS_txcheckpoint(void)
 	// Los manda del modo quick.
 	// Por las dudas debe verificar que el modem este en modo comando.
 
-char *nbr;
-char *msg;
+
+uint8_t intentos;
+t_sms *sms_boundle;
 
 	xprintf_PD( DF_COMMS, PSTR("SMS: TX checkpoint\r\n" ));
 
 	// Si no hay sms para enviar, salgo
-	if ( ! SPX_SIGNAL( SGN_SMS ) )
-		return;
+	//if ( ! SPX_SIGNAL( SGN_SMS ) )
+	//	return;
 
 	// Envio todos los SMS pendientes
-	while ( qsms.ptr > -1 ) {
+	while ( ! xSMS_queue_is_empty() ) {
 
-		// Hay mensajes pendientes. Los desencolo de a uno:
-		nbr = qsms.queue[qsms.ptr].nro;
-		msg = qsms.queue[qsms.ptr].msg;
-		// Veo que no sean basura ( mensaje corto )
-		if ( strlen(msg) < 3 ) {
-			// Borro el mensaje de la lista
-			memset( qsms.queue[qsms.ptr].nro, '\0', SMS_NRO_LENGTH );
-			memset(qsms.queue[qsms.ptr].msg, '\0', SMS_MSG_LENGTH );
-			qsms.ptr--;
-			continue;
-		}
+		for ( intentos = 0; intentos < 4; intentos++) {
 
-		// Mensaje a transmitir
-		xprintf_PD( DF_COMMS, PSTR("SMS ptr = %d\r\n"), qsms.ptr );
-		xprintf_PD( DF_COMMS, PSTR("SMS nbr = %s\r\n"), nbr );
-		xprintf_PD( DF_COMMS, PSTR("SMS msg = [%s]\r\n"), msg );
+			// Desencolo
+			sms_boundle = xSMS_dequeue();
 
-		// Mando el mensaje
-	    if ( xSMS_send(nbr, msg) ) {
-			// Borro el mensaje de la lista
-			memset( qsms.queue[qsms.ptr].nro, '\0', SMS_NRO_LENGTH );
-			memset(qsms.queue[qsms.ptr].msg, '\0', SMS_MSG_LENGTH );
-			qsms.ptr--;
-			xprintf_P( PSTR("SMS: TXCKP Sent SMS OK !!\r\n" ));
-		} else {
-			xprintf_P( PSTR("SMS: TXCKP Sent SMS FAIL !!\r\n" ));
+			if ( sms_boundle == NULL ) {
+				xprintf_P( PSTR("SMS: ERROR dequeue\r\n" ));
+				xSMS_init();
+				break;
+			}
+
+			// Aqui tengo el mensaje desencolado.
+			// Veo que no sean basura ( mensaje corto )
+			xprintf_PD(DF_COMMS, PSTR("SMS TXCKP msg=[%s], len=[%d]\r\n\0"), sms_boundle->msg, strlen(sms_boundle->msg));
+			if ( strlen(sms_boundle->msg) < 3 ) {
+				xSMS_delete();
+				xprintf_P( PSTR("SMS: TXCKP Mensaje corto: borro !!\r\n" ));
+				break;
+			}
+			// Intento transmitirlo
+		    if ( xSMS_send(sms_boundle->nro, sms_boundle->msg) ) {
+		    	xSMS_delete();
+				xprintf_P( PSTR("SMS: TXCKP Sent SMS OK !!\r\n" ));
+				break;
+			} else {
+				xprintf_P( PSTR("SMS: TXCKP Sent SMS FAIL (%d) !!\r\n" ),intentos);
+			}
+
+		    if ( intentos == 3 ) {
+		    	// No pude trasmitirlo en varios reintentos: lo borro
+		    	xSMS_delete();
+		    	xprintf_P( PSTR("SMS: TXCKP Sent SMS FAIL. Delete!!\r\n" ));
+		    	break;
+		    }
 		}
 	}
 	// No hay mas mensajes pendientes.
@@ -149,7 +187,7 @@ bool retS = false;
 
 	// Espero el prompt > para enviar el mensaje.
 	if ( ! gprs_check_response_with_to( ">", 10 ) ) {
-		xprintf_P( PSTR("SMS: ERROR Sent Fail(2) !!\r\n" ));
+		xprintf_P( PSTR("SMS: ERROR Sent Fail(Timeout 1) !!\r\n" ));
 		return(false);
 	}
 
@@ -164,7 +202,7 @@ bool retS = false;
 
 	// Espero el OK
 	if ( ! gprs_check_response_with_to( "OK", 10 ) ) {
-		xprintf_P( PSTR("SMS: ERROR Sent Fail(3) !!\r\n" ));
+		xprintf_P( PSTR("SMS: ERROR Sent Fail(Timeout 2) !!\r\n" ));
 		retS = false;
 	} else {
 		xprintf_P( PSTR("SMS: Sent OK !!\r\n" ));

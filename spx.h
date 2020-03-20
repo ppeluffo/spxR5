@@ -64,8 +64,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9q"
-#define SPX_FW_DATE "@ 20200318"
+#define SPX_FW_REV "2.9.9s"
+#define SPX_FW_DATE "@ 20200320"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -117,6 +117,7 @@
 #define SGN_REDIAL				0x03
 #define SGN_RESET_COMMS_DEV		0x04
 #define SGN_SMS					0x05
+#define SGN_WAKEUP				0x06
 
 // Estructura que maneja las señales del sistema
 struct {

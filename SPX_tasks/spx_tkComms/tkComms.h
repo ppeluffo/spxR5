@@ -73,6 +73,11 @@ xComms_conf_t sVarsComms;
 #define SMS_MSG_LENGTH 			70
 #define SMS_MSG_QUEUE_LENGTH 	9
 
+typedef struct {
+	char nro[SMS_NRO_LENGTH];
+	char msg[SMS_MSG_LENGTH];
+} t_sms;
+
 t_comms_states tkComms_st_entry(void);
 t_comms_states tkComms_st_espera_apagado(void);
 t_comms_states tkComms_st_espera_prendido(void);
@@ -162,9 +167,11 @@ char *gprs_get_buffer_ptr( char *pattern);
 
 void xSMS_init(void);
 bool xSMS_enqueue(char *dst_nbr, char *msg );
+t_sms *xSMS_dequeue(void);
 void xSMS_txcheckpoint(void);
 bool xSMS_send( char *dst_nbr, char *msg );
 char *xSMS_format(char *msg);
+void xSMS_delete(void);
 void xSMS_rxcheckpoint(void);
 char *xSMS_read_and_delete_by_index( uint8_t msg_index );
 bool xSMS_received( uint8_t *first_msg_index );

@@ -416,7 +416,38 @@ uint8_t pin = 0;
 int8_t state = -1;
 char l_data[10] = { '\0' };
 
+//t_sms *sms_boundle;
+
 	FRTOS_CMD_makeArgv();
+
+
+	// TEST
+	/*
+	if ( strcmp_P( strupr(argv[1]), PSTR("TEST\0")) == 0)  {
+		if ( strcmp_P( strupr(argv[2]), PSTR("ENQUEUE\0")) == 0)  {
+			xSMS_enqueue( argv[3], argv[4] );
+			pv_snprintfP_OK();
+			return;
+		}
+		if ( strcmp_P( strupr(argv[2]), PSTR("DEQUEUE\0")) == 0)  {
+			sms_boundle = xSMS_dequeue();
+			if ( sms_boundle != NULL ) {
+				xprintf_P(PSTR("deq nro=[%s]\r\n\0"), sms_boundle->nro);
+				xprintf_P(PSTR("deq msg=[%s]\r\n\0"),sms_boundle->msg);
+				pv_snprintfP_OK();
+				return;
+			} else {
+				pv_snprintfP_ERR();
+				return;
+			}
+		}
+		if ( strcmp_P( strupr(argv[2]), PSTR("DELETE\0")) == 0)  {
+			xSMS_delete();
+			return;
+		}
+	}
+*/
+
 
 	// GPRS
 	// write gprs pwr|sw|rts {on|off}
@@ -757,6 +788,22 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
+	// COMMS
+	// config comms {XBEE | GPRS }
+	if ( strcmp_P( strupr(argv[1]), PSTR("COMMS\0")) == 0  ) {
+		if ( strcmp_P( strupr(argv[2]), PSTR("XBEE\0")) == 0  ) {
+			sVarsComms.comms_channel = COMMS_CHANNEL_XBEE;
+			pv_snprintfP_OK();
+			return;
+		}
+		if ( strcmp_P( strupr(argv[2]), PSTR("GPRS\0")) == 0  ) {
+			sVarsComms.comms_channel = COMMS_CHANNEL_GPRS;
+			pv_snprintfP_OK();
+			return;
+		}
+		pv_snprintfP_ERR();
+	}
+
 	// APPALARM
 	// config appalarma
 	//                  sms {id} {nro} {almlevel}\r\n\0"));
@@ -1087,6 +1134,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("-config\r\n\0"));
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
+		xprintf_P( PSTR("  comms {XBEE | GPRS}\r\n\0"));
 
 		xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
@@ -1379,7 +1427,7 @@ uint8_t pin = 0;
 
 		// write gprs sms nbr msg
 		if ( strcmp_P( strupr(argv[2]), PSTR("SMS\0")) == 0 ) {
-			xSMS_enqueue( argv[3], argv[4] );
+			xSMS_enqueue( argv[3], (char *) xSMS_format(argv[4]) );
 			pv_snprintfP_OK();
 			return;
 		}
@@ -1403,7 +1451,7 @@ uint8_t pin = 0;
 			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
 				IO_set_GPRS_PWR(); pv_snprintfP_OK(); return;
 			}
-			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) ) {
+			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
 				IO_clr_GPRS_PWR(); pv_snprintfP_OK(); return;
 			}
 			pv_snprintfP_ERR();

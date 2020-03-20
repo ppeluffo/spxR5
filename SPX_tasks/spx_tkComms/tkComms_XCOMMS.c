@@ -159,9 +159,6 @@ bool retS = false;
 		retS = gprs_prender( f_debug, delay_factor);
 	}
 
-	if (retS )
-		xCOMMS_stateVars.dispositivo_prendido = true;
-
 	return(retS);
 }
 //------------------------------------------------------------------------------------
