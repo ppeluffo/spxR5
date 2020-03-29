@@ -31,16 +31,24 @@
  *  22923645
  *
  * -Manual
- *  Reintentos de mandar un SMS que falla.
+ *  Test:Reintentos de mandar un SMS que falla.
+ *  TEst: scan discover
+ *  Test: comms gprs mas fluida ( sin caidas del socket)
  *
  * -Testing XBEE
  * -Server XBEE
- *
  * -GUI
- * -PwrSave
  *
  *
  * Revisar en el servidor que grabe el UID en los inits. !!!
+ *
+ *
+ * --------------------------------------------------------------------------------------------------
+ * Version 2.9.9u @ 20200328
+ * - Cuando sale de INIT por timeout en modo CONTINUO, pasa al estado espera prendido. Al polear un nuevo frame,
+ *   pasa a DATA y lo transmite pero antes debería haber completado el INIT.
+ *   En modo DISCRETO no pasa porque siempre queda en apagado y luego vuelve a intentar el INIT.
+ *
  *
  * --------------------------------------------------------------------------------------------------
  * Version 2.9.9l

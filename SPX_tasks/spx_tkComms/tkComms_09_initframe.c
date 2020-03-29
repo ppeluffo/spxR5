@@ -69,6 +69,8 @@ t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_INITFRAME );
 
+	xCOMMS_stateVars.dispositivo_inicializado = false;
+
 	if ( ! init_frame_auth() ) {
 		next_state = ST_ENTRY;
 		goto EXIT;
@@ -115,6 +117,7 @@ t_comms_states next_state = ST_ENTRY;
 	}
 
 	next_state = ST_DATAFRAME;
+	xCOMMS_stateVars.dispositivo_inicializado = true;
 
 	// Proceso las señales:
 	if ( xCOMMS_procesar_senales( ST_INITFRAME , &next_state ) )
@@ -231,7 +234,6 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 				break;
 			}
 
-
 			xCOMMS_send_tail();
 			//  El bloque se trasmition OK. Paso a esperar la respuesta
 			return(true);
@@ -262,7 +264,7 @@ bool retS = false;
 
 	for ( timeout = 0; timeout < 10; timeout++) {
 
-		vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );	// Espero 1s
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );	// Espero 1s
 
 		// El socket se cerro
 		if ( xCOMMS_link_status( DF_COMMS ) != LINK_OPEN ) {
@@ -378,7 +380,8 @@ bool retS = false;
 	}
 
 // Exit:
-
+	// No tuve respuesta
+	xprintf_P( PSTR("COMMS: TIMEOUT !!.\r\n\0" ));
 	return(false);
 }
 //------------------------------------------------------------------------------------

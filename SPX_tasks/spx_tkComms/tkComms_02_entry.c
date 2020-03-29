@@ -30,21 +30,49 @@ t_comms_states next_state = ST_ESPERA_APAGADO;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_ENTRY);
 
+	// en XBEE siempre estoy en modo CONTINUO
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
+		sVarsComms.timerDial = 0;
+	}
+
+	// Modo discreto: Espero apagado
 	if ( MODO_DISCRETO ) {
-		// Modo discreto: Espero apagado
 		next_state = ST_ESPERA_APAGADO;
+		goto EXIT;
 
 	} else {
-		// Modo continuo: Espero prendido ( si el modem esta prendido )
-		if ( ! xCOMMS_stateVars.dispositivo_prendido ) {
-			// Modo continuo pero dispositivo apagado: salgo a prenderlo
-			next_state = ST_PRENDER;
+
+		// Modo continuo:
+		// Si el dispositivo esta prendido e inicializado voy a ESPERA_PRENDIDO.
+		// En otro caso voy a PRENDER
+
+		/*
+		if ( xCOMMS_stateVars.dispositivo_prendido ) {
+			xprintf_P(PSTR("DEBUG: prendido\r\n"));
 		} else {
-			// Dispositivo prendido. Salgo a esperar.
-			next_state = ST_ESPERA_PRENDIDO;
+			xprintf_P(PSTR("DEBUG: apagado\r\n"));
 		}
 
+		if ( xCOMMS_stateVars.dispositivo_inicializado ) {
+			xprintf_P(PSTR("DEBUG: inicializado\r\n"));
+		} else {
+			xprintf_P(PSTR("DEBUG: NO inicializado\r\n"));
+		}
+		*/
+
+		if ( xCOMMS_stateVars.dispositivo_prendido && xCOMMS_stateVars.dispositivo_inicializado ) {
+			// Modo continuo pero dispositivo apagado: salgo a prenderlo
+			next_state = ST_ESPERA_PRENDIDO;
+			goto EXIT;
+
+		}
+
+		next_state = ST_ESPERA_APAGADO;
+		goto EXIT;
+
 	}
+
+EXIT:
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_entry.\r\n\0"));
 	return(next_state);

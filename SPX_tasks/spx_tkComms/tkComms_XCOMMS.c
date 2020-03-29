@@ -61,6 +61,8 @@ char l_data[10] = { 0 };
 	sVarsComms.pwrSave.hora_fin.hour = 5;
 	sVarsComms.pwrSave.hora_fin.min = 30;
 
+	// COMMS_CHANNEL
+	sVarsComms.comms_channel = COMMS_CHANNEL_GPRS;
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_status(void)
@@ -68,55 +70,56 @@ void xCOMMS_status(void)
 
 uint8_t dbm;
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
+	switch( sVarsComms.comms_channel) {
+	case COMMS_CHANNEL_XBEE:
 		xprintf_P( PSTR(">Device Xbee:\r\n\0"));
-		return;
-
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-
-		// Imprime todo lo referente al GPRS
-		// MODEM
+		break;
+	case COMMS_CHANNEL_GPRS:
 		xprintf_P( PSTR(">Device Gprs:\r\n\0"));
+		xprintf_P( PSTR("  apn: %s\r\n\0"), sVarsComms.apn );
+		xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
+		xprintf_P( PSTR("  server script: %s\r\n\0"), sVarsComms.serverScript );
+		xprintf_P( PSTR("  simpwd: %s\r\n\0"), sVarsComms.simpwd );
+
 		dbm = 113 - 2 * xCOMMS_stateVars.csq;
 		xprintf_P( PSTR("  signalQ: csq=%d, dBm=%d\r\n\0"), xCOMMS_stateVars.csq, dbm );
 		xprintf_P( PSTR("  ip address: %s\r\n\0"), xCOMMS_stateVars.ip_assigned) ;
-
-		// TASK STATE
-		switch (tkComms_state) {
-		case ST_ESPERA_APAGADO:
-			xprintf_P( PSTR("  state: await_OFF\r\n"));
-			break;
-		case ST_ESPERA_PRENDIDO:
-			xprintf_P( PSTR("  state: await_ON\r\n"));
-			break;
-		case ST_PRENDER:
-			xprintf_P( PSTR("  state: prendiendo\r\n"));
-			break;
-		case ST_CONFIGURAR:
-			xprintf_P( PSTR("  state: configurando\r\n"));
-			break;
-		case ST_MON_SQE:
-			xprintf_P( PSTR("  state: mon_sqe\r\n"));
-			break;
-		case ST_SCAN:
-			xprintf_P( PSTR("  state: scanning\r\n"));
-			break;
-		case ST_IP:
-			xprintf_P( PSTR("  state: ip\r\n"));
-			break;
-		case ST_INITFRAME:
-			xprintf_P( PSTR("  state: link up: inits\r\n"));
-			break;
-		case ST_DATAFRAME:
-			xprintf_P( PSTR("  state: link up: data\r\n"));
-			break;
-		default:
-			xprintf_P( PSTR("  state: ERROR\r\n"));
-			break;
-		}
-
+		break;
 	}
 
+	// TASK STATE
+	switch (tkComms_state) {
+	case ST_ESPERA_APAGADO:
+		xprintf_P( PSTR("  state: await_OFF\r\n"));
+		break;
+	case ST_ESPERA_PRENDIDO:
+		xprintf_P( PSTR("  state: await_ON\r\n"));
+		break;
+	case ST_PRENDER:
+		xprintf_P( PSTR("  state: prendiendo\r\n"));
+		break;
+	case ST_CONFIGURAR:
+		xprintf_P( PSTR("  state: configurando\r\n"));
+		break;
+	case ST_MON_SQE:
+		xprintf_P( PSTR("  state: mon_sqe\r\n"));
+		break;
+	case ST_SCAN:
+		xprintf_P( PSTR("  state: scanning\r\n"));
+		break;
+	case ST_IP:
+		xprintf_P( PSTR("  state: ip\r\n"));
+		break;
+	case ST_INITFRAME:
+		xprintf_P( PSTR("  state: link up: inits\r\n"));
+		break;
+	case ST_DATAFRAME:
+		xprintf_P( PSTR("  state: link up: data\r\n"));
+		break;
+	default:
+		xprintf_P( PSTR("  state: ERROR\r\n"));
+		break;
+	}
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_init(void)
@@ -129,6 +132,8 @@ void xCOMMS_init(void)
 	}
 
 	xCOMMS_stateVars.dispositivo_prendido = false;
+	xCOMMS_stateVars.dispositivo_inicializado = false;
+
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_apagar_dispositivo(void)
@@ -141,6 +146,7 @@ void xCOMMS_apagar_dispositivo(void)
 	}
 
 	xCOMMS_stateVars.dispositivo_prendido = false;
+	xCOMMS_stateVars.dispositivo_inicializado = false;
 }
 //------------------------------------------------------------------------------------
 bool xCOMMS_prender_dispositivo(bool f_debug, uint8_t delay_factor)
@@ -304,7 +310,6 @@ void xCOMMS_send_tail(void)
 
 	// ( No mando el close ya que espero la respuesta y no quiero que el socket se cierre )
 	xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
-
 	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 }
 //------------------------------------------------------------------------------------
@@ -435,9 +440,14 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		 */
 		SPX_CLEAR_SIGNAL( SGN_FRAME_READY );
 		if ( state == ST_ESPERA_PRENDIDO ) {
-			xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_FRAME_READY rcvd.\r\n\0"));
-			*next_state = ST_DATAFRAME;
-			return(true);
+			if ( xCOMMS_stateVars.dispositivo_inicializado ) {
+				xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_FRAME_READY rcvd.\r\n\0"));
+				*next_state = ST_DATAFRAME;
+				return(true);
+			} else {
+				*next_state = ST_PRENDER;
+				return(true);
+			}
 		}
 	}
 
@@ -498,5 +508,28 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 	return(false);
 }
 //------------------------------------------------------------------------------------
+uint16_t xCOMMS_datos_para_transmitir(void)
+{
+/* Veo si hay datos en memoria para trasmitir
+ * Memoria vacia: rcds4wr = MAX, rcds4del = 0;
+ * Memoria llena: rcds4wr = 0, rcds4del = MAX;
+ * Memoria toda leida: rcds4rd = 0;
+ * gprs_fat.wrPTR, gprs_fat.rdPTR, gprs_fat.delPTR,gprs_fat.rcds4wr,gprs_fat.rcds4rd,gprs_fat.rcds4del
+ */
 
+uint16_t nro_recs_pendientes;
+FAT_t fat;
+
+	memset( &fat, '\0', sizeof ( FAT_t));
+	FAT_read(&fat);
+
+	nro_recs_pendientes = fat.rcds4rd;
+	// Si hay registros para leer
+	if ( nro_recs_pendientes == 0) {
+		xprintf_PD( DF_COMMS, PSTR("COMMS: bd EMPTY\r\n\0"));
+	}
+
+	return(nro_recs_pendientes);
+}
+//------------------------------------------------------------------------------------
 

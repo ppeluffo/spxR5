@@ -28,6 +28,12 @@ t_comms_states next_state = ST_ENTRY;
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_configurar.\r\n\0"));
 	//xprintf_PD( DF_COMMS, PSTR("COMMS: configurar.\r\n\0"));
 
+	// El XBEE no se configura. Pasamos directamente a initframe !!!
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
+		next_state = ST_INITFRAME;
+		goto EXIT;
+	}
+
 	if ( xCOMMS_configurar_dispositivo(DF_COMMS, sVarsComms.simpwd, &err_code ) == true ) {
 		next_state = ST_MON_SQE;
 		goto EXIT;

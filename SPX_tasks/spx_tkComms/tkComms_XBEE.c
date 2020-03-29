@@ -37,8 +37,8 @@ void xbee_apagar(void)
 	 *
 	 */
 	IO_clr_XBEE_PWR();		// Apago el modulo
-	// Espero 10s de settle time.
-	vTaskDelay( (portTickType)( 10000 / portTICK_RATE_MS ) );
+	// Espero 1s de settle time.
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 }
 //------------------------------------------------------------------------------------
@@ -50,6 +50,8 @@ bool xbee_prender( bool debug, uint8_t delay_factor )
 	IO_set_XBEE_PWR();		// Prendo el modulo
 
 	vTaskDelay( (portTickType)( ( 2000 + 2000 * delay_factor) / portTICK_RATE_MS ) );	// Espero que se estabilize la fuente.
+
+	xCOMMS_stateVars.dispositivo_prendido = true;
 
 	return(true);
 }

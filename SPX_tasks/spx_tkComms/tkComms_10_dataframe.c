@@ -24,7 +24,6 @@ static t_data_state data_init(void);
 static t_data_state data_enviar_frame(void);
 static t_data_state data_procesar_respuesta(void);
 
-static bool EV_hay_datos_para_transmitir(void);
 static bool EV_envio_frame(void);
 static bool EV_procesar_respuesta(void);
 
@@ -101,7 +100,7 @@ static t_data_state data_init(void)
 	 * So no hay, sale y pasa al estado superior de standby
 	 */
 
-	if ( EV_hay_datos_para_transmitir() ) {
+	if ( xCOMMS_datos_para_transmitir() > 0 ) {
 		/* Inicializo el contador de errores y paso
 		 * al estado que intento trasmitir los frames
 		 */
@@ -159,32 +158,6 @@ t_data_state next_state;
 //------------------------------------------------------------------------------------
 // FUNCIONES AUXILIARES
 //------------------------------------------------------------------------------------
-static bool EV_hay_datos_para_transmitir(void)
-{
-/* Veo si hay datos en memoria para trasmitir
- * Memoria vacia: rcds4wr = MAX, rcds4del = 0;
- * Memoria llena: rcds4wr = 0, rcds4del = MAX;
- * Memoria toda leida: rcds4rd = 0;
- * gprs_fat.wrPTR, gprs_fat.rdPTR, gprs_fat.delPTR,gprs_fat.rcds4wr,gprs_fat.rcds4rd,gprs_fat.rcds4del
- */
-
-bool retS = false;
-FAT_t fat;
-
-	memset( &fat, '\0', sizeof ( FAT_t));
-	FAT_read(&fat);
-
-	// Si hay registros para leer
-	if ( fat.rcds4rd > 0) {
-		retS = true;
-	} else {
-		retS = false;
-		xprintf_PD( DF_COMMS, PSTR("COMMS: bd EMPTY\r\n\0"));
-	}
-
-	return(retS);
-}
-//------------------------------------------------------------------------------------
 static bool EV_envio_frame(void)
 {
 	/* Intenta enviar un frame.
@@ -209,7 +182,7 @@ uint8_t i = 0;
 			xCOMMS_send_header("DATA");
 			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=\0") );
 
-			while ( EV_hay_datos_para_transmitir() && ( registros_trasmitidos < MAX_RCDS_WINDOW_SIZE ) ) {
+			while ( ( xCOMMS_datos_para_transmitir() > 0 ) && ( registros_trasmitidos < MAX_RCDS_WINDOW_SIZE ) ) {
 				ac_send_data_record();
 				registros_trasmitidos++;
 				// Espero 250ms entre records

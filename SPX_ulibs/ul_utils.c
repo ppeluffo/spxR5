@@ -20,6 +20,10 @@ void initMCU(void)
 //	IO_config_PWR_SLEEP();
 //	IO_set_PWR_SLEEP();
 
+	// Configuro los pines del modulo Xbee
+	IO_config_XBEE_PWR();
+//	IO_config_XBEE_SLEEP();
+//	IO_config_XBEE_RESET();
 
 	// ANALOG: SENSOR VCC CONTROL
 	IO_config_SENS_12V_CTL();

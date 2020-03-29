@@ -18,6 +18,7 @@ static void pv_cmd_read_fuses(void);
 static void pv_cmd_print_stack_watermarks(void);
 static void pv_cmd_read_memory(void);
 static void pv_cmd_rwGPRS(uint8_t cmd_mode );
+static void pv_cmd_rwXBEE(uint8_t cmd_mode );
 static void pv_cmd_rwMCP(uint8_t cmd_mode );
 static void pv_cmd_I2Cscan(bool busscan);
 
@@ -160,11 +161,7 @@ st_dataRecord_t dr;
 	xprintf_P( PSTR("memory: rcdSize=%d, wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), sizeof(st_dataRecord_t), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
 
 	// SERVER
-	xprintf_P( PSTR(">Server:\r\n\0"));
-	xprintf_P( PSTR("  apn: %s\r\n\0"), sVarsComms.apn );
-	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
-	xprintf_P( PSTR("  server script: %s\r\n\0"), sVarsComms.serverScript );
-	xprintf_P( PSTR("  simpwd: %s\r\n\0"), sVarsComms.simpwd );
+	//	xprintf_P( PSTR(">Server:\r\n\0"));
 
 	// COMMS Status
 	xCOMMS_status();
@@ -448,6 +445,14 @@ char l_data[10] = { '\0' };
 	}
 */
 
+
+	// XBEE
+	// write xbee (pwr) {on|off}
+	// write xbee msg {txt}
+	if ( ( strcmp_P( strupr(argv[1]), PSTR("XBEE\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_rwXBEE(WR_CMD);
+		return;
+	}
 
 	// GPRS
 	// write gprs pwr|sw|rts {on|off}
@@ -766,6 +771,27 @@ uint8_t cks;
 	// read gprs (rsp,cts,dcd,ri, sms)
 	if (!strcmp_P( strupr(argv[1]), PSTR("GPRS\0")) && ( tipo_usuario == USER_TECNICO) ) {
 		pv_cmd_rwGPRS(RD_CMD);
+		return;
+	}
+
+	// XBEE
+	// read xbee
+	if (!strcmp_P( strupr(argv[1]), PSTR("XBEE\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_rwXBEE(RD_CMD);
+		return;
+	}
+
+	// ACH {n}
+	// read ach n
+	if (!strcmp_P( strupr(argv[1]), PSTR("ACH\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		ainputs_test_channel( atoi(argv[2]));
+		return;
+	}
+
+	// battery
+	// read battery
+	if (!strcmp_P( strupr(argv[1]), PSTR("BATTERY\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		ainputs_test_channel(99);
 		return;
 	}
 
@@ -1096,6 +1122,9 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("       cmd {atcmd}, redial, monsqe\r\n\0"));
 			xprintf_P( PSTR("       sms,qsms,fsms {nbr,msg}\r\n\0"));
 
+			xprintf_P( PSTR("  xbee (pwr) {on|off}\r\n\0"));
+			xprintf_P( PSTR("       msg {txt}\r\n\0"));
+
 		}
 		return;
 	}
@@ -1110,12 +1139,14 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  ina (id) {conf|chXshv|chXbusv|mfid|dieid}\r\n\0"));
 			xprintf_P( PSTR("  i2cscan {busaddr}, i2cscanbus\r\n\0"));
 			xprintf_P( PSTR("  temp,psens\r\n\0"));
+			xprintf_P( PSTR("  ach {n}, battery\r\n\0"));
 			if ( spx_io_board == SPX_IO8CH ) {
 				xprintf_P( PSTR("  mcp {regAddr}\r\n\0"));
 			}
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
 			xprintf_P( PSTR("  dinputs\r\n\0"));
 			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri,sms)\r\n\0"));
+			xprintf_P( PSTR("  xbee rsp\r\n\0"));
 		}
 		return;
 
@@ -1567,6 +1598,53 @@ uint8_t pin = 0;
 		pv_snprintfP_ERR();
 		return;
 	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_cmd_rwXBEE(uint8_t cmd_mode )
+{
+
+	if ( cmd_mode == WR_CMD ) {
+
+		// write gprs (pwr) {on|off}
+		if ( strcmp_P( strupr(argv[2]), PSTR("PWR\0")) == 0 ) {
+			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
+				xbee_prender(false,1); pv_snprintfP_OK(); return;
+			}
+			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
+				xbee_apagar(); pv_snprintfP_OK(); return;
+			}
+			pv_snprintfP_ERR();
+			return;
+		}
+
+		// // write xbee msg (txt)
+		if ( strcmp_P(strupr(argv[2]), PSTR("MSG\0")) == 0 ) {
+			//xprintf_P( PSTR("%s\r\0"),argv[3] );
+			xbee_flush_RX_buffer();
+			xfprintf_P( fdXBEE,PSTR("%s\r\0"),argv[3] );
+			xprintf_P( PSTR("sent->%s\r\n\0"),argv[3] );
+			return;
+		}
+
+		pv_snprintfP_ERR();
+		return;
+	}
+
+	if ( cmd_mode == RD_CMD ) {
+
+		// ATCMD RSP
+		// read gprs rsp
+		if ( strcmp_P(strupr(argv[2]), PSTR("RSP\0")) == 0 ) {
+			xbee_print_RX_buffer();
+			//p = pub_gprs_rxbuffer_getPtr();
+			//xprintf_P( PSTR("rx->%s\r\n\0"),p );
+			return;
+		}
+	}
+
+	pv_snprintfP_ERR();
+	return;
 
 }
 //------------------------------------------------------------------------------------

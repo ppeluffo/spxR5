@@ -28,7 +28,7 @@ static uint16_t pv_ainputs_read_battery_raw(void);
 static uint16_t pv_ainputs_read_channel_raw(uint8_t channel_id );
 static void pv_ainputs_apagar_12Vsensors(void);
 static void pv_ainputs_prender_12V_sensors(void);
-static float pv_ainputs_read_channel ( uint8_t io_channel );
+static void pv_ainputs_read_channel ( uint8_t io_channel, float *mag, uint16_t *raw );
 static void pv_ainputs_read_battery(float *battery);
 
 //------------------------------------------------------------------------------------
@@ -323,16 +323,16 @@ bool retS = false;
 	// Los canales de IO no son los mismos que los canales del INA !! ya que la bateria
 	// esta en el canal 1 del ina2
 	// Lectura general.
-	ain[0] = pv_ainputs_read_channel(0);
-	ain[1] = pv_ainputs_read_channel(1);
-	ain[2] = pv_ainputs_read_channel(2);
-	ain[3] = pv_ainputs_read_channel(3);
-	ain[4] = pv_ainputs_read_channel(4);
+	pv_ainputs_read_channel(0, &ain[0], NULL );
+	pv_ainputs_read_channel(1, &ain[1], NULL );
+	pv_ainputs_read_channel(2, &ain[2], NULL );
+	pv_ainputs_read_channel(3, &ain[3], NULL );
+	pv_ainputs_read_channel(4, &ain[4], NULL );
 
 	if ( spx_io_board == SPX_IO8CH ) {
-		ain[5] = pv_ainputs_read_channel(5);
-		ain[6] = pv_ainputs_read_channel(6);
-		ain[7] = pv_ainputs_read_channel(7);
+		pv_ainputs_read_channel(5, &ain[5], NULL );
+		pv_ainputs_read_channel(6, &ain[6], NULL );
+		pv_ainputs_read_channel(7, &ain[7], NULL );
 	}
 
 	if ( spx_io_board == SPX_IO5CH ) {
@@ -425,6 +425,29 @@ uint8_t j = 0;
 	}
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 	return(checksum);
+
+}
+//------------------------------------------------------------------------------------
+void ainputs_test_channel( uint8_t io_channel )
+{
+
+float mag;
+uint16_t raw;
+
+	pv_ainputs_read_channel ( io_channel, &mag, &raw );
+	if ( io_channel != 99) {
+		xprintf_P( PSTR("Analog Channel Test: CH[%02d] raw=%d,mag=%.02f\r\n\0"),io_channel,raw, mag);
+	} else {
+		if ( spx_io_board != SPX_IO5CH ) {
+			mag = -1;
+		} else {
+			// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
+			mag =  0.008 * raw;
+		}
+
+		xprintf_P( PSTR("Analog Channel Test: Battery raw=%d,mag=%.02f\r\n\0"),raw, mag);
+
+	}
 
 }
 //------------------------------------------------------------------------------------
@@ -560,7 +583,7 @@ int8_t xBytes = 0;
 	return( an_raw_val );
 }
 //------------------------------------------------------------------------------------
-static float pv_ainputs_read_channel ( uint8_t io_channel )
+static void pv_ainputs_read_channel ( uint8_t io_channel, float *mag, uint16_t *raw )
 {
 	/*
 	Lee un canal analogico y devuelve el valor convertido a la magnitud configurada.
@@ -626,7 +649,10 @@ float Icorr = 0.0;	// Corriente corregida por span y offset
 		an_mag_val = -999.0;
 	}
 
-	return(an_mag_val);
+	*raw = an_raw_val;
+	*mag = an_mag_val;
+
+	//return(an_mag_val);
 
 }
 //------------------------------------------------------------------------------------

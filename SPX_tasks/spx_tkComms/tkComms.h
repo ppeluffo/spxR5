@@ -40,6 +40,7 @@ typedef struct {
 	uint8_t csq;
 	char ip_assigned[IP_LENGTH];
 	bool dispositivo_prendido;
+	bool dispositivo_inicializado;
 
 } t_xCOMMS_stateVars;
 
@@ -110,6 +111,7 @@ void xCOMMS_print_RX_buffer(bool d_flag );
 char *xCOMM_get_buffer_ptr( char *pattern);
 void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr);
 bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state );
+uint16_t xCOMMS_datos_para_transmitir(void);
 
 void xbee_init(void);
 void xbee_rxBuffer_fill(char c);

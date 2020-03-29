@@ -47,12 +47,21 @@ int8_t timer = 60;
 		if ( xCOMMS_procesar_senales( ST_ESPERA_PRENDIDO , &next_state ) )
 			goto EXIT;
 
-	}
+
+		// Si tengo un multiplo de 5 paquetes esperando, en Xbee reseteo el enlace
+		if ( ( ( xCOMMS_datos_para_transmitir() % 4) == 0 ) && ( sVarsComms.comms_channel != COMMS_CHANNEL_XBEE ) ) {
+			xprintf_PD( DF_COMMS, PSTR("COMMS: Xbee link lost !!. Reset.\r\n\0"));
+			next_state = ST_ESPERA_APAGADO;
+			goto EXIT;
+		}
+ 	}
 
 EXIT:
 
 	// Checkpoint de SMS's
-	xAPP_sms_checkpoint();
+	if ( sVarsComms.comms_channel != COMMS_CHANNEL_XBEE ) {
+		xAPP_sms_checkpoint();
+	}
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_prendido.\r\n\0"));
 	return(next_state);

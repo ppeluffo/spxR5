@@ -12,6 +12,8 @@ TimerHandle_t counter_xTimer0A, counter_xTimer0B, counter_xTimer1A, counter_xTim
 
 float pv_cnt0,pv_cnt1;
 
+bool f_count0_running, f_count1_running;
+
 BaseType_t xHigherPriorityTaskWoken0 = pdFALSE;
 BaseType_t xHigherPriorityTaskWoken1 = pdFALSE;
 
@@ -19,6 +21,8 @@ static void pv_counters_TimerCallback0A( TimerHandle_t xTimer );
 static void pv_counters_TimerCallback0B( TimerHandle_t xTimer );
 static void pv_counters_TimerCallback1A( TimerHandle_t xTimer );
 static void pv_counters_TimerCallback1B( TimerHandle_t xTimer );
+
+#define DF_COUNTERS ( systemVars.debug == DEBUG_COUNTER )
 
 //------------------------------------------------------------------------------------
 void counters_setup(void)
@@ -96,6 +100,16 @@ void counters_init(void)
 	COUNTERS_init(0);
 	COUNTERS_init(1);
 
+	f_count0_running = true;
+	if ( strcmp ( systemVars.counters_conf.name[0], "X" ) == 0 ) {
+		f_count0_running = false;
+	}
+
+	f_count1_running = true;
+	if ( strcmp ( systemVars.counters_conf.name[1], "X" ) == 0 ) {
+		f_count1_running = false;
+	}
+
 	pv_cnt0 = 0;
 	pv_cnt1 = 0;
 
@@ -110,6 +124,9 @@ static void pv_counters_TimerCallback0A( TimerHandle_t xTimer )
 	if ( CNT_read_CNT0() == 1 ) {
 		pv_cnt0++;
 		xTimerStart( counter_xTimer1A, 1 );
+		if ( systemVars.debug == DEBUG_COUNTER) {
+			xprintf_P( PSTR("COUNTERS: DEBUG *C0=%0.3f,C1=%0.3f\r\n\0"),pv_cnt0, pv_cnt1);
+		}
 		return;
 	}
 
@@ -140,6 +157,9 @@ static void pv_counters_TimerCallback0B( TimerHandle_t xTimer )
 	if ( CNT_read_CNT1() == 1 ) {
 		pv_cnt1++;
 		xTimerStart( counter_xTimer1B, 1 );
+		if ( systemVars.debug == DEBUG_COUNTER) {
+			xprintf_P( PSTR("COUNTERS: DEBUG C0=%0.3f,*C1=%0.3f\r\n\0"),pv_cnt0, pv_cnt1);
+		}
 		return;
 	}
 
@@ -208,12 +228,12 @@ uint8_t i = 0;
 	}
 
 // Aplicacion ALARMAS
-	/*
+
 #ifdef APLICACION_PLANTAPOT
 	snprintf_P( systemVars.counters_conf.name[0], PARAMNAME_LENGTH, PSTR("SP1\0") );
 	snprintf_P( systemVars.counters_conf.name[1], PARAMNAME_LENGTH, PSTR("SP2\0") );
 #endif
-*/
+
 }
 //------------------------------------------------------------------------------------
 bool counters_config_channel( uint8_t channel,char *s_name, char *s_magpp, char *s_pw, char *s_period, char *s_speed )
@@ -232,11 +252,10 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
 
 // Aplicacion ALARMAS
-/*
 #ifdef APLICACION_PLANTAPOT
 	return(true);
 #endif
-*/
+
 	if ( s_name == NULL ) {
 		return(retS);
 	}
@@ -289,6 +308,9 @@ ISR ( PORTA_INT0_vect )
 	// Esta ISR se activa cuando el contador D2 (PA2) genera un flaco se subida.
 	// Si el contador es de HS solo cuenta
 
+	if ( !f_count0_running)
+		return;
+
 	if ( systemVars.counters_conf.speed[0] == CNT_HIGH_SPEED  ) {
 		pv_cnt0++;
 	} else {
@@ -306,6 +328,9 @@ ISR ( PORTA_INT0_vect )
 ISR( PORTB_INT0_vect )
 {
 	// Esta ISR se activa cuando el contador D1 (PB2) genera un flaco se subida.
+
+	if ( !f_count1_running)
+		return;
 
 	// Si el contador es de HS solo cuenta
 	if ( systemVars.counters_conf.speed[1] == CNT_HIGH_SPEED  ) {
@@ -329,12 +354,6 @@ uint8_t checksum = 0;
 char dst[32];
 char *p;
 uint8_t j = 0;
-
-	//	char name[MAX_COUNTER_CHANNELS][PARAMNAME_LENGTH];
-	//	float magpp[MAX_COUNTER_CHANNELS];
-	//	uint16_t pwidth[MAX_COUNTER_CHANNELS];
-	//	uint16_t period[MAX_COUNTER_CHANNELS];
-	//	uint8_t speed[MAX_COUNTER_CHANNELS];
 
 	// C0:C0,1.000,100,10,0;C1:C1,1.000,100,10,0;
 

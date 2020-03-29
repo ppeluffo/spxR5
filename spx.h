@@ -64,8 +64,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9s"
-#define SPX_FW_DATE "@ 20200320"
+#define SPX_FW_REV "2.9.9u"
+#define SPX_FW_DATE "@ 20200328"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -367,6 +367,7 @@ void ainputs_print(file_descriptor_t fd, float src[] );
 void ainputs_battery_print( file_descriptor_t fd, float battery );
 bool ainputs_autocal_running(void);
 uint8_t ainputs_checksum(void);
+void ainputs_test_channel( uint8_t io_channel);
 
 // TKDATA
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );

@@ -22,10 +22,6 @@ void tkComms(void * pvParameters)
 	tkComms_state = ST_ENTRY;
 	xprintf_P( PSTR("starting tkComms..\r\n\0"));
 
-//	gprs_test();
-//	while(true)
-//		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
-
 	// loop
 	for( ;; )
 	{
@@ -90,14 +86,18 @@ uint32_t ulNotifiedValue;
 	for( ;; )
 	{
 		if ( xCOMMS_stateVars.dispositivo_prendido == true ) {
-			// Leo el UART de GPRS
-			if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
-				gprs_rxBuffer_fill(c);
-			}
 
-			// Leo el UART de XBEE
-			if ( frtos_read( fdXBEE, &c, 1 ) == 1 ) {
-				xbee_rxBuffer_fill(c);
+			if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
+				// Leo el UART de GPRS
+				if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
+					gprs_rxBuffer_fill(c);
+				}
+
+			} else {
+				// Leo el UART de XBEE
+				if ( frtos_read( fdXBEE, &c, 1 ) == 1 ) {
+					xbee_rxBuffer_fill(c);
+				}
 			}
 
 		} else {
