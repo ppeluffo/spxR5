@@ -706,7 +706,7 @@ int8_t xBytes = 0;
 //------------------------------------------------------------------------------------
 static bool init_reconfigure_params_base(void)
 {
-	//	TYPE=INIT&PLOAD=CLASS:BASE;TPOLL:60;TDIAL:60;PWST:5;PWRS:ON,2330,630
+	//	TYPE=INIT&PLOAD=CLASS:BASE;TPOLL:60;TDIAL:60;PWST:5;PWRS:ON,2330,630;CNT_HW:OPTO
 
 char *p = NULL;
 char localStr[32] = { 0 };
@@ -794,6 +794,23 @@ bool save_flag = false;
 		save_flag = true;
 		xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig PWRSAVE\r\n\0"));
 	}
+
+	// CNT_HW
+	p = xCOMM_get_buffer_ptr("CNT_HW");
+	if ( p != NULL ) {
+
+		memset( &localStr, '\0', sizeof(localStr) );
+		memcpy(localStr,p,sizeof(localStr));
+
+		stringp = localStr;
+		token = strsep(&stringp,delim);		// CNT_HW
+		token = strsep(&stringp,delim);		// opto/simple
+
+		counters_config_hw(token);
+		save_flag = true;
+		xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig COUNTERS_HW\r\n\0"));
+	}
+
 
 	if ( save_flag ) {
 		u_save_params_in_NVMEE();

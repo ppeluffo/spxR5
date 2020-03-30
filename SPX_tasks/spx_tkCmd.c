@@ -223,7 +223,7 @@ st_dataRecord_t dr;
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
 
 //	if ( ( spx_io_board == SPX_IO5CH ) || (strcmp_P( strupr(argv[1]), PSTR("ALL\0")) == 0 ) ) {
-	//if ( spx_io_board == SPX_IO5CH ) {
+	if ( spx_io_board == SPX_IO5CH ) {
 
 		// PWR SAVE:
 		if ( sVarsComms.pwrSave.pwrs_enabled ==  false ) {
@@ -242,7 +242,17 @@ st_dataRecord_t dr;
 			xprintf_P( PSTR("  psensor: %s (%d-%d / %.01f-%.01f)[offset=%0.02f]\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
 		}
 
-//	}
+		// contadores( Solo hay 2 )
+		switch ( systemVars.counters_conf.hw_type ) {
+		case COUNTERS_TYPE_A:
+			xprintf_P( PSTR("  counters hw: simple\r\n\0"));
+			break;
+		case COUNTERS_TYPE_B:
+			xprintf_P( PSTR("  counters hw: opto\r\n\0"));
+			break;
+		}
+
+	}
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
@@ -267,7 +277,6 @@ st_dataRecord_t dr;
 		}
 	}
 
-	// contadores( Solo hay 2 )
 	for ( channel = 0; channel <  NRO_COUNTERS; channel++) {
 		if ( systemVars.counters_conf.speed[channel] == CNT_LOW_SPEED ) {
 			xprintf_P( PSTR("  c%d [%s,magpp=%.03f,pw=%d,T=%d (LS)]\r\n\0"),channel,systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
@@ -275,7 +284,6 @@ st_dataRecord_t dr;
 			xprintf_P( PSTR("  c%d [%s,magpp=%.03f,pw=%d,T=%d (HS)]\r\n\0"),channel,systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
 		}
 	}
-
 
 	// Muestro los datos
 	// CONFIG
@@ -858,8 +866,15 @@ bool retS = false;
 
 	// COUNTERS
 	// config counter {0..1} cname magPP pulseWidth period speed
-	if (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
-		retS = counters_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
+	// counter hw {SIMPLE/OPTO)
+	if ( strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) == 0 ) {
+
+		if (strcmp_P( strupr(argv[2]), PSTR("HW\0")) == 0 ) {
+			retS = counters_config_hw( argv[3]);
+		} else {
+			retS = counters_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
+		}
+
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -1177,6 +1192,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  digital {0..%d} dname {normal,timer}\r\n\0"), ( NRO_DINPUTS - 1 ) );
 
 		xprintf_P( PSTR("  counter {0..%d} cname magPP pw(ms) period(ms) speed(LS/HS)\r\n\0"), ( NRO_COUNTERS - 1 ) );
+		xprintf_P( PSTR("  counter hw {SIMPLE/OPTO)\r\n\0") );
 
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax offset\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  autocal {ch,PSENSOR} {mag}\r\n\0"));

@@ -466,6 +466,7 @@ uint8_t u_base_checksum(void)
 	 *  - timerpoll
 	 *  - timepwrsensor
 	 *  - pwrsave
+	 *  - counters_hw
 	 *
 	 */
 uint8_t checksum = 0;
@@ -494,6 +495,8 @@ uint8_t i = 0;
 	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_start.hour, sVarsComms.pwrSave.hora_start.min );
 	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d"), sVarsComms.pwrSave.hora_fin.hour, sVarsComms.pwrSave.hora_fin.min );
 
+	// Counters_hw ( 0: simple, 1 opto )
+	//i += snprintf_P(&dst[i], sizeof(dst), PSTR("%d"), systemVars.counters_conf.hw_type );
 
 	//xprintf_P( PSTR("DEBUG: BCKS = [%s]\r\n\0"), dst );
 

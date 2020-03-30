@@ -3,6 +3,19 @@
  *
  *  Created on: 5 jun. 2019
  *      Author: pablo
+ *
+ *  Entradas contadores tipo B:
+ *  Son las entradas que tienen optoacoplador.
+ *  Normalmente con la entrada flotando ( 12V ), el transistor del opto esta cortado y la entrada al micro esta en 0V.
+ *  Cuando se activa la entrada contra tierra ( 0V), el diodo conduce, el transistor satura y la entrada al micro pasa
+ *  a ser 3.6V.
+ *  Por esto, las entradas del micro ( interrupcion ) las configuramos para sensar RISING_EDGE.
+ *  HIGH_SPEED: Solo cuenta c/flanco de subida que detecta.
+ *  LOW_SPEED: Activa un timer de debounce.
+ *  Cuando el timer expira vuelve a leer el pin y si esta en 1 incrementa el contador.
+ *  Arranca otro timer de periodo que es el que rearma la interrupcion.
+ *
+ *
  */
 
 #include "spx.h"
@@ -97,8 +110,12 @@ void counters_init(void)
 	xTimerChangePeriod( counter_xTimer1B, ( systemVars.counters_conf.period[1] - systemVars.counters_conf.pwidth[1]) , 10 );
 	xTimerStop(counter_xTimer1B, 10);
 
-	COUNTERS_init(0);
-	COUNTERS_init(1);
+	if ( systemVars.counters_conf.hw_type > COUNTERS_TYPE_B ) {
+		systemVars.counters_conf.hw_type = COUNTERS_TYPE_B;
+	}
+
+	COUNTERS_init(0, systemVars.counters_conf.hw_type );
+	COUNTERS_init(1, systemVars.counters_conf.hw_type );
 
 	f_count0_running = true;
 	if ( strcmp ( systemVars.counters_conf.name[0], "X" ) == 0 ) {
@@ -121,7 +138,14 @@ static void pv_counters_TimerCallback0A( TimerHandle_t xTimer )
 	// Controla el pulse_width de la entrada A
 	// Leo la entrada y si esta aun en 1, incremento el contador y
 	// prendo el timer xTimer1X que termine el debounce.
-	if ( CNT_read_CNT0() == 1 ) {
+
+uint8_t ref_value = 1;
+
+	if ( systemVars.counters_conf.hw_type == COUNTERS_TYPE_A ) {
+		ref_value = 0;
+	}
+
+	if ( CNT_read_CNT0() == ref_value ) {
 		pv_cnt0++;
 		xTimerStart( counter_xTimer1A, 1 );
 		if ( systemVars.debug == DEBUG_COUNTER) {
@@ -154,7 +178,14 @@ static void pv_counters_TimerCallback0B( TimerHandle_t xTimer )
 	//IO_clr_LED_KA();
 
 	// Mido el pulse_width de la linea B (CNT1)
-	if ( CNT_read_CNT1() == 1 ) {
+
+uint8_t ref_value = 1;
+
+	if ( systemVars.counters_conf.hw_type == COUNTERS_TYPE_A ) {
+		ref_value = 0;
+	}
+
+	if ( CNT_read_CNT1() == ref_value ) {
 		pv_cnt1++;
 		xTimerStart( counter_xTimer1B, 1 );
 		if ( systemVars.debug == DEBUG_COUNTER) {
@@ -227,6 +258,9 @@ uint8_t i = 0;
 		systemVars.counters_conf.speed[i] = CNT_LOW_SPEED;
 	}
 
+	// Por defecto quedan en modo B: Con optoacoplador.
+	systemVars.counters_conf.hw_type = COUNTERS_TYPE_B;
+
 // Aplicacion ALARMAS
 
 #ifdef APLICACION_PLANTAPOT
@@ -297,6 +331,29 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 		}
 */
 		retS = true;
+	}
+
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+bool counters_config_hw( char *s_type )
+{
+	/*
+	 * Las entradas de contadores son el un hardware sin optoacoplador, por lo tanto detectan
+	 * flancos de bajada y en otros casos son con opto y detectan flanco de subida.
+	 */
+
+bool retS = false;
+
+	if ( strcmp_P( strupr(s_type), PSTR("SIMPLE")) == 0 ) {
+		systemVars.counters_conf.hw_type = COUNTERS_TYPE_A;
+		retS = true;
+	} else if ( strcmp_P( strupr(s_type), PSTR("OPTO")) == 0 ) {
+		systemVars.counters_conf.hw_type = COUNTERS_TYPE_B;
+		retS = true;
+	} else {
+		retS = false;
 	}
 
 	return(retS);

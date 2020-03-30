@@ -64,8 +64,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9u"
-#define SPX_FW_DATE "@ 20200328"
+#define SPX_FW_REV "2.9.9v"
+#define SPX_FW_DATE "@ 20200330"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -221,6 +221,7 @@ typedef struct {
 	uint16_t pwidth[MAX_COUNTER_CHANNELS];
 	uint16_t period[MAX_COUNTER_CHANNELS];
 	uint8_t speed[MAX_COUNTER_CHANNELS];
+	t_counters_hw_type hw_type;
 } counters_conf_t;
 
 // Configuracion de canales digitales
@@ -324,6 +325,7 @@ void counters_setup(void);
 void counters_init(void);
 void counters_config_defaults(void);
 bool counters_config_channel( uint8_t channel,char *s_name, char *s_magpp, char *s_pw, char *s_period, char *s_speed );
+bool counters_config_hw( char *s_type );
 void counters_clear(void);
 void counters_read(float cnt[]);
 void counters_print(file_descriptor_t fd, float cnt[] );
