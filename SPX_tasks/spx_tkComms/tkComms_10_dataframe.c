@@ -256,7 +256,7 @@ uint8_t timeout = 0;
 				ac_process_response_MEMFORMAT();
 			}
 
-			if ( xCOMMS_check_response ("PERF_OUTS\0")) {
+			if ( xCOMMS_check_response ("DOUTS\0")) {
 				// El sever mando actualizacion de las salidas
 				ac_process_response_PERF_OUTS();
 			}
@@ -375,13 +375,13 @@ char *delim = ",;:=><";
 char *p = NULL;
 uint8_t douts;
 
-	p = xCOMM_get_buffer_ptr("PERF_OUTS");
+	p = xCOMM_get_buffer_ptr("DOUTS");
 	if ( p != NULL ) {
 		memset( &localStr, '\0', sizeof(localStr) );
 		memcpy(localStr,p,sizeof(localStr));
 
 		stringp = localStr;
-		tk_douts = strsep(&stringp,delim);	// PERF_OUTS
+		tk_douts = strsep(&stringp,delim);	// DOUTS
 		tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
 		douts = atoi( tk_douts );
 

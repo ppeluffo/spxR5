@@ -110,8 +110,13 @@ void counters_init(void)
 	xTimerChangePeriod( counter_xTimer1B, ( systemVars.counters_conf.period[1] - systemVars.counters_conf.pwidth[1]) , 10 );
 	xTimerStop(counter_xTimer1B, 10);
 
-	if ( systemVars.counters_conf.hw_type > COUNTERS_TYPE_B ) {
+	// Si no esta configurado lo pongo en modo nuevo ( tipoB , opto )
+	if ( ( systemVars.counters_conf.hw_type != COUNTERS_TYPE_A ) || ( systemVars.counters_conf.hw_type != COUNTERS_TYPE_B )) {
 		systemVars.counters_conf.hw_type = COUNTERS_TYPE_B;
+	}
+
+	if ( spx_io_board == SPX_IO8CH ) {
+		systemVars.counters_conf.hw_type = COUNTERS_TYPE_B;		// IO8CH es modo OPTO siempre
 	}
 
 	COUNTERS_init(0, systemVars.counters_conf.hw_type );

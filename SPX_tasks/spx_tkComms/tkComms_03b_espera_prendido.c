@@ -22,6 +22,7 @@ t_comms_states tkComms_st_espera_prendido(void)
 
 t_comms_states next_state = ST_ENTRY;
 int8_t timer = 60;
+uint16_t data_awaiting;
 
 // Entry:
 	ctl_watchdog_kick(WDG_COMMS,WDG_COMMS_TO_ESPERA_ON );
@@ -48,8 +49,11 @@ int8_t timer = 60;
 			goto EXIT;
 
 
-		// Si tengo un multiplo de 5 paquetes esperando, en Xbee reseteo el enlace
-		if ( ( ( xCOMMS_datos_para_transmitir() % 4) == 0 ) && ( sVarsComms.comms_channel != COMMS_CHANNEL_XBEE ) ) {
+		data_awaiting = xCOMMS_datos_para_transmitir();
+		// Si tengo un multiplo de 10 paquetes esperando, en Xbee reseteo el enlace
+		if ( ( data_awaiting > 0) &&
+				( ( data_awaiting % 10) == 0 ) &&
+				( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) ) {
 			xprintf_PD( DF_COMMS, PSTR("COMMS: Xbee link lost !!. Reset.\r\n\0"));
 			next_state = ST_ESPERA_APAGADO;
 			goto EXIT;

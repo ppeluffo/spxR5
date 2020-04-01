@@ -53,6 +53,8 @@ static bool f_send_init_frame_range = false;
 static bool f_send_init_frame_psensor = false;
 static bool f_send_init_frame_app = false;
 
+bool reset_datalogger = false;
+
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_initframe(void)
 {
@@ -70,6 +72,8 @@ t_comms_states next_state = ST_ENTRY;
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_INITFRAME );
 
 	xCOMMS_stateVars.dispositivo_inicializado = false;
+
+	reset_datalogger = false;
 
 	if ( ! init_frame_auth() ) {
 		next_state = ST_ENTRY;
@@ -114,6 +118,12 @@ t_comms_states next_state = ST_ENTRY;
 	if ( ! init_frame_app() ) {
 		next_state = ST_ENTRY;
 		goto EXIT;
+	}
+
+	// Si alguna configuración requiere que se resetee, lo hacemos aqui.
+	if ( reset_datalogger == true ) {
+		xprintf_P(PSTR("COMMS: Nueva configuracion requiere RESET...\r\n\0"));
+		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
 	}
 
 	next_state = ST_DATAFRAME;
@@ -526,6 +536,7 @@ bool retS = true;
 		 */
 		switch(sVarsApp.aplicacion) {
 		case APP_OFF:
+			// No lleva mas configuracion
 			f_send_init_frame_app = false;
 			break;
 
@@ -536,6 +547,7 @@ bool retS = true;
 			break;
 
 		case APP_PERFORACION:
+			// No lleva mas configuracion
 			f_send_init_frame_app = false;
 			break;
 
@@ -796,7 +808,7 @@ bool save_flag = false;
 	}
 
 	// CNT_HW
-	p = xCOMM_get_buffer_ptr("CNT_HW");
+	p = xCOMM_get_buffer_ptr("HW_CNT");
 	if ( p != NULL ) {
 
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -808,6 +820,7 @@ bool save_flag = false;
 
 		counters_config_hw(token);
 		save_flag = true;
+		reset_datalogger = true;
 		xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig COUNTERS_HW\r\n\0"));
 	}
 
@@ -962,6 +975,7 @@ char str_base[8];
 			xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig C%d\r\n\0"), ch);
 
 			save_flag = true;
+			reset_datalogger = true;
 		}
 	}
 
@@ -1068,12 +1082,14 @@ static bool init_reconfigure_params_app_A(void)
 
 	if ( xCOMMS_check_response("AP0:OFF") ) {
 		sVarsApp.aplicacion = APP_OFF;
+		reset_datalogger = true;
 
 	} else if ( xCOMMS_check_response("AP0:CONSIGNA") ) {
 		sVarsApp.aplicacion = APP_CONSIGNA;
 
 	} else if ( xCOMMS_check_response("AP0:PERFORACION") ) {
 		sVarsApp.aplicacion = APP_PERFORACION;
+		reset_datalogger = true;
 
 	} else if ( xCOMMS_check_response("AP0:PLANTAPOT") ) {
 		sVarsApp.aplicacion = APP_PLANTAPOT;
@@ -1096,6 +1112,7 @@ static bool init_reconfigure_params_app_B(void)
 		init_reconfigure_params_app_B_plantapot();
 	} else if (sVarsApp.aplicacion == APP_CONSIGNA ) {
 		init_reconfigure_params_app_B_consigna();
+		reset_datalogger = true;
 	}
 	return(true);
 
@@ -1183,6 +1200,7 @@ static bool init_reconfigure_params_app_C(void)
 
 	if (sVarsApp.aplicacion == APP_PLANTAPOT ) {
 		init_reconfigure_params_app_C_plantapot();
+		reset_datalogger = true;
 	}
 	return(true);
 }

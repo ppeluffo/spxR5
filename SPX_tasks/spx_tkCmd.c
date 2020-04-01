@@ -241,17 +241,16 @@ st_dataRecord_t dr;
 		} else {
 			xprintf_P( PSTR("  psensor: %s (%d-%d / %.01f-%.01f)[offset=%0.02f]\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
 		}
+	}
 
-		// contadores( Solo hay 2 )
-		switch ( systemVars.counters_conf.hw_type ) {
-		case COUNTERS_TYPE_A:
-			xprintf_P( PSTR("  counters hw: simple\r\n\0"));
-			break;
-		case COUNTERS_TYPE_B:
-			xprintf_P( PSTR("  counters hw: opto\r\n\0"));
-			break;
-		}
-
+	// contadores( Solo hay 2 )
+	switch ( systemVars.counters_conf.hw_type ) {
+	case COUNTERS_TYPE_A:
+		xprintf_P( PSTR("  counters hw: simple\r\n\0"));
+		break;
+	case COUNTERS_TYPE_B:
+		xprintf_P( PSTR("  counters hw: opto\r\n\0"));
+		break;
 	}
 
 	// aninputs
