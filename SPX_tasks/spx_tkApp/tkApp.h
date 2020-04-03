@@ -14,8 +14,9 @@
 #define DF_APP ( systemVars.debug == DEBUG_APLICACION )
 
 typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT } aplicacion_t;
+typedef enum { APP_PERF_NORMAL = 0, APP_PERF_CTLFREQ } t_modo_perforacion;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
-typedef enum { PERF_CTL_BOYA, PERF_CTL_SISTEMA } perforacion_control_t;
+typedef enum { PERF_CTL_EMERGENCIA, PERF_CTL_SISTEMA } perforacion_control_t;
 typedef enum { ALARMA_NIVEL_0 = 0, ALARMA_NIVEL_1, ALARMA_NIVEL_2, ALARMA_NIVEL_3 } nivel_alarma_t;
 
 // CONSIGNA
@@ -25,7 +26,7 @@ typedef struct {
 	consigna_t c_aplicada;
 } st_consigna_t;
 
-// PERFORACION
+// PERFORACION / CTLFREQ
 typedef struct {
 	uint8_t outs;
 	uint8_t	control;
@@ -115,7 +116,11 @@ void xAPP_plantapot_adjust_vars( st_dataRecord_t *dr);
 void tkApp_perforacion(void);
 uint8_t xAPP_perforacion_checksum(void);
 void xAPP_perforacion_print_status( void );
-void xAPP_perforacion_set_douts_remote( uint8_t dout );
-void xAPP_perforacion_set_douts( uint8_t dout );
+void xAPP_perforacion_adjust_x_douts(uint8_t dout);
+void xAPP_set_douts_emergencia(void);
+
+// GENERAL
+void xAPP_set_douts_remote( uint8_t dout );
+void xAPP_set_douts( uint8_t dout );
 
 #endif /* SRC_SPX_TASKS_SPX_TKAPP_TKAPP_H_ */

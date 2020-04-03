@@ -499,7 +499,7 @@ char l_data[10] = { '\0' };
 	// OUTPUTS
 	// outputs (val dec.)
 	if ( (strcmp_P( strupr(argv[1]), PSTR("DOUT\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
-		xAPP_perforacion_set_douts( atoi(argv[2]) );
+		xAPP_set_douts( atoi(argv[2]) );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -862,6 +862,7 @@ bool retS = false;
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
+
 
 	// COUNTERS
 	// config counter {0..1} cname magPP pulseWidth period speed

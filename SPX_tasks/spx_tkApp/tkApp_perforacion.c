@@ -8,16 +8,16 @@
 #include "tkApp.h"
 
 uint8_t o_control = 0;
-uint16_t o_timer_boya = 0;
+uint16_t o_timer_emergencia = 0;
 uint16_t o_timer_sistema = 0;
 
-#define TIMEOUT_O_TIMER_BOYA	 60
+#define TIMEOUT_O_TIMER_EMERGENCIA	 60
 #define TIMEOUT_O_TIMER_SISTEMA	 600
 
-#define RELOAD_TIMER_SISTEMA()	(  o_timer_sistema = TIMEOUT_O_TIMER_SISTEMA )
-#define RELOAD_TIMER_BOYA()		( o_timer_boya = TIMEOUT_O_TIMER_BOYA )
-#define STOP_TIMER_SISTEMA() 	(o_timer_sistema = 0)
-#define STOP_TIMER_BOYA()		( o_timer_boya = 0 )
+#define RELOAD_TIMER_SISTEMA()			(  o_timer_sistema = TIMEOUT_O_TIMER_SISTEMA )
+#define RELOAD_TIMER_EMERGENCIA()		( o_timer_emergencia = TIMEOUT_O_TIMER_EMERGENCIA )
+#define STOP_TIMER_SISTEMA() 			( o_timer_sistema = 0 )
+#define STOP_TIMER_EMERGENCIA()			( o_timer_emergencia = 0 )
 
 static bool xAPP_perforacion_init(void);
 
@@ -27,8 +27,8 @@ void tkApp_perforacion(void)
 	// Corre en los 2 ioboards. El control se hace a c/segundo por lo tanto en SPX_IO5
 	// no puede entrar en pwrsave !!!
 
-	// El control a las BOYAS se pasa aqui estando en modo SISTEMA, si expiro el timer de los datos.
-	// El control al SISTEMA los pasa el recibir datos de GPRS.
+	// El control a EMERGENCIA se pasa aqui estando en modo SISTEMA, si expiro el timer de los datos.
+	// El control a SISTEMA los pasa el recibir datos de GPRS.
 
 	if ( !xAPP_perforacion_init() )
 		return;
@@ -42,15 +42,15 @@ void tkApp_perforacion(void)
 		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
 		switch ( o_control ) {
-		case PERF_CTL_BOYA:
+		case PERF_CTL_EMERGENCIA:
 			// Cuando el timer de boya expira, lo recargo y re-escribo las salidas
 			// Solo paso a modo SISTEMA cuando recibo un dato desde el GPRS !!!
-			if ( o_timer_boya > 0 ) {
-				o_timer_boya--;
-				if ( o_timer_boya == 0 ) {
-					RELOAD_TIMER_BOYA();
-					xAPP_perforacion_set_douts ( sVarsApp.perforacion.outs );
-					xprintf_P( PSTR("APP: PERFORACION MODO BOYA: reload timer boya. DOUTS=0x%0X\r\n\0"), sVarsApp.perforacion.outs );
+			if ( o_timer_emergencia > 0 ) {
+				o_timer_emergencia--;
+				if ( o_timer_emergencia == 0 ) {
+					RELOAD_TIMER_EMERGENCIA();
+					xAPP_set_douts ( sVarsApp.perforacion.outs );
+					xprintf_P( PSTR("APP: PERFORACION MODO EMERGENCIA: reload timer emergencia. DOUTS=0x%0X\r\n\0"), sVarsApp.perforacion.outs );
 				}
 			}
 			break;
@@ -60,23 +60,25 @@ void tkApp_perforacion(void)
 			if ( o_timer_sistema > 0 ) {
 				o_timer_sistema--;
 				if ( o_timer_sistema == 0 ) {
-					// Expiro: Paso el control a modo BOYA y las salidas a 0x00
-					xAPP_perforacion_set_douts( 0x00 );
-					o_control = PERF_CTL_BOYA;			// Paso el control a las boyas.
-					RELOAD_TIMER_BOYA();				// Arranco el timer de las boyas
-					sVarsApp.perforacion.control = PERF_CTL_BOYA;
-					xprintf_P( PSTR("APP: PERFORACION CTL to BOYAS !!!. (set outputs to 0x00)\r\n\0"));
+					// Expiro: Paso el control a modo EMERGENCIA(BOYA o TIMER) y las salidas a 0x00
+					//xAPP_set_douts( 0x00 );
+					xAPP_set_douts_emergencia();
+					o_control = PERF_CTL_EMERGENCIA;			// Paso el control a emergencia( boya o timer).
+					RELOAD_TIMER_EMERGENCIA();					// Arranco el timer de emergencia
+					sVarsApp.perforacion.control = PERF_CTL_EMERGENCIA;
+					xprintf_P( PSTR("APP: PERFORACION CTL to EMERGENCIA !!!. (set outputs to 0x00)\r\n\0"));
 				}
 			}
 			break;
 
 		default:
 			// Paso a control de boyas
-			xAPP_perforacion_set_douts( 0x00 );
-			o_control = PERF_CTL_BOYA;			// Paso el control a las boyas.
-			RELOAD_TIMER_BOYA();	// Arranco el timer de las boyas
-			sVarsApp.perforacion.control = PERF_CTL_BOYA;
-			xprintf_P( PSTR("APP: PERFORACION ERROR: Control outputs: Pasa a BOYA !!\r\n\0"));
+			//xAPP_set_douts( 0x00 );
+			xAPP_set_douts_emergencia();
+			o_control = PERF_CTL_EMERGENCIA;			// Paso el control a las boyas.
+			RELOAD_TIMER_EMERGENCIA();					// Arranco el timer de las boyas
+			sVarsApp.perforacion.control = PERF_CTL_EMERGENCIA;
+			xprintf_P( PSTR("APP: PERFORACION ERROR: Control outputs: Pasa a EMERGENCIA !!\r\n\0"));
 			break;
 		}
 
@@ -122,9 +124,9 @@ bool retS = false;
 		// Tengo el OLATB: Si el bit 0 y 2 son 0 estoy en modo boya
 		if ( ( data & 0x5 ) == 0 ) {
 			// Modo BOYA
-			o_control = PERF_CTL_BOYA;
-			sVarsApp.perforacion.control = PERF_CTL_BOYA;
-			RELOAD_TIMER_BOYA();
+			o_control = PERF_CTL_EMERGENCIA;
+			sVarsApp.perforacion.control = PERF_CTL_EMERGENCIA;
+			RELOAD_TIMER_EMERGENCIA();
 		} else {
 			// Modo SISTEMA
 			o_control = PERF_CTL_SISTEMA;
@@ -133,61 +135,11 @@ bool retS = false;
 		}
 
 		// Pongo las salidas que ya tenia.
-		xAPP_perforacion_set_douts( data );
+		xAPP_set_douts( data );
 	}
 
 	return(retS);
 
-}
-//------------------------------------------------------------------------------------
-void xAPP_perforacion_set_douts( uint8_t dout )
-{
-	// Funcion para setear el valor de las salidas desde el resto del programa.
-	// La usamos desde tkGprs cuando en un frame nos indican cambiar las salidas.
-	// Como el cambio depende de quien tiene el control y del timer, aqui vemos si
-	// se cambia o se ignora.
-
-uint8_t data = 0;
-int8_t xBytes = 0;
-
-	// Solo es para IO8CH
-	if ( spx_io_board != SPX_IO8CH ) {
-		return;
-	}
-
-	// Vemos que no se halla desconfigurado
-	MCP_check();
-
-	// Guardo el valor recibido
-	data = dout;
-	sVarsApp.perforacion.outs = dout;
-	MCP_update_olatb( dout );
-
-	// Invierto el byte antes de escribirlo !!!
-	data = twiddle_bits(data);
-	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
-	if ( xBytes == -1 ) {
-		xprintf_P(PSTR("APP: PEFORACION ERROR: set_douts MCP write\r\n\0"));
-		return;
-	}
-
-	xprintf_P( PSTR("APP: PERFORACION set outputs to 0x%02x\r\n\0"),dout);
-}
-//------------------------------------------------------------------------------------
-void xAPP_perforacion_set_douts_remote( uint8_t dout )
-{
-	// El GPRS recibio datos de setear la salida.
-	// El control debe ser de SISTEMA y reiniciar el timer_SISTEMA
-
-	if ( o_control == PERF_CTL_BOYA ) {
-		xprintf_P( PSTR("APP: PERFORACION CTL to SISTEMA !!!. (set outputs to 0x%02x)\r\n\0"),dout);
-	}
-
-	o_control = PERF_CTL_SISTEMA;
-	RELOAD_TIMER_SISTEMA();
-	sVarsApp.perforacion.control = PERF_CTL_SISTEMA;
-
-	xAPP_perforacion_set_douts( dout );
 }
 //------------------------------------------------------------------------------------
 uint8_t xAPP_perforacion_checksum(void)
@@ -216,13 +168,40 @@ uint8_t olatb = 0 ;
 	xprintf_P( PSTR("  outs=%d(0x%02x)[[%c%c%c%c%c%c%c%c](olatb=0x%02x)\r\n\0"), sVarsApp.perforacion.outs, sVarsApp.perforacion.outs, BYTE_TO_BINARY( sVarsApp.perforacion.outs ), olatb );
 
 	switch( o_control ) {
-	case PERF_CTL_BOYA:
-		xprintf_P( PSTR("  control=BOYA, timer=%d\r\n\0"), o_timer_boya );
+	case PERF_CTL_EMERGENCIA:
+		xprintf_P( PSTR("  control=EMERGENCIA, timer=%d\r\n\0"), o_timer_emergencia );
 		break;
 	case PERF_CTL_SISTEMA:
 		xprintf_P( PSTR("  control=SISTEMA, timer=%d\r\n\0"), o_timer_sistema );
 		break;
 	}
+
+}
+//------------------------------------------------------------------------------------
+void xAPP_perforacion_adjust_x_douts(uint8_t dout)
+{
+
+	if ( o_control == PERF_CTL_EMERGENCIA ) {
+		xprintf_P( PSTR("APP: PERFORACION CTL to SISTEMA !!!. (set outputs to 0x%02x)\r\n\0"),dout);
+	}
+
+	o_control = PERF_CTL_SISTEMA;
+	RELOAD_TIMER_SISTEMA();
+	sVarsApp.perforacion.control = PERF_CTL_SISTEMA;
+}
+//------------------------------------------------------------------------------------
+void xAPP_set_douts_emergencia(void)
+{
+	// Se utiliza en el modo EMERGENCIA ( BOYA o CTLFREQ).
+	// Debo poner los bits 0 y 2 de dout en 0
+
+uint8_t dout;
+
+	// Leo el valor actual
+	dout = sVarsApp.perforacion.outs;
+	// Seteo los bits 0 y 2 en 0
+	dout = dout & 0xF6;
+	xAPP_set_douts( dout);
 
 }
 //------------------------------------------------------------------------------------

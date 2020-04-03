@@ -70,3 +70,49 @@ void xAPP_sms_checkpoint(void)
 	}
 }
 //------------------------------------------------------------------------------------
+void xAPP_set_douts( uint8_t dout )
+{
+	// Funcion para setear el valor de las salidas desde el resto del programa.
+	// La usamos desde tkGprs cuando en un frame nos indican cambiar las salidas.
+	// Como el cambio depende de quien tiene el control y del timer, aqui vemos si
+	// se cambia o se ignora.
+
+uint8_t data = 0;
+int8_t xBytes = 0;
+
+	// Solo es para IO8CH
+	if ( spx_io_board != SPX_IO8CH ) {
+		return;
+	}
+
+	// Vemos que no se halla desconfigurado
+	MCP_check();
+
+	// Guardo el valor recibido
+	data = dout;
+	sVarsApp.perforacion.outs = dout;
+	MCP_update_olatb( dout );
+
+	// Invierto el byte antes de escribirlo !!!
+	data = twiddle_bits(data);
+	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("APP: ERROR: set_douts MCP write\r\n\0"));
+		return;
+	}
+
+	xprintf_P( PSTR("APP: SET OUTPUTS to 0x%02x\r\n\0"),dout);
+}
+//------------------------------------------------------------------------------------
+void xAPP_set_douts_remote( uint8_t dout )
+{
+	// El GPRS recibio datos de setear la salida.
+	// El control debe ser de SISTEMA y reiniciar el timer_SISTEMA
+
+	if ( sVarsApp.aplicacion == APP_PERFORACION ) {
+		xAPP_perforacion_adjust_x_douts(dout);
+	}
+
+	xAPP_set_douts( dout );
+}
+//------------------------------------------------------------------------------------

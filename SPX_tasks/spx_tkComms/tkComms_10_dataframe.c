@@ -30,7 +30,7 @@ static bool EV_procesar_respuesta(void);
 static void ac_send_data_record( void );
 static void ac_process_response_RESET(void);
 static void ac_process_response_MEMFORMAT(void);
-static void ac_process_response_PERF_OUTS(void);
+static void ac_process_response_DOUTS(void);
 static uint8_t ac_process_response_OK(void);
 
 //------------------------------------------------------------------------------------
@@ -258,7 +258,7 @@ uint8_t timeout = 0;
 
 			if ( xCOMMS_check_response ("DOUTS\0")) {
 				// El sever mando actualizacion de las salidas
-				ac_process_response_PERF_OUTS();
+				ac_process_response_DOUTS();
 			}
 
 			/*
@@ -358,12 +358,12 @@ static void ac_process_response_MEMFORMAT(void)
 
 }
 //------------------------------------------------------------------------------------
-static void ac_process_response_PERF_OUTS(void)
+static void ac_process_response_DOUTS(void)
 {
 	/*
 	 * Recibo una respuesta que me dice que valores poner en las salidas
-	 * de modo de controlar las bombas de una perforacion.
-	 * Recibi algo del estilo PERF_OUTS:245
+	 * de modo de controlar las bombas de una perforacion u otra aplicacion
+	 * Recibi algo del estilo DOUTS:245
 	 * Extraigo el valor de las salidas y las seteo.
 	 */
 
@@ -386,9 +386,9 @@ uint8_t douts;
 		douts = atoi( tk_douts );
 
 		// Actualizo el status a travez de una funcion propia del modulo de outputs
-		xAPP_perforacion_set_douts_remote( douts);
+		xAPP_set_douts_remote( douts);
 
-		xprintf_PD( DF_COMMS, PSTR("COMMS: PERF_OUTS [0x%0X]\r\n\0"), douts);
+		xprintf_PD( DF_COMMS, PSTR("COMMS: DOUTS [0x%0X]\r\n\0"), douts);
 
 	}
 }
