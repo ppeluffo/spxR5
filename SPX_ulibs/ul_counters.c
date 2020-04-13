@@ -92,6 +92,16 @@ void counters_init(void)
 	// Esto lo debo hacer aqui porque ya lei el systemVars y tengo los valores.
 	// Esto arranca el timer por lo que hay que apagarlos
 
+	if ( systemVars.counters_conf.period[0] <= systemVars.counters_conf.pwidth[0] ) {
+		systemVars.counters_conf.period[0] = systemVars.counters_conf.pwidth[0] + 10;
+		xprintf_P(PSTR("COUNTERS ERROR!! C0: periodo debe ser mayor que el ancho\r\n\0"));
+	}
+
+	if ( systemVars.counters_conf.period[1] <= systemVars.counters_conf.pwidth[1] ) {
+		systemVars.counters_conf.period[1] = systemVars.counters_conf.pwidth[1] + 10;
+		xprintf_P(PSTR("COUNTERS ERROR!! C1: periodo debe ser mayor que el ancho\r\n\0"));
+	}
+
 	// CNT0 (PA)
 	// Pulse-width
 	xTimerChangePeriod( counter_xTimer0A, systemVars.counters_conf.pwidth[0], 10 );
@@ -428,7 +438,8 @@ uint8_t j = 0;
 		p = dst;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
-			checksum += *p++;
+			// checksum += *p++;
+			checksum = u_hash(checksum, *p++);
 		}
 		//xprintf_P( PSTR("DEBUG: CCKS = [%s]\r\n\0"), dst );
 		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );

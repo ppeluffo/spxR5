@@ -9,7 +9,7 @@
 #include "spx_tkApp/tkApp.h"
 
 // La tarea no puede demorar mas de 30s.
-#define WDG_COMMS_TO_ESPERA_ON 30
+#define WDG_COMMS_TO_ESPERA_ON WDG_TO30
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_espera_prendido(void)

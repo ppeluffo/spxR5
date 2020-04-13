@@ -211,13 +211,12 @@ int main( void )
 	}
 
 	frtos_open(fdGPRS, 115200);
-	frtos_open(fdXBEE, 9600);
+	frtos_open(fdAUX1, 9600);		// Usado por xbee o modbus o camara
 	frtos_open(fdI2C, 100 );
 
 	// Creo los semaforos
 	sem_SYSVars = xSemaphoreCreateMutexStatic( &SYSVARS_xMutexBuffer );
 	sem_WDGS = xSemaphoreCreateMutexStatic( &WDGS_xMutexBuffer );
-	sem_DATA = xSemaphoreCreateMutexStatic( &DATA_xMutexBuffer );
 
 	xprintf_init();
 	FAT_init();

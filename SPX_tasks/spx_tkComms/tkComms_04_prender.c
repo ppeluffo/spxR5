@@ -8,7 +8,7 @@
 #include <tkComms.h>
 
 // La tarea no puede demorar mas de 180s.
-#define WDG_COMMS_TO_PRENDER	180
+#define WDG_COMMS_TO_PRENDER	WDG_TO180
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_prender(void)

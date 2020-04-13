@@ -358,7 +358,8 @@ uint8_t j = 0;
 		p = dst;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
-			checksum += *p++;
+			//checksum += *p++;
+			checksum = u_hash(checksum, *p++);
 		}
 
 	//	xprintf_P( PSTR("DEBUG: DCKS = [%s]\r\n\0"), dst );

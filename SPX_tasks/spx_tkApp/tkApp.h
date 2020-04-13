@@ -13,7 +13,7 @@
 
 #define DF_APP ( systemVars.debug == DEBUG_APLICACION )
 
-typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT } aplicacion_t;
+typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT, APP_CAUDALIMETRO } aplicacion_t;
 typedef enum { APP_PERF_NORMAL = 0, APP_PERF_CTLFREQ } t_modo_perforacion;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { PERF_CTL_EMERGENCIA, PERF_CTL_SISTEMA } perforacion_control_t;
@@ -34,6 +34,8 @@ typedef struct {
 
 // Numeros de SMS a los que enviar las alarmas
 #define MAX_NRO_SMS 		9
+
+#define WDG_APP_TIMEOUT	WDG_TO120
 
 //---------------------------------------------------------------------------
 // Estructuras para el manejo del sistema de alarmas en plantas de potabilizacion de OSE
@@ -77,12 +79,19 @@ typedef struct {
 	nivel_alarma_t alm_level[MAX_NRO_SMS];
 } st_alarmas_t;
 
+typedef struct {
+	uint16_t pulse_width;
+	uint16_t factor_caudal;
+	uint16_t range_actual;
+	uint16_t periodo_actual;
+} st_caudalimetros_t;
 
 typedef struct {
 	aplicacion_t aplicacion;				// Modo de operacion del datalogger
 	st_consigna_t consigna;
 	st_perforacion_t perforacion;
 	st_alarmas_t plantapot;
+	st_caudalimetros_t caudalimetro;
 	// Estructura usada en común con la aplicacion de TANQUES y ALARMAS
 	char l_sms[MAX_NRO_SMS][SMS_NRO_LENGTH];
 } aplicacion_conf_t;
@@ -118,6 +127,11 @@ uint8_t xAPP_perforacion_checksum(void);
 void xAPP_perforacion_print_status( void );
 void xAPP_perforacion_adjust_x_douts(uint8_t dout);
 void xAPP_set_douts_emergencia(void);
+
+// CAUDALIMETRO
+void tkApp_caudalimetro(void);
+bool xAPP_caudalimetro_config ( char *pwidth, char *factorQ);
+uint8_t xAPP_caudalimetro_checksum(void);
 
 // GENERAL
 void xAPP_set_douts_remote( uint8_t dout );

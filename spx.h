@@ -64,8 +64,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "2.9.9x"
-#define SPX_FW_DATE "@ 20200403"
+#define SPX_FW_REV "3.0.0a"
+#define SPX_FW_DATE "@ 20200413"
 
 #define SPX_HW_MODELO "spxR4 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -147,10 +147,6 @@ StaticSemaphore_t SYSVARS_xMutexBuffer;
 xSemaphoreHandle sem_WDGS;
 StaticSemaphore_t WDGS_xMutexBuffer;
 #define MSTOTAKEWDGSSEMPH ((  TickType_t ) 10 )
-
-xSemaphoreHandle sem_DATA;
-StaticSemaphore_t DATA_xMutexBuffer;
-#define MSTOTAKEDATASEMPH ((  TickType_t ) 10 )
 
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
@@ -299,6 +295,9 @@ bool u_set_douts( uint8_t dout );
 void u_config_timerdial ( char *s_timerdial );
 void u_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime);
 uint8_t u_checksum( uint8_t *s, uint16_t size );
+uint8_t u_hash(uint8_t checksum, char ch );
+void u_hash_test(void);
+
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
@@ -386,20 +385,22 @@ uint8_t wdg_resetCause;
 
 #define WDG_CTL			0
 #define WDG_CMD			1
-#define WDG_DIN			2
+#define WDG_DINPUTS		2
 #define WDG_COMMS		3
 #define WDG_COMMSRX		4
-#define WDG_DINPUTS		5
-#define WDG_APP			6
-#define NRO_WDGS		7
+#define WDG_APP			5
 
-#define WDG_APP_TIMEOUT	100
+#define NRO_WDGS		6
+
+#define WDG_TO30		30
+#define WDG_TO60		60
+#define WDG_TO120		120
+#define WDG_TO180	 	180
+#define WDG_TO300		300
+#define WDG_TO900		900
 
 
 //------------------------------------------------------------------------
-void u_sms_init(void);
-bool u_sms_send(char *dst_nbr, char *msg );
-char *u_format_date_sms(char *msg);
 
 
 #endif /* SRC_SPX_H_ */

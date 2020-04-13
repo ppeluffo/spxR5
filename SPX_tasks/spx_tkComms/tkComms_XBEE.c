@@ -59,14 +59,14 @@ bool xbee_prender( bool debug, uint8_t delay_factor )
 void xbee_flush_RX_buffer(void)
 {
 
-	frtos_ioctl( fdXBEE,ioctl_UART_CLEAR_RX_BUFFER, NULL);
+	frtos_ioctl( fdAUX1,ioctl_UART_CLEAR_RX_BUFFER, NULL);
 	memset( xbeeRxBuffer.buffer, '\0', XBEE_RXBUFFER_LEN);
 	xbeeRxBuffer.ptr = 0;
 }
 //------------------------------------------------------------------------------------
 void xbee_flush_TX_buffer(void)
 {
-	frtos_ioctl( fdXBEE,ioctl_UART_CLEAR_TX_BUFFER, NULL);
+	frtos_ioctl( fdAUX1,ioctl_UART_CLEAR_TX_BUFFER, NULL);
 
 }
 //------------------------------------------------------------------------------------

@@ -30,6 +30,8 @@ static void pv_ainputs_apagar_12Vsensors(void);
 static void pv_ainputs_prender_12V_sensors(void);
 static void pv_ainputs_read_channel ( uint8_t io_channel, float *mag, uint16_t *raw );
 static void pv_ainputs_read_battery(float *battery);
+static void pv_ainputs_prender_sensores(void);
+static void pv_ainputs_apagar_sensores(void);
 
 //------------------------------------------------------------------------------------
 void ainputs_init(void)
@@ -173,13 +175,17 @@ bool retS = false;
 
 	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
 //	signal_tkData_poll_off();
+	pv_ainputs_prender_sensores();
+	/*
 	pv_ainputs_prender_12V_sensors();
 	vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
+	*/
 
 	// Leo el canal del ina.
-	ainputs_awake();
+	//ainputs_awake();
 	an_raw_val = pv_ainputs_read_channel_raw( channel );
-	ainputs_sleep();
+	//ainputs_sleep();
+	pv_ainputs_apagar_sensores();
 
 	// Habilito a la tkData a volver a polear
 	autocal_running = false;
@@ -231,13 +237,18 @@ float offset = 0.0;
 	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
 	autocal_running = true;
 
+	pv_ainputs_prender_sensores();
+	/*
 	pv_ainputs_prender_12V_sensors();
 	vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
+	*/
 
 	// Leo el canal del ina.
-	ainputs_awake();
+	//ainputs_awake();
 	an_raw_val = pv_ainputs_read_channel_raw( channel );
-	ainputs_sleep();
+	//ainputs_sleep();
+	pv_ainputs_apagar_sensores();
+
 //	xprintf_P( PSTR("ANRAW=%d\r\n\0"), an_raw_val );
 
 	// Convierto el raw_value a la magnitud
@@ -308,6 +319,8 @@ bool ainputs_read( float ain[], float *battery )
 
 bool retS = false;
 
+	pv_ainputs_prender_sensores();
+	/*
 	ainputs_awake();
 	//
 	if ( ! sensores_prendidos ) {
@@ -318,6 +331,7 @@ bool retS = false;
 		// vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 		vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
 	}
+	*/
 
 	// Leo.
 	// Los canales de IO no son los mismos que los canales del INA !! ya que la bateria
@@ -346,12 +360,15 @@ bool retS = false;
 	// Apago los sensores y pongo a los INA a dormir si estoy con la board IO5.
 	// Sino dejo todo prendido porque estoy en modo continuo
 	//if ( (spx_io_board == SPX_IO5CH) && ( systemVars.timerPoll > 180 ) ) {
+	/*
 	if ( spx_io_board == SPX_IO5CH ) {
 		pv_ainputs_apagar_12Vsensors();
 		sensores_prendidos = false;
 	}
 	//
 	ainputs_sleep();
+	*/
+	pv_ainputs_apagar_sensores();
 
 	return(retS);
 
@@ -418,7 +435,8 @@ uint8_t j = 0;
 		p = dst;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
-			checksum += *p++;
+			//checksum += *p++;
+			checksum = u_hash(checksum, *p++);
 		}
 		//xprintf_P( PSTR("DEBUG: ACKS = [%s]\r\n\0"), dst );
 		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
@@ -434,7 +452,10 @@ void ainputs_test_channel( uint8_t io_channel )
 float mag;
 uint16_t raw;
 
+	pv_ainputs_prender_sensores();
 	pv_ainputs_read_channel ( io_channel, &mag, &raw );
+	pv_ainputs_apagar_sensores();
+
 	if ( io_channel != 99) {
 		xprintf_P( PSTR("Analog Channel Test: CH[%02d] raw=%d,mag=%.02f\r\n\0"),io_channel,raw, mag);
 	} else {
@@ -452,6 +473,34 @@ uint16_t raw;
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
+//------------------------------------------------------------------------------------
+static void pv_ainputs_prender_sensores(void)
+{
+
+	ainputs_awake();
+	//
+	if ( ! sensores_prendidos ) {
+		pv_ainputs_prender_12V_sensors();
+		sensores_prendidos = true;
+		// Normalmente espero 1s de settle time que esta bien para los sensores
+		// pero cuando hay un caudalimetro de corriente, necesita casi 5s
+		// vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+		vTaskDelay( ( TickType_t)( ( 1000 * systemVars.ainputs_conf.pwr_settle_time ) / portTICK_RATE_MS ) );
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_ainputs_apagar_sensores(void)
+{
+
+	if ( spx_io_board == SPX_IO5CH ) {
+		pv_ainputs_apagar_12Vsensors();
+		sensores_prendidos = false;
+	}
+	//
+	ainputs_sleep();
+
+}
 //------------------------------------------------------------------------------------
 static void pv_ainputs_prender_12V_sensors(void)
 {

@@ -12,7 +12,7 @@ static void esperar_apagado(void);
 static bool dentro_de_pwrSave(void);
 
 // La tarea pasa por el mismo lugar c/1s.
-#define WDG_COMMS_TO_ESPERA_OFF	30
+#define WDG_COMMS_TO_ESPERA_OFF	WDG_TO30
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_espera_apagado(void)

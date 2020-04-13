@@ -10,7 +10,7 @@
 
 // La tarea no puede demorar mas de 300s.
 
-#define WDG_COMMS_TO_DATAFRAME	300
+#define WDG_COMMS_TO_DATAFRAME	WDG_TO300
 
 typedef enum { SST_ENTRY = 0, SST_ENVIAR_FRAME, SST_PROCESAR_RESPUESTA, SST_EXIT } t_data_state;
 
@@ -341,14 +341,14 @@ static void ac_process_response_MEMFORMAT(void)
 	ctl_watchdog_kick(WDG_APP, 0x8000 );
 
 	vTaskSuspend( xHandle_tkInputs );
-	ctl_watchdog_kick(WDG_DIN, 0x8000 );
+	ctl_watchdog_kick(WDG_DINPUTS, 0x8000 );
 
-	vTaskSuspend( xHandle_tkComms );
-	ctl_watchdog_kick(WDG_COMMSRX, 0x8000 );
+	//vTaskSuspend( xHandle_tkComms );
+	//ctl_watchdog_kick(WDG_COMMSRX, 0x8000 );
 
 	// No suspendo esta tarea porque estoy dentro de ella. !!!
 	//vTaskSuspend( xHandle_tkGprsTx );
-	ctl_watchdog_kick(WDG_COMMSRX, 0x8000 );
+	//ctl_watchdog_kick(WDG_COMMSRX, 0x8000 );
 
 	// Formateo
 	FF_format(true);

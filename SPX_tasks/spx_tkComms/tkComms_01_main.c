@@ -7,6 +7,8 @@
 
 #include <tkComms.h>
 
+#define WDG_GPRSRX_TIMEOUT WDG_TO60
+
 //------------------------------------------------------------------------------------
 void tkComms(void * pvParameters)
 {
@@ -85,6 +87,8 @@ uint32_t ulNotifiedValue;
 	// loop
 	for( ;; )
 	{
+		ctl_watchdog_kick(WDG_COMMSRX, WDG_GPRSRX_TIMEOUT );
+
 		if ( xCOMMS_stateVars.dispositivo_prendido == true ) {
 
 			if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
@@ -94,8 +98,8 @@ uint32_t ulNotifiedValue;
 				}
 
 			} else {
-				// Leo el UART de XBEE
-				if ( frtos_read( fdXBEE, &c, 1 ) == 1 ) {
+				// Leo el UART de AUX1
+				if ( frtos_read( fdAUX1, &c, 1 ) == 1 ) {
 					xbee_rxBuffer_fill(c);
 				}
 			}

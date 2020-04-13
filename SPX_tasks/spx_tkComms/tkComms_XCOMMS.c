@@ -342,7 +342,7 @@ file_descriptor_t xCOMMS_get_fd(void)
 file_descriptor_t fd = fdGPRS;
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		fd = fdXBEE;
+		fd = fdAUX1;
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		fd = fdGPRS;
 	}
@@ -406,7 +406,7 @@ void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr)
 	 */
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		data_print_inputs(fdXBEE, dr);
+		data_print_inputs(fdAUX1, dr);
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		data_print_inputs(fdGPRS, dr);
 	} else {

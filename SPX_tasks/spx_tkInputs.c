@@ -26,7 +26,7 @@ st_dataRecord_t dataRecd;
 static void pv_data_guardar_en_BD(void);
 
 // La tarea pasa por el mismo lugar c/timerPoll secs.
-#define WDG_DIN_TIMEOUT	 ( systemVars.timerPoll + 60 )
+#define WDG_DIN_TIMEOUT	 ( systemVars.timerPoll + WDG_TO60 )
 
 //------------------------------------------------------------------------------------
 void tkInputs(void * pvParameters)
@@ -61,7 +61,7 @@ TickType_t xLastWakeTime = 0;
 	for( ;; )
 	{
 
-		ctl_watchdog_kick(WDG_DIN , WDG_DIN_TIMEOUT);
+		ctl_watchdog_kick(WDG_DINPUTS , WDG_DIN_TIMEOUT);
 
 		// Espero. Da el tiempo necesario para entrar en tickless.
 		vTaskDelayUntil( &xLastWakeTime, waiting_ticks );
@@ -76,6 +76,9 @@ TickType_t xLastWakeTime = 0;
 			if ( ! MODO_DISCRETO ) {
 				SPX_SEND_SIGNAL( SGN_FRAME_READY );
 			}
+
+			// Dejo el range en una variable de intercambio con la aplicacion de caudalimetro
+			sVarsApp.caudalimetro.range_actual = dataRecd.df.io5.range;
 		}
 
 		// Calculo el tiempo para una nueva espera
@@ -124,6 +127,7 @@ int8_t xBytes = 0;
 		}
 
 		range_read( &dst->df.io5.range );
+
 		break;
 	case SPX_IO8CH:
 		dinputs_read( dst->df.io8.dinputs );

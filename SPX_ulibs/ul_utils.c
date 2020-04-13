@@ -11,6 +11,25 @@
 
 #define RTC32_ToscBusy()        !( VBAT.STATUS & VBAT_XOSCRDY_bm )
 
+const uint8_t hash_table[] PROGMEM =  {
+		 93,  153, 124,  98, 233, 146, 184, 207, 215,  54, 208, 223, 254, 216, 162, 141,
+		 10,  148, 232, 115,   7, 202,  66,  31,   1,  33,  51, 145, 198, 181,  13,  95,
+		 242, 110, 107, 231, 140, 170,  44, 176, 166,   8,   9, 163, 150, 105, 113, 149,
+		 171, 152,  58, 133, 186,  27,  53, 111, 210,  96,  35, 240,  36, 168,  67, 213,
+		 12,  123, 101, 227, 182, 156, 190, 205, 218, 139,  68, 217,  79,  16, 196, 246,
+		 154, 116,  29, 131, 197, 117, 127,  76,  92,  14,  38,  99,   2, 219, 192, 102,
+		 252,  74,  91, 179,  71, 155,  84, 250, 200, 121, 159,  78,  69,  11,  63,   5,
+		 126, 157, 120, 136, 185,  88, 187, 114, 100, 214, 104, 226,  40, 191, 194,  50,
+		 221, 224, 128, 172, 135, 238,  25, 212,   0, 220, 251, 142, 211, 244, 229, 230,
+		 46,   89, 158, 253, 249,  81, 164, 234, 103,  59,  86, 134,  60, 193, 109,  77,
+		 180, 161, 119, 118, 195,  82,  49,  20, 255,  90,  26, 222,  39,  75, 243, 237,
+		 17,   72,  48, 239,  70,  19,   3,  65, 206,  32, 129,  57,  62,  21,  34, 112,
+		 4,    56, 189,  83, 228, 106,  61,   6,  24, 165, 201, 167, 132,  45, 241, 247,
+		 97,   30, 188, 177, 125,  42,  18, 178,  85, 137,  41, 173,  43, 174,  73, 130,
+		 203, 236, 209, 235,  15,  52,  47,  37,  22, 199, 245,  23, 144, 147, 138,  28,
+		 183,  87, 248, 160,  55,  64, 204,  94, 225, 143, 175, 169,  80, 151, 108, 122
+};
+
 //------------------------------------------------------------------------------------
 void initMCU(void)
 {
@@ -508,7 +527,8 @@ uint8_t i = 0;
 	p = dst;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
-		checksum += *p++;
+		//checksum += *p++;
+		checksum = u_hash(checksum, *p++);
 	}
 
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
@@ -547,6 +567,10 @@ char *p;
 	case APP_PLANTAPOT:
 		checksum = xAPP_plantapot_checksum();
 		break;
+
+	case APP_CAUDALIMETRO:
+		checksum = xAPP_caudalimetro_checksum();
+		break;
 	}
 
 	return(checksum);
@@ -574,6 +598,11 @@ bool u_config_aplicacion( char *modo )
 
 	if ( (strcmp_P( strupr(modo), PSTR("PERFORACION\0")) == 0) &&  ( spx_io_board == SPX_IO8CH ) ) {
 		sVarsApp.aplicacion = APP_PERFORACION;
+		return(true);
+	}
+
+	if ( (strcmp_P( strupr(modo), PSTR("CAUDALIMETRO\0")) == 0) &&  ( spx_io_board == SPX_IO8CH ) ) {
+		sVarsApp.aplicacion = APP_CAUDALIMETRO;
 		return(true);
 	}
 
@@ -905,5 +934,44 @@ quit:
 
 }
 //------------------------------------------------------------------------------------
+uint8_t u_hash(uint8_t checksum, char ch )
+{
+	/*
+	 * Funcion de hash de pearson modificada.
+	 * https://es.qwe.wiki/wiki/Pearson_hashing
+	 * La función original usa una tabla de nros.aleatorios de 256 elementos.
+	 * Ya que son aleatorios, yo la modifico a algo mas simple.
+	 */
 
+uint8_t h_entry = 0;
+uint8_t h_val = 0;
+uint8_t ord;
+
+	ord = (int)ch;
+	h_entry = checksum ^ ord;
+	h_val = (PGM_P)pgm_read_byte_far(&(hash_table[h_entry]));
+	return(h_val);
+
+}
+//------------------------------------------------------------------------------------
+void u_hash_test(void)
+{
+
+uint8_t checksum = 0;
+char dst[64];
+char *p;
+
+	// C0:C0,1.000,100,10,0;C1:C1,1.000,100,10,0;
+
+	strcpy(dst, "C0:C0,1.000,10,100,0;C1:C1,1.000,100,10,0;\0");
+
+	p = dst;
+	// Mientras no sea NULL calculo el checksum deol buffer
+	while (*p != '\0') {
+		checksum = u_hash(checksum, *p++);
+	}
+	xprintf_P( PSTR("DEBUG: CCKS = [%s]\r\n\0"), dst );
+	xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
+
+}
 

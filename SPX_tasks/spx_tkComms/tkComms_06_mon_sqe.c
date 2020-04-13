@@ -9,7 +9,7 @@
 
 // Estoy en modo comando por lo que no importa tanto el wdg.
 // Le doy 15 minutos
-#define WDG_GPRS_TO_SQE	900
+#define WDG_GPRS_TO_SQE	WDG_TO900
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_mon_sqe(void)

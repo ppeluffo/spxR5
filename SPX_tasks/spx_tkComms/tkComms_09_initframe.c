@@ -9,7 +9,7 @@
 #include <../spx_tkApp/tkApp.h>
 
 // La tarea no puede demorar mas de 180s.
-#define WDG_COMMS_TO_INITFRAME	180
+#define WDG_COMMS_TO_INITFRAME	WDG_TO180
 
 #define MAX_INTENTOS_ENVIAR_INIT_FRAME	4
 
@@ -42,6 +42,7 @@ static bool init_reconfigure_params_app_A(void);
 static bool init_reconfigure_params_app_B(void);
 static void init_reconfigure_params_app_B_consigna(void);
 static void init_reconfigure_params_app_B_plantapot(void);
+static void init_reconfigure_params_app_B_caudalimetro(void);
 static bool init_reconfigure_params_app_C(void);
 static void init_reconfigure_params_app_C_plantapot(void);
 
@@ -230,6 +231,9 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 				} else if ( sVarsApp.aplicacion == APP_CONSIGNA ) {
 					// En aplicacion CONSIGNA pido la configuracion de las consignas
 					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
+
+				} else if ( sVarsApp.aplicacion == APP_CAUDALIMETRO ) {
+					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_CAUDALIMETRO;"));
 				}
 				break;
 
@@ -557,6 +561,12 @@ bool retS = true;
 			retS = process_frame(INIT_APP_C);	// Niveles
 			f_send_init_frame_app = false;
 			//f_reset = true;
+			break;
+
+		case APP_CAUDALIMETRO:
+			// Requiere 1 frames mas (B):
+			retS = process_frame(INIT_APP_B);
+			f_send_init_frame_app = false;
 			break;
 		}
 
@@ -1110,9 +1120,14 @@ static bool init_reconfigure_params_app_B(void)
 
 	if (sVarsApp.aplicacion == APP_PLANTAPOT ) {
 		init_reconfigure_params_app_B_plantapot();
+
 	} else if (sVarsApp.aplicacion == APP_CONSIGNA ) {
 		init_reconfigure_params_app_B_consigna();
 		reset_datalogger = true;
+
+	} else if (sVarsApp.aplicacion == APP_CAUDALIMETRO ) {
+		init_reconfigure_params_app_B_caudalimetro();
+		//reset_datalogger = true;
 	}
 	return(true);
 
@@ -1186,6 +1201,38 @@ char *delim = ",;:=><";
 		xAPP_consigna_config (tk_cons_dia, tk_cons_noche );
 
 		xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche) ;
+
+		u_save_params_in_NVMEE();
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void init_reconfigure_params_app_B_caudalimetro(void)
+{
+	// CONSIGNAS:
+	// TYPE=INIT&PLOAD=CLASS:APP_B;PWIDTH:50;FACTORQ:60
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_pwidth = NULL;
+char *tk_factorq = NULL;
+char *delim = ",;:=><";
+
+	p = xCOMM_get_buffer_ptr("PWIDTH");
+	if ( p != NULL ) {
+		memset( &localStr, '\0', sizeof(localStr) );
+		memcpy(localStr,p,sizeof(localStr));
+
+		stringp = localStr;
+		tk_pwidth = strsep(&stringp,delim);		// PWIDTH
+		tk_pwidth = strsep(&stringp,delim);		// 50
+		tk_factorq = strsep(&stringp,delim);	// FACTORQ
+		tk_factorq = strsep(&stringp,delim); 	// 60
+
+		xAPP_caudalimetro_config (tk_pwidth, tk_factorq );
+
+		xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig CAUDALIEMTRO (%s,%s)\r\n\0"),tk_pwidth, tk_factorq) ;
 
 		u_save_params_in_NVMEE();
 	}

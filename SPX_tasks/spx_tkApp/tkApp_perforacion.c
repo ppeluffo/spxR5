@@ -152,7 +152,8 @@ char *p;
 	snprintf_P(dst, sizeof(dst), PSTR("PERFORACION"));
 	p = dst;
 	while (*p != '\0') {
-		checksum += *p++;
+		//checksum += *p++;
+		checksum = u_hash(checksum, *p++);
 	}
 	return(checksum);
 

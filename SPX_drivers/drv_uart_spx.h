@@ -27,17 +27,17 @@ uint8_t term_txStorage[TERM_TXSTORAGE_SIZE];
 uint8_t gprs_rxStorage[GPRS_RXSTORAGE_SIZE];
 uint8_t gprs_txStorage[GPRS_TXSTORAGE_SIZE];
 
-#define XBEE_RXSTORAGE_SIZE	128
-#define XBEE_TXSTORAGE_SIZE	128
-uint8_t xbee_rxStorage[XBEE_RXSTORAGE_SIZE];
-uint8_t xbee_txStorage[XBEE_TXSTORAGE_SIZE];
+#define AUX1_RXSTORAGE_SIZE	128
+#define AUX1_TXSTORAGE_SIZE	128
+uint8_t aux1_rxStorage[AUX1_RXSTORAGE_SIZE];
+uint8_t aux1_txStorage[AUX1_TXSTORAGE_SIZE];
 
 
 // Enumenerador de los puertos fisicos.
 typedef enum {
 	iUART_TERM = 0,
 	iUART_GPRS,
-	iUART_XBEE,
+	iUART_AUX1,
 } uart_id_t;
 
 // Estructura generica de una UART
@@ -48,7 +48,7 @@ typedef struct {
 } uart_control_t;
 
 // Creo las uart's en memoria.
-uart_control_t uart_term, uart_gprs, uart_xbee;
+uart_control_t uart_term, uart_gprs, uart_aux1;
 
 //-----------------------------------------------------------------------
 uart_control_t *drv_uart_init( uart_id_t iUART, uint32_t baudrate );
@@ -57,7 +57,7 @@ void drv_uart_interruptOff(uart_id_t iUART);
 void drv_set_baudrate(uint32_t baudRate, uint8_t *baudA, uint8_t *baudB, uint8_t *ctl );
 
 void drv_uart_gprs_open( uint32_t baudrate );
-void drv_uart_xbee_open( uint32_t baudrate );
+void drv_uart_aux1_open( uint32_t baudrate );
 void drv_uart_term_open( uint32_t baudrate );
 
 //-----------------------------------------------------------------------

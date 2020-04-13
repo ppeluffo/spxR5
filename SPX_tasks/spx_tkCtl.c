@@ -42,24 +42,23 @@ static void pv_ctl_RI(void);
 #define TIME_TO_XBEE_LINK	2
 static uint32_t pv_timers[MAX_TIMERS] = { 0, 0 };
 
-static uint16_t watchdog_timers[NRO_WDGS] = { 0,0,0,0,0,0,0 };
+static uint16_t watchdog_timers[NRO_WDGS] = { 0,0,0,0,0,0 };
 static bool f_terminal_connected = false;;
 
 // Timpo que espera la tkControl entre round-a-robin
 #define TKCTL_DELAY_S	5
 
 // La tarea pasa por el mismo lugar c/5s.
-#define WDG_CTL_TIMEOUT	30
+#define WDG_CTL_TIMEOUT	WDG_TO30
 
 const char string_0[] PROGMEM = "CTL";
 const char string_1[] PROGMEM = "CMD";
 const char string_2[] PROGMEM = "DIN";
-const char string_3[] PROGMEM = "GRX";
-const char string_4[] PROGMEM = "GTX";
-const char string_5[] PROGMEM = "DIN";
-const char string_6[] PROGMEM = "SYS";
+const char string_3[] PROGMEM = "COMMS";
+const char string_4[] PROGMEM = "COMMS_RX";
+const char string_5[] PROGMEM = "APP";
 
-const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5, string_6 };
+const char * const wdg_names[] PROGMEM = { string_0, string_1, string_2, string_3, string_4, string_5 };
 
 //------------------------------------------------------------------------------------
 void tkCtl(void * pvParameters)
@@ -133,7 +132,7 @@ uint16_t recSize = 0;
 	// En la medida que no estoy usando la taskIdle podria deshabilitarla. !!!
 	xHandle_idle = xTaskGetIdleTaskHandle();
 
-	// Inicializo todos los watchdogs a 15s ( 3 * 5s de loop )
+	// Inicializo todos los watchdogs a 30s ( 3 * 5s de loop )
 	for ( wdg = 0; wdg < NRO_WDGS; wdg++ ) {
 		watchdog_timers[wdg] = (uint16_t)( TKCTL_DELAY_S * 6 );
 	}
@@ -255,12 +254,15 @@ static void pv_ctl_check_wdg(void)
 	// Esta tarea los decrementa cada 5 segundos.
 	// Si alguno llego a 0 es que la tarea se colgo y entonces se reinicia el sistema.
 
-	uint8_t wdg = 0;
-	char buffer[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
+uint8_t wdg = 0;
+char buffer[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 
 		// Cada ciclo reseteo el wdg para que no expire.
 		WDT_Reset();
-		return;
+
+		//ctl_print_wdg_timers();
+		//return;
+
 		// Si algun WDG no se borro, me reseteo
 		while ( xSemaphoreTake( sem_WDGS, ( TickType_t ) 5 ) != pdTRUE )
 			taskYIELD();

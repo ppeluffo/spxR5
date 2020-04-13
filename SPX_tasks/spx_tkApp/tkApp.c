@@ -21,6 +21,8 @@ void tkAplicacion(void * pvParameters)
 
 	xprintf_P( PSTR("starting tkAplicacion..\r\n\0"));
 
+	ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
+
 	// Inicializo los dispositivos
 	switch (spx_io_board ) {
 	case SPX_IO5CH:
@@ -48,6 +50,9 @@ void tkAplicacion(void * pvParameters)
 		break;
 	case APP_PLANTAPOT:
 		tkApp_plantapot();
+		break;
+	case APP_CAUDALIMETRO:
+		tkApp_caudalimetro();
 		break;
 	default:
 		break;

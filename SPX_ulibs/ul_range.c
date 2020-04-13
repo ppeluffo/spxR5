@@ -86,7 +86,8 @@ char *p;
 	p = dst;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
-		checksum += *p++;
+		//checksum += *p++;
+		checksum = u_hash(checksum, *p++);
 	}
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 

@@ -9,7 +9,7 @@
 #include "spx_tkApp/tkApp.h"
 
 // La tarea no puede demorar mas de 180s.
-#define WDG_COMMS_TO_SCAN	180
+#define WDG_COMMS_TO_SCAN	WDG_TO180
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_scan(void)

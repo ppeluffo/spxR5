@@ -21,8 +21,8 @@ int8_t xRet = -1;
 	case fdGPRS:
 		xRet = frtos_uart_open( &xComGPRS, fd, &GPRS_xMutexBuffer, iUART_GPRS, flags );
 		break;
-	case fdXBEE:
-		xRet = frtos_uart_open( &xComXBEE, fd, &XBEE_xMutexBuffer, iUART_XBEE, flags );
+	case fdAUX1:
+		xRet = frtos_uart_open( &xComAUX1, fd, &AUX1_xMutexBuffer, iUART_AUX1, flags );
 		break;
 	case fdTERM:
 		xRet = frtos_uart_open( &xComTERM, fd, &TERM_xMutexBuffer, iUART_TERM, flags );
@@ -45,8 +45,8 @@ int8_t xRet = -1;
 	case fdGPRS:
 		xRet = frtos_uart_ioctl( &xComGPRS, ulRequest, pvValue );
 		break;
-	case fdXBEE:
-		xRet = frtos_uart_ioctl( &xComXBEE, ulRequest, pvValue );
+	case fdAUX1:
+		xRet = frtos_uart_ioctl( &xComAUX1, ulRequest, pvValue );
 		break;
 	case fdTERM:
 		xRet = frtos_uart_ioctl( &xComTERM, ulRequest, pvValue );
@@ -69,8 +69,8 @@ int8_t xRet = -1;
 	case fdGPRS:
 		xRet = frtos_uart_write( &xComGPRS, pvBuffer, xBytes );
 		break;
-	case fdXBEE:
-		xRet = frtos_uart_write( &xComXBEE, pvBuffer, xBytes );
+	case fdAUX1:
+		xRet = frtos_uart_write( &xComAUX1, pvBuffer, xBytes );
 		break;
 	case fdTERM:
 		xRet = frtos_uart_write( &xComTERM, pvBuffer, xBytes );
@@ -94,8 +94,8 @@ int8_t xRet = -1;
 	case fdGPRS:
 		xRet = frtos_uart_read( &xComGPRS, pvBuffer, xBytes );
 		break;
-	case fdXBEE:
-		xRet = frtos_uart_read( &xComXBEE, pvBuffer, xBytes );
+	case fdAUX1:
+		xRet = frtos_uart_read( &xComAUX1, pvBuffer, xBytes );
 		break;
 	case fdTERM:
 		xRet = frtos_uart_read( &xComTERM, pvBuffer, xBytes );

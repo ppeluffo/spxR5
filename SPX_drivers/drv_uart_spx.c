@@ -30,16 +30,16 @@ uart_control_t *pUart = NULL;
 		// Devuelvo la direccion de uart_gprs para que la asocie al dispositvo GPRS el frtos.
 		pUart = (uart_control_t *)&uart_gprs;
 		break;
-	case iUART_XBEE:
+	case iUART_AUX1:
 		// Abro el puerto serial y fijo su velocidad
-		drv_uart_xbee_open(baudrate);
+		drv_uart_aux1_open(baudrate);
 		// Inicializo los ringBuffers que manejan el puerto. Son locales al driver.
-		rBufferCreateStatic( &uart_xbee.RXringBuffer, &xbee_rxStorage[0], XBEE_RXSTORAGE_SIZE );
-		rBufferCreateStatic( &uart_xbee.TXringBuffer, &xbee_txStorage[0], XBEE_RXSTORAGE_SIZE );
+		rBufferCreateStatic( &uart_aux1.RXringBuffer, &aux1_rxStorage[0], AUX1_RXSTORAGE_SIZE );
+		rBufferCreateStatic( &uart_aux1.TXringBuffer, &aux1_txStorage[0], AUX1_RXSTORAGE_SIZE );
 		// Asigno el identificador
-		uart_xbee.uart_id = iUART_XBEE;
+		uart_aux1.uart_id = iUART_AUX1;
 		// Devuelvo la direccion de uart_gprs para que la asocie al dispositvo GPRS el frtos.
-		pUart = (uart_control_t *)&uart_xbee;
+		pUart = (uart_control_t *)&uart_aux1;
 		break;
 	case iUART_TERM:
 		// Abro el puerto serial y fijo su velocidad
@@ -72,7 +72,7 @@ uint8_t tempCTRLA = 0;
 		tempCTRLA = (tempCTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_LO_gc;
 		USARTE0.CTRLA = tempCTRLA;
 		break;
-	case iUART_XBEE:
+	case iUART_AUX1:
 		// low level, TXint enabled
 		/* Enable DRE interrupt. */
 		tempCTRLA = USARTC0.CTRLA;
@@ -103,7 +103,7 @@ uint8_t tempCTRLA = 0;
 		tempCTRLA = (tempCTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_OFF_gc;
 		USARTE0.CTRLA = tempCTRLA;
 		break;
-	case iUART_XBEE:
+	case iUART_AUX1:
 		// TXint disabled
 		// Espero que no halla nada en el DREG
 		tempCTRLA = USARTC0.CTRLA;
@@ -246,11 +246,11 @@ char cChar = ' ';
 	}
 }
 //----------------------------------------------------------------------------------------
-// UART XBEE:
+// UART AUX1:
 //----------------------------------------------------------------------------------------
-void drv_uart_xbee_open( uint32_t baudrate )
+void drv_uart_aux1_open( uint32_t baudrate )
 {
-	// El puerto del XBEE es PORTC:
+	// El puerto del AUX1 es PORTC:
 	// TXD pin = high
 	// TXD pin output
 	// baudrate / frame format
@@ -291,14 +291,14 @@ ISR(USARTC0_DRE_vect)
 char cChar = ' ';
 int8_t res = false;
 
-	res = rBufferPop( &uart_xbee.TXringBuffer, (char *)&cChar );
+	res = rBufferPop( &uart_aux1.TXringBuffer, (char *)&cChar );
 
 	if( res == true ) {
 		// Send the next character queued for Tx
 		USARTC0.DATA = cChar;
 	} else {
 		// Queue empty, nothing to send.
-		drv_uart_interruptOff(uart_xbee.uart_id);
+		drv_uart_interruptOff(uart_aux1.uart_id);
 	}
 }
 //----------------------------------------------------------------------------------------
@@ -309,7 +309,7 @@ char cChar;
 
 	cChar = USARTC0.DATA;
 
-	if( rBufferPokeFromISR( &uart_xbee.RXringBuffer, &cChar ) ) {
+	if( rBufferPokeFromISR( &uart_aux1.RXringBuffer, &cChar ) ) {
 		taskYIELD();
 	}
 }

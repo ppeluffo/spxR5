@@ -34,7 +34,7 @@
 typedef enum {
 	fdTERM = 1,
 	fdGPRS,
-	fdXBEE,
+	fdAUX1,
 	fdI2C,
 
 } file_descriptor_t;
@@ -61,8 +61,8 @@ typedef struct {
 } periferico_i2c_port_t;
 
 // Periferico real.
-periferico_serial_port_t xComGPRS, xComXBEE, xComTERM;
-StaticSemaphore_t GPRS_xMutexBuffer,XBEE_xMutexBuffer,TERM_xMutexBuffer;
+periferico_serial_port_t xComGPRS, xComAUX1, xComTERM;
+StaticSemaphore_t GPRS_xMutexBuffer,AUX1_xMutexBuffer,TERM_xMutexBuffer;
 
 periferico_i2c_port_t xBusI2C;
 StaticSemaphore_t I2C_xMutexBuffer;

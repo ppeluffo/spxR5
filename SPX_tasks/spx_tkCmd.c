@@ -35,13 +35,13 @@ static void cmdStatusFunction(void);
 static void cmdStatusAlarmasFunction(void);
 static void cmdConfigFunction(void);
 static void cmdKillFunction(void);
-//static void cmdPeekFunction(void);
-//static void cmdPokeFunction(void);
+static void cmdPeekFunction(void);
+static void cmdPokeFunction(void);
 
 #define WR_CMD 0
 #define RD_CMD 1
 
-#define WDG_CMD_TIMEOUT	30
+#define WDG_CMD_TIMEOUT	WDG_TO30
 
 static usuario_t tipo_usuario;
 RtcTimeType_t rtc;
@@ -82,8 +82,8 @@ uint8_t ticks = 0;
 //	FRTOS_CMD_register( "status\0", cmdStatusFunction );
 	FRTOS_CMD_register( "config\0", cmdConfigFunction );
 	FRTOS_CMD_register( "kill\0", cmdKillFunction );
-	//FRTOS_CMD_register( "peek\0", cmdPeekFunction );
-	//FRTOS_CMD_register( "poke\0", cmdPokeFunction );
+	FRTOS_CMD_register( "peek\0", cmdPeekFunction );
+	FRTOS_CMD_register( "poke\0", cmdPokeFunction );
 
 	// Fijo el timeout del READ
 	ticks = 5;
@@ -185,6 +185,9 @@ st_dataRecord_t dr;
 	case APP_PLANTAPOT:
 		xAPP_plantapot_print_status(false);
 		break;
+	case APP_CAUDALIMETRO:
+		xprintf_P( PSTR("  modo: Caudalimetro: (Qinst:%0.2f, pWidth:%02d, period=%02d:%02d)\r\n"), sVarsApp.caudalimetro.range_actual, sVarsApp.consigna.hhmm_c_diurna.min, sVarsApp.caudalimetro.pulse_width, sVarsApp.caudalimetro.periodo_actual );
+
 	}
 
 	// CONFIG
@@ -388,7 +391,7 @@ static void cmdResetFunction(void)
 		ctl_watchdog_kick(WDG_APP, 0x8000 );
 
 		vTaskSuspend( xHandle_tkInputs );
-		ctl_watchdog_kick(WDG_DIN, 0x8000 );
+		ctl_watchdog_kick(WDG_DINPUTS, 0x8000 );
 
 		vTaskSuspend( xHandle_tkComms );
 		ctl_watchdog_kick(WDG_COMMS, 0x8000 );
@@ -625,6 +628,11 @@ uint8_t cks;
 		 return;
 	}
 
+	// READ HASH
+	if (!strcmp_P( strupr(argv[1]), PSTR("HASH\0"))) {
+		u_hash_test();
+		return;
+	}
 
 	// CHECKSUM
 	// read checksum
@@ -863,6 +871,13 @@ bool retS = false;
 		return;
 	}
 
+	// CAUDALIMETRO
+	// config caudal {pwidth} {factorQ}
+	if (!strcmp_P( strupr(argv[1]), PSTR("CAUDAL\0")) ) {
+		retS = xAPP_caudalimetro_config( argv[2], argv[3]);
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
 
 	// COUNTERS
 	// config counter {0..1} cname magPP pulseWidth period speed
@@ -1209,6 +1224,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  tanque sms {id} nro\r\n\0"));
 		xprintf_P( PSTR("         {nivelB,nivelA} valor\r\n\0"));
 		xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));
+		xprintf_P( PSTR("  caudal {pwidth} {factorQ}\r\n\0"));
 
 		xprintf_P( PSTR("  default {SPY|OSE|UTE|CLARO}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
@@ -1312,7 +1328,7 @@ static void cmdKillFunction(void)
 	// KILL DATA
 	if (!strcmp_P( strupr(argv[1]), PSTR("DATA\0"))) {
 		vTaskSuspend( xHandle_tkInputs );
-		ctl_watchdog_kick(WDG_DIN, 0x8000 );
+		ctl_watchdog_kick(WDG_DINPUTS, 0x8000 );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -1638,7 +1654,7 @@ static void pv_cmd_rwXBEE(uint8_t cmd_mode )
 		if ( strcmp_P(strupr(argv[2]), PSTR("MSG\0")) == 0 ) {
 			//xprintf_P( PSTR("%s\r\0"),argv[3] );
 			xbee_flush_RX_buffer();
-			xfprintf_P( fdXBEE,PSTR("%s\r\0"),argv[3] );
+			xfprintf_P( fdAUX1,PSTR("%s\r\0"),argv[3] );
 			xprintf_P( PSTR("sent->%s\r\n\0"),argv[3] );
 			return;
 		}
@@ -1709,58 +1725,58 @@ uint8_t data = 0;
 
 }
 //------------------------------------------------------------------------------------
-/*
 static void cmdPeekFunction(void)
 {
 	// Comando utilizado para recuperar variables.
 	// peek varName
 	// Return: datos de configuracion de la variable.
 
-uint8_t ch = 0;
+//uint8_t ch = 0;
 
 	FRTOS_CMD_makeArgv();
 
 	if (!strcmp_P( strupr(argv[1]), PSTR("VERSION\0")) ) {
-		xprintf_P( PSTR("VERSION=%s,%s,%s,%s,%d,%d\r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE, SYSMAINCLK, configTICK_RATE_HZ);
+		xprintf_P( PSTR("<VERSION=%s,%s,%s,%s,%d,%d>\r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE, SYSMAINCLK, configTICK_RATE_HZ);
 
 	} else if (!strcmp_P( strupr(argv[1]), PSTR("IOBOARD\0")) ) {
-		xprintf_P( PSTR("IOBOARD=%d\r\n\0"), spx_io_board );
+		xprintf_P( PSTR("<IOBOARD=%d>\r\n\0"), spx_io_board );
 
 	} else if (!strcmp_P( strupr(argv[1]), PSTR("UID\0")) ) {
-		xprintf_P( PSTR("UID=%s\r\n\0"), NVMEE_readID() );
+		xprintf_P( PSTR("<UID=%s>\r\n\0"), NVMEE_readID() );
 
 	} else if (!strcmp_P( strupr(argv[1]), PSTR("DLGID\0")) ) {
-		xprintf_P( PSTR("DLGID=%s\r\n\0"), sVarsComms.dlgId );
+		xprintf_P( PSTR("<DLGID=%s>\r\n\0"), sVarsComms.dlgId );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("APN\0")) ) {
-		xprintf_P( PSTR("APN=%s\r\n\0"), sVarsComms.apn );
+		xprintf_P( PSTR("<APN=%s>\r\n\0"), sVarsComms.apn );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PORT\0")) ) {
-		xprintf_P( PSTR("PORT=%s\r\n\0"), sVarsComms.server_tcp_port );
+		xprintf_P( PSTR("<PORT=%s>\r\n\0"), sVarsComms.server_tcp_port );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("IP\0")) ) {
-		xprintf_P( PSTR("IP=%s\r\n\0"), sVarsComms.server_ip_address );
+		xprintf_P( PSTR("<IP=%s>\r\n\0"), sVarsComms.server_ip_address );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SCRIPT\0")) ) {
-		xprintf_P( PSTR("SCRIPT=%s\r\n\0"), sVarsComms.serverScript );
+		xprintf_P( PSTR("<SCRIPT=%s>\r\n\0"), sVarsComms.serverScript );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SIMPWD\0")) ) {
-		xprintf_P( PSTR("SIMPWD=%s\r\n\0"), sVarsComms.simpwd );
+		xprintf_P( PSTR("<SIMPWD=%s>\r\n\0"), sVarsComms.simpwd );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERPOLL\0")) ) {
-		xprintf_P( PSTR("TIMERPOLL=%d\r\n\0"), systemVars.timerPoll );
+		xprintf_P( PSTR("<TIMERPOLL=%d>\r\n\0"), systemVars.timerPoll );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0")) ) {
-		xprintf_P( PSTR("TIMERDIAL=%d\r\n\0"), sVarsComms.timerDial );
+		xprintf_P( PSTR("<TIMERDIAL=%d>\r\n\0"), sVarsComms.timerDial );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("timepwrsensor\0")) ) {
-		xprintf_P( PSTR("TIMEPWRSENSOR=%d\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
+		xprintf_P( PSTR("<TIMEPWRSENSOR=%d>\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("DEBUG\0")) ) {
-		xprintf_P( PSTR("DEBUG=%d\r\n\0"), systemVars.debug );
+		xprintf_P( PSTR("<DEBUG=%d>\r\n\0"), systemVars.debug );
 
-//	} else if  (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0")) ) {
-//		xprintf_P( PSTR("RANGEMETER=%d\r\n\0"), systemVars.rangeMeter_enabled );
+	/*
+	} else if  (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0")) ) {
+	xprintf_P( PSTR("RANGEMETER=%d\r\n\0"), systemVars.rangeMeter_enabled );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0")) ) {
 		xprintf_P( PSTR("PWRSAVE=%d,%d,%d\r\n\0"), sVarsComms.pwrSave.pwrs_enabled, sVarsComms.pwrSave.hora_start, sVarsComms.pwrSave.hora_fin  );
@@ -1781,18 +1797,19 @@ uint8_t ch = 0;
 		ch = atoi( argv[2]);
 		xprintf_P( PSTR("COUNTER=%d,%s,%.03f,%d,%d,%s\r\n\0"), ch,systemVars.counters_conf.name[ch],systemVars.counters_conf.magpp[ch],systemVars.counters_conf.pwidth[ch],systemVars.counters_conf.period[ch],systemVars.counters_conf.speed[ch] );
 
+	*/
+
 	} else {
 		xprintf_P( PSTR("ERROR\r\n\0"));
 	}
 	return;
 
 }
-*/
+
 //------------------------------------------------------------------------------------
-/*
 static void cmdPokeFunction(void)
 {
-	// COmando para configurar variables.
+	// Comando para configurar variables.
 
 	FRTOS_CMD_makeArgv();
 
@@ -1826,13 +1843,13 @@ static void cmdPokeFunction(void)
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SIMPWD\0")) ) {
 		memset(sVarsComms.simpwd, '\0', sizeof(sVarsComms.simpwd));
 		memcpy(sVarsComms.simpwd, argv[2], sizeof(sVarsComms.simpwd));
-		sVarsComms.simpwd[PASSWD_LENGTH - 1] = '\0';
+		sVarsComms.simpwd[SIM_PASSWD_LENGTH - 1] = '\0';
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERPOLL\0")) ) {
 		u_config_timerpoll( argv[2] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERDIAL\0")) ) {
-		u_gprs_config_timerdial( argv[2] );
+		u_config_timerdial( argv[2] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("timepwrsensor\0")) ) {
 		ainputs_config_timepwrsensor( argv[2] );
@@ -1844,7 +1861,7 @@ static void cmdPokeFunction(void)
 		range_config(argv[2]);
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PWRSAVE\0")) ) {
-		u_gprs_configPwrSave ( argv[2], argv[3], argv[4] );
+		u_configPwrSave ( argv[2], argv[3], argv[4] );
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("COUNTER\0")) ) {
 		counters_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7] );
@@ -1857,7 +1874,6 @@ static void cmdPokeFunction(void)
 	}
 
 }
-*/
 //------------------------------------------------------------------------------------
 static void pv_cmd_I2Cscan(bool busscan)
 {

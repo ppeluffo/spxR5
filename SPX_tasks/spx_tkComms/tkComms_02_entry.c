@@ -7,7 +7,7 @@
 
 #include "tkComms.h"
 
-#define WDG_COMMS_TO_ENTRY	10
+#define WDG_COMMS_TO_ENTRY	WDG_TO30
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_entry(void)
