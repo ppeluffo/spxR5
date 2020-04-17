@@ -283,7 +283,7 @@ void u_load_defaults( char *opt )
 	// Modo de operacion
 	// Aplicacion ALARMAS
 #ifdef APLICACION_PLANTAPOT
-	systemVars.aplicacion = APP_PLANTAPOT;
+	sVarsApp.aplicacion = APP_PLANTAPOT;
 #else
 	sVarsApp.aplicacion = APP_OFF;
 #endif
@@ -582,7 +582,7 @@ bool u_config_aplicacion( char *modo )
 
 	// Aplicacion ALARMAS
 #ifdef APLICACION_PLANTAPOT
-	systemVars.aplicacion = APP_PLANTAPOT;
+	sVarsApp.aplicacion = APP_PLANTAPOT;
 	return(true);
 #endif
 

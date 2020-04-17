@@ -1819,31 +1819,37 @@ static void cmdPokeFunction(void)
 		memset(sVarsComms.dlgId,'\0', sizeof(sVarsComms.dlgId) );
 		memcpy(sVarsComms.dlgId, argv[2], sizeof(sVarsComms.dlgId));
 		sVarsComms.dlgId[DLGID_LENGTH - 1] = '\0';
+		xprintf_P(PSTR("good1\r\n\0"));
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("APN\0")) ) {
 		memset(sVarsComms.apn, '\0', sizeof(sVarsComms.apn));
 		memcpy(sVarsComms.apn, argv[2], sizeof(sVarsComms.apn));
 		sVarsComms.apn[APN_LENGTH - 1] = '\0';
+		xprintf_P(PSTR("good2\r\n\0"));
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("PORT\0")) ) {
 		memset(sVarsComms.server_tcp_port, '\0', sizeof(sVarsComms.server_tcp_port));
 		memcpy(sVarsComms.server_tcp_port, argv[2], sizeof(sVarsComms.server_tcp_port));
 		sVarsComms.server_tcp_port[PORT_LENGTH - 1] = '\0';
+		xprintf_P(PSTR("good3\r\n\0"));
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("IP\0")) ) {
 		memset(sVarsComms.server_ip_address, '\0', sizeof(sVarsComms.server_ip_address));
 		memcpy(sVarsComms.server_ip_address, argv[2], sizeof(sVarsComms.server_ip_address));
 		sVarsComms.server_ip_address[IP_LENGTH - 1] = '\0';
+		xprintf_P(PSTR("good4\r\n\0"));
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SCRIPT\0")) ) {
 		memset(sVarsComms.serverScript, '\0', sizeof(sVarsComms.serverScript));
 		memcpy(sVarsComms.serverScript, argv[2], sizeof(sVarsComms.serverScript));
 		sVarsComms.serverScript[SCRIPT_LENGTH - 1] = '\0';
+		xprintf_P(PSTR("good5\r\n\0"));
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("SIMPWD\0")) ) {
 		memset(sVarsComms.simpwd, '\0', sizeof(sVarsComms.simpwd));
 		memcpy(sVarsComms.simpwd, argv[2], sizeof(sVarsComms.simpwd));
 		sVarsComms.simpwd[SIM_PASSWD_LENGTH - 1] = '\0';
+		xprintf_P(PSTR("good6\r\n\0"));
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("TIMERPOLL\0")) ) {
 		u_config_timerpoll( argv[2] );
@@ -1857,6 +1863,7 @@ static void cmdPokeFunction(void)
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("DEBUG\0")) ) {
 		systemVars.debug = atoi(argv[2]);
 
+	/*
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("RANGEMETER\0")) ) {
 		range_config(argv[2]);
 
@@ -1871,6 +1878,7 @@ static void cmdPokeFunction(void)
 
 	} else if  (!strcmp_P( strupr(argv[1]), PSTR("ANALOG\0")) ) {
 		ainputs_config_channel( atoi(argv[2]), argv[3], argv[4], argv[5], argv[6], argv[7], argv[8] );
+	*/
 	}
 
 }

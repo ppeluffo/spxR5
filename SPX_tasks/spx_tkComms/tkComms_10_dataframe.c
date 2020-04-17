@@ -122,6 +122,17 @@ static t_data_state data_enviar_frame(void)
 
 t_data_state next_state;
 
+	// Controlo la cantidad de veces que reintente transmitir el window
+	intentos--;
+	if (intentos == 0 ) {
+		// Alcanzé el limite de reintentos
+		// Salgo apagando el device
+		SPX_SEND_SIGNAL(SGN_RESET_COMMS_DEV);
+		next_state = SST_EXIT;
+		xprintf_P( PSTR("COMMS: TXWINDOWN ERROR !!\r\n\0"));
+		return(next_state);
+	}
+
 	if ( EV_envio_frame() ) {
 
 		next_state = SST_PROCESAR_RESPUESTA;

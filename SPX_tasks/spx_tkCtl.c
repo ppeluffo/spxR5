@@ -26,6 +26,8 @@
 
 #include "spx.h"
 #include "tkComms.h"
+#include "../spx_tkApp/tkApp.h"
+
 
 //------------------------------------------------------------------------------------
 static void pv_ctl_init_system(void);
@@ -202,7 +204,7 @@ uint16_t recSize = 0;
 
 	// Aplicacion ALARMAS
 #ifdef APLICACION_PLANTAPOT
-	systemVars.aplicacion = APP_PLANTAPOT;
+	sVarsApp.aplicacion = APP_PLANTAPOT;
 #endif
 
 	// Habilito a arrancar al resto de las tareas
