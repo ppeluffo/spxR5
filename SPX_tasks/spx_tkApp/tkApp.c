@@ -75,12 +75,13 @@ void xAPP_sms_checkpoint(void)
 	}
 }
 //------------------------------------------------------------------------------------
-void xAPP_set_douts( uint8_t dout )
+void xAPP_set_douts( uint8_t dout, uint8_t mask )
 {
 	// Funcion para setear el valor de las salidas desde el resto del programa.
 	// La usamos desde tkGprs cuando en un frame nos indican cambiar las salidas.
 	// Como el cambio depende de quien tiene el control y del timer, aqui vemos si
 	// se cambia o se ignora.
+	// La mascara se aplica luego del twidle.
 
 uint8_t data = 0;
 int8_t xBytes = 0;
@@ -100,6 +101,9 @@ int8_t xBytes = 0;
 
 	// Invierto el byte antes de escribirlo !!!
 	data = twiddle_bits(data);
+
+	data = data & mask;
+
 	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
 	if ( xBytes == -1 ) {
 		xprintf_P(PSTR("APP: ERROR: set_douts MCP write\r\n\0"));
@@ -118,6 +122,6 @@ void xAPP_set_douts_remote( uint8_t dout )
 		xAPP_perforacion_adjust_x_douts(dout);
 	}
 
-	xAPP_set_douts( dout );
+	xAPP_set_douts( dout, MASK_NORMAL );
 }
 //------------------------------------------------------------------------------------

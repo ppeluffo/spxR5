@@ -49,7 +49,7 @@ void tkApp_perforacion(void)
 				o_timer_emergencia--;
 				if ( o_timer_emergencia == 0 ) {
 					RELOAD_TIMER_EMERGENCIA();
-					xAPP_set_douts ( sVarsApp.perforacion.outs );
+					xAPP_set_douts ( sVarsApp.perforacion.outs, MASK_NORMAL );
 					xprintf_P( PSTR("APP: PERFORACION MODO EMERGENCIA: reload timer emergencia. DOUTS=0x%0X\r\n\0"), sVarsApp.perforacion.outs );
 				}
 			}
@@ -61,8 +61,7 @@ void tkApp_perforacion(void)
 				o_timer_sistema--;
 				if ( o_timer_sistema == 0 ) {
 					// Expiro: Paso el control a modo EMERGENCIA(BOYA o TIMER) y las salidas a 0x00
-					//xAPP_set_douts( 0x00 );
-					xAPP_set_douts_emergencia();
+					xAPP_set_douts ( sVarsApp.perforacion.outs, MASK_EMERGENCIA );
 					o_control = PERF_CTL_EMERGENCIA;			// Paso el control a emergencia( boya o timer).
 					RELOAD_TIMER_EMERGENCIA();					// Arranco el timer de emergencia
 					sVarsApp.perforacion.control = PERF_CTL_EMERGENCIA;
@@ -73,8 +72,7 @@ void tkApp_perforacion(void)
 
 		default:
 			// Paso a control de boyas
-			//xAPP_set_douts( 0x00 );
-			xAPP_set_douts_emergencia();
+			xAPP_set_douts ( sVarsApp.perforacion.outs, MASK_EMERGENCIA );
 			o_control = PERF_CTL_EMERGENCIA;			// Paso el control a las boyas.
 			RELOAD_TIMER_EMERGENCIA();					// Arranco el timer de las boyas
 			sVarsApp.perforacion.control = PERF_CTL_EMERGENCIA;
@@ -135,16 +133,16 @@ bool retS = false;
 		}
 
 		// Pongo las salidas que ya tenia.
-		xAPP_set_douts( data );
+		xAPP_set_douts( data, MASK_NORMAL );
 	}
 
 	return(retS);
 
 }
 //------------------------------------------------------------------------------------
-uint8_t xAPP_perforacion_checksum(void)
+uint8_t xAPP_perforacion_hash(void)
 {
-uint8_t checksum = 0;
+uint8_t hash = 0;
 char dst[32];
 char *p;
 
@@ -152,10 +150,9 @@ char *p;
 	snprintf_P(dst, sizeof(dst), PSTR("PERFORACION"));
 	p = dst;
 	while (*p != '\0') {
-		//checksum += *p++;
-		checksum = u_hash(checksum, *p++);
+		hash = u_hash(hash, *p++);
 	}
-	return(checksum);
+	return(hash);
 
 }
 //------------------------------------------------------------------------------------
@@ -191,19 +188,3 @@ void xAPP_perforacion_adjust_x_douts(uint8_t dout)
 	sVarsApp.perforacion.control = PERF_CTL_SISTEMA;
 }
 //------------------------------------------------------------------------------------
-void xAPP_set_douts_emergencia(void)
-{
-	// Se utiliza en el modo EMERGENCIA ( BOYA o CTLFREQ).
-	// Debo poner los bits 0 y 2 de dout en 0
-
-uint8_t dout;
-
-	// Leo el valor actual
-	dout = sVarsApp.perforacion.outs;
-	// Seteo los bits 0 y 2 en 0
-	dout = dout & 0xF6;
-	xAPP_set_douts( dout);
-
-}
-//------------------------------------------------------------------------------------
-

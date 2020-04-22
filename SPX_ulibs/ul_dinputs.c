@@ -329,11 +329,11 @@ float time_up;
 
 }
 //------------------------------------------------------------------------------------
-uint8_t dinputs_checksum(void)
+uint8_t dinputs_hash(void)
 {
 
 uint8_t channel;
-uint8_t checksum = 0;
+uint8_t hash = 0;
 char dst[32];
 char *p;
 uint8_t j = 0;
@@ -359,7 +359,7 @@ uint8_t j = 0;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
 			//checksum += *p++;
-			checksum = u_hash(checksum, *p++);
+			hash = u_hash(hash, *p++);
 		}
 
 	//	xprintf_P( PSTR("DEBUG: DCKS = [%s]\r\n\0"), dst );
@@ -367,7 +367,7 @@ uint8_t j = 0;
 
 	}
 
-	return(checksum);
+	return(hash);
 
 }
 //------------------------------------------------------------------------------------

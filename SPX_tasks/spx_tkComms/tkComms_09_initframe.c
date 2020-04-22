@@ -185,13 +185,13 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
 				break;
 			case INIT_GLOBAL:
-				base_cks = u_base_checksum();
-				an_cks = ainputs_checksum();
-				dig_cks = dinputs_checksum();
-				cnt_cks = counters_checksum();
-				range_cks = range_checksum();
-				psens_cks = psensor_checksum();
-				app_cks = u_aplicacion_checksum();
+				base_cks = u_base_hash();
+				an_cks = ainputs_hash();
+				dig_cks = dinputs_hash();
+				cnt_cks = counters_hash();
+				range_cks = range_hash();
+				psens_cks = psensor_hash();
+				app_cks = u_aplicacion_hash();
 				//
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
 				xCOMM_send_global_params();

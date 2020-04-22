@@ -28,5 +28,28 @@ void tkApp_off(void)
 	}
 }
 //------------------------------------------------------------------------------------
+uint8_t xAPP_off_hash(void)
+{
+
+uint8_t hash = 0;
+char dst[32];
+char *p;
+uint8_t i = 0;
+
+	// Vacio el buffer temoral
+	memset(dst,'\0', sizeof(dst));
+
+	i = snprintf_P( &dst[i], sizeof(dst), PSTR("OFF"));
+	//xprintf_P( PSTR("DEBUG: CONS = [%s]\r\n\0"), dst );
+	// Apunto al comienzo para recorrer el buffer
+	p = dst;
+	while (*p != '\0') {
+		//checksum += *p++;
+		hash = u_hash(hash, *p++);
+	}
+	return(hash);
+
+}
+//------------------------------------------------------------------------------------
 
 

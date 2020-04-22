@@ -252,10 +252,10 @@ int32_t pcounts;
 	return(false);
 }
 //------------------------------------------------------------------------------------
-uint8_t psensor_checksum(void)
+uint8_t psensor_hash(void)
 {
 
-uint8_t checksum = 0;
+uint8_t hash = 0;
 char dst[40];
 char *p;
 
@@ -270,11 +270,11 @@ char *p;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
 		//checksum += *p++;
-		checksum = u_hash(checksum, *p++);
+		hash = u_hash(hash, *p++);
 	}
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
-	return(checksum);
+	return(hash);
 
 }
 //------------------------------------------------------------------------------------

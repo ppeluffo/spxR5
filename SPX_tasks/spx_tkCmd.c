@@ -502,7 +502,7 @@ char l_data[10] = { '\0' };
 	// OUTPUTS
 	// outputs (val dec.)
 	if ( (strcmp_P( strupr(argv[1]), PSTR("DOUT\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
-		xAPP_set_douts( atoi(argv[2]) );
+		xAPP_set_douts( atoi(argv[2]), MASK_NORMAL );
 		pv_snprintfP_OK();
 		return;
 	}
@@ -629,28 +629,29 @@ uint8_t cks;
 	}
 
 	// READ HASH
-	if (!strcmp_P( strupr(argv[1]), PSTR("HASH\0"))) {
+/*	if (!strcmp_P( strupr(argv[1]), PSTR("HASH\0"))) {
 		u_hash_test();
 		return;
 	}
+*/
 
-	// CHECKSUM
-	// read checksum
-	if (!strcmp_P( strupr(argv[1]), PSTR("CHECKSUM\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		cks = u_base_checksum();
-		xprintf_P( PSTR("Base Checksum = [0x%02x]\r\n\0"), cks );
-		cks = ainputs_checksum();
-		xprintf_P( PSTR("Analog Checksum = [0x%02x]\r\n\0"), cks );
-		cks = dinputs_checksum();
-		xprintf_P( PSTR("Digital Checksum = [0x%02x]\r\n\0"), cks );
-		cks = counters_checksum();
-		xprintf_P( PSTR("Counters Checksum = [0x%02x]\r\n\0"), cks );
-		cks = psensor_checksum();
-		xprintf_P( PSTR("Pensor Checksum = [0x%02x]\r\n\0"), cks );
-		cks = range_checksum();
-		xprintf_P( PSTR("Range Checksum = [0x%02x]\r\n\0"), cks );
-		cks = u_aplicacion_checksum();
-		xprintf_P( PSTR("App Checksum = [0x%02x]\r\n\0"), cks );
+	// HASHES
+	// read hashes
+	if (!strcmp_P( strupr(argv[1]), PSTR("HASHES\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		cks = u_base_hash();
+		xprintf_P( PSTR("Base hash = [0x%02x]\r\n\0"), cks );
+		cks = ainputs_hash();
+		xprintf_P( PSTR("Analog hash = [0x%02x]\r\n\0"), cks );
+		cks = dinputs_hash();
+		xprintf_P( PSTR("Digital hash = [0x%02x]\r\n\0"), cks );
+		cks = counters_hash();
+		xprintf_P( PSTR("Counters hash = [0x%02x]\r\n\0"), cks );
+		cks = psensor_hash();
+		xprintf_P( PSTR("Pensor hash = [0x%02x]\r\n\0"), cks );
+		cks = range_hash();
+		xprintf_P( PSTR("Range hash = [0x%02x]\r\n\0"), cks );
+		cks = u_aplicacion_hash();
+		xprintf_P( PSTR("App hash = [0x%02x]\r\n\0"), cks );
 		return;
 	}
 

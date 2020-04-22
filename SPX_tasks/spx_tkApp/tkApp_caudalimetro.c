@@ -110,15 +110,14 @@ bool xAPP_caudalimetro_config ( char *pwidth, char *factorQ)
 	return(true);
 }
 //------------------------------------------------------------------------------------
-uint8_t xAPP_caudalimetro_checksum(void)
+uint8_t xAPP_caudalimetro_hash(void)
 {
 
-uint8_t checksum = 0;
+uint8_t hash = 0;
 char dst[32];
 char *p;
 uint8_t i = 0;
 
-	// calculate own checksum
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 
@@ -128,14 +127,10 @@ uint8_t i = 0;
 	//xprintf_P( PSTR("DEBUG: CONS = [%s]\r\n\0"), dst );
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
-	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
-		//checksum += *p++;
-		checksum = u_hash(checksum, *p++);
+		hash = u_hash(hash, *p++);
 	}
-	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
-
-	return(checksum);
+	return(hash);
 
 }
 //------------------------------------------------------------------------------------

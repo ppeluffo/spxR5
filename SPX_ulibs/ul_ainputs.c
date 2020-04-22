@@ -402,12 +402,12 @@ bool ainputs_autocal_running(void)
 	return(autocal_running);
 }
 //------------------------------------------------------------------------------------
-uint8_t ainputs_checksum(void)
+uint8_t ainputs_hash(void)
 {
  // https://portal.u-blox.com/s/question/0D52p00008HKDMyCAP/python-code-to-generate-checksums-so-that-i-may-validate-data-coming-off-the-serial-interface
 
 uint16_t i;
-uint8_t checksum = 0;
+uint8_t hash = 0;
 char dst[32];
 char *p;
 uint8_t j = 0;
@@ -420,7 +420,6 @@ uint8_t j = 0;
 
 	// A0:A0,0,20,0.000,6.000;A1:A1,0,20,0.000,6.000;A2:A2,0,20,0.000,6.000;A3:A3,0,20,0.000,6.000;A4:A4,0,20,0.000,6.000;
 
-	// calculate own checksum
 	for(i=0;i<NRO_ANINPUTS;i++) {
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
@@ -433,16 +432,11 @@ uint8_t j = 0;
 
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
-		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
-			//checksum += *p++;
-			checksum = u_hash(checksum, *p++);
+			hash = u_hash(hash, *p++);
 		}
-		//xprintf_P( PSTR("DEBUG: ACKS = [%s]\r\n\0"), dst );
-		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 	}
-	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
-	return(checksum);
+	return(hash);
 
 }
 //------------------------------------------------------------------------------------

@@ -476,7 +476,7 @@ FAT_t fat;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-uint8_t u_base_checksum(void)
+uint8_t u_base_hash(void)
 {
 
 	/*
@@ -488,7 +488,7 @@ uint8_t u_base_checksum(void)
 	 *  - counters_hw
 	 *
 	 */
-uint8_t checksum = 0;
+uint8_t hash = 0;
 char dst[32];
 char *p;
 uint8_t i = 0;
@@ -528,52 +528,47 @@ uint8_t i = 0;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
 		//checksum += *p++;
-		checksum = u_hash(checksum, *p++);
+		hash = u_hash(hash, *p++);
 	}
 
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
-	return(checksum);
+	return(hash);
 
 }
 //------------------------------------------------------------------------------------
-uint8_t u_aplicacion_checksum( void )
+uint8_t u_aplicacion_hash( void )
 {
 	// La aplicacion puede tener hasta 3 partes por lo tanto debo generar
 	// siempre los 3 checksums
 
-uint8_t checksum = 0;
+uint8_t hash = 0;
 char dst[32];
 char *p;
 
 	switch(sVarsApp.aplicacion) {
 	case APP_OFF:
-		memset(dst,'\0', sizeof(dst));
-		snprintf_P(dst, sizeof(dst), PSTR("OFF"));
-		p = dst;
-		while (*p != '\0') {
-			checksum += *p++;
-		}
+		hash = xAPP_off_hash();
 		break;
 
 	case APP_CONSIGNA:
-		checksum = xAPP_consigna_checksum();
+		hash = xAPP_consigna_hash();
 		break;
 
 	case APP_PERFORACION:
-		checksum = xAPP_perforacion_checksum();
+		hash = xAPP_perforacion_hash();
 		break;
 
 	case APP_PLANTAPOT:
-		checksum = xAPP_plantapot_checksum();
+		hash = xAPP_plantapot_hash();
 		break;
 
 	case APP_CAUDALIMETRO:
-		checksum = xAPP_caudalimetro_checksum();
+		hash = xAPP_caudalimetro_hash();
 		break;
 	}
 
-	return(checksum);
+	return(hash);
 
 }
 //------------------------------------------------------------------------------------

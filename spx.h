@@ -64,13 +64,13 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.0a"
+#define SPX_FW_REV "3.0.0c"
 #define SPX_FW_DATE "@ 20200413"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
 
-#define APLICACION_PLANTAPOT
+//#define APLICACION_PLANTAPOT
 
 //#define F_CPU (32000000UL)
 
@@ -189,7 +189,7 @@ typedef struct {
 
 // Estructura de datos comun independiente de la arquitectura de IO
 typedef union u_dataframe {
-	st_io5_t io5;	// 42
+	st_io5_t io5;	// 48
 	st_io8_t io8;	// 56
 } u_dataframe_t;	// 56
 
@@ -287,8 +287,8 @@ bool u_load_params_from_NVMEE(void);
 void u_config_timerpoll ( char *s_timerpoll );
 bool u_check_more_Rcds4Del ( FAT_t *fat );
 bool u_check_more_Rcds4Tx(void);
-uint8_t u_base_checksum(void);
-uint8_t u_aplicacion_checksum( void );
+uint8_t u_base_hash(void);
+uint8_t u_aplicacion_hash( void );
 bool u_config_aplicacion( char *modo );
 bool u_write_output_pins( uint8_t pin, int8_t val );
 bool u_set_douts( uint8_t dout );
@@ -316,7 +316,7 @@ bool dinputs_config_channel( uint8_t channel,char *s_aname ,char *s_tmodo );
 void dinputs_clear(void);
 bool dinputs_read(uint16_t dst[]);
 void dinputs_print(file_descriptor_t fd, uint16_t src[] );
-uint8_t dinputs_checksum(void);
+uint8_t dinputs_hash(void);
 bool dinputs_service_read(void);
 
 // COUNTERS
@@ -328,7 +328,7 @@ bool counters_config_hw( char *s_type );
 void counters_clear(void);
 void counters_read(float cnt[]);
 void counters_print(file_descriptor_t fd, float cnt[] );
-uint8_t counters_checksum(void);
+uint8_t counters_hash(void);
 
 // RANGE
 void range_init(void);
@@ -336,7 +336,7 @@ bool range_config ( char *s_name );
 void range_config_defaults(void);
 bool range_read( int16_t *range );
 void range_print(file_descriptor_t fd, uint16_t src );
-uint8_t range_checksum(void);
+uint8_t range_hash(void);
 
 // PSENSOR
 void psensor_init(void);
@@ -345,7 +345,7 @@ void psensor_config_defaults(void);
 bool psensor_read( float *presion );
 bool psensor_test_read (void);
 void psensor_print(file_descriptor_t fd, float presion );
-uint8_t psensor_checksum(void);
+uint8_t psensor_hash(void);
 bool psensor_config_autocalibrar( char *s_mag );
 
 // TEMPSENSOR
@@ -367,7 +367,7 @@ bool ainputs_read( float ain[], float *battery );
 void ainputs_print(file_descriptor_t fd, float src[] );
 void ainputs_battery_print( file_descriptor_t fd, float battery );
 bool ainputs_autocal_running(void);
-uint8_t ainputs_checksum(void);
+uint8_t ainputs_hash(void);
 void ainputs_test_channel( uint8_t io_channel);
 
 // TKDATA
