@@ -42,7 +42,15 @@
  *
  * Revisar en el servidor que grabe el UID en los inits. !!!
  *
- *
+ * --------------------------------------------------------------------------------------------------
+ * Version 3.0.0.d @ 2020-04-23
+ * Agrego MODBUS: configuracion en systemVars, ul_modbus, tkCmd.
+ * - IC
+ * - PCB + PcbWay + Digikey
+ * - COMMS_init + Server
+ * - COMMS_data ( AN4 / AN5 )
+ * - tkModbus ??
+ * - tkInputs ??
  * --------------------------------------------------------------------------------------------------
  * Version 2.9.9u @ 20200328
  * - Cuando sale de INIT por timeout en modo CONTINUO, pasa al estado espera prendido. Al polear un nuevo frame,

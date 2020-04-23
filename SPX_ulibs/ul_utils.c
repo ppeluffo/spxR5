@@ -538,8 +538,6 @@ uint8_t u_aplicacion_hash( void )
 	// siempre los 3 checksums
 
 uint8_t hash = 0;
-char dst[32];
-char *p;
 
 	switch(sVarsApp.aplicacion) {
 	case APP_OFF:

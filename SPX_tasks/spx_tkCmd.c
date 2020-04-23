@@ -21,18 +21,19 @@ static void pv_cmd_rwGPRS(uint8_t cmd_mode );
 static void pv_cmd_rwXBEE(uint8_t cmd_mode );
 static void pv_cmd_rwMCP(uint8_t cmd_mode );
 static void pv_cmd_I2Cscan(bool busscan);
+static void pv_cmd_modbus(void);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
 //----------------------------------------------------------------------------------------
 static void cmdHelpFunction(void);
-static void cmdHelpAlarmasFunction(void);
+//static void cmdHelpAlarmasFunction(void);
 static void cmdClearScreen(void);
 static void cmdResetFunction(void);
 static void cmdWriteFunction(void);
 static void cmdReadFunction(void);
 static void cmdStatusFunction(void);
-static void cmdStatusAlarmasFunction(void);
+//static void cmdStatusAlarmasFunction(void);
 static void cmdConfigFunction(void);
 static void cmdKillFunction(void);
 static void cmdPeekFunction(void);
@@ -273,81 +274,20 @@ st_dataRecord_t dr;
 		}
 	}
 
-	// Muestro los datos
-	// CONFIG
-	xprintf_P( PSTR(">Frame:\r\n\0"));
-	data_read_inputs(&dr, true );
-	data_print_inputs(fdTERM, &dr);
-}
-//-----------------------------------------------------------------------------------
-static void cmdStatusAlarmasFunction(void)
-{
-
-FAT_t l_fat;
-uint8_t channel = 0;
-st_dataRecord_t dr;
-
-	FRTOS_CMD_makeArgv();
-
-	memset( &l_fat, '\0', sizeof(FAT_t));
-
-	xprintf_P( PSTR("\r\nSpymovil %s %s %s %s \r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE);
-	xprintf_P( PSTR("Clock %d Mhz, Tick %d Hz\r\n\0"),SYSMAINCLK, configTICK_RATE_HZ );
-	if ( spx_io_board == SPX_IO5CH ) {
-		xprintf_P( PSTR("IOboard SPX5CH\r\n\0") );
-	} else if ( spx_io_board == SPX_IO8CH ) {
-		xprintf_P( PSTR("IOboard SPX8CH\r\n\0") );
+	// modbus
+	if ( systemVars.modbus_conf.modbus_enabled ) {
+		xprintf_P( PSTR("  modbus enabled: true\r\n\0"));
+	} else {
+		xprintf_P( PSTR("  modbus enabled: false\r\n\0"));
 	}
-
-	// SIGNATURE ID
-	xprintf_P( PSTR("uID=%s\r\n\0"), NVMEE_readID() );
-
-	// Last reset cause
-	xprintf_P( PSTR("WRST=0x%02X\r\n\0") ,wdg_resetCause );
-
-	xprintf_P( PSTR("sVars Size: %d\r\n\0"), sizeof(systemVars) );
-	xprintf_P( PSTR("dr Size: %d\r\n\0"), sizeof(st_dataRecord_t) );
-
-	RTC_read_time();
-
-	// DlgId
-	xprintf_P( PSTR("dlgid: %s\r\n\0"), sVarsComms.dlgId );
-
-	// Memoria
-	FAT_read(&l_fat);
-	xprintf_P( PSTR("memory: rcdSize=%d, wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), sizeof(st_dataRecord_t), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
-
-	// COMMS Status
-	xCOMMS_status();
-
-	// SERVER
-	xprintf_P( PSTR(">Server:\r\n\0"));
-	xprintf_P( PSTR("  apn: %s\r\n\0"), sVarsComms.apn );
-	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
-	xprintf_P( PSTR("  server script: %s\r\n\0"), sVarsComms.serverScript );
-	xprintf_P( PSTR("  simpwd: %s\r\n\0"), sVarsComms.simpwd );
-
-	// MODEM
-	//xprintf_P( PSTR(">Modem:\r\n\0"));
-
-	// CONFIG
-	xprintf_P( PSTR(">Config:\r\n\0"));
-
-	// Timerpoll
-	xprintf_P( PSTR("  timerPoll: [%d s]/ %d\r\n\0"), systemVars.timerPoll, ctl_readTimeToNextPoll() );
-
-	// aninputs
-	for ( channel = 0; channel < 6; channel++) {
-		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %.02f | %.03f | %.03f | %s]\r\n\0"),
+	xprintf_P( PSTR("  modbus slave address: 0x%02x\r\n\0"), systemVars.modbus_conf.modbus_slave_address);
+	for ( channel = 0; channel < MODBUS_CHANNELS; channel++) {
+		xprintf_P( PSTR("  mb%d [%s,addr= 0x%02x,length=%d,rcode=%d]\r\n\0"),
 				channel,
-				systemVars.ainputs_conf.imin[channel],
-				systemVars.ainputs_conf.imax[channel],
-				systemVars.ainputs_conf.mmin[channel],
-				systemVars.ainputs_conf.mmax[channel],
-				systemVars.ainputs_conf.offset[channel] ,
-				systemVars.ainputs_conf.ieq_min[channel] ,
-				systemVars.ainputs_conf.ieq_max[channel],
-				systemVars.ainputs_conf.name[channel] );
+				systemVars.modbus_conf.var_name[channel],
+				systemVars.modbus_conf.var_address[channel],
+				systemVars.modbus_conf.var_length[channel],
+				systemVars.modbus_conf.var_function_code[channel]);
 	}
 
 	// Muestro los datos
@@ -812,6 +752,12 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
+	// MODBUS:
+	if ( strcmp_P ( strupr( argv[1]), PSTR("MODBUS\0")) == 0 ) {
+		pv_cmd_modbus();
+		return;
+	}
+
 	// COMMS
 	// config comms {XBEE | GPRS }
 	if ( strcmp_P( strupr(argv[1]), PSTR("COMMS\0")) == 0  ) {
@@ -1208,6 +1154,9 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("         {nivelB,nivelA} valor\r\n\0"));
 		xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  caudal {pwidth} {factorQ}\r\n\0"));
+		xprintf_P( PSTR("  modbus (on|off}\r\n\0"));
+		xprintf_P( PSTR("         slave address {addr}\r\n\0"));
+		xprintf_P( PSTR("         channel {0..%d} name addr length rcode(3,4)\r\n\0"), ( MODBUS_CHANNELS - 1));
 
 		xprintf_P( PSTR("  default {SPY|OSE|UTE|CLARO}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
@@ -1229,70 +1178,6 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("-status\r\n\0"));
 		xprintf_P( PSTR("-reset...\r\n\0"));
 		xprintf_P( PSTR("-kill...\r\n\0"));
-		xprintf_P( PSTR("-write...\r\n\0"));
-		xprintf_P( PSTR("-read...\r\n\0"));
-		xprintf_P( PSTR("-config...\r\n\0"));
-
-	}
-
-	xprintf_P( PSTR("\r\n\0"));
-
-}
-//------------------------------------------------------------------------------------
-static void cmdHelpAlarmasFunction(void)
-{
-
-	FRTOS_CMD_makeArgv();
-
-	// HELP WRITE
-	if (!strcmp_P( strupr(argv[1]), PSTR("WRITE\0"))) {
-		xprintf_P( PSTR("-write\r\n\0"));
-		xprintf_P( PSTR("  rtc YYMMDDhhmm\r\n\0"));
-		xprintf_P( PSTR("  appalarma (prender/apagar/flash) (lroja,lverde,lamarilla,lnaranja,lazul,sirena) \r\n\0"));
-		return;
-	}
-
-	// HELP READ
-	else if (!strcmp_P( strupr(argv[1]), PSTR("READ\0"))) {
-		xprintf_P( PSTR("-read\r\n\0"));
-		xprintf_P( PSTR("  rtc, frame\r\n\0"));
-		xprintf_P( PSTR("  dinputs\r\n\0"));
-		return;
-
-	}
-
-	// HELP RESET
-	else if (!strcmp_P( strupr(argv[1]), PSTR("RESET\0"))) {
-		xprintf_P( PSTR("-reset\r\n\0"));
-		xprintf_P( PSTR("  memory {soft|hard}\r\n\0"));
-		return;
-
-	}
-
-	// HELP CONFIG
-	else if (!strcmp_P( strupr(argv[1]), PSTR("CONFIG\0"))) {
-		xprintf_P( PSTR("-config\r\n\0"));
-		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
-		xprintf_P( PSTR("  timerpoll {val}\r\n\0"));
-		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax offset\r\n\0"),( NRO_ANINPUTS - 1 ) );
-		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
-		xprintf_P( PSTR("            nivel {ch} {alerta} {inf|sup} val\r\n\0"));
-		xprintf_P( PSTR("  default {SPY|OSE}\r\n\0"));
-		xprintf_P( PSTR("  save\r\n\0"));
-	}
-
-	// HELP KILL
-
-	else {
-
-		// HELP GENERAL
-		xprintf_P( PSTR("\r\nSpymovil %s %s %s %s\r\n\0"), SPX_HW_MODELO, SPX_FTROS_VERSION, SPX_FW_REV, SPX_FW_DATE);
-		xprintf_P( PSTR("Clock %d Mhz, Tick %d Hz\r\n\0"),SYSMAINCLK, configTICK_RATE_HZ );
-		xprintf_P( PSTR("Available commands are:\r\n\0"));
-		xprintf_P( PSTR("-cls\r\n\0"));
-		xprintf_P( PSTR("-help\r\n\0"));
-		xprintf_P( PSTR("-status\r\n\0"));
-		xprintf_P( PSTR("-reset...\r\n\0"));
 		xprintf_P( PSTR("-write...\r\n\0"));
 		xprintf_P( PSTR("-read...\r\n\0"));
 		xprintf_P( PSTR("-config...\r\n\0"));
@@ -1788,7 +1673,6 @@ static void cmdPeekFunction(void)
 	return;
 
 }
-
 //------------------------------------------------------------------------------------
 static void cmdPokeFunction(void)
 {
@@ -1893,6 +1777,44 @@ uint8_t i2c_address;
 			xprintf_P( PSTR("I2C device found at 0x%02x\r\n\0"), i2c_address );
 		};
 	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_cmd_modbus(void)
+{
+	// config modbus (on|off}
+	//        slave address {addr}
+	//        channel {0..%d} name addr length rcode(3,4)
+
+
+	// config modbus (on|off}
+	if ( strcmp_P( strupr(argv[2]), PSTR("ON\0")) == 0 ) {
+		modbus_config_mode(argv[2]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
+	if ( strcmp_P( strupr(argv[2]), PSTR("OFF\0")) == 0 ) {
+		modbus_config_mode(argv[2]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
+
+	// config slave address {addr}
+	if ( strcmp_P( strupr(argv[2]), PSTR("SLAVE\0")) == 0 ) {
+		if ( strcmp_P( strupr(argv[3]), PSTR("ADDRESS\0")) == 0 ) {
+			modbus_config_slave_address(argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+			return;
+		}
+		pv_snprintfP_ERR();
+		return;
+	}
+
+	// config channel {0..%d} name addr length rcode(3,4)
+	if ( strcmp_P( strupr(argv[2]), PSTR("CHANNEL\0")) == 0 ) {
+		modbus_config_channel(atoi(argv[2]),argv[3],argv[4],argv[5],argv[6]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
 
 }
 //------------------------------------------------------------------------------------

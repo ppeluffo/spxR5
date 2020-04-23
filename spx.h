@@ -64,7 +64,7 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.0d"
+#define SPX_FW_REV "3.0.0e"
 #define SPX_FW_DATE "@ 20200423"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
@@ -90,7 +90,7 @@
 #define IO8_COUNTER_CHANNELS	2
 #define IO8_DOUTPUTS_CHANNELS	8
 
-#define MODBUS_CHANNELS	2
+#define MODBUS_CHANNELS		2
 
 #define CHAR32	32
 #define CHAR64	64
@@ -239,7 +239,6 @@ typedef struct {
 	float ieq_max[MAX_ANALOG_CHANNELS];
 } ainputs_conf_t;
 
-
 // Configuracion del sensor i2c de presion
 typedef struct {
 	char name[PARAMNAME_LENGTH];
@@ -249,6 +248,16 @@ typedef struct {
 	float pmax;
 	float offset;
 } psensor_conf_t;
+
+// Configuracion de modbus
+typedef struct {
+	bool modbus_enabled;
+	uint8_t modbus_slave_address;
+	char var_name[MODBUS_CHANNELS][PARAMNAME_LENGTH];
+	uint16_t var_address[MODBUS_CHANNELS];				// Direccion en el slave de la variable a leer
+	uint8_t var_length[MODBUS_CHANNELS];				// Cantidad de bytes a leer
+	uint8_t var_function_code[MODBUS_CHANNELS];			// Funcion de lectura (3-Holding reg, 4-Normal reg)
+} modbus_conf_t;
 
 
 typedef struct {
@@ -264,6 +273,7 @@ typedef struct {
 	dinputs_conf_t dinputs_conf;	// Estructura con la configuracion de las entradas digitales
 	ainputs_conf_t ainputs_conf;	// Estructura con la configuracion de las entradas analogicas
 	psensor_conf_t psensor_conf;
+	modbus_conf_t modbus_conf;
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -374,6 +384,14 @@ void ainputs_test_channel( uint8_t io_channel);
 // TKDATA
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );
 void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr);
+
+// MODBUS
+bool modbus_config_mode( char *mode);
+bool modbus_config_slave_address( char *address);
+bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_length,char *s_rcode);
+void modbus_config_defaults(void);
+uint8_t modbus_hash(void);
+
 
 bool SPX_SIGNAL( uint8_t signal );
 bool SPX_SEND_SIGNAL( uint8_t signal );
