@@ -64,13 +64,11 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.0c"
-#define SPX_FW_DATE "@ 20200413"
+#define SPX_FW_REV "3.0.0d"
+#define SPX_FW_DATE "@ 20200423"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
-
-//#define APLICACION_PLANTAPOT
 
 //#define F_CPU (32000000UL)
 
@@ -91,6 +89,8 @@
 #define IO8_DINPUTS_CHANNELS	8
 #define IO8_COUNTER_CHANNELS	2
 #define IO8_DOUTPUTS_CHANNELS	8
+
+#define MODBUS_CHANNELS	2
 
 #define CHAR32	32
 #define CHAR64	64
@@ -177,8 +177,8 @@ typedef struct {
 	float psensor;								// 4 * 1 =  4
 	float temp;									// 4 * 1 =  4
 	float battery;								// 4 * 1 =  4
-	uint8_t plt_Vcounters[2];					// 2 * 1 =  2
-} st_io5_t;										// ----- = 48
+	float mbus_inputs[MODBUS_CHANNELS];			// 4 * 2 =  8
+} st_io5_t;										// ----- = 54
 
 // Estructura de un registro de IO8CH
 typedef struct {
@@ -189,7 +189,7 @@ typedef struct {
 
 // Estructura de datos comun independiente de la arquitectura de IO
 typedef union u_dataframe {
-	st_io5_t io5;	// 48
+	st_io5_t io5;	// 54
 	st_io8_t io8;	// 56
 } u_dataframe_t;	// 56
 
@@ -238,6 +238,7 @@ typedef struct {
 	float ieq_min[MAX_ANALOG_CHANNELS];
 	float ieq_max[MAX_ANALOG_CHANNELS];
 } ainputs_conf_t;
+
 
 // Configuracion del sensor i2c de presion
 typedef struct {

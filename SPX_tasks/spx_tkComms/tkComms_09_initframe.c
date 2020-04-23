@@ -1082,14 +1082,6 @@ static bool init_reconfigure_params_app_A(void)
 	 * a usarse la APLICACION
 	 */
 
-	// Aplicacion ALARMAS
-#ifdef APLICACION_PLANTAPOT
-	sVarsApp.aplicacion = APP_PLANTAPOT;
-	u_save_params_in_NVMEE();
-	return(true);
-#endif
-
-
 	if ( xCOMMS_check_response("AP0:OFF") ) {
 		sVarsApp.aplicacion = APP_OFF;
 		reset_datalogger = true;

@@ -39,7 +39,6 @@ bool psensor_config ( char *s_pname, char *s_countMin, char *s_countMax, char *s
 {
 
 	// Esta opcion es solo valida para IO5
-	/*
 	if ( spx_io_board != SPX_IO5CH ) {
 		snprintf_P( systemVars.psensor_conf.name, PARAMNAME_LENGTH, PSTR("X"));
 		systemVars.psensor_conf.count_min = 0;
@@ -49,14 +48,6 @@ bool psensor_config ( char *s_pname, char *s_countMin, char *s_countMax, char *s
 		systemVars.psensor_conf.offset = 0;
 		return(false);
 	}
-	*/
-
-
-	// Aplicacion ALARMAS
-#ifdef APLICACION_PLANTAPOT
-	snprintf_P( systemVars.psensor_conf.name, PARAMNAME_LENGTH, PSTR("X"));
-	psensor_present = false;
-#endif
 
 	if ( s_pname != NULL ) {
 		snprintf_P( systemVars.psensor_conf.name, PARAMNAME_LENGTH, PSTR("%s\0"), s_pname );

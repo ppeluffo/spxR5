@@ -29,11 +29,6 @@ void range_config_defaults(void)
 bool range_config ( char *s_name )
 {
 
-	// Aplicacion ALARMAS
-#ifdef APLICACION_PLANTAPOT
-	range_config_defaults();
-#endif
-
 	// Esta opcion es solo valida para IO5
 	if ( spx_io_board != SPX_IO5CH ) {
 		range_config_defaults();

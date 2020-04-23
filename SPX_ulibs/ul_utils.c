@@ -281,12 +281,7 @@ void u_load_defaults( char *opt )
 	xCOMMS_config_defaults(opt);
 
 	// Modo de operacion
-	// Aplicacion ALARMAS
-#ifdef APLICACION_PLANTAPOT
-	sVarsApp.aplicacion = APP_PLANTAPOT;
-#else
 	sVarsApp.aplicacion = APP_OFF;
-#endif
 
 	xAPP_consigna_config_defaults();
 	xAPP_plantapot_config_defaults();
@@ -575,12 +570,6 @@ char *p;
 bool u_config_aplicacion( char *modo )
 {
 
-	// Aplicacion ALARMAS
-#ifdef APLICACION_PLANTAPOT
-	sVarsApp.aplicacion = APP_PLANTAPOT;
-	return(true);
-#endif
-
 	if ( strcmp_P( strupr(modo), PSTR("OFF\0")) == 0) {
 		sVarsApp.aplicacion = APP_OFF;
 		return(true);
@@ -857,12 +846,6 @@ void u_config_timerdial ( char *s_timerdial )
 
 	//xprintf_P( PSTR("DEBUG_A TDIAL CONFIG: [%s]\r\n\0"), s_timerdial );
 
-	// Aplicacion ALARMAS
-#ifdef APLICACION_PLANTAPOT
-	sVarsComms.timerDial = 0;
-	return;
-#endif
-
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();
 
@@ -884,14 +867,6 @@ void u_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime)
 {
 	// Recibe como parametros el modo ( 0,1) y punteros a string con las horas de inicio y fin del pwrsave
 	// expresadas en minutos.
-
-	// Aplicacion ALARMAS
-/*
-#ifdef APLICACION_PLANTAPOT
-	systemVars.gprs_conf.pwrSave.pwrs_enabled = false;
-	return;
-#endif
-*/
 
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();

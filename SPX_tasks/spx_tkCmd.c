@@ -68,18 +68,8 @@ uint8_t ticks = 0;
 	FRTOS_CMD_register( "reset\0", cmdResetFunction);
 	FRTOS_CMD_register( "write\0", cmdWriteFunction);
 	FRTOS_CMD_register( "read\0", cmdReadFunction);
-
-#ifdef APLICACION_PLANTAPOT
-	FRTOS_CMD_register( "help\0", cmdHelpAlarmasFunction );
-	FRTOS_CMD_register( "fullhelp\0", cmdHelpFunction );
-	FRTOS_CMD_register( "status\0", cmdStatusAlarmasFunction );
-	FRTOS_CMD_register( "fullstatus\0", cmdStatusFunction );
-#else
 	FRTOS_CMD_register( "help\0", cmdHelpFunction );
 	FRTOS_CMD_register( "status\0", cmdStatusFunction );
-#endif
-
-//	FRTOS_CMD_register( "status\0", cmdStatusFunction );
 	FRTOS_CMD_register( "config\0", cmdConfigFunction );
 	FRTOS_CMD_register( "kill\0", cmdKillFunction );
 	FRTOS_CMD_register( "peek\0", cmdPeekFunction );
@@ -138,10 +128,6 @@ st_dataRecord_t dr;
 		xprintf_P( PSTR("IOboard SPX8CH\r\n\0") );
 	}
 
-	// APLICACION PLANTAPOT
-#ifdef APLICACION_PLANTAPOT
-	xprintf_P( PSTR("Aplicacion: ALARMAS PPOT OSE.\r\n\0") );
-#endif
 	// SIGNATURE ID
 	xprintf_P( PSTR("uID=%s\r\n\0"), NVMEE_readID() );
 
@@ -313,10 +299,6 @@ st_dataRecord_t dr;
 		xprintf_P( PSTR("IOboard SPX8CH\r\n\0") );
 	}
 
-	// APLICACION PLANTAPOT
-#ifdef APLICACION_PLANTAPOT
-	xprintf_P( PSTR("Aplicacion: ALARMAS PPOT OSE.\r\n\0") );
-#endif
 	// SIGNATURE ID
 	xprintf_P( PSTR("uID=%s\r\n\0"), NVMEE_readID() );
 

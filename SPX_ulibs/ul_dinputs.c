@@ -94,12 +94,6 @@ bool retS = false;
 
 	//xprintf_P( PSTR("DEBUG DIGITAL CONFIG: D%d,name=%s,modo=%s\r\n\0"), channel, s_aname, s_tmodo );
 
-// Aplicacion ALARMAS
-/*
-#ifdef APLICACION_PLANTAPOT
-	return(true);
-#endif
-*/
 	if ( u_control_string(s_aname) == 0 ) {
 		//xprintf_P( PSTR("DEBUG DIGITAL ERROR: D%d\r\n\0"), channel );
 		return( false );
@@ -144,13 +138,6 @@ uint8_t channel = 0;
 		systemVars.dinputs_conf.wrk_modo[channel] = DIN_NORMAL;
 	}
 
-	// Aplicacion ALARMAS
-/*
-#ifdef APLICACION_PLANTAPOT
-		snprintf_P( systemVars.dinputs_conf.name[6], PARAMNAME_LENGTH, PSTR("MKEY\0") );
-		snprintf_P( systemVars.dinputs_conf.name[7], PARAMNAME_LENGTH, PSTR("BTN\0") );
-#endif
-*/
 
 }
 //------------------------------------------------------------------------------------
