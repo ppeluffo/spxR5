@@ -65,7 +65,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "3.0.0e"
-#define SPX_FW_DATE "@ 20200423"
+#define SPX_FW_DATE "@ 20200424"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -128,7 +128,7 @@ struct {
 	bool sgn_sms;
 } system_signals;
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_COMMS, DEBUG_APLICACION } t_debug;
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_COMMS, DEBUG_APLICACION, DEBUG_MODBUS } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
@@ -386,11 +386,15 @@ void data_read_inputs(st_dataRecord_t *dst, bool f_copy );
 void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr);
 
 // MODBUS
+void modbus_init(void);
 bool modbus_config_mode( char *mode);
 bool modbus_config_slave_address( char *address);
 bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_length,char *s_rcode);
 void modbus_config_defaults(void);
+void modbus_print(file_descriptor_t fd, float src[] );
 uint8_t modbus_hash(void);
+bool modbus_read( float mbus_in[2] );
+void modbus_test( char* c_slave_address, char *c_function_code, char * c_start_address, char * c_nro_regs);
 
 
 bool SPX_SIGNAL( uint8_t signal );

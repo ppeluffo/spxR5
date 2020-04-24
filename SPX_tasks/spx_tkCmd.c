@@ -197,6 +197,9 @@ st_dataRecord_t dr;
 	case DEBUG_APLICACION:
 		xprintf_P( PSTR("  debug: aplicacion\r\n\0") );
 		break;
+	case DEBUG_MODBUS:
+		xprintf_P( PSTR("  debug: modbus\r\n\0") );
+		break;
 	default:
 		xprintf_P( PSTR("  debug: ???\r\n\0") );
 		break;
@@ -243,6 +246,14 @@ st_dataRecord_t dr;
 		break;
 	}
 
+	for ( channel = 0; channel <  NRO_COUNTERS; channel++) {
+		if ( systemVars.counters_conf.speed[channel] == CNT_LOW_SPEED ) {
+			xprintf_P( PSTR("  c%d [%s,magpp=%.03f,pw=%d,T=%d (LS)]\r\n\0"),channel,systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
+		} else {
+			xprintf_P( PSTR("  c%d [%s,magpp=%.03f,pw=%d,T=%d (HS)]\r\n\0"),channel,systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
+		}
+	}
+
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
 		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %.02f | %.03f | %.03f | %s]\r\n\0"),
@@ -266,23 +277,15 @@ st_dataRecord_t dr;
 		}
 	}
 
-	for ( channel = 0; channel <  NRO_COUNTERS; channel++) {
-		if ( systemVars.counters_conf.speed[channel] == CNT_LOW_SPEED ) {
-			xprintf_P( PSTR("  c%d [%s,magpp=%.03f,pw=%d,T=%d (LS)]\r\n\0"),channel,systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
-		} else {
-			xprintf_P( PSTR("  c%d [%s,magpp=%.03f,pw=%d,T=%d (HS)]\r\n\0"),channel,systemVars.counters_conf.name[channel], systemVars.counters_conf.magpp[channel], systemVars.counters_conf.pwidth[channel], systemVars.counters_conf.period[channel] );
-		}
-	}
-
 	// modbus
 	if ( systemVars.modbus_conf.modbus_enabled ) {
-		xprintf_P( PSTR("  modbus enabled: true\r\n\0"));
+		xprintf_P( PSTR("  modbus: ENABLED, slaveAddr:0x%02x\r\n\0"), systemVars.modbus_conf.modbus_slave_address);
 	} else {
-		xprintf_P( PSTR("  modbus enabled: false\r\n\0"));
+		xprintf_P( PSTR("  modbus: DISABLED, slaveAddr:0x%02x\r\n\0"), systemVars.modbus_conf.modbus_slave_address);
 	}
-	xprintf_P( PSTR("  modbus slave address: 0x%02x\r\n\0"), systemVars.modbus_conf.modbus_slave_address);
+
 	for ( channel = 0; channel < MODBUS_CHANNELS; channel++) {
-		xprintf_P( PSTR("  mb%d [%s,addr= 0x%02x,length=%d,rcode=%d]\r\n\0"),
+		xprintf_P( PSTR("  mb%d [%s,addr=0x%02x,length=%d,rcode=%d]\r\n\0"),
 				channel,
 				systemVars.modbus_conf.var_name[channel],
 				systemVars.modbus_conf.var_address[channel],
@@ -377,6 +380,13 @@ char l_data[10] = { '\0' };
 	}
 */
 
+	// MODBUS
+	// write modbus {slave} {fcode} {start_addr} {nro_regs}
+	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		modbus_test( argv[2], argv[3], argv[4], argv[5] );
+		pv_snprintfP_OK();
+		return;
+	}
 
 	// XBEE
 	// write xbee (pwr) {on|off}
@@ -964,6 +974,9 @@ bool retS = false;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("APLICACION\0"))) {
 			systemVars.debug = DEBUG_APLICACION;
 			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("MODBUS\0"))) {
+			systemVars.debug = DEBUG_MODBUS;
+			retS = true;
 		} else {
 			retS = false;
 		}
@@ -1075,6 +1088,8 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("           (open|close) (A|B)\r\n\0"));
 				xprintf_P( PSTR("           pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("           power {on|off}\r\n\0"));
+
+				xprintf_P( PSTR("  modbus {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|cts|dtr) {on|off}\r\n\0"));
@@ -1131,7 +1146,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  rangemeter {name}\r\n\0"));
 		xprintf_P( PSTR("  psensor name countMin countMax pmin pmax offset\r\n\0"));
 
-		xprintf_P( PSTR("  debug {none,counter,data,comms,aplicacion }\r\n\0"));
+		xprintf_P( PSTR("  debug {none,counter,data,comms,aplicacion,modbus }\r\n\0"));
 
 		xprintf_P( PSTR("  digital {0..%d} dname {normal,timer}\r\n\0"), ( NRO_DINPUTS - 1 ) );
 
@@ -1509,10 +1524,10 @@ static void pv_cmd_rwXBEE(uint8_t cmd_mode )
 		// write gprs (pwr) {on|off}
 		if ( strcmp_P( strupr(argv[2]), PSTR("PWR\0")) == 0 ) {
 			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
-				xbee_prender(false,1); pv_snprintfP_OK(); return;
+				aux1_prender(false,1); pv_snprintfP_OK(); return;
 			}
 			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
-				xbee_apagar(); pv_snprintfP_OK(); return;
+				aux1_apagar(); pv_snprintfP_OK(); return;
 			}
 			pv_snprintfP_ERR();
 			return;
@@ -1521,7 +1536,7 @@ static void pv_cmd_rwXBEE(uint8_t cmd_mode )
 		// // write xbee msg (txt)
 		if ( strcmp_P(strupr(argv[2]), PSTR("MSG\0")) == 0 ) {
 			//xprintf_P( PSTR("%s\r\0"),argv[3] );
-			xbee_flush_RX_buffer();
+			aux1_flush_RX_buffer();
 			xfprintf_P( fdAUX1,PSTR("%s\r\0"),argv[3] );
 			xprintf_P( PSTR("sent->%s\r\n\0"),argv[3] );
 			return;
@@ -1536,7 +1551,7 @@ static void pv_cmd_rwXBEE(uint8_t cmd_mode )
 		// ATCMD RSP
 		// read gprs rsp
 		if ( strcmp_P(strupr(argv[2]), PSTR("RSP\0")) == 0 ) {
-			xbee_print_RX_buffer();
+			aux1_print_RX_buffer();
 			//p = pub_gprs_rxbuffer_getPtr();
 			//xprintf_P( PSTR("rx->%s\r\n\0"),p );
 			return;
@@ -1799,7 +1814,7 @@ static void pv_cmd_modbus(void)
 	}
 
 
-	// config slave address {addr}
+	// config modbus slave address {addr}
 	if ( strcmp_P( strupr(argv[2]), PSTR("SLAVE\0")) == 0 ) {
 		if ( strcmp_P( strupr(argv[3]), PSTR("ADDRESS\0")) == 0 ) {
 			modbus_config_slave_address(argv[4]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
@@ -1809,9 +1824,9 @@ static void pv_cmd_modbus(void)
 		return;
 	}
 
-	// config channel {0..%d} name addr length rcode(3,4)
+	// config modbus channel {0..%d} name addr length rcode(3,4)
 	if ( strcmp_P( strupr(argv[2]), PSTR("CHANNEL\0")) == 0 ) {
-		modbus_config_channel(atoi(argv[2]),argv[3],argv[4],argv[5],argv[6]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		modbus_config_channel(atoi(argv[3]),argv[4],argv[5],argv[6],argv[7]) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 

@@ -40,7 +40,7 @@ void initMCU(void)
 //	IO_set_PWR_SLEEP();
 
 	// Configuro los pines del modulo Xbee
-	IO_config_XBEE_PWR();
+	IO_config_AUX1_PWR();
 //	IO_config_XBEE_SLEEP();
 //	IO_config_XBEE_RESET();
 
@@ -279,6 +279,8 @@ void u_load_defaults( char *opt )
 	dinputs_config_defaults();
 	ainputs_config_defaults();
 	xCOMMS_config_defaults(opt);
+
+	modbus_config_defaults();
 
 	// Modo de operacion
 	sVarsApp.aplicacion = APP_OFF;

@@ -220,23 +220,23 @@ uint8_t IO_read_RI(void);
 
 //------------------------------------------------------------------------------------
 // XBEE
-#define XBEE_PWR_BITPOS			1
-#define XBEE_PWR_PORT			PORTD
-#define IO_config_XBEE_PWR()	PORT_SetPinAsOutput( &XBEE_PWR_PORT, XBEE_PWR_BITPOS)
-#define IO_set_XBEE_PWR()		PORT_SetOutputBit( &XBEE_PWR_PORT, XBEE_PWR_BITPOS)
-#define IO_clr_XBEE_PWR()		PORT_ClearOutputBit( &XBEE_PWR_PORT, XBEE_PWR_BITPOS)
+#define AUX1_PWR_BITPOS			1
+#define AUX1_PWR_PORT			PORTD
+#define IO_config_AUX1_PWR()	PORT_SetPinAsOutput( &AUX1_PWR_PORT, AUX1_PWR_BITPOS)
+#define IO_set_AUX1_PWR()		PORT_SetOutputBit( &AUX1_PWR_PORT, AUX1_PWR_BITPOS)
+#define IO_clr_AUX1_PWR()		PORT_ClearOutputBit( &AUX1_PWR_PORT, AUX1_PWR_BITPOS)
 
-#define XBEE_SLEEP_BITPOS		0
-#define XBEE_SLEEP_PORT			PORTD
-#define IO_config_XBEE_SLEEP()	PORT_SetPinAsOutput( &XBEE_SLEEP_PORT, XBEE_SLEEP_BITPOS)
-#define IO_set_XBEE_SLEEP()		PORT_SetOutputBit( &XBEE_SLEEP_PORT, XBEE_SLEEP_BITPOS)
-#define IO_clr_XBEE_SLEEP()		PORT_ClearOutputBit( &XBEE_SLEEP_PORT, XBEE_SLEEP_BITPOS)
+#define AUX1_SLEEP_BITPOS		0
+#define AUX1_SLEEP_PORT			PORTD
+#define IO_config_AUX1_SLEEP()	PORT_SetPinAsOutput( &AUX1_SLEEP_PORT, AUX1_SLEEP_BITPOS)
+#define IO_set_AUX1_SLEEP()		PORT_SetOutputBit( &AUX1_SLEEP_PORT, AUX1_SLEEP_BITPOS)
+#define IO_clr_AUX1_SLEEP()		PORT_ClearOutputBit( &AUX1_SLEEP_PORT, AUX1_SLEEP_BITPOS)
 
-#define XBEE_RESET_BITPOS		4
-#define XBEE_RESET_PORT			PORTC
-#define IO_config_XBEE_RESET()	PORT_SetPinAsOutput( &XBEE_RESET_PORT, XBEE_RESET_BITPOS)
-#define IO_set_XBEE_RESET()		PORT_SetOutputBit( &XBEE_RESET_PORT, XBEE_RESET_BITPOS)
-#define IO_clr_XBEE_RESET()		PORT_ClearOutputBit( &XBEE_RESET_PORT, XBEE_RESET_BITPOS)
+#define AUX1_RESET_BITPOS		4
+#define AUX1_RESET_PORT			PORTC
+#define IO_config_AUX1_RESET()	PORT_SetPinAsOutput( &AUX1_RESET_PORT, AUX1_RESET_BITPOS)
+#define IO_set_AUX1_RESET()		PORT_SetOutputBit( &AUX1_RESET_PORT, AUX1_RESET_BITPOS)
+#define IO_clr_AUX1_RESET()		PORT_ClearOutputBit( &AUX1_RESET_PORT, AUX1_RESET_BITPOS)
 
 //------------------------------------------------------------------------------------
 // MAIN POWER SLEEP MODE

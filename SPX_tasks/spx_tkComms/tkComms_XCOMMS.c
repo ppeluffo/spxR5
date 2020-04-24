@@ -126,7 +126,7 @@ void xCOMMS_init(void)
 {
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_init();
+		aux1_init();
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_init();
 	}
@@ -140,7 +140,7 @@ void xCOMMS_apagar_dispositivo(void)
 {
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_apagar();
+		aux1_apagar();
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_apagar();
 	}
@@ -160,7 +160,7 @@ bool xCOMMS_prender_dispositivo(bool f_debug, uint8_t delay_factor)
 bool retS = false;
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		retS = xbee_prender( f_debug, delay_factor);
+		retS = aux1_prender( f_debug, delay_factor);
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		retS = gprs_prender( f_debug, delay_factor);
 	}
@@ -179,7 +179,7 @@ bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, uint8_t *err_code )
 bool retS = false;
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		retS = xbee_configurar_dispositivo(err_code);
+		retS = aux1_configurar_dispositivo(err_code);
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		retS = gprs_configurar_dispositivo( f_debug, pin, err_code );
 	}
@@ -195,7 +195,7 @@ void xCOMMS_mon_sqe(bool f_debug, bool modo_continuo, uint8_t *csq )
 
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_mon_sqe();
+		aux1_mon_sqe();
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_mon_sqe( f_debug, modo_continuo, csq);
 	}
@@ -206,14 +206,14 @@ bool xCOMMS_scan(t_scan_struct scan_boundle )
 
 	/*
 	 * El proceso de SCAN de APN corresponde solo al GPRS
-	 * El SERVER_IP y DLGID se aplica a ambos, gprs y xbee
+	 * El SERVER_IP y DLGID se aplica a ambos, gprs y aux1
 	 *
 	 */
 
 bool retS = false;
 
 		if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-			retS = xbee_scan(scan_boundle);
+			retS = aux1_scan(scan_boundle);
 		} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 			retS = gprs_scan(scan_boundle);
 		}
@@ -227,7 +227,7 @@ bool xCOMMS_need_scan( t_scan_struct scan_boundle )
 bool retS = false;
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		retS = xbee_need_scan(scan_boundle);
+		retS = aux1_need_scan(scan_boundle);
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		retS = gprs_need_scan(scan_boundle);
 	}
@@ -246,7 +246,7 @@ bool xCOMMS_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
 bool retS = false;
 
 		if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-			retS = xbee_ip();
+			retS = aux1_ip();
 		} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 			retS = gprs_ip(f_debug, apn, ip_assigned, err_code);
 		}
@@ -260,7 +260,7 @@ t_link_status xCOMMS_link_status( bool f_debug )
 t_link_status lstatus = LINK_CLOSED;
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		lstatus = xbee_check_socket_status( f_debug);
+		lstatus = aux1_check_socket_status( f_debug);
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		lstatus = gprs_check_socket_status( f_debug);
 	}
@@ -278,7 +278,7 @@ void xCOMMS_flush_RX(void)
 	 */
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_flush_RX_buffer();
+		aux1_flush_RX_buffer();
 	} else	if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_flush_RX_buffer();
 	}
@@ -293,7 +293,7 @@ void xCOMMS_flush_TX(void)
 	 */
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_flush_TX_buffer();
+		aux1_flush_TX_buffer();
 	} else	if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		gprs_flush_TX_buffer();
 	}
@@ -327,7 +327,7 @@ t_link_status lstatus = LINK_CLOSED;
 	xCOMMS_flush_RX();
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		lstatus = xbee_open_socket(f_debug, ip, port);
+		lstatus = aux1_open_socket(f_debug, ip, port);
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		lstatus = gprs_open_socket(f_debug, ip, port);
 	}
@@ -367,7 +367,7 @@ bool xCOMMS_check_response( const char *pattern )
 {
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		return( xbee_check_response(pattern)) ;
+		return( aux1_check_response(pattern)) ;
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 		return( gprs_check_response(pattern));
 	}
@@ -379,7 +379,7 @@ void xCOMMS_print_RX_buffer(bool d_flag)
 {
 	if ( d_flag ) {
 		if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-			xbee_print_RX_buffer();
+			aux1_print_RX_buffer();
 		} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
 			gprs_print_RX_buffer(d_flag);
 		}
@@ -390,9 +390,9 @@ char *xCOMM_get_buffer_ptr( char *pattern)
 {
 
 	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		return( xbee_get_buffer_ptr(pattern));
+		return( aux1_get_pattern_in_buffer(pattern));
 	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		return( gprs_get_buffer_ptr(pattern));
+		return( gprs_get_pattern_in_buffer(pattern));
 	}
 
 	return(NULL);

@@ -94,6 +94,12 @@ uint8_t lsbPres = 0;
 float pres = 0;
 int32_t pcounts;
 
+
+	// Solo si el equipo es IO8CH o el psensor no esta habilitado, salgo !!!
+	if ( ( spx_io_board == SPX_IO8CH )  || ( strcmp_P( systemVars.psensor_conf.name, PSTR("X\0")) == 0 ) ) {
+		return(false);
+	}
+
 	if ( ! psensor_present ) {
 		xprintf_P(PSTR("ERROR: psensor not present.\r\n\0"));
 		*presion = -100;

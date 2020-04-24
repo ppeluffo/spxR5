@@ -280,7 +280,7 @@ char *delim = "\r";
 
 	gprs_print_RX_buffer(DF_COMMS);
 
-	p = gprs_get_buffer_ptr("+CMGRD:");
+	p = gprs_get_pattern_in_buffer("+CMGRD:");
 	if ( p != NULL ) {
 		stringp = p;
 		tk_msg = strsep(&stringp,delim);		// +CMGRD:...........\r
@@ -322,7 +322,7 @@ char *delim = ",:";
 
 	if ( retS ) {
 		// Hay al menos un mensaje pendiente. Decodifico su indice
-		p = gprs_get_buffer_ptr("+CMGL:");
+		p = gprs_get_pattern_in_buffer("+CMGL:");
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
 			memcpy(localStr,p,sizeof(localStr));

@@ -32,16 +32,6 @@
  *
  * -Manual
  *  Test:Reintentos de mandar un SMS que falla.
- *  TEst: scan discover
- *  Test: comms gprs mas fluida ( sin caidas del socket)
- *
- * -Testing XBEE
- * -Server XBEE
- * -GUI
- *
- *
- * Revisar en el servidor que grabe el UID en los inits. !!!
- *
  * --------------------------------------------------------------------------------------------------
  * Version 3.0.0.d @ 2020-04-23
  * Agrego MODBUS: configuracion en systemVars, ul_modbus, tkCmd.

@@ -916,7 +916,7 @@ t_link_status link_status = LINK_FAIL;
 
 }
 //------------------------------------------------------------------------------------
-char *gprs_get_buffer_ptr( char *pattern)
+char *gprs_get_pattern_in_buffer( char *pattern)
 {
 
 	return( strstr( gprsRxBuffer.buffer, pattern) );
@@ -1139,7 +1139,7 @@ char *stringp = NULL;
 char *token = NULL;
 char *delim = ",;:=><";
 
-	p = gprs_get_buffer_ptr("DLGID");
+	p = gprs_get_pattern_in_buffer("DLGID");
 	if ( p == NULL ) {
 		return;
 	}
@@ -1156,6 +1156,11 @@ char *delim = ",;:=><";
 	memset( scan_boundle.dlgid,'\0', DLGID_LENGTH );
 	strncpy(scan_boundle.dlgid, token, DLGID_LENGTH);
 	xprintf_P( PSTR("COMMS: GPRS_SCAN discover DLGID to %s\r\n\0"), scan_boundle.dlgid );
+}
+//------------------------------------------------------------------------------------
+char *gprs_get_buffer_ptr(void)
+{
+	return(gprsRxBuffer.buffer);
 }
 //------------------------------------------------------------------------------------
 /*

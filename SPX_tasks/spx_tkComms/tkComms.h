@@ -22,7 +22,7 @@ typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 
 #define GPRS_RXBUFFER_LEN	512
-#define XBEE_RXBUFFER_LEN	512
+#define AUX1_RXBUFFER_LEN	512
 
 #define SIMPIN_DEFAULT	"1234\0"
 
@@ -113,22 +113,23 @@ void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr);
 bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state );
 uint16_t xCOMMS_datos_para_transmitir(void);
 
-void xbee_init(void);
-void xbee_rxBuffer_fill(char c);
-void xbee_flush_RX_buffer(void);
-void xbee_flush_TX_buffer(void);
-void xbee_print_RX_buffer(void);
-bool xbee_check_response( const char *rsp );
-bool xbee_prender( bool debug, uint8_t delay_factor );
-void xbee_apagar(void);
-bool xbee_configurar_dispositivo( uint8_t *err_code );
-void xbee_mon_sqe( void );
-bool xbee_scan( t_scan_struct scan_boundle );
-bool xbee_need_scan( t_scan_struct scan_boundle );
-bool xbee_ip( void );
-t_link_status xbee_check_socket_status(bool f_debug);
-t_link_status xbee_open_socket(bool f_debug, char *ip, char *port);
-char *xbee_get_buffer_ptr( char *pattern);
+void aux1_init(void);
+void aux1_rxBuffer_fill(char c);
+void aux1_flush_RX_buffer(void);
+void aux1_flush_TX_buffer(void);
+void aux1_print_RX_buffer(void);
+bool aux1_check_response( const char *rsp );
+bool aux1_prender( bool debug, uint8_t delay_factor );
+void aux1_apagar(void);
+bool aux1_configurar_dispositivo( uint8_t *err_code );
+void aux1_mon_sqe( void );
+bool aux1_scan( t_scan_struct scan_boundle );
+bool aux1_need_scan( t_scan_struct scan_boundle );
+bool aux1_ip( void );
+t_link_status aux1_check_socket_status(bool f_debug);
+t_link_status aux1_open_socket(bool f_debug, char *ip, char *port);
+char *aux1_get_pattern_in_buffer( char *pattern);
+char *aux1_get_buffer_ptr(void);
 
 void gprs_init(void);
 void gprs_rxBuffer_fill(char c);
@@ -163,7 +164,8 @@ bool gprs_netopen(bool f_debug);
 bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned );
 t_link_status gprs_check_socket_status(bool f_debug);
 t_link_status gprs_open_socket(bool f_debug, char *ip, char *port);
-char *gprs_get_buffer_ptr( char *pattern);
+char *gprs_get_pattern_in_buffer( char *pattern);
+char *gprs_get_buffer_ptr(void);
 //void gprs_test(void);
 //void gprs_scan_test (PGM_P *dlist );
 

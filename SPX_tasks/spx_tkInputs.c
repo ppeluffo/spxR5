@@ -121,14 +121,15 @@ int8_t xBytes = 0;
 
 		ainputs_read( dst->df.io5.ainputs, &dst->df.io5.battery );
 
-		if ( strcmp( systemVars.psensor_conf.name, "X" ) != 0 ) {
-			psensor_read( &dst->df.io5.psensor );
-			tempsensor_read( &dst->df.io5.temp );
-		}
+		psensor_read( &dst->df.io5.psensor );
+		tempsensor_read( &dst->df.io5.temp );
 
 		range_read( &dst->df.io5.range );
 
+		modbus_read( dst->df.io5.mbus_inputs );
+
 		break;
+
 	case SPX_IO8CH:
 		dinputs_read( dst->df.io8.dinputs );
 		dinputs_clear();
@@ -178,11 +179,12 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
 		}
 
 		range_print( fd, dr->df.io5.range );
+		modbus_print( fd, dr->df.io5.mbus_inputs );
 		ainputs_battery_print( fd, dr->df.io5.battery );
 		break;
 	case SPX_IO8CH:
 		ainputs_print( fd, dr->df.io8.ainputs );
-		dinputs_print( fd, dr->df.io8.dinputs );
+		dinputs_print( fd, dr->df.io8.dinputs );data_print_inputs(fdTERM, &dr);
 		counters_print( fd, dr->df.io8.counters );
 		break;
 	}

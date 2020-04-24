@@ -100,7 +100,7 @@ uint32_t ulNotifiedValue;
 			} else {
 				// Leo el UART de AUX1
 				if ( frtos_read( fdAUX1, &c, 1 ) == 1 ) {
-					xbee_rxBuffer_fill(c);
+					aux1_rxBuffer_fill(c);
 				}
 			}
 

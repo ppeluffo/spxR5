@@ -31,6 +31,11 @@ uint8_t lsbTemp = 0;
 uint16_t temp = 0;
 
 
+	// Solo si el equipo es IO8CH o el psensor no esta habilitado, salgo !!!
+	if ( ( spx_io_board == SPX_IO8CH )  || ( strcmp_P( systemVars.psensor_conf.name, PSTR("X\0")) == 0 ) ) {
+		return(false);
+	}
+
 	if ( ! ptemp_present ) {
 		xprintf_P(PSTR("ERROR: ptemp not present.\r\n\0"));
 		*tempC = -100;
