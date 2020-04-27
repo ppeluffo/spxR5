@@ -41,7 +41,7 @@ static void cmdPokeFunction(void);
 #define WR_CMD 0
 #define RD_CMD 1
 
-#define WDG_CMD_TIMEOUT	WDG_TO30
+#define WDG_CMD_TIMEOUT	WDG_TO120
 
 static usuario_t tipo_usuario;
 RtcTimeType_t rtc;
