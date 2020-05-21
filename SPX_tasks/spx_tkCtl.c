@@ -90,11 +90,16 @@ void tkCtl(void * pvParameters)
 		pv_ctl_wink_led();
 		pv_ctl_daily_reset();
 		pv_ctl_RI();
+		XCOMMS_to_timer_update(TKCTL_DELAY_S);
 
 		// Para entrar en tickless.
 		// Cada 5s hago un chequeo de todo. En particular esto determina el tiempo
 		// entre que activo el switch de la terminal y que esta efectivamente responde.
 		vTaskDelay( ( TickType_t)( TKCTL_DELAY_S * 1000 / portTICK_RATE_MS ) );
+
+#ifdef MONITOR_STACK
+		//debug_monitor_stack_watermarks("14");
+#endif
 
 	}
 }
@@ -349,7 +354,7 @@ void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs )
 	xSemaphoreGive( sem_WDGS );
 }
 //------------------------------------------------------------------------------------
-void ctl_print_wdg_timers(void)
+void debug_print_wdg_timers(void)
 {
 
 	// Muestra en pantalla el valor de los timers individuales de los watchdogs.

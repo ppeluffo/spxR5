@@ -20,7 +20,8 @@
  *  /usr/bin/avrdude -p x256a3b -P /dev/ttyUSB0 -b 9600 -c avr109 -v -v -e -V -Uflash:w:/home/pablo/Spymovil/workspace/spxR5/Release/spxR5.hex
  *
  *  Para ver el uso de memoria usamos
- *  avr-nm -n spxR4.elf | more
+ *  avr-nm -n spxR5.elf | more
+ *  avr-nm -Crtd --size-sort spxR5.elf | grep -i ' [dbv] '
  *
  *  https://e2019.uy/buscar
  *  http://www.CABRERA/MONS/ENRIQUE/Montevideo/Padron/2354U
@@ -42,6 +43,27 @@
  *
  * Revisar en el servidor que grabe el UID en los inits. !!!
  *
+ *
+ * Version 3.0.1c
+ * Se presenta un bug que hace que los equipos no se conecten del todo y se reseteen al transmitir el
+ * frame de init global.
+ * - Incorporo mecanismos para monitorear el stack.( en la funcion main. Para leer la profundidad del
+ * stack uso vTaskGetInfo porque devuelve el stack en 16 bits, en cambio la funcion uxTaskGetStackHighWaterMark()
+ * esta desactualizada y lo devuelve en 8 bits con lo que hace rollover.
+ * !! Confirmo que el stack no es el problema
+ *
+ * --------------------------------------------------------------------------------------------------
+ * Version 3.0.1b @ 20200511
+ * - Agrego a XCOMMS el manejo de un timer ( desde tkCTL ) para monitorear que el enlace xbee este activo
+ *   El timer expira c/3 minutos si no recibio nada por el xbee.
+ *   Apaga y prende el mdulo xbee.
+ *   Cuando recibe un frame reinicia el timer.
+ *   En XBEE trabajamos en modo continuo, con un timerpoll de 1 minuto.
+ *
+  * --------------------------------------------------------------------------------------------------
+ * Version 3.0.1a @ 20200430
+ * - Modifico los defines COUNTERS_TYPE_A por COUNTERS_HW_SIMPLE y COUNTERS_TYPE_B por COUNTERS_HW_OPTO
+ * - Agregamos a los contadores la posibilidad de configurarlos que diparen por flanco de subida o bajada.
  *
  * --------------------------------------------------------------------------------------------------
  * Version 2.9.9u @ 20200328
@@ -227,12 +249,12 @@ int main( void )
 	counters_setup();
 
 	// Creamos las tareas
-	xTaskCreate(tkCtl, "CTL", tkCtl_STACK_SIZE, NULL, tkCtl_TASK_PRIORITY,  &xHandle_tkCtl );
-	xTaskCreate(tkCmd, "CMD", tkCmd_STACK_SIZE, NULL, tkCmd_TASK_PRIORITY,  &xHandle_tkCmd);
-	xTaskCreate(tkInputs, "IN", tkInputs_STACK_SIZE, NULL, tkInputs_TASK_PRIORITY,  &xHandle_tkInputs);
-	xTaskCreate(tkAplicacion, "APP", tkAplicacion_STACK_SIZE, NULL, tkAplicacion_TASK_PRIORITY,  &xHandle_tkAplicacion );
-	xTaskCreate(tkComms, "COMMS", tkComms_STACK_SIZE, NULL, tkComms_TASK_PRIORITY,  &xHandle_tkComms );
-	xTaskCreate(tkCommsRX, "RX", tkCommsRX_STACK_SIZE, NULL, tkCommsRX_TASK_PRIORITY,  &xHandle_tkCommsRX );
+	xHandle_tkCtl = xTaskCreateStatic(tkCtl, "CTL", tkCtl_STACK_SIZE, (void *)1, tkCtl_TASK_PRIORITY, xTask_Ctl_Buffer, &xTask_Ctl_Buffer_Ptr );
+	xHandle_tkCmd = xTaskCreateStatic(tkCmd, "CMD", tkCmd_STACK_SIZE, (void *)1, tkCmd_TASK_PRIORITY, xTask_Cmd_Buffer, &xTask_Cmd_Buffer_Ptr );
+	xHandle_tkInputs = xTaskCreateStatic(tkInputs, "IN", tkInputs_STACK_SIZE, (void *)1, tkInputs_TASK_PRIORITY, xTask_Inputs_Buffer, &xTask_Inputs_Buffer_Ptr );
+	xHandle_tkAplicacion = xTaskCreateStatic(tkAplicacion, "APP", tkAplicacion_STACK_SIZE,(void *)1, tkAplicacion_TASK_PRIORITY,xTask_Aplicacion_Buffer, &xTask_Aplicacion_Buffer_Ptr );
+	xHandle_tkComms = xTaskCreateStatic(tkComms, "COMMS", tkComms_STACK_SIZE, (void *)1, tkComms_TASK_PRIORITY, xTask_Comms_Buffer, &xTask_Comms_Buffer_Ptr );
+	xHandle_tkCommsRX = xTaskCreateStatic(tkCommsRX, "RX", tkCommsRX_STACK_SIZE, (void *)1, tkCommsRX_TASK_PRIORITY, xTask_CommsRX_Buffer, &xTask_CommsRX_Buffer_Ptr );
 
 	/* Arranco el RTOS. */
 	vTaskStartScheduler();
@@ -259,7 +281,7 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, signed char *pcTaskName 
 	// En FreeRTOSConfig.h debemos habilitar
 	// #define configCHECK_FOR_STACK_OVERFLOW          2
 
-//	xprintf_P( PSTR("PANIC:%s !!\r\n\0"),pcTaskName);
+	xprintf_P( PSTR("PANIC:%s !!\r\n\0"),pcTaskName);
 
 }
 //------------------------------------------------------------------------------------
@@ -311,3 +333,180 @@ static StackType_t uxTimerTaskStack[ configTIMER_TASK_STACK_DEPTH ];
 	*pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
 //------------------------------------------------------------------------------------
+// FUNCIONES PARA CONTROLAR EL STACK DE C/TAREA
+//------------------------------------------------------------------------------------
+void debug_full_print_stack_watermarks(void)
+{
+uint16_t free_stack_size;
+uint16_t stack_size;
+uint16_t used_stack_size;
+TaskStatus_t xTaskDetails;
+
+	// tkIdle
+	stack_size = configMINIMAL_STACK_SIZE;
+	vTaskGetInfo(xHandle_idle, &xTaskDetails, pdTRUE, eInvalid );
+	free_stack_size = xTaskDetails.usStackHighWaterMark;
+	used_stack_size = stack_size - free_stack_size;
+	xprintf_P( PSTR("IDLE:size=%d,free=%d,used=%d\r\n\0"), stack_size, free_stack_size, used_stack_size);
+
+	// tkControl
+	stack_size = tkCtl_STACK_SIZE;
+	vTaskGetInfo(xHandle_tkCtl, &xTaskDetails, pdTRUE, eInvalid );
+	free_stack_size = xTaskDetails.usStackHighWaterMark;
+	used_stack_size = stack_size - free_stack_size;
+	xprintf_P( PSTR("CTL:size=%d,free=%d,used=%d\r\n\0"), stack_size, free_stack_size, used_stack_size);
+
+	// tkCmd
+	stack_size = tkCmd_STACK_SIZE;
+	vTaskGetInfo(xHandle_tkCmd, &xTaskDetails, pdTRUE, eInvalid );
+	free_stack_size = xTaskDetails.usStackHighWaterMark;
+	used_stack_size = stack_size - free_stack_size;
+	xprintf_P( PSTR("CMD:size=%d,free=%d,used=%d\r\n\0"), stack_size, free_stack_size, used_stack_size);
+
+	// tkData
+	stack_size = tkInputs_STACK_SIZE;
+	vTaskGetInfo(xHandle_tkInputs, &xTaskDetails, pdTRUE, eInvalid );
+	free_stack_size = xTaskDetails.usStackHighWaterMark;
+	used_stack_size = stack_size - free_stack_size;
+	xprintf_P( PSTR("IN:size=%d,free=%d,used=%d\r\n\0"), stack_size, free_stack_size, used_stack_size);
+
+	// tkComms
+	stack_size = tkComms_STACK_SIZE;
+	vTaskGetInfo(xHandle_tkComms, &xTaskDetails, pdTRUE, eInvalid );
+	free_stack_size = xTaskDetails.usStackHighWaterMark;
+	used_stack_size = stack_size - free_stack_size;
+	xprintf_P( PSTR("COMMS:size=%d,free=%d,used=%d\r\n\0"), stack_size, free_stack_size, used_stack_size);
+
+	// tkRx
+	stack_size = tkCommsRX_STACK_SIZE;
+	vTaskGetInfo(xHandle_tkCommsRX, &xTaskDetails, pdTRUE, eInvalid );
+	free_stack_size = xTaskDetails.usStackHighWaterMark;
+	used_stack_size = stack_size - free_stack_size;
+	xprintf_P( PSTR("RX:size=%d,free=%d,used=%d\r\n\0"), stack_size, free_stack_size, used_stack_size);
+
+	// tkApp
+	stack_size = tkAplicacion_STACK_SIZE;
+	vTaskGetInfo(xHandle_tkAplicacion, &xTaskDetails, pdTRUE, eInvalid );
+	free_stack_size = xTaskDetails.usStackHighWaterMark;
+	used_stack_size = stack_size - free_stack_size;
+	xprintf_P( PSTR("APP:size=%d,free=%d,used=%d\r\n\0"), stack_size, free_stack_size, used_stack_size);
+	xprintf_P( PSTR("\r\n\0"));
+
+
+}
+//------------------------------------------------------------------------------------
+void debug_print_stack_watermarks(char *id)
+{
+	// Monitorea cada 5s cuanto han alcanzado las watermarks de los stacks de c/tarea.
+	// Guarda el minimo.
+	// Si en algun caso se supera el minimo, se imprime.
+
+	//portENTER_CRITICAL();
+
+st_stack_size_t stack_wmk;
+
+	debug_read_stack_watermarks(&stack_wmk);
+
+	xprintf_P(PSTR("STACK MONITOR(%s): idle[%d],ctl[%d],cmd[%d],in[%d],comms[%d],rx[%d],app[%d]\r\n\0"),id,stack_wmk.idle,stack_wmk.ctl,stack_wmk.cmd,stack_wmk.in,stack_wmk.comms,stack_wmk.rx,stack_wmk.app);
+	xprintf_P( PSTR("\r\n\0"));
+
+	//portEXIT_CRITICAL();
+
+}
+//------------------------------------------------------------------------------------
+void debug_read_stack_watermarks(st_stack_size_t *stack_wmk )
+{
+
+TaskStatus_t xTaskDetails;
+
+	// tkIdle
+	vTaskGetInfo(xHandle_idle, &xTaskDetails, pdTRUE, eInvalid );
+	stack_wmk->idle = xTaskDetails.usStackHighWaterMark;
+
+	// tkControl
+	vTaskGetInfo(xHandle_tkCtl, &xTaskDetails, pdTRUE, eInvalid );
+	stack_wmk->ctl = xTaskDetails.usStackHighWaterMark;
+
+	// tkCmd
+	vTaskGetInfo(xHandle_tkCmd, &xTaskDetails, pdTRUE, eInvalid );
+	stack_wmk->cmd = xTaskDetails.usStackHighWaterMark;
+
+	// tkData
+	vTaskGetInfo(xHandle_tkInputs, &xTaskDetails, pdTRUE, eInvalid );
+	stack_wmk->in = xTaskDetails.usStackHighWaterMark;
+
+	// tkComms
+	vTaskGetInfo(xHandle_tkComms, &xTaskDetails, pdTRUE, eInvalid );
+	stack_wmk->comms = xTaskDetails.usStackHighWaterMark;
+
+	// tkRx
+	vTaskGetInfo(xHandle_tkCommsRX, &xTaskDetails, pdTRUE, eInvalid );
+	stack_wmk->rx = xTaskDetails.usStackHighWaterMark;
+
+	// tkApp
+	vTaskGetInfo(xHandle_tkAplicacion, &xTaskDetails, pdTRUE, eInvalid );
+	stack_wmk->app = xTaskDetails.usStackHighWaterMark;
+
+}
+//------------------------------------------------------------------------------------
+void debug_monitor_stack_watermarks(char *id)
+{
+	// Monitorea cada 5s cuanto han alcanzado las watermarks de los stacks de c/tarea.
+	// Guarda el minimo.
+	// Si en algun caso se supera el minimo, se imprime.
+
+	//portENTER_CRITICAL();
+
+st_stack_size_t stack_wmk;
+bool print_min_stack_flag = false;
+
+static st_stack_size_t stack_wmk_min = {512,512,512,512,512,512,512 };
+
+	debug_read_stack_watermarks(&stack_wmk);
+
+	if ( stack_wmk.app < stack_wmk_min.app ) {
+		stack_wmk_min.app = stack_wmk.app;
+		print_min_stack_flag = true;
+	}
+	if ( stack_wmk.cmd < stack_wmk_min.cmd ) {
+		stack_wmk_min.cmd = stack_wmk.cmd;
+		print_min_stack_flag = true;
+	}
+	if ( stack_wmk.comms < stack_wmk_min.comms ) {
+		stack_wmk_min.comms = stack_wmk.comms;
+		print_min_stack_flag = true;
+	}
+	if ( stack_wmk.ctl < stack_wmk_min.ctl ) {
+		stack_wmk_min.ctl = stack_wmk.ctl;
+		print_min_stack_flag = true;
+	}
+	if ( stack_wmk.idle < stack_wmk_min.idle ) {
+		stack_wmk_min.idle = stack_wmk.idle;
+		print_min_stack_flag = true;
+	}
+	if ( stack_wmk.in < stack_wmk_min.in ) {
+		stack_wmk_min.in = stack_wmk.in;
+		print_min_stack_flag = true;
+	}
+	if ( stack_wmk.rx < stack_wmk_min.rx ) {
+		stack_wmk_min.rx = stack_wmk.rx;
+		print_min_stack_flag = true;
+	}
+
+	if ( print_min_stack_flag ) {
+		xprintf_P(PSTR("STACK MONITOR(%s): app[%d],cmd[%d],comms[%d],ctl[%d],idle[%d],in[%d],rx[%d]\r\n\0"),id, stack_wmk.app,stack_wmk.cmd,stack_wmk.comms,stack_wmk.ctl,stack_wmk.idle,stack_wmk.in,stack_wmk.rx );
+	}
+
+	//portEXIT_CRITICAL();
+
+}
+//------------------------------------------------------------------------------------
+int debug_freeRam(void)
+{
+	// https://jeelabs.org/2011/05/22/atmega-memory-use/
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
+}
+//------------------------------------------------------------------------------------
+

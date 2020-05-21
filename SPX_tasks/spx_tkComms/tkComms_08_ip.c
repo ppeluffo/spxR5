@@ -22,6 +22,9 @@ t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_IP );
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_ip.\r\n\0"));
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("8");
+#endif
 	//xprintf_P( PSTR("COMMS: ip.\r\n\0"));
 
 	if ( xCOMMS_ip( DF_COMMS, sVarsComms.apn, xCOMMS_stateVars.ip_assigned, &err_code ) == true ) {

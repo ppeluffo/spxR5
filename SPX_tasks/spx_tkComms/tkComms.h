@@ -24,6 +24,8 @@ typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 #define GPRS_RXBUFFER_LEN	512
 #define XBEE_RXBUFFER_LEN	512
 
+#define MAX_XCOMM_TO_TIMER	180
+
 #define SIMPIN_DEFAULT	"1234\0"
 
 #define DF_COMMS ( systemVars.debug == DEBUG_COMMS )
@@ -37,11 +39,16 @@ int32_t time_to_next_dial;
 t_comms_states tkComms_state;
 
 typedef struct {
+	bool enabled;
+	uint16_t timer;
+} t_xCOMMS_TO_timer;
+
+typedef struct {
 	uint8_t csq;
 	char ip_assigned[IP_LENGTH];
 	bool dispositivo_prendido;
 	bool dispositivo_inicializado;
-
+	t_xCOMMS_TO_timer to_timer;
 } t_xCOMMS_stateVars;
 
 t_xCOMMS_stateVars xCOMMS_stateVars;
@@ -105,13 +112,17 @@ void xCOMMS_flush_TX(void);
 void xCOMMS_send_header(char *type);
 void xCOMMS_send_tail(void);
 t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port);
-void xCOMM_send_global_params(void);
 bool xCOMMS_check_response( const char *pattern );
 void xCOMMS_print_RX_buffer(bool d_flag );
 char *xCOMM_get_buffer_ptr( char *pattern);
 void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr);
 bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state );
 uint16_t xCOMMS_datos_para_transmitir(void);
+void XCOMMS_to_timer_start(void);
+void XCOMMS_to_timer_stop(void);
+void XCOMMS_to_timer_restart(void);
+void XCOMMS_to_timer_update(uint8_t update_time);
+
 
 void xbee_init(void);
 void xbee_rxBuffer_fill(char c);

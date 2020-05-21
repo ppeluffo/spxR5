@@ -19,9 +19,10 @@
 //------------------------------------------------------------------------------------
 // API publica
 
-typedef enum { COUNTERS_TYPE_A = 0, COUNTERS_TYPE_B } t_counters_hw_type;
+typedef enum { COUNTERS_HW_SIMPLE = 0, COUNTERS_HW_OPTO } t_counters_hw_type;
+typedef enum { RISING_EDGE = 0, FALLING_EDGE } t_sensing_edge;
 
-void COUNTERS_init( uint8_t cnt, t_counters_hw_type type );
+void COUNTERS_init( uint8_t cnt, t_counters_hw_type type, t_sensing_edge edge );
 void COUNTERS_disable_interrupt( uint8_t cnt );
 void COUNTERS_enable_interrupt( uint8_t cnt );
 

@@ -9,43 +9,84 @@
 #include "l_counters.h"
 
 //------------------------------------------------------------------------------------
-void COUNTERS_init( uint8_t cnt, t_counters_hw_type type )
+void COUNTERS_init( uint8_t cnt, t_counters_hw_type type, t_sensing_edge edge )
 {
+/*
+	switch(cnt) {
+	case 0:
+		CNT_config_CNT0();
+		// Con optoacoplador. Normalmente en 0, sensa rising edge
+		if ( edge == RISING_EDGE ) {
+			PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;		// Sensa rising edge. Menos consumo con pulldown.
+		} else {
+			PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;	// Sensa rising edge. Menos consumo con pulldown.
+		}
+		COUNTERS_enable_interrupt(0);
+		break;
+	case 1:
+		CNT_config_CNT1();
+		// Con optoacoplador. Normalmente en 0. Sensa rising edge
+		//PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	    // Sensa rising edge. Menos consumo con pulldown.
+		if ( edge == RISING_EDGE ) {
+			PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;		// Sensa rising edge. Menos consumo con pulldown.
+		} else {
+			PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;
+		}
+		COUNTERS_enable_interrupt(1);
+		break;
+	}
+	CNT_config_CLRD();
+	CNT_clr_CLRD();	// Borro el latch llevandolo a 0.
+	CNT_set_CLRD();	// Lo dejo en reposo en 1
+
+	return;
+	//-----------------------------------------------
+*/
 
 	switch ( cnt ) {
 	case 0:
 		CNT_config_CNT0();
 		switch(type) {
-		case COUNTERS_TYPE_A:
-			// No usa optoacoplador. Normalmente en 1. Sensa falling edge
-			PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
+		case COUNTERS_HW_SIMPLE:
+			// No usa optoacoplador. Normalmente en 1, sensa falling edge
+			if ( edge == RISING_EDGE ) {
+				PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
+			} else {
+				PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
+			}
 			break;
-		case COUNTERS_TYPE_B:
-			// Con optoacoplador. Normalmente en 0. Sensa rising edge
-			PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	// Sensa rising edge. Menos consumo con pulldown.
+		case COUNTERS_HW_OPTO:
+			// Con optoacoplador. Normalmente en 0, sensa rising edge
+			if ( edge == RISING_EDGE ) {
+				PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;		// Sensa rising edge. Menos consumo con pulldown.
+			} else {
+				PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;	// Sensa rising edge. Menos consumo con pulldown.
+			}
 			break;
 		}
-		/*
-		PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
-		PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	// Sensa rising edge. Menos consumo con pulldown.
-		PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
-		PORTA.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge. Menos consumo con pulldown.
-		PORTA.PIN2CTRL = PORT_ISC_FALLING_gc;	// Sensa falling edge
-		PORTA.PIN2CTRL = PORT_OPC_TOTEM_gc | PORT_ISC_FALLING_gc;
-		*/
 		COUNTERS_enable_interrupt(0);
 		break;
 
 	case 1:
 		CNT_config_CNT1();
 		switch(type) {
-		case COUNTERS_TYPE_A:
+		case COUNTERS_HW_SIMPLE:
 			// No usa optoacoplador. Normalmente en 1. Sensa falling edge
-			PORTB.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
+			//PORTB.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
+			if ( edge == RISING_EDGE ) {
+				PORTB.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_RISING_gc;	// Sensa rising edge
+			} else {
+				PORTB.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;	// Sensa falling edge
+			}
 			break;
-		case COUNTERS_TYPE_B:
+		case COUNTERS_HW_OPTO:
 			// Con optoacoplador. Normalmente en 0. Sensa rising edge
-			PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	// Sensa rising edge. Menos consumo con pulldown.
+			//PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;	    // Sensa rising edge. Menos consumo con pulldown.
+			if ( edge == RISING_EDGE ) {
+				PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_RISING_gc;		// Sensa rising edge. Menos consumo con pulldown.
+			} else {
+				PORTB.PIN2CTRL = PORT_OPC_PULLDOWN_gc | PORT_ISC_FALLING_gc;
+			}
 			break;
 		}
 		COUNTERS_enable_interrupt(1);

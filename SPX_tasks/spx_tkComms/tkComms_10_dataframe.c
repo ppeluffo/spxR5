@@ -47,6 +47,9 @@ t_comms_states next_state = ST_ENTRY;
 // ENTRY
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_dataframe.\r\n\0"));
+#ifdef MONITOR_STACK
+	debug_monitor_stack_watermarks("13");
+#endif
 	xprintf_P( PSTR("COMMS: dataframe.\r\n\0"));
 	data_state = SST_ENTRY;
 
@@ -251,6 +254,8 @@ uint8_t timeout = 0;
 		if ( xCOMMS_check_response("</h1>") ) {
 
 			xCOMMS_print_RX_buffer( DF_COMMS );
+
+			XCOMMS_to_timer_restart();
 
 			if ( xCOMMS_check_response ("ERROR\0")) {
 				// ERROR del server: salgo inmediatamente

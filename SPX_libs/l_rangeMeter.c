@@ -11,8 +11,6 @@
 
 #include "l_rangeMeter.h"
 
-typedef enum { RISING_EDGE = 0, FALLING_EDGE } t_edge_sensing;
-
 #define MAX_RANGEMETER_STACK 32
 
 static struct {

@@ -120,8 +120,8 @@ void counters_init(void)
 	xTimerChangePeriod( counter_xTimer1B, ( systemVars.counters_conf.period[1] - systemVars.counters_conf.pwidth[1]) , 10 );
 	xTimerStop(counter_xTimer1B, 10);
 
-	COUNTERS_init(0, systemVars.counters_conf.hw_type );
-	COUNTERS_init(1, systemVars.counters_conf.hw_type );
+	COUNTERS_init(0, systemVars.counters_conf.hw_type, systemVars.counters_conf.sensing_edge[0] );
+	COUNTERS_init(1, systemVars.counters_conf.hw_type, systemVars.counters_conf.sensing_edge[1] );
 
 	f_count0_running = true;
 	if ( strcmp ( systemVars.counters_conf.name[0], "X" ) == 0 ) {
@@ -142,16 +142,16 @@ static void pv_counters_TimerCallback0A( TimerHandle_t xTimer )
 {
 	// Funcion de callback de la entrada de contador A.
 	// Controla el pulse_width de la entrada A
-	// Leo la entrada y si esta aun en 1, incremento el contador y
+	// Leo la entrada y si esta aun en X, incremento el contador y
 	// prendo el timer xTimer1X que termine el debounce.
 
-uint8_t ref_value = 1;
+uint8_t confirm_value = 0;
 
-	if ( systemVars.counters_conf.hw_type == COUNTERS_TYPE_A ) {
-		ref_value = 0;
+	if ( systemVars.counters_conf.sensing_edge[0] == RISING_EDGE ) {
+		confirm_value = 1;
 	}
 
-	if ( CNT_read_CNT0() == ref_value ) {
+	if ( CNT_read_CNT0() == confirm_value ) {
 		pv_cnt0++;
 		xTimerStart( counter_xTimer1A, 1 );
 		if ( systemVars.debug == DEBUG_COUNTER) {
@@ -185,13 +185,13 @@ static void pv_counters_TimerCallback0B( TimerHandle_t xTimer )
 
 	// Mido el pulse_width de la linea B (CNT1)
 
-uint8_t ref_value = 1;
+uint8_t confirm_value = 0;
 
-	if ( systemVars.counters_conf.hw_type == COUNTERS_TYPE_A ) {
-		ref_value = 0;
+	if ( systemVars.counters_conf.sensing_edge[1] == RISING_EDGE ) {
+		confirm_value = 1;
 	}
 
-	if ( CNT_read_CNT1() == ref_value ) {
+	if ( CNT_read_CNT1() == confirm_value ) {
 		pv_cnt1++;
 		xTimerStart( counter_xTimer1B, 1 );
 		if ( systemVars.debug == DEBUG_COUNTER) {
@@ -262,14 +262,15 @@ uint8_t i = 0;
 		systemVars.counters_conf.period[i] = 100;
 		systemVars.counters_conf.pwidth[i] = 10;
 		systemVars.counters_conf.speed[i] = CNT_LOW_SPEED;
+		systemVars.counters_conf.sensing_edge[i] = RISING_EDGE;
 	}
 
-	// Por defecto quedan en modo B: Con optoacoplador.
-	systemVars.counters_conf.hw_type = COUNTERS_TYPE_B;
+	// Por defecto quedan en modo con optoacoplador.
+	systemVars.counters_conf.hw_type = COUNTERS_HW_OPTO;
 
 }
 //------------------------------------------------------------------------------------
-bool counters_config_channel( uint8_t channel,char *s_name, char *s_magpp, char *s_pw, char *s_period, char *s_speed )
+bool counters_config_channel( uint8_t channel,char *s_name, char *s_magpp, char *s_pw, char *s_period, char *s_speed, char *s_sensing )
 {
 	// Configuro un canal contador.
 	// channel: id del canal
@@ -281,7 +282,7 @@ bool counters_config_channel( uint8_t channel,char *s_name, char *s_magpp, char 
 bool retS = false;
 char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
-	//xprintf_P( PSTR("DEBUG COUNTER CONFIG: C%d,name=%s, magpp=%s, pwidth=%s, period=%s, speed=%s\r\n\0"), channel, s_name, s_magpp, s_pw, s_period, s_speed );
+	//xprintf_P( PSTR("DEBUG COUNTER CONFIG: C%d,name=%s, magpp=%s, pwidth=%s, period=%s, speed=%s, edge=%s\r\n\0"), channel, s_name, s_magpp, s_pw, s_period, s_speed, s_sensing );
 
 	if ( s_name == NULL ) {
 		return(retS);
@@ -310,9 +311,27 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 		// SPEED
 		if ( strcmp_P( s_speed, PSTR("LS\0")) == 0 ) {
 			 systemVars.counters_conf.speed[channel] = CNT_LOW_SPEED;
+			 //xprintf_P(PSTR("DEBUG C%d LS\r\n\0"),channel);
 
 		} else if ( strcmp_P( s_speed , PSTR("HS\0")) == 0 ) {
 			systemVars.counters_conf.speed[channel] = CNT_HIGH_SPEED;
+			//xprintf_P(PSTR("DEBUG C%d HS\r\n\0"),channel);
+
+		} else {
+			xprintf_P(PSTR("ERROR: counters LS o HS only!! \r\n\0"));
+		}
+
+		// SENSING ( RISE/FALL )
+		if ( strcmp_P( s_sensing, PSTR("RISE\0")) == 0 ) {
+			 systemVars.counters_conf.sensing_edge[channel] = RISING_EDGE;
+			 //xprintf_P(PSTR("DEBUG C%d RISE\r\n\0"),channel);
+
+		} else if ( strcmp_P( s_sensing , PSTR("FALL\0")) == 0 ) {
+			systemVars.counters_conf.sensing_edge[channel] = FALLING_EDGE;
+			//xprintf_P(PSTR("DEBUG C%d FALL\r\n\0"),channel);
+
+		} else {
+			xprintf_P(PSTR("ERROR: counters RISE o FALL only!!\r\n\0"));
 		}
 
 		// Si el nombre es X deshabilito todo
@@ -342,10 +361,10 @@ bool retS = false;
 	//xprintf_P(PSTR("DEBUG counters_conf: %s\r\n\0"), s_type);
 
 	if ( strcmp_P( strupr(s_type), PSTR("SIMPLE")) == 0 ) {
-		systemVars.counters_conf.hw_type = COUNTERS_TYPE_A;
+		systemVars.counters_conf.hw_type = COUNTERS_HW_SIMPLE;
 		retS = true;
 	} else if ( strcmp_P( strupr(s_type), PSTR("OPTO")) == 0 ) {
-		systemVars.counters_conf.hw_type = COUNTERS_TYPE_B;
+		systemVars.counters_conf.hw_type = COUNTERS_HW_OPTO;
 		retS = true;
 	} else {
 		retS = false;
@@ -416,11 +435,20 @@ uint8_t j = 0;
 		j = 0;
 		j += snprintf_P(&dst[j], sizeof(dst), PSTR("C%d:%s,"), i, systemVars.counters_conf.name[i]);
 		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.03f,%d,"),systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i]);
+		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,"), systemVars.counters_conf.pwidth[i] );
+
 		if ( systemVars.counters_conf.speed[i] == CNT_LOW_SPEED ) {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,LS;"), systemVars.counters_conf.pwidth[i] );
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("LS,"));
 		} else {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,HS;"), systemVars.counters_conf.pwidth[i] );
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("HS,"));
 		}
+
+		if ( systemVars.counters_conf.sensing_edge[i] == RISING_EDGE ) {
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("RISE;"));
+		} else {
+			j += snprintf_P(&dst[j], sizeof(dst), PSTR("FALL;"));
+		}
+
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
 		// Mientras no sea NULL calculo el checksum deol buffer

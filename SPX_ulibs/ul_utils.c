@@ -510,13 +510,13 @@ uint8_t i = 0;
 	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_fin.hour, sVarsComms.pwrSave.hora_fin.min );
 
 	// Counters_hw ( 0: simple, 1 opto )
-	if ( systemVars.counters_conf.hw_type == COUNTERS_TYPE_A ) {
+	if ( systemVars.counters_conf.hw_type == COUNTERS_HW_SIMPLE ) {
 		i += snprintf_P(&dst[i], sizeof(dst), PSTR("SIMPLE,"));
 	} else {
 		i += snprintf_P(&dst[i], sizeof(dst), PSTR("OPTO,"));
 	}
 
-	//xprintf_P( PSTR("DEBUG: BASECKS = [%s]\r\n\0"), dst );
+	//xprintf_P( PSTR("DEBUG: BASEHASH = [%s]\r\n\0"), dst );
 
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
@@ -538,8 +538,6 @@ uint8_t u_aplicacion_hash( void )
 	// siempre los 3 checksums
 
 uint8_t hash = 0;
-char dst[32];
-char *p;
 
 	switch(sVarsApp.aplicacion) {
 	case APP_OFF:

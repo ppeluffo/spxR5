@@ -68,6 +68,10 @@ t_comms_states tkComms_st_initframe(void)
 t_comms_states next_state = ST_ENTRY;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_initframe.\r\n\0"));
+
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("9");
+#endif
 	xprintf_P( PSTR("COMMS: initframe.\r\n\0"));
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_INITFRAME );
@@ -174,6 +178,9 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 	// Loop
 	for ( i = 0; i < MAX_TRYES_OPEN_COMMLINK; i++ ) {
 
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("10");
+#endif
 		if (  xCOMMS_link_status(DF_COMMS ) == LINK_OPEN ) {
 
 			xCOMMS_flush_RX();
@@ -185,6 +192,11 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
 				break;
 			case INIT_GLOBAL:
+
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("11");
+#endif
+
 				base_cks = u_base_hash();
 				an_cks = ainputs_hash();
 				dig_cks = dinputs_hash();
@@ -193,11 +205,23 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 				psens_cks = psensor_hash();
 				app_cks = u_aplicacion_hash();
 				//
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
-				xCOMM_send_global_params();
-				//
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;" ), base_cks,an_cks,dig_cks );
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("CNT:0x%02X;RG:0x%02X;" ),cnt_cks,range_cks );
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("12");
+#endif
+
+				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
+
+				if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
+					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:0000;SIMID:000;CSQ:0;WRST:%02X;\0" ),wdg_resetCause );
+
+				} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
+					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;\0" ), gprs_get_imei() );
+					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
+
+				}
+
+				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;\0" ), base_cks,an_cks,dig_cks );
+				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("CNT:0x%02X;RG:0x%02X;\0" ),cnt_cks,range_cks );
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("PSE:0x%02X;" ), psens_cks );
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("APP:0x%02X;" ), app_cks );
 				break;
@@ -297,6 +321,8 @@ bool retS = false;
 		if ( xCOMMS_check_response("</h1>") ) {
 
 			xCOMMS_print_RX_buffer( DF_COMMS );
+
+			XCOMMS_to_timer_restart();
 
 			// Analizo las respuestas.
 			if ( xCOMMS_check_response("CLASS:AUTH") ) {	// Respuesta correcta:
@@ -957,6 +983,7 @@ char *tk_magpp = NULL;
 char *tk_pwidth = NULL;
 char *tk_period = NULL;
 char *tk_speed = NULL;
+char *tk_sensing = NULL;
 char *delim = ",;:=><";
 bool save_flag = false;
 uint8_t ch;
@@ -979,8 +1006,9 @@ char str_base[8];
 			tk_pwidth = strsep(&stringp,delim);
 			tk_period = strsep(&stringp,delim);
 			tk_speed = strsep(&stringp,delim);
+			tk_sensing = strsep(&stringp,delim);
 
-			counters_config_channel( ch,tk_name ,tk_magpp, tk_pwidth, tk_period, tk_speed );
+			counters_config_channel( ch,tk_name ,tk_magpp, tk_pwidth, tk_period, tk_speed, tk_sensing );
 
 			xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig C%d\r\n\0"), ch);
 

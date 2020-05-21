@@ -27,6 +27,9 @@ t_scan_struct scan_boundle;
 
 	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_SCAN );
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.\r\n\0"));
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("7");
+#endif
 	//xprintf_P( PSTR("COMMS: scan.\r\n\0"));
 
 	scan_boundle.apn = sVarsComms.apn;

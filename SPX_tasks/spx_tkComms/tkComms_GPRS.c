@@ -56,7 +56,7 @@ void gprs_init(void)
 	memset(gprs_status.buff_gprs_ccid, '\0', IMEIBUFFSIZE );
 	memset(gprs_status.buff_gprs_ccid, '\0', IMEIBUFFSIZE );
 	xCOMMS_stateVars.dispositivo_prendido = false;
-
+	XCOMMS_to_timer_stop();
 }
 //------------------------------------------------------------------------------------
 void gprs_rxBuffer_fill(char c)

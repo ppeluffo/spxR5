@@ -64,8 +64,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.0e"
-#define SPX_FW_DATE "@ 20200427"
+#define SPX_FW_REV "3.0.1c"
+#define SPX_FW_DATE "@ 20200520"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
@@ -92,17 +92,38 @@
 
 #define MODBUS_CHANNELS	2
 
+//#define MONITOR_STACK	1
+
 #define CHAR32	32
 #define CHAR64	64
 #define CHAR128	128
 #define CHAR256	256
 
-#define tkCtl_STACK_SIZE		512
-#define tkCmd_STACK_SIZE		512
+#define tkCtl_STACK_SIZE		384
+#define tkCmd_STACK_SIZE		384
 #define tkInputs_STACK_SIZE		512
-#define tkComms_STACK_SIZE		1024
-#define tkCommsRX_STACK_SIZE	512
-#define tkAplicacion_STACK_SIZE	512
+#define tkComms_STACK_SIZE		640
+#define tkCommsRX_STACK_SIZE	384
+#define tkAplicacion_STACK_SIZE	384
+
+StaticTask_t xTask_Ctl_Buffer_Ptr;
+StackType_t xTask_Ctl_Buffer [tkCtl_STACK_SIZE];
+
+StaticTask_t xTask_Cmd_Buffer_Ptr;
+StackType_t xTask_Cmd_Buffer [tkCmd_STACK_SIZE];
+
+StaticTask_t xTask_Inputs_Buffer_Ptr;
+StackType_t xTask_Inputs_Buffer [tkInputs_STACK_SIZE];
+
+StaticTask_t xTask_Comms_Buffer_Ptr;
+StackType_t xTask_Comms_Buffer [tkComms_STACK_SIZE];
+
+StaticTask_t xTask_CommsRX_Buffer_Ptr;
+StackType_t xTask_CommsRX_Buffer [tkCommsRX_STACK_SIZE];
+
+StaticTask_t xTask_Aplicacion_Buffer_Ptr;
+StackType_t xTask_Aplicacion_Buffer [tkAplicacion_STACK_SIZE];
+
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
@@ -168,6 +189,16 @@ uint8_t NRO_COUNTERS;
 uint8_t NRO_ANINPUTS;
 uint8_t NRO_DINPUTS;
 
+typedef struct {
+	uint16_t idle;
+	uint16_t cmd;
+	uint16_t ctl;
+	uint16_t in;
+	uint16_t comms;
+	uint16_t rx;
+	uint16_t app;
+} st_stack_size_t;
+
 // Estructura de un registro de IO5CH
 typedef struct {
 	float ainputs[IO5_ANALOG_CHANNELS];			// 4 * 5 = 20
@@ -212,12 +243,13 @@ typedef struct {
 
 // Configuracion de canales de contadores
 typedef struct {
+	t_counters_hw_type hw_type;							// OPTO | NORMAL
 	char name[MAX_COUNTER_CHANNELS][PARAMNAME_LENGTH];
 	float magpp[MAX_COUNTER_CHANNELS];
 	uint16_t pwidth[MAX_COUNTER_CHANNELS];
 	uint16_t period[MAX_COUNTER_CHANNELS];
 	uint8_t speed[MAX_COUNTER_CHANNELS];
-	t_counters_hw_type hw_type;
+	t_sensing_edge sensing_edge[MAX_COUNTER_CHANNELS];
 } counters_conf_t;
 
 // Configuracion de canales digitales
@@ -276,6 +308,13 @@ systemVarsType systemVars;
 void xCOMMS_config_defaults( char *opt );
 void xCOMMS_status(void);
 
+void debug_print_wdg_timers(void);
+void debug_full_print_stack_watermarks(void);
+void debug_print_stack_watermarks(char *id);
+void debug_read_stack_watermarks(st_stack_size_t *stack_wmk );
+void debug_monitor_stack_watermarks(char *id);
+int debug_freeRam(void);
+
 void initMCU(void);
 void u_configure_systemMainClock(void);
 void u_configure_RTC32(void);
@@ -302,7 +341,6 @@ void u_hash_test(void);
 
 // TKCTL
 void ctl_watchdog_kick(uint8_t taskWdg, uint16_t timeout_in_secs );
-void ctl_print_wdg_timers(void);
 uint16_t ctl_readTimeToNextPoll(void);
 void ctl_reload_timerPoll( uint16_t new_time );
 bool ctl_terminal_connected(void);
@@ -324,7 +362,7 @@ bool dinputs_service_read(void);
 void counters_setup(void);
 void counters_init(void);
 void counters_config_defaults(void);
-bool counters_config_channel( uint8_t channel,char *s_name, char *s_magpp, char *s_pw, char *s_period, char *s_speed );
+bool counters_config_channel( uint8_t channel,char *s_name, char *s_magpp, char *s_pw, char *s_period, char *s_speed, char *s_sensing );
 bool counters_config_hw( char *s_type );
 void counters_clear(void);
 void counters_read(float cnt[]);

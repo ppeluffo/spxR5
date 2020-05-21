@@ -30,6 +30,10 @@ t_comms_states tkComms_st_espera_apagado(void)
 // Entry:
 	// Apago el dispositivo de comunicaciones.
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_apagado.\r\n\0"));
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("2");
+#endif
+
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_ESPERA_OFF );
 	xCOMMS_apagar_dispositivo();
 

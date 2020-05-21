@@ -134,6 +134,7 @@ void xCOMMS_init(void)
 	xCOMMS_stateVars.dispositivo_prendido = false;
 	xCOMMS_stateVars.dispositivo_inicializado = false;
 
+
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_apagar_dispositivo(void)
@@ -350,19 +351,6 @@ file_descriptor_t fd = fdGPRS;
 
 }
 //------------------------------------------------------------------------------------
-void xCOMM_send_global_params(void)
-{
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:0000;SIMID:000;CSQ:0;WRST:%02X;" ),wdg_resetCause );
-
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;" ), gprs_get_imei() );
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
-
-	}
-
-}
-//------------------------------------------------------------------------------------
 bool xCOMMS_check_response( const char *pattern )
 {
 
@@ -532,4 +520,55 @@ FAT_t fat;
 	return(nro_recs_pendientes);
 }
 //------------------------------------------------------------------------------------
+void XCOMMS_to_timer_start(void)
+{
+	/*
+	 * inicia el timer que controla el TO del enlace.
+	 * Si el timer llega a 0, se reinicia el enlace.
+	 * Se aplica solo para XBEE !!!
+	 */
 
+	xCOMMS_stateVars.to_timer.enabled = true;
+	xCOMMS_stateVars.to_timer.timer = MAX_XCOMM_TO_TIMER;
+}
+//------------------------------------------------------------------------------------
+void XCOMMS_to_timer_stop(void)
+{
+	xCOMMS_stateVars.to_timer.enabled = false;
+}
+//------------------------------------------------------------------------------------
+void XCOMMS_to_timer_restart(void)
+{
+	/*
+	 * Reinicia el timer que controla el TO del enlace.
+	 * Si el timer llega a 0, se reinicia el enlace.
+	 * Se aplica solo para XBEE !!!
+	 */
+	xCOMMS_stateVars.to_timer.timer = MAX_XCOMM_TO_TIMER;
+
+}
+//------------------------------------------------------------------------------------
+void XCOMMS_to_timer_update(uint8_t update_time)
+{
+	/*
+	 * Funcion invocada por tkCTL para actualizar el timer
+	 * Se incova c/5s.
+	 */
+
+	if ( xCOMMS_stateVars.to_timer.enabled ) {
+
+		if ( xCOMMS_stateVars.to_timer.timer > update_time ) {
+			xCOMMS_stateVars.to_timer.timer -= update_time;
+		} else {
+			xCOMMS_stateVars.to_timer.timer = 0;
+		}
+
+		if ( xCOMMS_stateVars.to_timer.timer == 0 ) {
+			// Debo apagar y prender el canal XBEE.
+			xprintf_P(PSTR("COMMS: XBEE LINK FAIL... Restart Link.\r\n\0"));
+			SPX_SEND_SIGNAL( SGN_REDIAL );
+			xCOMMS_stateVars.to_timer.timer = MAX_XCOMM_TO_TIMER;
+		}
+	}
+}
+//------------------------------------------------------------------------------------

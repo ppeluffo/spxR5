@@ -26,6 +26,9 @@ t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_CONFIG);
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_configurar.\r\n\0"));
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("5");
+#endif
 	//xprintf_PD( DF_COMMS, PSTR("COMMS: configurar.\r\n\0"));
 
 	// El XBEE no se configura. Pasamos directamente a initframe !!!

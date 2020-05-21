@@ -28,6 +28,10 @@ t_comms_states next_state = ST_ESPERA_APAGADO;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_entry.\r\n\0"));
 
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("1");
+#endif
+
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_ENTRY);
 
 	// en XBEE siempre estoy en modo CONTINUO

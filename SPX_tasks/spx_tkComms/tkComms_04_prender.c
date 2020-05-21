@@ -27,12 +27,16 @@ t_comms_states tkComms_st_prender(void)
 uint8_t intentos = 0;
 t_comms_states next_state = ST_ENTRY;
 
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_prender.\r\n\0"));
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("4");
+#endif
+
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_PRENDER);
 
 	// Debo poner esta flag en true para que el micro no entre en sleep y pueda funcionar el puerto
 	// serial y leer la respuesta del AT del modem.
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_prender.\r\n\0"));
 	xprintf_PD( DF_COMMS, PSTR("COMMS: prendo dispositivo...\r\n\0"));
 
 // Loop:

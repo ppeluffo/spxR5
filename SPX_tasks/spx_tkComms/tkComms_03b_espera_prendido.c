@@ -27,6 +27,10 @@ uint16_t data_awaiting;
 // Entry:
 	ctl_watchdog_kick(WDG_COMMS,WDG_COMMS_TO_ESPERA_ON );
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_prendido.\r\n\0"));
+#ifdef MONITOR_STACK
+	debug_print_stack_watermarks("3");
+#endif
+
 	//xprintf_P( PSTR("COMMS: espera_prendido.\r\n\0"));
 
 // Loop:
