@@ -131,10 +131,6 @@ void xCOMMS_init(void)
 		gprs_init();
 	}
 
-	xCOMMS_stateVars.dispositivo_prendido = false;
-	xCOMMS_stateVars.dispositivo_inicializado = false;
-
-
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_apagar_dispositivo(void)
@@ -146,8 +142,6 @@ void xCOMMS_apagar_dispositivo(void)
 		gprs_apagar();
 	}
 
-	xCOMMS_stateVars.dispositivo_prendido = false;
-	xCOMMS_stateVars.dispositivo_inicializado = false;
 }
 //------------------------------------------------------------------------------------
 bool xCOMMS_prender_dispositivo(bool f_debug, uint8_t delay_factor)
@@ -428,7 +422,7 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		 */
 		SPX_CLEAR_SIGNAL( SGN_FRAME_READY );
 		if ( state == ST_ESPERA_PRENDIDO ) {
-			if ( xCOMMS_stateVars.dispositivo_inicializado ) {
+			if ( xCOMMS_stateVars.gprs_inicializado || xCOMMS_stateVars.aux1_inicializado ) {
 				xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_FRAME_READY rcvd.\r\n\0"));
 				*next_state = ST_DATAFRAME;
 				return(true);

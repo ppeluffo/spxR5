@@ -7,67 +7,34 @@
 #include "tkComms.h"
 
 //------------------------------------------------------------------------------------
-
-struct {
-	char buffer[XBEE_RXBUFFER_LEN];
-	uint16_t ptr;
-} xbeeRxBuffer;
-
-//------------------------------------------------------------------------------------
 void xbee_init(void)
 {
 	XCOMMS_to_timer_start();
-}
-//------------------------------------------------------------------------------------
-void xbee_rxBuffer_fill(char c)
-{
-	/*
-	 * Guarda el dato en el buffer LINEAL de operacion del GPRS
-	 * Si hay lugar meto el dato.
-	 */
-
-	if ( xbeeRxBuffer.ptr < XBEE_RXBUFFER_LEN )
-		xbeeRxBuffer.buffer[ xbeeRxBuffer.ptr++ ] = c;
+	xCOMMS_stateVars.aux1_prendido = false;
+	xCOMMS_stateVars.aux1_inicializado = false;
 }
 //------------------------------------------------------------------------------------
 void xbee_apagar(void)
 {
-	/*
-	 * Apaga el dispositivo quitando la energia del mismo
-	 *
-	 */
-	IO_clr_XBEE_PWR();		// Apago el modulo
-	// Espero 1s de settle time.
-	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-
+	aux1_apagar();
 }
 //------------------------------------------------------------------------------------
 bool xbee_prender( bool debug, uint8_t delay_factor )
 {
 	// Prendo el dispositivo XBEE.
-
-	IO_clr_XBEE_PWR();		// Apago el modulo
-	IO_set_XBEE_PWR();		// Prendo el modulo
-
+	aux1_prender();
 	vTaskDelay( (portTickType)( ( 2000 + 2000 * delay_factor) / portTICK_RATE_MS ) );	// Espero que se estabilize la fuente.
-
-	xCOMMS_stateVars.dispositivo_prendido = true;
-
 	return(true);
 }
 //------------------------------------------------------------------------------------
 void xbee_flush_RX_buffer(void)
 {
-
-	frtos_ioctl( fdAUX1,ioctl_UART_CLEAR_RX_BUFFER, NULL);
-	memset( xbeeRxBuffer.buffer, '\0', XBEE_RXBUFFER_LEN);
-	xbeeRxBuffer.ptr = 0;
+	aux1_flush_RX_buffer();
 }
 //------------------------------------------------------------------------------------
 void xbee_flush_TX_buffer(void)
 {
-	frtos_ioctl( fdAUX1,ioctl_UART_CLEAR_TX_BUFFER, NULL);
-
+	aux1_flush_TX_buffer();
 }
 //------------------------------------------------------------------------------------
 void xbee_print_RX_buffer(void)
@@ -75,20 +42,12 @@ void xbee_print_RX_buffer(void)
 
 	// Imprimo todo el buffer local de RX. Sale por \0.
 	xprintf_P( PSTR ("XBEE: rxbuff>\r\n\0"));
-
-	// Uso esta funcion para imprimir un buffer largo, mayor al que utiliza xprintf_P. !!!
-	xnprint( xbeeRxBuffer.buffer, XBEE_RXBUFFER_LEN );
-	xprintf_P( PSTR ("\r\n[%d]\r\n\0"), xbeeRxBuffer.ptr );
+	aux1_print_RX_buffer();
 }
 //------------------------------------------------------------------------------------
 bool xbee_check_response( const char *rsp )
 {
-bool retS = false;
-
-	if ( strstr( xbeeRxBuffer.buffer, rsp) != NULL ) {
-		retS = true;
-	}
-	return(retS);
+	return( xbee_check_response(rsp) );
 }
 //------------------------------------------------------------------------------------
 bool xbee_configurar_dispositivo(uint8_t *err_code)
@@ -138,7 +97,7 @@ t_link_status xbee_open_socket(bool f_debug, char *ip, char *port)
 char *xbee_get_buffer_ptr( char *pattern)
 {
 
-	return( strstr( xbeeRxBuffer.buffer, pattern) );
+	return( aux1_get_buffer_ptr(pattern) );
 }
 //------------------------------------------------------------------------------------
 

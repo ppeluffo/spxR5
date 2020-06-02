@@ -50,21 +50,7 @@ t_comms_states next_state = ST_ESPERA_APAGADO;
 		// Si el dispositivo esta prendido e inicializado voy a ESPERA_PRENDIDO.
 		// En otro caso voy a PRENDER
 
-		/*
-		if ( xCOMMS_stateVars.dispositivo_prendido ) {
-			xprintf_P(PSTR("DEBUG: prendido\r\n"));
-		} else {
-			xprintf_P(PSTR("DEBUG: apagado\r\n"));
-		}
-
-		if ( xCOMMS_stateVars.dispositivo_inicializado ) {
-			xprintf_P(PSTR("DEBUG: inicializado\r\n"));
-		} else {
-			xprintf_P(PSTR("DEBUG: NO inicializado\r\n"));
-		}
-		*/
-
-		if ( xCOMMS_stateVars.dispositivo_prendido && xCOMMS_stateVars.dispositivo_inicializado ) {
+		if ( xCOMMS_stateVars.gprs_prendido && xCOMMS_stateVars.gprs_inicializado ) {
 			// Modo continuo pero dispositivo apagado: salgo a prenderlo
 			next_state = ST_ESPERA_PRENDIDO;
 			goto EXIT;

@@ -55,7 +55,8 @@ void gprs_init(void)
 
 	memset(gprs_status.buff_gprs_ccid, '\0', IMEIBUFFSIZE );
 	memset(gprs_status.buff_gprs_ccid, '\0', IMEIBUFFSIZE );
-	xCOMMS_stateVars.dispositivo_prendido = false;
+	xCOMMS_stateVars.gprs_prendido = false;
+	xCOMMS_stateVars.gprs_inicializado = false;
 	XCOMMS_to_timer_stop();
 }
 //------------------------------------------------------------------------------------
@@ -82,6 +83,8 @@ void gprs_apagar(void)
 	IO_clr_GPRS_PWR();	// Apago la fuente.
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
+	xCOMMS_stateVars.gprs_prendido = false;
+	xCOMMS_stateVars.gprs_inicializado = false;
 }
 //------------------------------------------------------------------------------------
 bool gprs_prender(bool f_debug, uint8_t delay_factor )
@@ -97,7 +100,7 @@ bool gprs_prender(bool f_debug, uint8_t delay_factor )
 uint8_t tries;
 
 	// Aviso a la tarea de RX que se despierte!!!
-	xCOMMS_stateVars.dispositivo_prendido = true;
+	xCOMMS_stateVars.gprs_prendido = true;
 	while ( xTaskNotify( xHandle_tkCommsRX, SGN_WAKEUP , eSetBits ) != pdPASS ) {
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 	}
@@ -141,7 +144,7 @@ uint8_t tries;
 	// No prendio luego de 3 intentos SW.
 	// Apago y prendo de nuevo
 	// Espero 10s antes de reintentar
-	xCOMMS_stateVars.dispositivo_prendido = false;
+	xCOMMS_stateVars.gprs_prendido = false;
 	gprs_apagar();
 	vTaskDelay( (portTickType)( 10000 / portTICK_RATE_MS ) );
 

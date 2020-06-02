@@ -76,7 +76,11 @@ t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_INITFRAME );
 
-	xCOMMS_stateVars.dispositivo_inicializado = false;
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
+		xCOMMS_stateVars.gprs_inicializado = false;
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
+		xCOMMS_stateVars.aux1_inicializado = false;
+	}
 
 	reset_datalogger = false;
 
@@ -132,8 +136,12 @@ t_comms_states next_state = ST_ENTRY;
 	}
 
 	next_state = ST_DATAFRAME;
-	xCOMMS_stateVars.dispositivo_inicializado = true;
 
+	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
+		xCOMMS_stateVars.gprs_inicializado = true;
+	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
+		xCOMMS_stateVars.aux1_inicializado = true;
+	}
 	// Proceso las señales:
 	if ( xCOMMS_procesar_senales( ST_INITFRAME , &next_state ) )
 		goto EXIT;

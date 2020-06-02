@@ -22,7 +22,8 @@ typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 
 #define GPRS_RXBUFFER_LEN	512
-#define XBEE_RXBUFFER_LEN	512
+#define AUX1_RXBUFFER_LEN	512
+#define XBEE_RXBUFFER_LEN	AUX1_RXBUFFER_LEN
 
 #define MAX_XCOMM_TO_TIMER	180
 
@@ -46,8 +47,10 @@ typedef struct {
 typedef struct {
 	uint8_t csq;
 	char ip_assigned[IP_LENGTH];
-	bool dispositivo_prendido;
-	bool dispositivo_inicializado;
+	bool aux1_prendido;
+	bool aux1_inicializado;
+	bool gprs_prendido;
+	bool gprs_inicializado;
 	t_xCOMMS_TO_timer to_timer;
 } t_xCOMMS_stateVars;
 
@@ -124,8 +127,17 @@ void XCOMMS_to_timer_restart(void);
 void XCOMMS_to_timer_update(uint8_t update_time);
 
 
+void aux1_rxBuffer_fill(char c);
+void aux1_apagar(void);
+bool aux1_prender(void);
+void aux1_flush_RX_buffer(void);
+void aux1_flush_TX_buffer(void);
+void aux1_print_RX_buffer(void);
+bool aux1_check_response( const char *rsp );
+char *aux1_get_buffer_ptr( char *pattern);
+
+
 void xbee_init(void);
-void xbee_rxBuffer_fill(char c);
 void xbee_flush_RX_buffer(void);
 void xbee_flush_TX_buffer(void);
 void xbee_print_RX_buffer(void);

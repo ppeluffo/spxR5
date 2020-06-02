@@ -43,7 +43,13 @@
  *
  * Revisar en el servidor que grabe el UID en los inits. !!!
  *
+ * --------------------------------------------------------------------------------------------------
+ *  BRANCH MODBUS_TEST
+ *  Version 0.0.1a
+ *  Version beta para incorporar y probar modbus.
+ *  2020-05-22
  *
+ * --------------------------------------------------------------------------------------------------
  * Version 3.0.1c
  * Se presenta un bug que hace que los equipos no se conecten del todo y se reseteen al transmitir el
  * frame de init global.

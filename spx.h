@@ -64,11 +64,11 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.1c"
-#define SPX_FW_DATE "@ 20200520"
+#define SPX_FW_REV "0.0.1b"
+#define SPX_FW_DATE "@ 20200527"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
-#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
+#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS MBUS BETA"
 
 //#define F_CPU (32000000UL)
 
@@ -418,6 +418,11 @@ bool SPX_SEND_SIGNAL( uint8_t signal );
 bool SPX_CLEAR_SIGNAL( uint8_t signal );
 
 int32_t xcomms_time_to_next_dial(void);
+
+// MODBUS
+void modbus_prender(void);
+void modbus_apagar(void);
+
 
 // WATCHDOG
 uint8_t wdg_resetCause;
