@@ -68,25 +68,17 @@ static bool starting_flag = true;
 		goto EXIT;
 	}
 
-	// en XBEE solo espero 5 minutos
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		time_to_next_dial = 60;
-		goto EXIT;
-	}
-
 	// En modo DISCRETO ( timerDial > 900 )
 	if ( MODO_DISCRETO ) {
 		time_to_next_dial = sVarsComms.timerDial;
 		goto EXIT;
 	} else {
-		time_to_next_dial = 60;
-	}
-
-	// En modo CONTINUO prendo enseguida
-	if ( ! MODO_DISCRETO ) {
+		// En modo CONTINUO prendo enseguida
 		time_to_next_dial = 10;
 		goto EXIT;
 	}
+
+	time_to_next_dial = 75;
 
 EXIT:
 

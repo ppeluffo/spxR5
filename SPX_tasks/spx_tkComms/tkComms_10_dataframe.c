@@ -255,8 +255,6 @@ uint8_t timeout = 0;
 
 			xCOMMS_print_RX_buffer( DF_COMMS );
 
-			XCOMMS_to_timer_restart();
-
 			if ( xCOMMS_check_response ("ERROR\0")) {
 				// ERROR del server: salgo inmediatamente
 				return(false);

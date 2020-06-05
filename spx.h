@@ -64,11 +64,11 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.1c"
-#define SPX_FW_DATE "@ 20200520"
+#define SPX_FW_REV "3.0.2.b"
+#define SPX_FW_DATE "@ 20200605"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
-#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
+#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
 
 //#define F_CPU (32000000UL)
 

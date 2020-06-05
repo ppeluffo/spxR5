@@ -17,7 +17,6 @@ static void pv_snprintfP_ERR(void);
 static void pv_cmd_read_fuses(void);
 static void pv_cmd_read_memory(void);
 static void pv_cmd_rwGPRS(uint8_t cmd_mode );
-static void pv_cmd_rwXBEE(uint8_t cmd_mode );
 static void pv_cmd_rwMCP(uint8_t cmd_mode );
 static void pv_cmd_I2Cscan(bool busscan);
 
@@ -25,13 +24,11 @@ static void pv_cmd_I2Cscan(bool busscan);
 // FUNCIONES DE CMDMODE
 //----------------------------------------------------------------------------------------
 static void cmdHelpFunction(void);
-//static void cmdHelpAlarmasFunction(void);
 static void cmdClearScreen(void);
 static void cmdResetFunction(void);
 static void cmdWriteFunction(void);
 static void cmdReadFunction(void);
 static void cmdStatusFunction(void);
-//static void cmdStatusAlarmasFunction(void);
 static void cmdConfigFunction(void);
 static void cmdKillFunction(void);
 static void cmdPeekFunction(void);
@@ -366,14 +363,6 @@ char l_data[10] = { '\0' };
 	}
 */
 
-
-	// XBEE
-	// write xbee (pwr) {on|off}
-	// write xbee msg {txt}
-	if ( ( strcmp_P( strupr(argv[1]), PSTR("XBEE\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
-		pv_cmd_rwXBEE(WR_CMD);
-		return;
-	}
 
 	// GPRS
 	// write gprs pwr|sw|rts {on|off}
@@ -713,13 +702,6 @@ uint8_t cks;
 		return;
 	}
 
-	// XBEE
-	// read xbee
-	if (!strcmp_P( strupr(argv[1]), PSTR("XBEE\0")) && ( tipo_usuario == USER_TECNICO) ) {
-		pv_cmd_rwXBEE(RD_CMD);
-		return;
-	}
-
 	// ACH {n}
 	// read ach n
 	if (!strcmp_P( strupr(argv[1]), PSTR("ACH\0")) && ( tipo_usuario == USER_TECNICO) ) {
@@ -752,22 +734,6 @@ static void cmdConfigFunction(void)
 bool retS = false;
 
 	FRTOS_CMD_makeArgv();
-
-	// COMMS
-	// config comms {XBEE | GPRS }
-	if ( strcmp_P( strupr(argv[1]), PSTR("COMMS\0")) == 0  ) {
-		if ( strcmp_P( strupr(argv[2]), PSTR("XBEE\0")) == 0  ) {
-			sVarsComms.comms_channel = COMMS_CHANNEL_XBEE;
-			pv_snprintfP_OK();
-			return;
-		}
-		if ( strcmp_P( strupr(argv[2]), PSTR("GPRS\0")) == 0  ) {
-			sVarsComms.comms_channel = COMMS_CHANNEL_GPRS;
-			pv_snprintfP_OK();
-			return;
-		}
-		pv_snprintfP_ERR();
-	}
 
 	// APPALARM
 	// config appalarma
@@ -1076,9 +1042,6 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("       cmd {atcmd}, redial, monsqe\r\n\0"));
 			xprintf_P( PSTR("       sms,qsms,fsms {nbr,msg}\r\n\0"));
 
-			xprintf_P( PSTR("  xbee (pwr) {on|off}\r\n\0"));
-			xprintf_P( PSTR("       msg {txt}\r\n\0"));
-
 		}
 		return;
 	}
@@ -1100,7 +1063,6 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
 			xprintf_P( PSTR("  dinputs\r\n\0"));
 			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri,sms)\r\n\0"));
-			xprintf_P( PSTR("  xbee rsp\r\n\0"));
 		}
 		return;
 
@@ -1119,7 +1081,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("-config\r\n\0"));
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
-		xprintf_P( PSTR("  comms {XBEE | GPRS}\r\n\0"));
+		xprintf_P( PSTR("  comms {GPRS}\r\n\0"));
 
 		xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
@@ -1136,7 +1098,6 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax offset\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  autocal {ch,PSENSOR} {mag}\r\n\0"));
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
-		//xprintf_P( PSTR("  xbee {off,master,slave}\r\n\0"));
 
 		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque}\r\n\0"));
 		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
@@ -1198,7 +1159,7 @@ static void cmdKillFunction(void)
 		vTaskSuspend( xHandle_tkComms );
 		ctl_watchdog_kick(WDG_COMMS, 0x8000 );
 		// Dejo la flag de modem prendido para poder leer comandos
-		xCOMMS_stateVars.dispositivo_prendido = true;
+		xCOMMS_stateVars.gprs_prendido = true;
 		pv_snprintfP_OK();
 		return;
 	}
@@ -1462,53 +1423,6 @@ uint8_t pin = 0;
 		pv_snprintfP_ERR();
 		return;
 	}
-
-}
-//------------------------------------------------------------------------------------
-static void pv_cmd_rwXBEE(uint8_t cmd_mode )
-{
-
-	if ( cmd_mode == WR_CMD ) {
-
-		// write gprs (pwr) {on|off}
-		if ( strcmp_P( strupr(argv[2]), PSTR("PWR\0")) == 0 ) {
-			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
-				xbee_prender(false,1); pv_snprintfP_OK(); return;
-			}
-			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
-				xbee_apagar(); pv_snprintfP_OK(); return;
-			}
-			pv_snprintfP_ERR();
-			return;
-		}
-
-		// // write xbee msg (txt)
-		if ( strcmp_P(strupr(argv[2]), PSTR("MSG\0")) == 0 ) {
-			//xprintf_P( PSTR("%s\r\0"),argv[3] );
-			xbee_flush_RX_buffer();
-			xfprintf_P( fdAUX1,PSTR("%s\r\0"),argv[3] );
-			xprintf_P( PSTR("sent->%s\r\n\0"),argv[3] );
-			return;
-		}
-
-		pv_snprintfP_ERR();
-		return;
-	}
-
-	if ( cmd_mode == RD_CMD ) {
-
-		// ATCMD RSP
-		// read gprs rsp
-		if ( strcmp_P(strupr(argv[2]), PSTR("RSP\0")) == 0 ) {
-			xbee_print_RX_buffer();
-			//p = pub_gprs_rxbuffer_getPtr();
-			//xprintf_P( PSTR("rx->%s\r\n\0"),p );
-			return;
-		}
-	}
-
-	pv_snprintfP_ERR();
-	return;
 
 }
 //------------------------------------------------------------------------------------

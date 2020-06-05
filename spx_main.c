@@ -43,6 +43,24 @@
  *
  * Revisar en el servidor que grabe el UID en los inits. !!!
  *
+ * --------------------------------------------------------------------------------------------------
+ * Version 3.0.2.b ( MASTER )
+ *
+ * Detectamos 2 problemas:
+ * 1-Si se queda en default no puede conectarse al servidor ya que da el mensaje
+ * cmd>COMMS: gprs NETOPEN OK !.
+ * COMMS: GPRS_SCAN SCRIPT ERROR !!.
+ * Solucionado: Problemas del servidor
+ *
+ * 2- Hay veces que da COMMS: pin ERROR: Reconfiguro timerdial y no puede discar mas, pero
+ * al resetearlo si puede.
+ *
+ * 3- En XCOMMS uso una variable dispositivo_prendido pero debo difereciar si es gprs o aux1.
+ * Manejo XBEE o GPRS pero en realidad debo manejar GPRS y AUX1.
+ *
+ * ELIMINO TODO LO REFERENTE A XBEE EN EL MODULO DE COMMS y vuelvo a un sistema basico con solo gprs.
+ * Agrego antes de CPIN ERROR un mensaje del estado de gprs_prendido / gprs_inicializado.
+ * --------------------------------------------------------------------------------------------------
  *
  * Version 3.0.1c
  * Se presenta un bug que hace que los equipos no se conecten del todo y se reseteen al transmitir el
@@ -50,7 +68,9 @@
  * - Incorporo mecanismos para monitorear el stack.( en la funcion main. Para leer la profundidad del
  * stack uso vTaskGetInfo porque devuelve el stack en 16 bits, en cambio la funcion uxTaskGetStackHighWaterMark()
  * esta desactualizada y lo devuelve en 8 bits con lo que hace rollover.
- * !! Confirmo que el stack no es el problema
+ * !! Confirmo que el stack no es el problema.
+ * El problema estaba en que leian una configuración del servidor en que los contadores estaban
+ * mal configurados y esto hacia que luego el micro se reseteara
  *
  * --------------------------------------------------------------------------------------------------
  * Version 3.0.1b @ 20200511

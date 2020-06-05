@@ -61,8 +61,6 @@ char l_data[10] = { 0 };
 	sVarsComms.pwrSave.hora_fin.hour = 5;
 	sVarsComms.pwrSave.hora_fin.min = 30;
 
-	// COMMS_CHANNEL
-	sVarsComms.comms_channel = COMMS_CHANNEL_GPRS;
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_status(void)
@@ -70,22 +68,15 @@ void xCOMMS_status(void)
 
 uint8_t dbm;
 
-	switch( sVarsComms.comms_channel) {
-	case COMMS_CHANNEL_XBEE:
-		xprintf_P( PSTR(">Device Xbee:\r\n\0"));
-		break;
-	case COMMS_CHANNEL_GPRS:
-		xprintf_P( PSTR(">Device Gprs:\r\n\0"));
-		xprintf_P( PSTR("  apn: %s\r\n\0"), sVarsComms.apn );
-		xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
-		xprintf_P( PSTR("  server script: %s\r\n\0"), sVarsComms.serverScript );
-		xprintf_P( PSTR("  simpwd: %s\r\n\0"), sVarsComms.simpwd );
+	xprintf_P( PSTR(">Device Gprs:\r\n\0"));
+	xprintf_P( PSTR("  apn: %s\r\n\0"), sVarsComms.apn );
+	xprintf_P( PSTR("  server ip:port: %s:%s\r\n\0"), sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
+	xprintf_P( PSTR("  server script: %s\r\n\0"), sVarsComms.serverScript );
+	xprintf_P( PSTR("  simpwd: %s\r\n\0"), sVarsComms.simpwd );
 
-		dbm = 113 - 2 * xCOMMS_stateVars.csq;
-		xprintf_P( PSTR("  signalQ: csq=%d, dBm=%d\r\n\0"), xCOMMS_stateVars.csq, dbm );
-		xprintf_P( PSTR("  ip address: %s\r\n\0"), xCOMMS_stateVars.ip_assigned) ;
-		break;
-	}
+	dbm = 113 - 2 * xCOMMS_stateVars.csq;
+	xprintf_P( PSTR("  signalQ: csq=%d, dBm=%d\r\n\0"), xCOMMS_stateVars.csq, dbm );
+	xprintf_P( PSTR("  ip address: %s\r\n\0"), xCOMMS_stateVars.ip_assigned) ;
 
 	// TASK STATE
 	switch (tkComms_state) {
@@ -124,33 +115,20 @@ uint8_t dbm;
 //------------------------------------------------------------------------------------
 void xCOMMS_init(void)
 {
-
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_init();
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		gprs_init();
-	}
-
-	xCOMMS_stateVars.dispositivo_prendido = false;
-	xCOMMS_stateVars.dispositivo_inicializado = false;
-
+	gprs_init();
+	xCOMMS_stateVars.gprs_prendido = false;
+	xCOMMS_stateVars.gprs_inicializado = false;
 
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_apagar_dispositivo(void)
 {
-
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_apagar();
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		gprs_apagar();
-	}
-
-	xCOMMS_stateVars.dispositivo_prendido = false;
-	xCOMMS_stateVars.dispositivo_inicializado = false;
+	gprs_apagar();
+	xCOMMS_stateVars.gprs_prendido = false;
+	xCOMMS_stateVars.gprs_inicializado = false;
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_prender_dispositivo(bool f_debug, uint8_t delay_factor)
+bool xCOMMS_prender_dispositivo(bool f_debug )
 {
 	/*
 	 * El modem necesita que se le mande un AT y que responda un OK para
@@ -160,10 +138,11 @@ bool xCOMMS_prender_dispositivo(bool f_debug, uint8_t delay_factor)
 
 bool retS = false;
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		retS = xbee_prender( f_debug, delay_factor);
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		retS = gprs_prender( f_debug, delay_factor);
+	xCOMMS_stateVars.gprs_prendido = true;
+	retS = gprs_prender( f_debug );
+	if ( retS == false ) {
+		// No prendio
+		xCOMMS_stateVars.gprs_prendido = false;
 	}
 
 	return(retS);
@@ -179,12 +158,7 @@ bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, uint8_t *err_code )
 
 bool retS = false;
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		retS = xbee_configurar_dispositivo(err_code);
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		retS = gprs_configurar_dispositivo( f_debug, pin, err_code );
-	}
-
+	retS = gprs_configurar_dispositivo( f_debug, pin, err_code );
 	return(retS);
 }
 //------------------------------------------------------------------------------------
@@ -194,12 +168,8 @@ void xCOMMS_mon_sqe(bool f_debug, bool modo_continuo, uint8_t *csq )
 	 * Solo en GPRS monitoreo la calidad de señal.
 	 */
 
+	gprs_mon_sqe( f_debug, modo_continuo, csq);
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_mon_sqe();
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		gprs_mon_sqe( f_debug, modo_continuo, csq);
-	}
 }
 //------------------------------------------------------------------------------------
 bool xCOMMS_scan(t_scan_struct scan_boundle )
@@ -213,13 +183,8 @@ bool xCOMMS_scan(t_scan_struct scan_boundle )
 
 bool retS = false;
 
-		if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-			retS = xbee_scan(scan_boundle);
-		} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-			retS = gprs_scan(scan_boundle);
-		}
-
-		return(retS);
+	retS = gprs_scan(scan_boundle);
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 bool xCOMMS_need_scan( t_scan_struct scan_boundle )
@@ -227,12 +192,7 @@ bool xCOMMS_need_scan( t_scan_struct scan_boundle )
 
 bool retS = false;
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		retS = xbee_need_scan(scan_boundle);
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		retS = gprs_need_scan(scan_boundle);
-	}
-
+	retS = gprs_need_scan(scan_boundle);
 	return(retS);
 }
 //------------------------------------------------------------------------------------
@@ -246,13 +206,8 @@ bool xCOMMS_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
 
 bool retS = false;
 
-		if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-			retS = xbee_ip();
-		} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-			retS = gprs_ip(f_debug, apn, ip_assigned, err_code);
-		}
-
-		return(retS);
+	retS = gprs_ip(f_debug, apn, ip_assigned, err_code);
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 t_link_status xCOMMS_link_status( bool f_debug )
@@ -260,15 +215,9 @@ t_link_status xCOMMS_link_status( bool f_debug )
 
 t_link_status lstatus = LINK_CLOSED;
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		lstatus = xbee_check_socket_status( f_debug);
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		lstatus = gprs_check_socket_status( f_debug);
-	}
-
+	lstatus = gprs_check_socket_status( f_debug);
 	return(lstatus);
 }
-//------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
 void xCOMMS_flush_RX(void)
 {
@@ -278,11 +227,8 @@ void xCOMMS_flush_RX(void)
 	 * de comunicaciones, y el buffer comun commsRxBuffer
 	 */
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_flush_RX_buffer();
-	} else	if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		gprs_flush_RX_buffer();
-	}
+	gprs_flush_RX_buffer();
+
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_flush_TX(void)
@@ -293,11 +239,8 @@ void xCOMMS_flush_TX(void)
 	 * de comunicaciones
 	 */
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		xbee_flush_TX_buffer();
-	} else	if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		gprs_flush_TX_buffer();
-	}
+	gprs_flush_TX_buffer();
+
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_send_header(char *type)
@@ -326,13 +269,7 @@ t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port)
 t_link_status lstatus = LINK_CLOSED;
 
 	xCOMMS_flush_RX();
-
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		lstatus = xbee_open_socket(f_debug, ip, port);
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		lstatus = gprs_open_socket(f_debug, ip, port);
-	}
-
+	lstatus = gprs_open_socket(f_debug, ip, port);
 	return(lstatus);
 
 }
@@ -342,48 +279,25 @@ file_descriptor_t xCOMMS_get_fd(void)
 
 file_descriptor_t fd = fdGPRS;
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		fd = fdAUX1;
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		fd = fdGPRS;
-	}
+	fd = fdGPRS;
 	return(fd);
 
 }
 //------------------------------------------------------------------------------------
 bool xCOMMS_check_response( const char *pattern )
 {
-
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		return( xbee_check_response(pattern)) ;
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		return( gprs_check_response(pattern));
-	}
-
-	return(false);
+	return( gprs_check_response(pattern));
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_print_RX_buffer(bool d_flag)
 {
-	if ( d_flag ) {
-		if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-			xbee_print_RX_buffer();
-		} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-			gprs_print_RX_buffer(d_flag);
-		}
-	}
+	gprs_print_RX_buffer(d_flag);
+
 }
 //------------------------------------------------------------------------------------
 char *xCOMM_get_buffer_ptr( char *pattern)
 {
-
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		return( xbee_get_buffer_ptr(pattern));
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		return( gprs_get_buffer_ptr(pattern));
-	}
-
-	return(NULL);
+	return( gprs_get_buffer_ptr(pattern));
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr)
@@ -393,14 +307,7 @@ void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr)
 	 * En caso de debug, lo muestra en xTERM.
 	 */
 
-	if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-		data_print_inputs(fdAUX1, dr);
-	} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-		data_print_inputs(fdGPRS, dr);
-	} else {
-		return;
-	}
-
+	data_print_inputs(fdGPRS, dr);
 	if (d_flag ) {
 		data_print_inputs(fdTERM, dr);
 	}
@@ -414,9 +321,9 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		 * Debo apagar y prender el dispositivo. Como ya estoy apagado
 		 * salgo para pasar al estado PRENDIENDO.
 		 */
+		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_REDIAL rcvd.\r\n\0"));
 		SPX_CLEAR_SIGNAL( SGN_REDIAL );
 		xCOMMS_apagar_dispositivo();
-		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_REDIAL rcvd.\r\n\0"));
 		*next_state = ST_PRENDER;
 		return(true);
 	}
@@ -427,16 +334,15 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		 * En los otros casos solo la ignoro ( borro ) pero no tomo acciones.
 		 */
 		SPX_CLEAR_SIGNAL( SGN_FRAME_READY );
+		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_FRAME_READY rcvd.\r\n\0"));
 		if ( state == ST_ESPERA_PRENDIDO ) {
-			if ( xCOMMS_stateVars.dispositivo_inicializado ) {
-				xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_FRAME_READY rcvd.\r\n\0"));
+			if ( xCOMMS_stateVars.gprs_inicializado ) {
 				*next_state = ST_DATAFRAME;
-				return(true);
 			} else {
 				*next_state = ST_PRENDER;
-				return(true);
 			}
 		}
+		return(true);
 	}
 
 	if ( SPX_SIGNAL( SGN_MON_SQE )) {
@@ -445,6 +351,7 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		 * estado en el que entro en modo diagnostico y no debo salir mas.
 		 * Aqui lo que hago es salir a prender el dispositivo y entrar a monitorear el sqe
 		 */
+		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_MON_SQE rcvd.\r\n\0"));
 		switch(state) {
 		case ST_PRENDER:		// Ignoro
 			break;
@@ -454,10 +361,9 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 			break;
 		default:
 			xCOMMS_apagar_dispositivo();
-			xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_MON_SQE rcvd.\r\n\0"));
 			*next_state = ST_PRENDER;
-			return(true);
 		}
+		return(true);
 	}
 
 	if ( SPX_SIGNAL( SGN_RESET_COMMS_DEV )) {
@@ -465,8 +371,8 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		 * Debo resetear el dispositivo.
 		 * Esto implica apagarlo y prenderlo
 		 */
-		SPX_CLEAR_SIGNAL( SGN_RESET_COMMS_DEV );
 		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_RESET_COMMS_DEV rcvd.\r\n\0"));
+		SPX_CLEAR_SIGNAL( SGN_RESET_COMMS_DEV );
 		*next_state = ST_PRENDER;
 		return(true);
 	}
@@ -477,6 +383,7 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		 * Solo las atiendo mientras estoy en modo espera.
 		 * No borro la señal sino solo luego de haberlos procesado
 		 */
+		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_SMS rcvd.\r\n\0"));
 		switch(state) {
 		case ST_ESPERA_APAGADO:
 			*next_state = ST_PRENDER;
@@ -488,8 +395,6 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 			// Ignoro
 			break;
 		}
-
-		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_SMS rcvd.\r\n\0"));
 		return(true);
 	}
 
@@ -518,57 +423,5 @@ FAT_t fat;
 	}
 
 	return(nro_recs_pendientes);
-}
-//------------------------------------------------------------------------------------
-void XCOMMS_to_timer_start(void)
-{
-	/*
-	 * inicia el timer que controla el TO del enlace.
-	 * Si el timer llega a 0, se reinicia el enlace.
-	 * Se aplica solo para XBEE !!!
-	 */
-
-	xCOMMS_stateVars.to_timer.enabled = true;
-	xCOMMS_stateVars.to_timer.timer = MAX_XCOMM_TO_TIMER;
-}
-//------------------------------------------------------------------------------------
-void XCOMMS_to_timer_stop(void)
-{
-	xCOMMS_stateVars.to_timer.enabled = false;
-}
-//------------------------------------------------------------------------------------
-void XCOMMS_to_timer_restart(void)
-{
-	/*
-	 * Reinicia el timer que controla el TO del enlace.
-	 * Si el timer llega a 0, se reinicia el enlace.
-	 * Se aplica solo para XBEE !!!
-	 */
-	xCOMMS_stateVars.to_timer.timer = MAX_XCOMM_TO_TIMER;
-
-}
-//------------------------------------------------------------------------------------
-void XCOMMS_to_timer_update(uint8_t update_time)
-{
-	/*
-	 * Funcion invocada por tkCTL para actualizar el timer
-	 * Se incova c/5s.
-	 */
-
-	if ( xCOMMS_stateVars.to_timer.enabled ) {
-
-		if ( xCOMMS_stateVars.to_timer.timer > update_time ) {
-			xCOMMS_stateVars.to_timer.timer -= update_time;
-		} else {
-			xCOMMS_stateVars.to_timer.timer = 0;
-		}
-
-		if ( xCOMMS_stateVars.to_timer.timer == 0 ) {
-			// Debo apagar y prender el canal XBEE.
-			xprintf_P(PSTR("COMMS: XBEE LINK FAIL... Restart Link.\r\n\0"));
-			SPX_SEND_SIGNAL( SGN_REDIAL );
-			xCOMMS_stateVars.to_timer.timer = MAX_XCOMM_TO_TIMER;
-		}
-	}
 }
 //------------------------------------------------------------------------------------

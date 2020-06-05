@@ -24,7 +24,6 @@ t_comms_states tkComms_st_prender(void)
 	// para esperar y salgo.
 	// Mientras lo intento prender no atiendo mensajes ( cambio de configuracion / flooding / Redial )
 
-uint8_t intentos = 0;
 t_comms_states next_state = ST_ENTRY;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_prender.\r\n\0"));
@@ -39,24 +38,19 @@ t_comms_states next_state = ST_ENTRY;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: prendo dispositivo...\r\n\0"));
 
-// Loop:
-	for ( intentos = 0; intentos < MAX_TRIES_PWRON; intentos++ ) {
+	// Prendo la fuente
+	if ( xCOMMS_prender_dispositivo( DF_COMMS ) == true ) {
+		next_state = ST_CONFIGURAR;
+		goto EXIT;
+	}
 
-		// Prendo la fuente
-		if ( xCOMMS_prender_dispositivo( DF_COMMS, intentos ) == true ) {
-			next_state = ST_CONFIGURAR;
-			goto EXIT;
-		}
-
-		// Proceso las señales:
-		if ( xCOMMS_procesar_senales( ST_PRENDER , &next_state ) )
-			goto EXIT;
-
+	// Proceso las señales:
+	if ( xCOMMS_procesar_senales( ST_PRENDER , &next_state ) ) {
+		goto EXIT;
 	}
 
 	// Si salgo por aqui es que el modem no prendio luego de todos los reintentos
-
-	xprintf_P( PSTR("COMMS: ERROR!! Dispositivo no prendio en HW %d intentos\r\n\0"), MAX_TRIES_PWRON );
+	xprintf_P( PSTR("COMMS: ERROR!! Dispositivo no prendio HW \r\n\0"));
 	next_state = ST_ENTRY;
 
 // Exit:

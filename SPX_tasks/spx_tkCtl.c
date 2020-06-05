@@ -90,7 +90,6 @@ void tkCtl(void * pvParameters)
 		pv_ctl_wink_led();
 		pv_ctl_daily_reset();
 		pv_ctl_RI();
-		XCOMMS_to_timer_update(TKCTL_DELAY_S);
 
 		// Para entrar en tickless.
 		// Cada 5s hago un chequeo de todo. En particular esto determina el tiempo
@@ -263,7 +262,7 @@ char buffer[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 		WDT_Reset();
 
 		//ctl_print_wdg_timers();
-		//return;
+		return;
 
 		// Si algun WDG no se borro, me reseteo
 		while ( xSemaphoreTake( sem_WDGS, ( TickType_t ) 5 ) != pdTRUE )

@@ -14,7 +14,6 @@
 typedef enum { ST_ENTRY = 0, ST_ESPERA_APAGADO, ST_ESPERA_PRENDIDO, ST_PRENDER, ST_CONFIGURAR, ST_MON_SQE, ST_SCAN, ST_IP, ST_INITFRAME, ST_DATAFRAME } t_comms_states;
 typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ERR_IPSERVER_FAIL, ERR_DLGID_FAIL } t_comms_error_code;
 typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status;
-typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 
 #define MAX_TRIES_PWRON 		3	// Intentos de prender HW el modem
 #define MAX_TRYES_NET_ATTCH		6	// Intentos de atachearme a la red GPRS
@@ -22,7 +21,7 @@ typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 
 #define GPRS_RXBUFFER_LEN	512
-#define XBEE_RXBUFFER_LEN	512
+#define AUX1_RXBUFFER_LEN	512
 
 #define MAX_XCOMM_TO_TIMER	180
 
@@ -30,7 +29,7 @@ typedef enum { COMMS_CHANNEL_XBEE = 0, COMMS_CHANNEL_GPRS } t_comms_channel;
 
 #define DF_COMMS ( systemVars.debug == DEBUG_COMMS )
 
-#define TDIAL_MIN_DISCRETO 900
+#define TDIAL_MIN_DISCRETO 300
 
 #define MODO_DISCRETO ( (sVarsComms.timerDial >= TDIAL_MIN_DISCRETO ) ? true : false )
 
@@ -39,16 +38,10 @@ int32_t time_to_next_dial;
 t_comms_states tkComms_state;
 
 typedef struct {
-	bool enabled;
-	uint16_t timer;
-} t_xCOMMS_TO_timer;
-
-typedef struct {
 	uint8_t csq;
 	char ip_assigned[IP_LENGTH];
-	bool dispositivo_prendido;
-	bool dispositivo_inicializado;
-	t_xCOMMS_TO_timer to_timer;
+	bool gprs_prendido;
+	bool gprs_inicializado;
 } t_xCOMMS_stateVars;
 
 t_xCOMMS_stateVars xCOMMS_stateVars;
@@ -64,7 +57,6 @@ typedef struct {
 } t_scan_struct;
 
 typedef struct {
-	t_comms_channel comms_channel;
 	char dlgId[DLGID_LENGTH];
 	char apn[APN_LENGTH];
 	char server_tcp_port[PORT_LENGTH];
@@ -100,7 +92,7 @@ t_comms_states tkComms_st_dataframe(void);
 void xCOMMS_init(void);
 file_descriptor_t xCOMMS_get_fd(void);
 void xCOMMS_apagar_dispositivo(void);
-bool xCOMMS_prender_dispositivo(bool f_debug, uint8_t delay_factor);
+bool xCOMMS_prender_dispositivo(bool f_debug );
 bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, uint8_t *err_code );
 bool xCOMMS_scan( t_scan_struct scan_boundle );
 bool xCOMMS_need_scan( t_scan_struct scan_boundle );
@@ -118,28 +110,6 @@ char *xCOMM_get_buffer_ptr( char *pattern);
 void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr);
 bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state );
 uint16_t xCOMMS_datos_para_transmitir(void);
-void XCOMMS_to_timer_start(void);
-void XCOMMS_to_timer_stop(void);
-void XCOMMS_to_timer_restart(void);
-void XCOMMS_to_timer_update(uint8_t update_time);
-
-
-void xbee_init(void);
-void xbee_rxBuffer_fill(char c);
-void xbee_flush_RX_buffer(void);
-void xbee_flush_TX_buffer(void);
-void xbee_print_RX_buffer(void);
-bool xbee_check_response( const char *rsp );
-bool xbee_prender( bool debug, uint8_t delay_factor );
-void xbee_apagar(void);
-bool xbee_configurar_dispositivo( uint8_t *err_code );
-void xbee_mon_sqe( void );
-bool xbee_scan( t_scan_struct scan_boundle );
-bool xbee_need_scan( t_scan_struct scan_boundle );
-bool xbee_ip( void );
-t_link_status xbee_check_socket_status(bool f_debug);
-t_link_status xbee_open_socket(bool f_debug, char *ip, char *port);
-char *xbee_get_buffer_ptr( char *pattern);
 
 void gprs_init(void);
 void gprs_rxBuffer_fill(char c);
@@ -148,7 +118,7 @@ void gprs_flush_TX_buffer(void);
 void gprs_print_RX_buffer(bool f_debug );
 bool gprs_check_response( const char *rsp );
 bool gprs_check_response_with_to( const char *rsp, uint8_t timeout );
-bool gprs_prender(bool f_debug, uint8_t delay_factor );
+bool gprs_prender(bool f_debug );
 void gprs_hw_pwr_on(uint8_t delay_factor);
 void gprs_sw_pwr(void);
 void gprs_apagar(void);

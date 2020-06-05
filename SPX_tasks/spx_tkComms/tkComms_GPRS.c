@@ -55,8 +55,6 @@ void gprs_init(void)
 
 	memset(gprs_status.buff_gprs_ccid, '\0', IMEIBUFFSIZE );
 	memset(gprs_status.buff_gprs_ccid, '\0', IMEIBUFFSIZE );
-	xCOMMS_stateVars.dispositivo_prendido = false;
-	XCOMMS_to_timer_stop();
 }
 //------------------------------------------------------------------------------------
 void gprs_rxBuffer_fill(char c)
@@ -84,7 +82,7 @@ void gprs_apagar(void)
 
 }
 //------------------------------------------------------------------------------------
-bool gprs_prender(bool f_debug, uint8_t delay_factor )
+bool gprs_prender(bool f_debug )
 {
 	/*
 	 * Intenta prender el dispositivo GPRS.
@@ -94,57 +92,53 @@ bool gprs_prender(bool f_debug, uint8_t delay_factor )
 	 */
 
 
-uint8_t tries;
+uint8_t hw_tries, sw_tries;
 
-	// Aviso a la tarea de RX que se despierte!!!
-	xCOMMS_stateVars.dispositivo_prendido = true;
+	// Aviso a la tarea de RX que se despierte ( para leer las respuestas del AT ) !!!
 	while ( xTaskNotify( xHandle_tkCommsRX, SGN_WAKEUP , eSetBits ) != pdPASS ) {
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 	}
-	gprs_hw_pwr_on(delay_factor);
 
-// Loop:
-	/*
-	 * El GPRS requiere un pulso en  el pin de pwr_sw
-	 */
-	for ( tries = 0; tries < 3; tries++ ) {
+	for ( hw_tries = 0; hw_tries < MAX_TRIES_PWRON; hw_tries++) {
 
-		xprintf_PD( f_debug, PSTR("COMMS: gprs intentos: SW=%d\r\n\0"), tries);
+		// Prendo la fuente del modem (HW)
+		gprs_hw_pwr_on(hw_tries);
 
-		// Genero un pulso en el pin SW para prenderlo logicamente
-		gprs_sw_pwr();
+		// El GPRS requiere un pulso en  el pin de pwr_sw y luego debe contestar el AT
+		for ( sw_tries = 0; sw_tries < 3; sw_tries++ ) {
 
-		// Espero 10s para interrogarlo
-		vTaskDelay( (portTickType)( ( 10000 + ( 5000 * tries ) ) / portTICK_RATE_MS ) );
+			xprintf_PD( f_debug, PSTR("COMMS: gprs intentos: HW=%d,SW=%d\r\n\0"), hw_tries, sw_tries);
 
-		// Mando un AT y espero un OK para ver si prendio y responde.
-		gprs_flush_RX_buffer();
-		gprs_flush_TX_buffer();
-		xfprintf_P( fdGPRS, PSTR("AT\r\0"));
-		vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
+			// Genero un pulso en el pin SW para prenderlo logicamente
+			gprs_sw_pwr();
 
-		gprs_print_RX_buffer( f_debug);
+			// Espero 10s para interrogarlo
+			vTaskDelay( (portTickType)( ( 10000 + ( 5000 * sw_tries ) ) / portTICK_RATE_MS ) );
 
-		if ( gprs_check_response("OK\0") ) {
-			// Respondio OK. Esta prendido; salgo
-			xprintf_PD( f_debug, PSTR("COMMS: gprs Modem on.\r\n\0"));
-			gprs_readImei(f_debug);
-			gprs_readCcid(f_debug);
-			return(true);
+			// Mando un AT y espero un OK para ver si prendio y responde.
+			gprs_flush_RX_buffer();
+			gprs_flush_TX_buffer();
+			xfprintf_P( fdGPRS, PSTR("AT\r\0"));
+			vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 
-		} else {
-			xprintf_PD( f_debug, PSTR("COMMS: gprs Modem No prendio!!\r\n\0"));
+			gprs_print_RX_buffer( f_debug);
+
+			if ( gprs_check_response("OK\0") ) {
+				// Respondio OK. Esta prendido; salgo
+				xprintf_PD( f_debug, PSTR("COMMS: gprs Modem on.\r\n\0"));
+				gprs_readImei(f_debug);
+				gprs_readCcid(f_debug);
+				return(true);
+			}
 		}
 
+		// Apago el HW y espero
+		gprs_apagar();
+		vTaskDelay( (portTickType)( 10000 / portTICK_RATE_MS ) );
 	}
 
-	// No prendio luego de 3 intentos SW.
-	// Apago y prendo de nuevo
-	// Espero 10s antes de reintentar
-	xCOMMS_stateVars.dispositivo_prendido = false;
-	gprs_apagar();
-	vTaskDelay( (portTickType)( 10000 / portTICK_RATE_MS ) );
-
+	// No prendio luego de 3 intentos HW y 3 SW.
+	xprintf_PD( f_debug, PSTR("COMMS: gprs Modem No prendio!!\r\n\0"));
 	return(false);
 }
 //------------------------------------------------------------------------------------
@@ -984,7 +978,7 @@ uint8_t intentos;
 	vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
 
 	// Prendo
-	if ( ! gprs_prender( scan_boundle.f_debug, 1) )
+	if ( ! gprs_prender( scan_boundle.f_debug ) )
 		return(false);
 
 	// Configuro

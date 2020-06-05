@@ -76,7 +76,7 @@ t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_INITFRAME );
 
-	xCOMMS_stateVars.dispositivo_inicializado = false;
+	xCOMMS_stateVars.gprs_inicializado = false;
 
 	reset_datalogger = false;
 
@@ -129,10 +129,12 @@ t_comms_states next_state = ST_ENTRY;
 	if ( reset_datalogger == true ) {
 		xprintf_P(PSTR("COMMS: Nueva configuracion requiere RESET...\r\n\0"));
 		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
+		while(1)
+			;
 	}
 
 	next_state = ST_DATAFRAME;
-	xCOMMS_stateVars.dispositivo_inicializado = true;
+	xCOMMS_stateVars.gprs_inicializado = true;
 
 	// Proceso las señales:
 	if ( xCOMMS_procesar_senales( ST_INITFRAME , &next_state ) )
@@ -211,14 +213,8 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
 
-				if ( sVarsComms.comms_channel == COMMS_CHANNEL_XBEE ) {
-					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:0000;SIMID:000;CSQ:0;WRST:%02X;\0" ),wdg_resetCause );
-
-				} else if ( sVarsComms.comms_channel == COMMS_CHANNEL_GPRS ) {
-					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;\0" ), gprs_get_imei() );
-					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
-
-				}
+				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;\0" ), gprs_get_imei() );
+				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
 
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;\0" ), base_cks,an_cks,dig_cks );
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("CNT:0x%02X;RG:0x%02X;\0" ),cnt_cks,range_cks );
@@ -321,8 +317,6 @@ bool retS = false;
 		if ( xCOMMS_check_response("</h1>") ) {
 
 			xCOMMS_print_RX_buffer( DF_COMMS );
-
-			XCOMMS_to_timer_restart();
 
 			// Analizo las respuestas.
 			if ( xCOMMS_check_response("CLASS:AUTH") ) {	// Respuesta correcta:

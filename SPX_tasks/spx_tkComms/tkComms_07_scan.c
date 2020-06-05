@@ -30,7 +30,6 @@ t_scan_struct scan_boundle;
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("7");
 #endif
-	//xprintf_P( PSTR("COMMS: scan.\r\n\0"));
 
 	scan_boundle.apn = sVarsComms.apn;
 	scan_boundle.dlgid = sVarsComms.dlgId;

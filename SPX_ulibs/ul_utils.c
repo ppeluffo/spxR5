@@ -40,7 +40,7 @@ void initMCU(void)
 //	IO_set_PWR_SLEEP();
 
 	// Configuro los pines del modulo Xbee
-	IO_config_XBEE_PWR();
+	IO_config_AUX1_PWR();
 //	IO_config_XBEE_SLEEP();
 //	IO_config_XBEE_RESET();
 
