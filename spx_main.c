@@ -60,6 +60,15 @@
  *
  * ELIMINO TODO LO REFERENTE A XBEE EN EL MODULO DE COMMS y vuelvo a un sistema basico con solo gprs.
  * Agrego antes de CPIN ERROR un mensaje del estado de gprs_prendido / gprs_inicializado.
+ *
+ * Problema 1:
+ * memory: rcdSize=62, wrPtr=27878,rdPtr=-23999,delPtr=-24004,r4wr=791,r4rd=228,r4del=5
+ * Esto hace que comienzen a aparecer nan.
+ * Se arregla controlando que los punteros no se salgan de los limites c/vez que cambian.
+
+ * Problema 2:
+ * No entra en tickless
+ *
  * --------------------------------------------------------------------------------------------------
  *
  * Version 3.0.1c

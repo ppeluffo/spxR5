@@ -13,6 +13,7 @@
 static bool pv_FAT_load( FAT_t *fat );
 static bool pv_FAT_save( FAT_t *fat );
 static uint8_t pv_chksum8(const char *buff, size_t len);
+static void pv_FAT_check_integrity(void);
 
 xSemaphoreHandle sem_FAT;
 StaticSemaphore_t FAT_xMutexBuffer;
@@ -134,6 +135,9 @@ int8_t bytes_written = -1;
 	FCB.fat.wrPTR = (++FCB.fat.wrPTR == FF_MAX_RCDS) ?  0 : FCB.fat.wrPTR;
 	FCB.fat.rcds4wr--;
 	FCB.fat.rcds4rd++;
+
+	pv_FAT_check_integrity();
+
 	// Actualizo la fat
 	pv_FAT_save(&FCB.fat);
 
@@ -198,6 +202,7 @@ int8_t bytes_read = 0U;
 	FCB.fat.rdPTR = (++FCB.fat.rdPTR == FF_MAX_RCDS) ?  0 : FCB.fat.rdPTR;
 	FCB.fat.rcds4rd--;
 	FCB.fat.rcds4del++;
+	pv_FAT_check_integrity();
 	// Actualizo la fat
 	pv_FAT_save(&FCB.fat);
 
@@ -373,6 +378,7 @@ void FAT_read( FAT_t *fat )
 	while ( xSemaphoreTake(sem_FAT, ( TickType_t ) 5 ) != pdTRUE )
 		vTaskDelay( ( TickType_t)( 1 ) );
 
+	pv_FAT_check_integrity();
 	memcpy( fat, &FCB.fat, sizeof(FAT_t));
 
 	// libero el semaforo
@@ -439,4 +445,33 @@ uint8_t checksum = 0;
 	return (checksum);
 }
 //----------------------------------------------------------------------------------
+static void pv_FAT_check_integrity(void)
+{
 
+	// Verifica que los punteros esten en los limites 0 - FF_MAX_RCDS.
+
+	if ( ( FCB.fat.rdPTR < 0) || ( FCB.fat.rdPTR > FF_MAX_RCDS )) {
+		goto RESET_FAT;
+	}
+
+	if ( ( FCB.fat.wrPTR < 0) || ( FCB.fat.wrPTR > FF_MAX_RCDS )) {
+		goto RESET_FAT;
+	}
+
+	if ( ( FCB.fat.rcds4wr < 0) || ( FCB.fat.rcds4wr > FF_MAX_RCDS )) {
+		goto RESET_FAT;
+	}
+
+	if ( ( FCB.fat.rcds4rd < 0) || ( FCB.fat.rcds4rd > FF_MAX_RCDS )) {
+		goto RESET_FAT;
+	}
+
+	return;
+
+RESET_FAT:
+	xprintf_P(PSTR("MEMORY ERROR: Reset to default\r\n\0"));
+	FF_format(false );
+	return;
+
+}
+//----------------------------------------------------------------------------------

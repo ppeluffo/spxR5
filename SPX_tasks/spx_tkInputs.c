@@ -199,7 +199,6 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
 static void pv_data_guardar_en_BD(void)
 {
 
-
 int8_t bytes_written = 0;
 static bool primer_frame = true;
 FAT_t fat;
