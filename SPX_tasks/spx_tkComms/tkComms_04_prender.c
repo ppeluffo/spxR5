@@ -26,7 +26,7 @@ t_comms_states tkComms_st_prender(void)
 
 t_comms_states next_state = ST_ENTRY;
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_prender.\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_prender.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("4");
 #endif
@@ -50,13 +50,13 @@ t_comms_states next_state = ST_ENTRY;
 	}
 
 	// Si salgo por aqui es que el modem no prendio luego de todos los reintentos
-	xprintf_P( PSTR("COMMS: ERROR!! Dispositivo no prendio HW \r\n\0"));
+	xprintf_P( PSTR("COMMS: ERROR!! Dispositivo no prendio HW \r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
 	next_state = ST_ENTRY;
 
 // Exit:
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_prender.\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_prender.[%d,%d]\r\n\0"));
 	return(next_state);
 
 }

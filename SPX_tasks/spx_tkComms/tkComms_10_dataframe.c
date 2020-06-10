@@ -46,7 +46,7 @@ t_comms_states next_state = ST_ENTRY;
 
 // ENTRY
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_dataframe.\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_dataframe.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
 #ifdef MONITOR_STACK
 	debug_monitor_stack_watermarks("13");
 #endif
@@ -89,7 +89,7 @@ t_comms_states next_state = ST_ENTRY;
 // EXIT:
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_dataframe.\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_dataframe.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
 	return(next_state);
 
 }

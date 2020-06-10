@@ -26,7 +26,7 @@ t_comms_states tkComms_st_entry(void)
 
 t_comms_states next_state = ST_ESPERA_APAGADO;
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_entry.\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_entry.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
 
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("1");
@@ -49,7 +49,7 @@ t_comms_states next_state = ST_ESPERA_APAGADO;
 		}
 	}
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_entry (%d)\r\n\0"), next_state );
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_entry [%d,%d](%d)\r\n\0"), xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado, next_state );
 	return(next_state);
 
 }

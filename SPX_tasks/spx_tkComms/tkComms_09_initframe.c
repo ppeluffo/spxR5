@@ -67,7 +67,7 @@ t_comms_states tkComms_st_initframe(void)
 
 t_comms_states next_state = ST_ENTRY;
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_initframe.\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_initframe.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
 
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("9");
@@ -142,7 +142,7 @@ t_comms_states next_state = ST_ENTRY;
 
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
 	return(next_state);
 }
 //------------------------------------------------------------------------------------

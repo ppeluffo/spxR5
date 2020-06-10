@@ -391,7 +391,7 @@ bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code )
 	return(true);
 }
 //--------------------------------------------------------------------------------------
-bool gprs_CPIN( bool f_debug, char *pin )
+bool gprs_CPIN_old( bool f_debug, char *pin )
 {
 	// Chequeo que el SIM este en condiciones de funcionar.
 	// AT+CPIN?
@@ -441,6 +441,33 @@ uint8_t tryes = 3;
 	// Pin BLOQUEADO
 	return(false);
 
+}
+//------------------------------------------------------------------------------------
+bool gprs_CPIN( bool f_debug, char *pin )
+{
+	// Chequeo que el SIM este en condiciones de funcionar.
+	// AT+CPIN?
+	// No configuro el PIN !!!
+
+uint8_t tryes = 3;
+bool retS = false;
+
+	xprintf_PD( f_debug, PSTR("GPRS: gprs CPIN\r\n\0"));
+
+	for ( tryes = 0; tryes < 3; tryes++ ) {
+		// Vemos si necesita SIMPIN
+		gprs_flush_RX_buffer();
+		xfprintf_P( fdGPRS , PSTR("AT+CPIN?\r\0"));
+		vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
+		gprs_print_RX_buffer(f_debug);
+		gprs_check_response("+CPIN: READY\0") ? (retS = true ): (retS = false) ;
+		if ( retS ) {
+			break;
+		}
+		xprintf_P(PSTR("GPRS: retry CPIN (%d)\r\n\0"),tryes);
+	}
+
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 bool gprs_CGREG( bool f_debug )
@@ -1152,6 +1179,50 @@ char *delim = ",;:=><";
 	xprintf_P( PSTR("COMMS: GPRS_SCAN discover DLGID to %s\r\n\0"), scan_boundle.dlgid );
 }
 //------------------------------------------------------------------------------------
+bool gprs_disable_SAT(void)
+{
+/*
+ * Seguimos viendo que luego de algún CPIN se cuelga el modem y ya aunque lo apague, luego al encenderlo
+ * no responde al PIN.
+ * En https://www.libelium.com/forum/viewtopic.php?t=21623 reportan algo parecido.
+ * https://en.wikipedia.org/wiki/SIM_Application_Toolkit
+ * Parece que el problema es que al enviar algun comando al SIM, este interactua con el STK (algun menu ) y lo bloquea.
+ * Hasta no conocer bien como se hace lo dejamos sin usar.
+ * " la tarjeta SIM es un ordenador diminuto con sistema operativo y programa propios.
+ *   STK responde a comandos externos, por ejemplo, al presionar un botón del menú del operador,
+ *   y hace que el teléfono ejecute ciertas acciones
+ * "
+ * https://www.techopedia.com/definition/30501/sim-toolkit-stk
+ *
+ * El mensaje +STIN: 25 es un mensaje no solicitado que emite el PIN STK.
+ *
+ * Esta rutina lo que hace es interrogar al SIM para ver si tiene la funcion SAT habilitada
+ * y dar el comando de deshabilitarla
+ *
+ */
+
+	// Query STK status ?
+	xprintf_P(PSTR("GPRS: gprs SAT.\r\n\0"));
+	xprintf_P(PSTR("GPRS: query STK status ?\r\n\0"));
+	gprs_flush_RX_buffer();
+	xfprintf_P( fdGPRS , PSTR("AT+STK?\r\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(true);
+
+	// Disable STK
+	xprintf_P(PSTR("GPRS: disable STK\r\n\0"));
+	xfprintf_P( fdGPRS , PSTR("AT+STK=0\r\0"));
+	vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+	gprs_flush_RX_buffer();
+	xfprintf_P( fdGPRS , PSTR("AT+STK?\r\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(true);
+
+	return (true);
+
+}
+//------------------------------------------------------------------------------------
+
 /*
 void gprs_test(void)
 {

@@ -145,6 +145,7 @@ bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned );
 t_link_status gprs_check_socket_status(bool f_debug);
 t_link_status gprs_open_socket(bool f_debug, char *ip, char *port);
 char *gprs_get_buffer_ptr( char *pattern);
+bool gprs_disable_SAT(void);
 //void gprs_test(void);
 //void gprs_scan_test (PGM_P *dlist );
 

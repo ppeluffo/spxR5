@@ -29,7 +29,7 @@ t_comms_states tkComms_st_espera_apagado(void)
 
 // Entry:
 	// Apago el dispositivo de comunicaciones.
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_apagado.\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_apagado.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("2");
 #endif
@@ -43,7 +43,7 @@ t_comms_states tkComms_st_espera_apagado(void)
 	esperar_apagado();
 
 // Exit:
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_apagado.\r\n\0"));
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_apagado.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
 	return(ST_PRENDER);
 
 }

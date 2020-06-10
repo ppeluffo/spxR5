@@ -44,6 +44,29 @@
  * Revisar en el servidor que grabe el UID en los inits. !!!
  *
  * --------------------------------------------------------------------------------------------------
+ * Version 3.0.2.d ( MASTER )
+ * Seguimos viendo que luego de algún CPIN se cuelga el modem y ya aunque lo apague, luego al encenderlo
+ * no responde al PIN.
+ * En https://www.libelium.com/forum/viewtopic.php?t=21623 reportan algo parecido.
+ * https://en.wikipedia.org/wiki/SIM_Application_Toolkit
+ * Parece que el problema es que al enviar algun comando al SIM, este interactua con el STK (algun menu ) y lo bloquea.
+ * Hasta no conocer bien como se hace lo dejamos sin usar.
+ * " la tarjeta SIM es un ordenador diminuto con sistema operativo y programa propios.
+ *   STK responde a comandos externos, por ejemplo, al presionar un botón del menú del operador,
+ *   y hace que el teléfono ejecute ciertas acciones
+ * "
+ * https://www.techopedia.com/definition/30501/sim-toolkit-stk
+ * http://www.bladox.cz/devel-docs/gen_stk.html
+ *
+ * El mensaje +STIN: 25 es un mensaje no solicitado que emite el PIN STK.
+ *
+ * a) Cambio chequeo del PIN (gprs_CPIN) y solo verifico que lo tenga instalado: READY.
+ * b) Agrego en todos los estados del tkComms mostrar a la entrada / salida los valores de gprs prendido/inicializado
+ * c) Los SMS los chequeo solo en aplicacion PLANTAPOT de modo de no interactuar con el SIM si no
+ *    es necesario.
+ * d) Hago la funcion gprs_disable_SAT(). Se corre solo en modo comando.
+ *
+ * --------------------------------------------------------------------------------------------------
  * Version 3.0.2.b ( MASTER )
  *
  * Detectamos 2 problemas:
@@ -68,6 +91,7 @@
 
  * Problema 2:
  * No entra en tickless
+ * El problema estaba en el hardware de la fuente del equipo de test.
  *
  * --------------------------------------------------------------------------------------------------
  *

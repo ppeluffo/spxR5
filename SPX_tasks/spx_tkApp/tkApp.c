@@ -67,8 +67,7 @@ void xAPP_sms_checkpoint(void)
 	 * Los SMS los chequeamos solo en las aplicaciones que los usan
 	 */
 
-	if ( ( sVarsApp.aplicacion == APP_PLANTAPOT ) ||
-			 ( sVarsApp.aplicacion == APP_OFF )) {
+	if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
 		// Checkpoint de SMS's
 		xSMS_txcheckpoint();
 		xSMS_rxcheckpoint();

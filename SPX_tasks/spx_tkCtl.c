@@ -35,7 +35,7 @@ static void pv_ctl_wink_led(void);
 static void pv_ctl_check_wdg(void);
 static void pv_ctl_ticks(void);
 static void pv_ctl_daily_reset(void);
-static void pv_ctl_check_terminal(void);
+static void pv_ctl_check_terminal_present(void);
 static void pv_ctl_RI(void);
 
 #define MAX_TIMERS	2
@@ -86,7 +86,7 @@ void tkCtl(void * pvParameters)
 		// Cada 5s controlo el watchdog y los timers.
 		pv_ctl_check_wdg();
 		pv_ctl_ticks();
-		pv_ctl_check_terminal();
+		pv_ctl_check_terminal_present();
 		pv_ctl_wink_led();
 		pv_ctl_daily_reset();
 		pv_ctl_RI();
@@ -211,7 +211,7 @@ uint16_t recSize = 0;
 
 }
 //------------------------------------------------------------------------------------
-static void pv_ctl_check_terminal(void)
+static void pv_ctl_check_terminal_present(void)
 {
 	// Lee el pin de la terminal para ver si hay o no una conectada.
 	// Si bien en la IO8 no es necesario desconectar la terminal ya que opera
@@ -262,7 +262,7 @@ char buffer[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 		WDT_Reset();
 
 		//ctl_print_wdg_timers();
-		return;
+		//return;
 
 		// Si algun WDG no se borro, me reseteo
 		while ( xSemaphoreTake( sem_WDGS, ( TickType_t ) 5 ) != pdTRUE )

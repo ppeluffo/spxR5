@@ -602,32 +602,34 @@ eSleepModeStatus eSleepStatus;
     // Paso3: Ensure it is still ok to enter the sleep mode.
     eSleepStatus = eTaskConfirmSleepModeStatus();
 
-    if( eSleepStatus == eNoTasksWaitingTimeout ) {
-        /* It is not necessary to configure an interrupt to bring the
+    if( eSleepStatus == eAbortSleep ) {
+    	/* A task has been moved out of the Blocked state since this macro was
+    	executed, or a context swith is being held pending.  Do not enter a
+    	sleep state.  Restart the tick and exit the critical section. */
+		portEXIT_CRITICAL();
+		//prvStartTickInterruptTimer();
+		//enable_interrupts()
+    } else {
+
+    	if( eSleepStatus == eNoTasksWaitingTimeout ) {
+    		/* It is not necessary to configure an interrupt to bring the
         microcontroller out of its low power state at a fixed time in the
         future. */
-    	set_sleep_mode(SLEEP_MODE_PWR_SAVE);
-        prvSleep();
-        portEXIT_CRITICAL();
+    		set_sleep_mode(SLEEP_MODE_PWR_SAVE);
+    		prvSleep();
+    		portEXIT_CRITICAL();
 
-    } else  if( eSleepStatus == eAbortSleep ) {
-        /* A task has been moved out of the Blocked state since this macro was
-        executed, or a context swith is being held pending.  Do not enter a
-        sleep state.  Restart the tick and exit the critical section. */
-    	portEXIT_CRITICAL();
-        //prvStartTickInterruptTimer();
-        //enable_interrupts();
-    } else {
-    	/* Configure an interrupt to bring the microcontroller out of its low
-    	   power state at the time the kernel next needs to execute.  The
-    	   interrupt must be generated from a source that remains operational
-    	   when the microcontroller is in a low power state. */
+    	} else {
 
-    	portEXIT_CRITICAL();
-    	prvSleepExactTime(xExpectedIdleTime);
-
+      		/* Configure an interrupt to bring the microcontroller out of its low
+    	   	   power state at the time the kernel next needs to execute.  The
+    	   	   interrupt must be generated from a source that remains operational
+    	   	   when the microcontroller is in a low power state. */
+    		portEXIT_CRITICAL();
+    		prvSleepExactTime(xExpectedIdleTime);
+    	}
     }
-
+    //portEXIT_CRITICAL();
 }
 //-------------------------------------------------------------------------------------
 static void prvSleepExactTime( portTickType xExpectedIdleTime )

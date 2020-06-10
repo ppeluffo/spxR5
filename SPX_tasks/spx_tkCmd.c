@@ -735,6 +735,14 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
+	// SAT
+	// config SAT
+	if (!strcmp_P( strupr(argv[1]), PSTR("SAT\0")) ) {
+		retS =  gprs_disable_SAT();
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
 	// APPALARM
 	// config appalarma
 	//                  sms {id} {nro} {almlevel}\r\n\0"));
@@ -1082,7 +1090,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
 		xprintf_P( PSTR("  comms {GPRS}\r\n\0"));
-
+		xprintf_P( PSTR("  SAT\r\n\0"));
 		xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
 		xprintf_P( PSTR("  rangemeter {name}\r\n\0"));
