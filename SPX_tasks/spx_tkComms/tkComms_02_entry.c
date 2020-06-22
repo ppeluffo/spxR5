@@ -26,7 +26,7 @@ t_comms_states tkComms_st_entry(void)
 
 t_comms_states next_state = ST_ESPERA_APAGADO;
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_entry.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_entry.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado, xCOMMS_stateVars.errores_comms);
 
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("1");
@@ -49,7 +49,15 @@ t_comms_states next_state = ST_ESPERA_APAGADO;
 		}
 	}
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_entry [%d,%d](%d)\r\n\0"), xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado, next_state );
+	// CONTROL DE ERRORES DE COMUNICACIONES
+	// Si la cantidad de errores de comunicacion llego al maximo, reseteo el micro
+	if ( xCOMMS_stateVars.errores_comms >= MAX_ERRORES_COMMS ) {
+		xprintf_PD( DF_COMMS, PSTR("COMMS: RESET x MAX_ERRORES_COMMS\r\n\0"));
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
+	}
+
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_entry [%d,%d,%d](%d)\r\n\0"), xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado, xCOMMS_stateVars.errores_comms, next_state );
 	return(next_state);
 
 }

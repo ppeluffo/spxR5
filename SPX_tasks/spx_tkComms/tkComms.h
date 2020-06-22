@@ -42,9 +42,12 @@ typedef struct {
 	char ip_assigned[IP_LENGTH];
 	bool gprs_prendido;
 	bool gprs_inicializado;
+	uint8_t errores_comms;
 } t_xCOMMS_stateVars;
 
 t_xCOMMS_stateVars xCOMMS_stateVars;
+
+#define MAX_ERRORES_COMMS 5
 
 typedef struct {
 	bool f_debug;
@@ -145,7 +148,7 @@ bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned );
 t_link_status gprs_check_socket_status(bool f_debug);
 t_link_status gprs_open_socket(bool f_debug, char *ip, char *port);
 char *gprs_get_buffer_ptr( char *pattern);
-bool gprs_disable_SAT(void);
+bool gprs_SAT_set(uint8_t modo);
 //void gprs_test(void);
 //void gprs_scan_test (PGM_P *dlist );
 

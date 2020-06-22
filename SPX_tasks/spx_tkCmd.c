@@ -19,6 +19,7 @@ static void pv_cmd_read_memory(void);
 static void pv_cmd_rwGPRS(uint8_t cmd_mode );
 static void pv_cmd_rwMCP(uint8_t cmd_mode );
 static void pv_cmd_I2Cscan(bool busscan);
+static bool pv_cmd_configGPRS(void);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -735,10 +736,10 @@ bool retS = false;
 
 	FRTOS_CMD_makeArgv();
 
-	// SAT
-	// config SAT
-	if (!strcmp_P( strupr(argv[1]), PSTR("SAT\0")) ) {
-		retS =  gprs_disable_SAT();
+	// GPRS SAT
+	// config gprs SAT {enable|disable}
+	if (!strcmp_P( strupr(argv[1]), PSTR("GPRS\0")) ) {
+		retS =  pv_cmd_configGPRS();
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
@@ -1090,7 +1091,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
 		xprintf_P( PSTR("  comms {GPRS}\r\n\0"));
-		xprintf_P( PSTR("  SAT\r\n\0"));
+		xprintf_P( PSTR("  gprs SAT {check|enable|disable}\r\n\0"));
 		xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
 		xprintf_P( PSTR("  rangemeter {name}\r\n\0"));
@@ -1559,7 +1560,6 @@ static void cmdPeekFunction(void)
 	return;
 
 }
-
 //------------------------------------------------------------------------------------
 static void cmdPokeFunction(void)
 {
@@ -1665,6 +1665,28 @@ uint8_t i2c_address;
 		};
 	}
 
+}
+//------------------------------------------------------------------------------------
+static bool pv_cmd_configGPRS(void)
+{
+
+	// config gprs SAT {check|enable|disable}
+	if ( strcmp_P( strupr(argv[2]), PSTR("SAT\0")) == 0 ) {
+
+		if ( strcmp_P( strupr(argv[3]), PSTR("DISABLE\0")) == 0 ) {
+			return( gprs_SAT_set(0));
+		}
+
+		if ( strcmp_P( strupr(argv[3]), PSTR("ENABLE\0")) == 0 ) {
+			return( gprs_SAT_set(1));
+		}
+
+		if ( strcmp_P( strupr(argv[3]), PSTR("CHECK\0")) == 0 ) {
+			return( gprs_SAT_set(2));
+		}
+	}
+
+	return(false);
 }
 //------------------------------------------------------------------------------------
 

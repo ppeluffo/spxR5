@@ -81,36 +81,38 @@ uint8_t dbm;
 	// TASK STATE
 	switch (tkComms_state) {
 	case ST_ESPERA_APAGADO:
-		xprintf_P( PSTR("  state: await_OFF\r\n"));
+		xprintf_P( PSTR("  state: await_OFF"));
 		break;
 	case ST_ESPERA_PRENDIDO:
-		xprintf_P( PSTR("  state: await_ON\r\n"));
+		xprintf_P( PSTR("  state: await_ON"));
 		break;
 	case ST_PRENDER:
-		xprintf_P( PSTR("  state: prendiendo\r\n"));
+		xprintf_P( PSTR("  state: prendiendo"));
 		break;
 	case ST_CONFIGURAR:
-		xprintf_P( PSTR("  state: configurando\r\n"));
+		xprintf_P( PSTR("  state: configurando"));
 		break;
 	case ST_MON_SQE:
-		xprintf_P( PSTR("  state: mon_sqe\r\n"));
+		xprintf_P( PSTR("  state: mon_sqe"));
 		break;
 	case ST_SCAN:
-		xprintf_P( PSTR("  state: scanning\r\n"));
+		xprintf_P( PSTR("  state: scanning"));
 		break;
 	case ST_IP:
-		xprintf_P( PSTR("  state: ip\r\n"));
+		xprintf_P( PSTR("  state: ip"));
 		break;
 	case ST_INITFRAME:
-		xprintf_P( PSTR("  state: link up: inits\r\n"));
+		xprintf_P( PSTR("  state: link up: inits"));
 		break;
 	case ST_DATAFRAME:
-		xprintf_P( PSTR("  state: link up: data\r\n"));
+		xprintf_P( PSTR("  state: link up: data"));
 		break;
 	default:
 		xprintf_P( PSTR("  state: ERROR\r\n"));
 		break;
 	}
+
+	xprintf_P( PSTR(" [%d,%d,%d]\r\n"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_init(void)
@@ -118,6 +120,7 @@ void xCOMMS_init(void)
 	gprs_init();
 	xCOMMS_stateVars.gprs_prendido = false;
 	xCOMMS_stateVars.gprs_inicializado = false;
+	xCOMMS_stateVars.errores_comms = 0;
 
 }
 //------------------------------------------------------------------------------------
@@ -228,7 +231,7 @@ void xCOMMS_flush_RX(void)
 	 */
 
 	gprs_flush_RX_buffer();
-
+	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_flush_TX(void)
@@ -240,12 +243,12 @@ void xCOMMS_flush_TX(void)
 	 */
 
 	gprs_flush_TX_buffer();
+	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
 
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_send_header(char *type)
 {
-
 	xprintf_PVD( xCOMMS_get_fd(), DF_COMMS, PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), sVarsComms.serverScript, sVarsComms.dlgId, type, SPX_FW_REV );
 }
 //------------------------------------------------------------------------------------

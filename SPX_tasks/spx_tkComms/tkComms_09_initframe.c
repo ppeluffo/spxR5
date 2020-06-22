@@ -67,7 +67,7 @@ t_comms_states tkComms_st_initframe(void)
 
 t_comms_states next_state = ST_ENTRY;
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_initframe.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_initframe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("9");
@@ -81,46 +81,55 @@ t_comms_states next_state = ST_ENTRY;
 	reset_datalogger = false;
 
 	if ( ! init_frame_auth() ) {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
 	if ( ! init_frame_global() ) {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
 	if ( ! init_frame_base() ) {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
 	if ( ! init_frame_analog() )  {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
 	if ( ! init_frame_digital() ) {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
 	if ( ! init_frame_counters() ) {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
 	if ( ! init_frame_range() ) {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
 	if ( ! init_frame_psensor() ) {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
 	if ( ! init_frame_app() ) {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
@@ -135,6 +144,7 @@ t_comms_states next_state = ST_ENTRY;
 
 	next_state = ST_DATAFRAME;
 	xCOMMS_stateVars.gprs_inicializado = true;
+	xCOMMS_stateVars.errores_comms = 0;
 
 	// Proceso las señales:
 	if ( xCOMMS_procesar_senales( ST_INITFRAME , &next_state ) )
@@ -142,7 +152,7 @@ t_comms_states next_state = ST_ENTRY;
 
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 	return(next_state);
 }
 //------------------------------------------------------------------------------------
@@ -696,13 +706,18 @@ int8_t xBytes = 0;
 		//xprintf_P(PSTR("DEBUG_RTC: [%s]\r\n\0"), rtcStr);
 
 		memset( &rtc, '\0', sizeof(rtc) );
-		RTC_str2rtc(rtcStr, &rtc);			// Convierto el string YYMMDDHHMM a RTC.
-		xBytes = RTC_write_dtime(&rtc);		// Grabo el RTC
-		if ( xBytes == -1 )
-			xprintf_P(PSTR("ERROR: I2C:RTC:pv_process_server_clock\r\n\0"));
+		if ( strlen(rtcStr) < 10 ) {
+			// Hay un error en el string que tiene la fecha.
+			// No lo reconfiguro
+			xprintf_P(PSTR("COMMS: RTCstring ERROR:[%s]\r\n\0"), rtcStr );
+		} else {
+			RTC_str2rtc(rtcStr, &rtc);			// Convierto el string YYMMDDHHMM a RTC.
+			xBytes = RTC_write_dtime(&rtc);		// Grabo el RTC
+			if ( xBytes == -1 )
+				xprintf_P(PSTR("ERROR: I2C:RTC:pv_process_server_clock\r\n\0"));
 
-		xprintf_PD( DF_COMMS, PSTR("COMMS: Update rtc to: %s\r\n\0"), rtcStr );
-
+			xprintf_PD( DF_COMMS, PSTR("COMMS: Update rtc to: %s\r\n\0"), rtcStr );
+		}
 
 	}
 
@@ -1093,6 +1108,7 @@ char *delim = ",;:=><";
 		u_save_params_in_NVMEE();
 
 	}
+
 	return(true);
 
 }

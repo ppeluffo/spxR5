@@ -21,7 +21,7 @@ uint8_t err_code;
 t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_IP );
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_ip.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_ip.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("8");
 #endif
@@ -30,6 +30,7 @@ t_comms_states next_state = ST_ENTRY;
 	if ( xCOMMS_ip( DF_COMMS, sVarsComms.apn, xCOMMS_stateVars.ip_assigned, &err_code ) == true ) {
 		next_state = ST_INITFRAME;
 	} else {
+		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 	}
 
@@ -39,7 +40,7 @@ t_comms_states next_state = ST_ENTRY;
 
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_ip.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_ip.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 	return(next_state);
 
 }

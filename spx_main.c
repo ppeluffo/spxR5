@@ -42,6 +42,27 @@
  *
  *
  * Revisar en el servidor que grabe el UID en los inits. !!!
+ *------------------------------------------------------------------------
+ * Version 3.0.2.g ( MASTER ) @ 2020-06-22
+ * Se detectaron 3 problemas:
+ * 1- Hay veces que en los frames de inits, se loguean como correctos pero
+ *    al server SPY ( y apache ) llegan menos campos. ( Counters, psensor, etc)
+ * 2- En los SCAN se va por timeout de comms.
+ *    COMMS: GPRS_SCAN SCRIPT ERROR !!.
+ * 3- Luego del TO comms, hace un load default y queda siempre con el error
+ *    ERROR: Checksum sVarsComms failed: calc[0x83], sto[0x82].
+ *    No puede recuperarse.
+ * 4- Error de CPIN.
+ *------------------------------------------------------------------------
+ * Version 3.0.2.f ( MASTER ) @ 2020-06-16
+ * a) Incorporo un contador de errores de comunicaciones que se va incrementando
+ * Luego de un limite, se resetea el micro.
+ * Si logro llegar a inicializarme, reseteo el contador a 0.
+ * b) En c/estado muestro el valor del contador junto al valor del gprs prendido/inicializado
+ *
+ *------------------------------------------------------------------------
+ * Version 3.0.2.e ( MASTER ) @ 2020-06-15
+ * a) En gprs_CPIN hago una espera progresiva aumentando el tiempo c/ciclo
  *
  * --------------------------------------------------------------------------------------------------
  * Version 3.0.2.d ( MASTER )
@@ -64,7 +85,9 @@
  * b) Agrego en todos los estados del tkComms mostrar a la entrada / salida los valores de gprs prendido/inicializado
  * c) Los SMS los chequeo solo en aplicacion PLANTAPOT de modo de no interactuar con el SIM si no
  *    es necesario.
- * d) Hago la funcion gprs_disable_SAT(). Se corre solo en modo comando.
+ * d) Hago la funcion gprs_SAT_set(). Se corre solo en modo comando.
+ * e) Agrego un control en el formato del RTC recibido en el INIT.
+ * f) En status, gprs state muestro el valor de gprs prendido/inicializado.
  *
  * --------------------------------------------------------------------------------------------------
  * Version 3.0.2.b ( MASTER )

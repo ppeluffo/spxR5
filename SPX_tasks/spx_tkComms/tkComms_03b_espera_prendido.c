@@ -25,7 +25,7 @@ int8_t timer = 60;
 
 // Entry:
 	ctl_watchdog_kick(WDG_COMMS,WDG_COMMS_TO_ESPERA_ON );
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_prendido.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_prendido.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("3");
 #endif
@@ -56,7 +56,7 @@ EXIT:
 	// Checkpoint de SMS's
 	xAPP_sms_checkpoint();
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_prendido.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_prendido.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 	return(next_state);
 }
 //------------------------------------------------------------------------------------

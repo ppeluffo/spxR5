@@ -25,7 +25,7 @@ uint8_t err_code;
 t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_CONFIG);
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_configurar.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_configurar.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("5");
 #endif
@@ -40,6 +40,7 @@ t_comms_states next_state = ST_ENTRY;
 //	xprintf_P(PSTR("DEBUG: gprs_inicializado=%d\r\n\0"), xCOMMS_stateVars.gprs_inicializado);
 
 	// Error de configuracion.
+	xCOMMS_stateVars.errores_comms++;
 	switch (err_code) {
 	case ERR_CPIN_FAIL:
 		/*
@@ -67,7 +68,7 @@ t_comms_states next_state = ST_ENTRY;
 
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_configurar.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_configurar.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 	return(next_state);
 }
 //------------------------------------------------------------------------------------

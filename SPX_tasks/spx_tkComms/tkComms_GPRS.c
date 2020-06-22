@@ -449,7 +449,7 @@ bool gprs_CPIN( bool f_debug, char *pin )
 	// AT+CPIN?
 	// No configuro el PIN !!!
 
-uint8_t tryes = 3;
+uint8_t tryes;
 bool retS = false;
 
 	xprintf_PD( f_debug, PSTR("GPRS: gprs CPIN\r\n\0"));
@@ -458,7 +458,7 @@ bool retS = false;
 		// Vemos si necesita SIMPIN
 		gprs_flush_RX_buffer();
 		xfprintf_P( fdGPRS , PSTR("AT+CPIN?\r\0"));
-		vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
+		vTaskDelay( ( TickType_t)( ( 5000 + 2000 * tryes) / portTICK_RATE_MS ) );
 		gprs_print_RX_buffer(f_debug);
 		gprs_check_response("+CPIN: READY\0") ? (retS = true ): (retS = false) ;
 		if ( retS ) {
@@ -1179,7 +1179,7 @@ char *delim = ",;:=><";
 	xprintf_P( PSTR("COMMS: GPRS_SCAN discover DLGID to %s\r\n\0"), scan_boundle.dlgid );
 }
 //------------------------------------------------------------------------------------
-bool gprs_disable_SAT(void)
+bool gprs_SAT_set(uint8_t modo)
 {
 /*
  * Seguimos viendo que luego de algún CPIN se cuelga el modem y ya aunque lo apague, luego al encenderlo
@@ -1201,22 +1201,31 @@ bool gprs_disable_SAT(void)
  *
  */
 
-	// Query STK status ?
-	xprintf_P(PSTR("GPRS: gprs SAT.\r\n\0"));
-	xprintf_P(PSTR("GPRS: query STK status ?\r\n\0"));
-	gprs_flush_RX_buffer();
-	xfprintf_P( fdGPRS , PSTR("AT+STK?\r\0"));
-	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	gprs_print_RX_buffer(true);
 
-	// Disable STK
-	xprintf_P(PSTR("GPRS: disable STK\r\n\0"));
-	xfprintf_P( fdGPRS , PSTR("AT+STK=0\r\0"));
-	vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
-	gprs_flush_RX_buffer();
-	xfprintf_P( fdGPRS , PSTR("AT+STK?\r\0"));
-	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-	gprs_print_RX_buffer(true);
+	xprintf_P(PSTR("GPRS: gprs SAT.(modo=%d)\r\n\0"),modo);
+
+	switch(modo) {
+	case 0:
+		// Disable
+		xfprintf_P( fdGPRS , PSTR("AT+STK=0\r\0"));
+		vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+		break;
+	case 1:
+		// Enable
+		xfprintf_P( fdGPRS , PSTR("AT+STK=1\r\0"));
+		vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+		break;
+	case 2:
+		// Check. Query STK status ?
+		xprintf_P(PSTR("GPRS: query STK status ?\r\n\0"));
+		gprs_flush_RX_buffer();
+		xfprintf_P( fdGPRS , PSTR("AT+STK?\r\0"));
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		gprs_print_RX_buffer(true);
+		break;
+	default:
+		return(false);
+	}
 
 	return (true);
 

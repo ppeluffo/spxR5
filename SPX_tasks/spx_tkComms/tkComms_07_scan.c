@@ -26,7 +26,7 @@ t_comms_states next_state = ST_ENTRY;
 t_scan_struct scan_boundle;
 
 	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_SCAN );
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("7");
 #endif
@@ -66,7 +66,7 @@ t_scan_struct scan_boundle;
 	// Checkpoint de SMS's
 	xAPP_sms_checkpoint();
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.[%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 	return(next_state);
 
 }
