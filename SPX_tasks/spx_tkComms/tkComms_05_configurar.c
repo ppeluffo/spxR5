@@ -41,6 +41,7 @@ t_comms_states next_state = ST_ENTRY;
 
 	// Error de configuracion.
 	xCOMMS_stateVars.errores_comms++;
+	xCOMMS_stateVars.reset_dlg = false;
 	switch (err_code) {
 	case ERR_CPIN_FAIL:
 		/*
@@ -48,16 +49,19 @@ t_comms_states next_state = ST_ENTRY;
 		 */
 		xprintf_P( PSTR("COMMS: pin ERROR: Reconfiguro timerdial para 1H\r\n\0"));
 		sVarsComms.timerDial = 3600;
+		xCOMMS_stateVars.reset_dlg = true;
 		next_state = ST_ENTRY;
 		break;
 	case ERR_NETATTACH_FAIL:
 		xprintf_P( PSTR("COMMS: net ERRROR: Reconfiguro timerdial para 30min.\r\n\0"));
 		sVarsComms.timerDial = 1800;
+		xCOMMS_stateVars.reset_dlg = true;
 		next_state = ST_ENTRY;
 		break;
 	default:
 		xprintf_P( PSTR("COMMS: config ERRROR: Reconfiguro timerdial para 30min.\r\n\0"));
 		sVarsComms.timerDial = 1800;
+		xCOMMS_stateVars.reset_dlg = true;
 		next_state = ST_ENTRY;
 		break;
 	}

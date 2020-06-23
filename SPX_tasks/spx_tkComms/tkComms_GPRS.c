@@ -17,15 +17,25 @@ const char ip_server_ose[] PROGMEM = "172.27.0.26\0";		// OSE
 const char ip_server_ute[] PROGMEM = "192.168.1.9\0";		// UTE
 
 //const char * const scan_list1[] PROGMEM = { apn_spy, ip_server_spy1 };
+
 PGM_P const scan_list1[] PROGMEM = { apn_spy, ip_server_spy1 };
 PGM_P const scan_list2[] PROGMEM = { apn_spy, ip_server_ute };
 PGM_P const scan_list3[] PROGMEM = { apn_ose, ip_server_ose };
 PGM_P const scan_list4[] PROGMEM = { apn_claro, ip_server_spy2 };
 
-bool gprs_scan_try (t_scan_struct scan_boundle, PGM_P *dlist );
-bool gprs_send_scan_frame( t_scan_struct scan_boundle, char *ip_tmp );
-bool gprs_process_scan_response(t_scan_struct scan_boundle);
-void gprs_extract_dlgid(t_scan_struct scan_boundle);
+/*
+ * Para testing
+PGM_P const scan_list4[] PROGMEM = { apn_spy, ip_server_spy1 };
+PGM_P const scan_list3[] PROGMEM = { apn_spy, ip_server_ute };
+PGM_P const scan_list2[] PROGMEM = { apn_ose, ip_server_ose };
+PGM_P const scan_list1[] PROGMEM = { apn_claro, ip_server_spy2 };
+*/
+
+
+bool gprs_scan_try (t_scan_struct *scan_boundle, PGM_P *dlist );
+bool gprs_send_scan_frame( t_scan_struct *scan_boundle, char *ip_tmp );
+bool gprs_process_scan_response(t_scan_struct *scan_boundle);
+void gprs_extract_dlgid(t_scan_struct *scan_boundle);
 //------------------------------------------------------------------------------------
 
 struct {
@@ -943,11 +953,11 @@ char *gprs_get_buffer_ptr( char *pattern)
 	return( strstr( gprsRxBuffer.buffer, pattern) );
 }
 //------------------------------------------------------------------------------------
-bool gprs_scan( t_scan_struct scan_boundle )
+bool gprs_scan( t_scan_struct *scan_boundle )
 {
 
 	// Inicio un ciclo de SCAN
-	xprintf_PD( scan_boundle.f_debug, PSTR("COMMS: GPRS_SCAN: starting to scan...\r\n\0" ));
+	xprintf_PD( scan_boundle->f_debug, PSTR("COMMS: GPRS_SCAN: starting to scan...\r\n\0" ));
 
 	// scan_list1: datos de Spymovil.
 	if ( gprs_scan_try( scan_boundle , (PGM_P *)scan_list1 ))
@@ -969,13 +979,13 @@ bool gprs_scan( t_scan_struct scan_boundle )
 
 }
 //------------------------------------------------------------------------------------
-bool gprs_need_scan( t_scan_struct scan_boundle )
+bool gprs_need_scan( t_scan_struct *scan_boundle )
 {
 
 	// Veo si es necesario hacer un SCAN de la IP del server
-	if ( ( strcmp_P( scan_boundle.apn, PSTR("DEFAULT\0")) == 0 ) ||
-			( strcmp_P( scan_boundle.server_ip, PSTR("DEFAULT\0")) == 0 ) ||
-			( strcmp_P( scan_boundle.dlgid, PSTR("DEFAULT\0")) == 0 ) ) {
+	if ( ( strcmp_P( scan_boundle->apn, PSTR("DEFAULT\0")) == 0 ) ||
+			( strcmp_P( scan_boundle->server_ip, PSTR("DEFAULT\0")) == 0 ) ||
+			( strcmp_P( scan_boundle->dlgid, PSTR("DEFAULT\0")) == 0 ) ) {
 		// Alguno de los parametros estan en DEFAULT.
 		return(true);
 	}
@@ -984,7 +994,7 @@ bool gprs_need_scan( t_scan_struct scan_boundle )
 
 }
 //------------------------------------------------------------------------------------
-bool gprs_scan_try (t_scan_struct scan_boundle, PGM_P *dlist )
+bool gprs_scan_try (t_scan_struct *scan_boundle, PGM_P *dlist )
 {
 	/*
 	 * Recibe una lista de PGM_P cuyo primer elemento es un APN y el segundo una IP.
@@ -998,43 +1008,44 @@ uint8_t intentos;
 	strcpy_P( apn_tmp, (PGM_P)pgm_read_word( &dlist[0]));
 	strcpy_P( ip_tmp, (PGM_P)pgm_read_word( &dlist[1]));
 
-	xprintf_PD( scan_boundle.f_debug, PSTR("COMMS: GPRS_SCAN trying APN:%s, IP:%s\r\n\0"), apn_tmp, ip_tmp );
+	xprintf_PD( scan_boundle->f_debug, PSTR("COMMS: GPRS_SCAN trying APN:%s, IP:%s\r\n\0"), apn_tmp, ip_tmp );
 
 	// Apago
 	gprs_apagar();
 	vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
 
 	// Prendo
-	if ( ! gprs_prender( scan_boundle.f_debug ) )
+	if ( ! gprs_prender( scan_boundle->f_debug ) )
 		return(false);
 
 	// Configuro
 	// EL pin es el de default ya que si estoy aqui es porque no tengo configuracion valida.
-	if (  ! gprs_configurar_dispositivo( scan_boundle.f_debug, scan_boundle.cpin, NULL ) ) {
+	if (  ! gprs_configurar_dispositivo( scan_boundle->f_debug, scan_boundle->cpin, NULL ) ) {
 		return(false);
 	}
 
 	// Apn
-	gprs_set_apn(scan_boundle.f_debug,  apn_tmp );
+	gprs_set_apn(scan_boundle->f_debug, apn_tmp );
 
 	// Intento pedir una IP
-	if ( ! gprs_netopen(scan_boundle.f_debug) ) {
+	if ( ! gprs_netopen(scan_boundle->f_debug) ) {
 		return(false);
 	}
 
 	// Tengo la IP. La leo.
-	gprs_read_ip_assigned(scan_boundle.f_debug, NULL);
+	gprs_read_ip_assigned(scan_boundle->f_debug, NULL);
 
 	// Envio un frame de SCAN al servidor.
 	for( intentos= 0; intentos < 3 ; intentos++ )
 	{
 		if ( gprs_send_scan_frame(scan_boundle, ip_tmp) ) {
 			if ( gprs_process_scan_response( scan_boundle )) {
-				// Resultado OK. Los parametros son correctos asi que los salvo.
-				memset( scan_boundle.apn,'\0', APN_LENGTH );
-				strncpy(scan_boundle.apn, apn_tmp, APN_LENGTH);
-				memset( scan_boundle.server_ip,'\0', IP_LENGTH );
-				strncpy(scan_boundle.server_ip, ip_tmp, IP_LENGTH);
+				// Resultado OK. Los parametros son correctos asi que los salvo en el systemVars. !!!
+				// que es a donde esta apuntando el scan_boundle
+				memset( scan_boundle->apn,'\0', APN_LENGTH );
+				strncpy(scan_boundle->apn, apn_tmp, APN_LENGTH);
+				memset( scan_boundle->server_ip,'\0', IP_LENGTH );
+				strncpy(scan_boundle->server_ip, ip_tmp, IP_LENGTH);
 				return(true);
 			}
 		}
@@ -1044,7 +1055,7 @@ uint8_t intentos;
 
 }
 //------------------------------------------------------------------------------------
-bool gprs_send_scan_frame(t_scan_struct scan_boundle, char *ip_tmp )
+bool gprs_send_scan_frame(t_scan_struct *scan_boundle, char *ip_tmp )
 {
 	//  DLGID=DEFAULT&TYPE=CTL&VER=2.9.9k&PLOAD=CLASS:SCAN;UID:3046323334331907001300
 
@@ -1053,20 +1064,20 @@ uint8_t i = 0;
 	// Loop
 	for ( i = 0; i < 3; i++ ) {
 
-		if (  gprs_check_socket_status( scan_boundle.f_debug) == LINK_OPEN ) {
+		if (  gprs_check_socket_status( scan_boundle->f_debug) == LINK_OPEN ) {
 
 			gprs_flush_RX_buffer();
 			gprs_flush_TX_buffer();
-			xprintf_PVD( fdGPRS, scan_boundle.f_debug, PSTR("GET %s?DLGID=%s&TYPE=CTL&VER=%s\0" ), scan_boundle.script, scan_boundle.dlgid, SPX_FW_REV );
-			xprintf_PVD(  fdGPRS, scan_boundle.f_debug, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
-			xprintf_PVD(  xCOMMS_get_fd(), scan_boundle.f_debug, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
+			xprintf_PVD( fdGPRS, scan_boundle->f_debug, PSTR("GET %s?DLGID=%s&TYPE=CTL&VER=%s\0" ), scan_boundle->script, scan_boundle->dlgid, SPX_FW_REV );
+			xprintf_PVD(  fdGPRS, scan_boundle->f_debug, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
+			xprintf_PVD(  xCOMMS_get_fd(), scan_boundle->f_debug, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
 			vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 			return(true);
 
 		} else {
 			// No tengo enlace al server. Intento abrirlo
 			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			gprs_open_socket(scan_boundle.f_debug, ip_tmp, scan_boundle.tcp_port );
+			gprs_open_socket(scan_boundle->f_debug, ip_tmp, scan_boundle->tcp_port );
 		}
 	}
 
@@ -1077,7 +1088,7 @@ uint8_t i = 0;
 
 }
 //------------------------------------------------------------------------------------
-bool gprs_process_scan_response(t_scan_struct scan_boundle)
+bool gprs_process_scan_response(t_scan_struct *scan_boundle)
 {
 uint8_t timeout = 0;
 
@@ -1086,7 +1097,7 @@ uint8_t timeout = 0;
 		vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );	// Espero 1s
 
 		// El socket se cerro
-		if ( gprs_check_socket_status( scan_boundle.f_debug) != LINK_OPEN ) {
+		if ( gprs_check_socket_status( scan_boundle->f_debug) != LINK_OPEN ) {
 			return(false);
 		}
 
@@ -1113,7 +1124,7 @@ uint8_t timeout = 0;
 		// Respuesta completa del server
 		if ( gprs_check_response("</h1>") ) {
 
-			gprs_print_RX_buffer( scan_boundle.f_debug );
+			gprs_print_RX_buffer( scan_boundle->f_debug );
 
 			// Respuesta correcta. El dlgid esta definido en la BD
 			if ( gprs_check_response ("STATUS:OK")) {
@@ -1146,7 +1157,7 @@ uint8_t timeout = 0;
 	return(false);
 }
 //------------------------------------------------------------------------------------
-void gprs_extract_dlgid(t_scan_struct scan_boundle)
+void gprs_extract_dlgid(t_scan_struct *scan_boundle)
 {
 	// La linea recibida es del tipo: <h1>TYPE=CTL&PLOAD=CLASS:SCAN;STATUS:RECONF;DLGID:TEST01</h1>
 	// Es la respuesta del server a un frame de SCAN.
@@ -1174,9 +1185,9 @@ char *delim = ",;:=><";
 	token = strsep(&stringp,delim);	// TH001
 
 	// Copio el dlgid recibido al systemVars.dlgid que esta en el scan_boundle
-	memset( scan_boundle.dlgid,'\0', DLGID_LENGTH );
-	strncpy(scan_boundle.dlgid, token, DLGID_LENGTH);
-	xprintf_P( PSTR("COMMS: GPRS_SCAN discover DLGID to %s\r\n\0"), scan_boundle.dlgid );
+	memset( scan_boundle->dlgid,'\0', DLGID_LENGTH );
+	strncpy(scan_boundle->dlgid, token, DLGID_LENGTH);
+	xprintf_P( PSTR("COMMS: GPRS_SCAN discover DLGID to %s\r\n\0"), scan_boundle->dlgid );
 }
 //------------------------------------------------------------------------------------
 bool gprs_SAT_set(uint8_t modo)

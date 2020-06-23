@@ -35,24 +35,33 @@
  *  Test:Reintentos de mandar un SMS que falla.
  *  TEst: scan discover
  *  Test: comms gprs mas fluida ( sin caidas del socket)
- *
- * -Testing XBEE
- * -Server XBEE
  * -GUI
+ *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
- *
- * Revisar en el servidor que grabe el UID en los inits. !!!
  *------------------------------------------------------------------------
  * Version 3.0.2.g ( MASTER ) @ 2020-06-22
  * Se detectaron 3 problemas:
  * 1- Hay veces que en los frames de inits, se loguean como correctos pero
  *    al server SPY ( y apache ) llegan menos campos. ( Counters, psensor, etc)
+ *    H) El buffer de printf es de 256b pero el del gprs_uart de 128b.
+ *    Cuando saco los datos en el TERM no tengo problemas porque no hay control de flujo
+ *    pero el modem si.
+ *    Da la impresion que el modem queda sobreescrito. No pasa con DATAFRAME porque entre
+ *    c/frame espero 250ms que se vacie
+ *    Hago lo mismo en los frames de INIT. Agrego una espera para que los buffers se vacien.
+ *    Al mandar un frame de INIT GLOBAL incoporo delays entre las partes del frame.
+ *
  * 2- En los SCAN se va por timeout de comms.
  *    COMMS: GPRS_SCAN SCRIPT ERROR !!.
- * 3- Luego del TO comms, hace un load default y queda siempre con el error
+ *    Luego del TO comms, hace un load default y queda siempre con el error
  *    ERROR: Checksum sVarsComms failed: calc[0x83], sto[0x82].
  *    No puede recuperarse.
- * 4- Error de CPIN.
+ *    El problema estaba en el server que en la funcion check_auth ponia los UID en 0 entonces
+ *    luego no podia recuperarse.
+ *
+ * 3- Error de CPIN.
+ *    Agrego que al dar errores de comunicaciones y esperar, luego de la espera
+ *    resetea al micro.
  *------------------------------------------------------------------------
  * Version 3.0.2.f ( MASTER ) @ 2020-06-16
  * a) Incorporo un contador de errores de comunicaciones que se va incrementando

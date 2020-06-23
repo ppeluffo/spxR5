@@ -33,6 +33,8 @@ typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status
 
 #define MODO_DISCRETO ( (sVarsComms.timerDial >= TDIAL_MIN_DISCRETO ) ? true : false )
 
+#define INTER_FRAMES_DELAY	100
+
 int32_t time_to_next_dial;
 
 t_comms_states tkComms_state;
@@ -43,6 +45,7 @@ typedef struct {
 	bool gprs_prendido;
 	bool gprs_inicializado;
 	uint8_t errores_comms;
+	bool reset_dlg;
 } t_xCOMMS_stateVars;
 
 t_xCOMMS_stateVars xCOMMS_stateVars;
@@ -97,8 +100,8 @@ file_descriptor_t xCOMMS_get_fd(void);
 void xCOMMS_apagar_dispositivo(void);
 bool xCOMMS_prender_dispositivo(bool f_debug );
 bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, uint8_t *err_code );
-bool xCOMMS_scan( t_scan_struct scan_boundle );
-bool xCOMMS_need_scan( t_scan_struct scan_boundle );
+bool xCOMMS_scan( t_scan_struct *scan_boundle );
+bool xCOMMS_need_scan( t_scan_struct *scan_boundle );
 void xCOMMS_mon_sqe(bool f_debug,  bool modo_continuo, uint8_t *csq );
 bool xCOMMS_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
 t_link_status xCOMMS_link_status(bool f_debug);
@@ -139,8 +142,8 @@ void gprs_DCDMODE( bool f_debug );
 void gprs_CMGF( bool f_debug );
 void gprs_CFGRI (bool f_debug);
 void gprs_mon_sqe( bool f_debug,  bool modo_continuo, uint8_t *csq);
-bool gprs_scan( t_scan_struct scan_boundle );
-bool gprs_need_scan( t_scan_struct scan_boundle );
+bool gprs_scan( t_scan_struct *scan_boundle );
+bool gprs_need_scan( t_scan_struct *scan_boundle );
 bool gprs_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
 void gprs_set_apn(bool f_debug, char *apn);
 bool gprs_netopen(bool f_debug);

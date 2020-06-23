@@ -121,6 +121,7 @@ void xCOMMS_init(void)
 	xCOMMS_stateVars.gprs_prendido = false;
 	xCOMMS_stateVars.gprs_inicializado = false;
 	xCOMMS_stateVars.errores_comms = 0;
+	xCOMMS_stateVars.reset_dlg = false;
 
 }
 //------------------------------------------------------------------------------------
@@ -175,7 +176,7 @@ void xCOMMS_mon_sqe(bool f_debug, bool modo_continuo, uint8_t *csq )
 
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_scan(t_scan_struct scan_boundle )
+bool xCOMMS_scan(t_scan_struct *scan_boundle )
 {
 
 	/*
@@ -190,7 +191,7 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_need_scan( t_scan_struct scan_boundle )
+bool xCOMMS_need_scan( t_scan_struct *scan_boundle )
 {
 
 bool retS = false;

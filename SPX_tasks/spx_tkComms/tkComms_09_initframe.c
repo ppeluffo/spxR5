@@ -137,6 +137,7 @@ t_comms_states next_state = ST_ENTRY;
 	// Si alguna configuración requiere que se resetee, lo hacemos aqui.
 	if ( reset_datalogger == true ) {
 		xprintf_P(PSTR("COMMS: Nueva configuracion requiere RESET...\r\n\0"));
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
 		while(1)
 			;
@@ -181,6 +182,8 @@ static bool send_init_frame(t_init_frame tipo_init_frame )
 	/*
 	 * Intenta enviar un frame de init
 	 * Si se genera algun problema debo esperar 3secs antes de reintentar
+	 * Agrego una espera en los frames largos ( INIT GLOBAL ) para que el modem
+	 * pueda evacuar los datos por un wireless lento.
 	 */
 
 uint8_t i = 0;
@@ -198,11 +201,13 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 			xCOMMS_flush_RX();
 			xCOMMS_flush_TX();
 			xCOMMS_send_header("INIT");
+			vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 
 			switch(tipo_init_frame) {
 			case INIT_AUTH:
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
 				break;
+
 			case INIT_GLOBAL:
 
 #ifdef MONITOR_STACK
@@ -222,14 +227,22 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 #endif
 
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
+				// Espero 100ms entre records para dejar vaciar el TXbuffer wireless del modem
+				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;\0" ), gprs_get_imei() );
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
+				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;\0" ), base_cks,an_cks,dig_cks );
+				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
+
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("CNT:0x%02X;RG:0x%02X;\0" ),cnt_cks,range_cks );
+				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
+
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("PSE:0x%02X;" ), psens_cks );
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("APP:0x%02X;" ), app_cks );
+
 				break;
 			case INIT_BASE:
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_BASE;"));

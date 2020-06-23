@@ -200,7 +200,7 @@ uint8_t i = 0;
 				ac_send_data_record();
 				registros_trasmitidos++;
 				// Espero 250ms entre records
-				vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
+				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 			}
 
 			xCOMMS_send_tail();
