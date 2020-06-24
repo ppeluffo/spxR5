@@ -20,6 +20,7 @@ static void pv_cmd_rwGPRS(uint8_t cmd_mode );
 static void pv_cmd_rwMCP(uint8_t cmd_mode );
 static void pv_cmd_I2Cscan(bool busscan);
 static bool pv_cmd_configGPRS(void);
+static void pv_cmd_modbus(uint8_t cmd_mode);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -365,6 +366,14 @@ char l_data[10] = { '\0' };
 */
 
 
+	// MODBUS
+	// write modbus pwr {on|off}
+	// write modbus raw {txt}\r\n\0"));
+	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_modbus(WR_CMD);
+		return;
+	}
+
 	// GPRS
 	// write gprs pwr|sw|rts {on|off}
 	// write gprs cmd {atcmd}
@@ -521,6 +530,13 @@ st_dataRecord_t dr;
 uint8_t cks;
 
 	FRTOS_CMD_makeArgv();
+
+	// MODBUS
+	// read modbus raw
+	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_modbus(RD_CMD);
+		return;
+	}
 
 	// ALMTEST
 	// read almtest
@@ -1051,6 +1067,9 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("       cmd {atcmd}, redial, monsqe\r\n\0"));
 			xprintf_P( PSTR("       sms,qsms,fsms {nbr,msg}\r\n\0"));
 
+			xprintf_P( PSTR("  modbus pwr {on|off}\r\n\0"));
+			xprintf_P( PSTR("         raw {txt}\r\n\0"));
+
 		}
 		return;
 	}
@@ -1072,6 +1091,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
 			xprintf_P( PSTR("  dinputs\r\n\0"));
 			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri,sms)\r\n\0"));
+			xprintf_P( PSTR("  modbus raw\r\n\0"));
 		}
 		return;
 
@@ -1689,4 +1709,50 @@ static bool pv_cmd_configGPRS(void)
 	return(false);
 }
 //------------------------------------------------------------------------------------
+static void pv_cmd_modbus(uint8_t cmd_mode)
+{
 
+	if ( cmd_mode == WR_CMD ) {
+
+		// write modbus pwr {on|off}
+		if ( strcmp_P( strupr(argv[2]), PSTR("PWR\0")) == 0 ) {
+			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
+				modbus_prender(); pv_snprintfP_OK(); return;
+			}
+			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
+				modbus_apagar(); pv_snprintfP_OK(); return;
+			}
+			pv_snprintfP_ERR();
+			return;
+			}
+
+		// write modbus raw (txt)
+		if ( strcmp_P(strupr(argv[2]), PSTR("RAW\0")) == 0 ) {
+				//xprintf_P( PSTR("%s\r\0"),argv[3] );
+				aux1_flush_RX_buffer();
+				aux1_flush_TX_buffer();
+				xfprintf_P( fdAUX1,PSTR("%s\r\0"),argv[3] );
+				xprintf_P( PSTR("MBsent->%s\r\n\0"),argv[3] );
+				return;
+			}
+
+			pv_snprintfP_ERR();
+			return;
+		}
+
+
+		if ( cmd_mode == RD_CMD ) {
+
+			// read modbus raw
+			if ( strcmp_P(strupr(argv[2]), PSTR("RAW\0")) == 0 ) {
+				aux1_print_RX_buffer();
+				//p = pub_gprs_rxbuffer_getPtr();
+				//xprintf_P( PSTR("rx->%s\r\n\0"),p );
+				return;
+			}
+		}
+
+		pv_snprintfP_ERR();
+		return;
+
+}

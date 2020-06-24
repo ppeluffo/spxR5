@@ -89,17 +89,15 @@ uint32_t ulNotifiedValue;
 	{
 		ctl_watchdog_kick(WDG_COMMSRX, WDG_GPRSRX_TIMEOUT );
 
-		if ( xCOMMS_stateVars.gprs_prendido == true ) {
-			// Leo el UART de GPRS
-			if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
-				gprs_rxBuffer_fill(c);
-			}
-
-		} else {
-
-			// Espero hasta 25s o que me llegue una señal
-			xTaskNotifyWait( 0x00, ULONG_MAX, &ulNotifiedValue, ((TickType_t) 25000 / portTICK_RATE_MS ) );
+		if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
+			gprs_rxBuffer_fill(c);
 		}
+
+		// Leo el UART de MODBUS
+	//	if ( frtos_read( fdAUX1, &c, 1 ) == 1 ) {
+	//		aux1_rxBuffer_fill(c);
+	//	}
+
 
 	}
 }

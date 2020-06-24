@@ -21,7 +21,7 @@ typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 
 #define GPRS_RXBUFFER_LEN	512
-#define AUX1_RXBUFFER_LEN	512
+#define AUX1_RXBUFFER_LEN	64
 
 #define MAX_XCOMM_TO_TIMER	180
 
@@ -116,6 +116,15 @@ char *xCOMM_get_buffer_ptr( char *pattern);
 void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr);
 bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state );
 uint16_t xCOMMS_datos_para_transmitir(void);
+
+void aux1_rxBuffer_fill(char c);
+void aux1_apagar(void);
+bool aux1_prender(void);
+void aux1_flush_RX_buffer(void);
+void aux1_flush_TX_buffer(void);
+void aux1_print_RX_buffer(void);
+bool aux1_check_response( const char *rsp );
+char *aux1_get_buffer_ptr( char *pattern);
 
 void gprs_init(void);
 void gprs_rxBuffer_fill(char c);

@@ -64,12 +64,12 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.2.g"
+#define SPX_FW_REV "1.0.0.a"
 #define SPX_FW_DATE "@ 20200623"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
-//#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
-#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master"
+#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS MBUS001(beta)"
+
 
 //#define F_CPU (32000000UL)
 
@@ -413,6 +413,11 @@ void ainputs_test_channel( uint8_t io_channel);
 // TKDATA
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );
 void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr);
+
+// MODBUS
+void modbus_prender(void);
+void modbus_apagar(void);
+
 
 bool SPX_SIGNAL( uint8_t signal );
 bool SPX_SEND_SIGNAL( uint8_t signal );
