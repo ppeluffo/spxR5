@@ -72,7 +72,7 @@ uint8_t i2c_error_code = 0;
 
 	i2c_error_code = frtos_ioctl(fdI2C, ioctl_I2C_GET_LAST_ERROR, NULL );
 	if (i2c_error_code != I2C_OK ) {
-		memset(buffer,'\0', 10);
+		memset(buffer,'\0', sizeof(buffer));
 		strcpy_P(buffer, (PGM_P)pgm_read_word(&(I2C_names[pv_i2_addr_2_idx( i2c_bus_address )])));
 		xprintf_P(PSTR("ERROR: I2C RD err 0x0%X, %s.\r\n\0"), i2c_bus_address, buffer );
 	}

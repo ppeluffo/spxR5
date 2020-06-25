@@ -39,6 +39,26 @@
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
  *------------------------------------------------------------------------
+ * Version 3.0.2.i ( MASTER ) @ 2020-06-25
+ * Problema:
+ * Vemos que hay momentos en que se transmiten mensajes vacios o cortados
+ * y que ciertos comandos del GPRS quedan en blanco.
+ * Solucion:
+ * En las rutinas del driver de uart, al definir los ringbuffers poniamos
+ * los txringbuffers size en RXSTORAGE_SIZE con lo cual en el caso del GPRS
+ * el TXringbuffer definido estatico de 128 bytes quedaba con 512 bytes.
+ * Esto hacia que al borrarlo con memset, se sobreescribieran mas posiciones
+ * de memoria ( mem_r5_3_0_2_h.xlsx ).
+ * En particular se le pasa por arriba a 'uart_gprs'.
+ *
+ *------------------------------------------------------------------------
+ * Version 3.0.2.h ( MASTER ) @ 2020-06-24
+ * 1- Con cierta combinacion de datos se procesa la senal de frames entre que
+ * envio los datos y que llega la respuesta por lo que el dlg. sale de esperar
+ * la respuesta y se pierde, por lo que se llena la memoria.
+ * Sol: Modifico el procesamiento de las senales de modo que en st_dataframe ignoro
+ * la senal de data_frame_ready.
+ *------------------------------------------------------------------------
  * Version 3.0.2.g ( MASTER ) @ 2020-06-22
  * Se detectaron 3 problemas:
  * 1- Hay veces que en los frames de inits, se loguean como correctos pero

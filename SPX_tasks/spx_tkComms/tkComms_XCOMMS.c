@@ -336,17 +336,28 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		/*
 		 * En ESPERA_PRENDIDO debo salir al modo DATAFRAME a procesar el FRAME
 		 * En los otros casos solo la ignoro ( borro ) pero no tomo acciones.
+		 * En ST_DATAFRAME no proceso esta señal.
 		 */
 		SPX_CLEAR_SIGNAL( SGN_FRAME_READY );
 		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_FRAME_READY rcvd.\r\n\0"));
-		if ( state == ST_ESPERA_PRENDIDO ) {
+
+		switch (state) {
+		case ST_ESPERA_PRENDIDO:
 			if ( xCOMMS_stateVars.gprs_inicializado ) {
 				*next_state = ST_DATAFRAME;
 			} else {
 				*next_state = ST_PRENDER;
 			}
+			return(true);
+			break;
+		case ST_DATAFRAME:
+			// Ignoro la señal.
+			return(false);
+			break;
+		default:
+			return(true);
+			break;
 		}
-		return(true);
 	}
 
 	if ( SPX_SIGNAL( SGN_MON_SQE )) {

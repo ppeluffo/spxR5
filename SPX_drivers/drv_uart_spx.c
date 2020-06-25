@@ -24,7 +24,7 @@ uart_control_t *pUart = NULL;
 		drv_uart_gprs_open(baudrate);
 		// Inicializo los ringBuffers que manejan el puerto. Son locales al driver.
 		rBufferCreateStatic( &uart_gprs.RXringBuffer, &gprs_rxStorage[0], GPRS_RXSTORAGE_SIZE );
-		rBufferCreateStatic( &uart_gprs.TXringBuffer, &gprs_txStorage[0], GPRS_RXSTORAGE_SIZE );
+		rBufferCreateStatic( &uart_gprs.TXringBuffer, &gprs_txStorage[0], GPRS_TXSTORAGE_SIZE );
 		// Asigno el identificador
 		uart_gprs.uart_id = iUART_GPRS;
 		// Devuelvo la direccion de uart_gprs para que la asocie al dispositvo GPRS el frtos.
@@ -35,7 +35,7 @@ uart_control_t *pUart = NULL;
 		drv_uart_aux1_open(baudrate);
 		// Inicializo los ringBuffers que manejan el puerto. Son locales al driver.
 		rBufferCreateStatic( &uart_aux1.RXringBuffer, &aux1_rxStorage[0], AUX1_RXSTORAGE_SIZE );
-		rBufferCreateStatic( &uart_aux1.TXringBuffer, &aux1_txStorage[0], AUX1_RXSTORAGE_SIZE );
+		rBufferCreateStatic( &uart_aux1.TXringBuffer, &aux1_txStorage[0], AUX1_TXSTORAGE_SIZE );
 		// Asigno el identificador
 		uart_aux1.uart_id = iUART_AUX1;
 		// Devuelvo la direccion de uart_gprs para que la asocie al dispositvo GPRS el frtos.
@@ -46,7 +46,7 @@ uart_control_t *pUart = NULL;
 		drv_uart_term_open(baudrate);
 		// Inicializo los ringBuffers que manejan el puerto. Son locales al driver.
 		rBufferCreateStatic( &uart_term.RXringBuffer, &term_rxStorage[0], TERM_RXSTORAGE_SIZE );
-		rBufferCreateStatic( &uart_term.TXringBuffer, &term_txStorage[0], TERM_RXSTORAGE_SIZE );
+		rBufferCreateStatic( &uart_term.TXringBuffer, &term_txStorage[0], TERM_TXSTORAGE_SIZE );
 		// Asigno el identificador
 		uart_term.uart_id = iUART_TERM;
 		// Devuelvo la direccion de uart_gprs para que la asocie al dispositvo GPRS el frtos.

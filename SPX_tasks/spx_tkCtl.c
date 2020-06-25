@@ -277,7 +277,7 @@ char buffer[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 			}
 
 			if ( watchdog_timers[wdg] == 0 ) {
-				memset(buffer,'\0', 10);
+				memset(buffer,'\0', sizeof(buffer));
 				strcpy_P(buffer, (PGM_P)pgm_read_word(&(wdg_names[wdg])));
 				xprintf_P( PSTR("CTL: WDG TO(%s) !!\r\n\0"),buffer);
 				vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
@@ -366,7 +366,7 @@ char buffer[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 		taskYIELD();
 
 	for ( wdg = 0; wdg < NRO_WDGS; wdg++ ) {
-		memset(buffer,'\0', 10);
+		memset(buffer,'\0', sizeof(buffer));
 		strcpy_P(buffer, (PGM_P)pgm_read_word(&(wdg_names[wdg])));
 		xprintf_P( PSTR("%d(%s)->%d \r\n\0"),wdg,buffer,watchdog_timers[wdg]);
 	}

@@ -643,7 +643,7 @@ char dlgId[DLGID_LENGTH];
 	}
 
 	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
-	memset(localStr,'\0',32);
+	memset(localStr,'\0',sizeof(localStr));
 	memcpy(localStr,p,sizeof(localStr));
 
 	stringp = localStr;
