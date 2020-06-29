@@ -116,13 +116,16 @@ uint8_t xAPP_caudalimetro_hash(void)
 uint8_t hash = 0;
 char dst[32];
 char *p;
-uint8_t i = 0;
+uint16_t i = 0;
+int16_t free_size = sizeof(dst);
 
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 
-	i = snprintf_P( &dst[i], sizeof(dst), PSTR("CAUDALIMETRO,"));
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%04d,%04d"), sVarsApp.caudalimetro.pulse_width, sVarsApp.caudalimetro.factor_caudal );
+	i += snprintf_P( &dst[i], free_size, PSTR("CAUDALIMETRO,"));
+	i += snprintf_P(&dst[i], free_size, PSTR("%04d,%04d"), sVarsApp.caudalimetro.pulse_width, sVarsApp.caudalimetro.factor_caudal );
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
 
 	//xprintf_P( PSTR("DEBUG: CONS = [%s]\r\n\0"), dst );
 	// Apunto al comienzo para recorrer el buffer
@@ -130,7 +133,12 @@ uint8_t i = 0;
 	while (*p != '\0') {
 		hash = u_hash(hash, *p++);
 	}
+	//xprintf_P( PSTR("COMMS: caudalimetro_hash OK[%d]\r\n\0"),free_size);
 	return(hash);
+
+exit_error:
+	xprintf_P( PSTR("COMMS: caudalimetro_hash ERROR !!!\r\n\0"));
+	return(0x00);
 
 }
 //------------------------------------------------------------------------------------

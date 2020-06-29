@@ -68,13 +68,17 @@ uint8_t range_hash(void)
 uint8_t hash = 0;
 char dst[32];
 char *p;
+uint16_t i;
+int16_t free_size = sizeof(dst);
 
 	//	char range_name[PARAMNAME_LENGTH];
 
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 	// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-	snprintf_P(dst, sizeof(dst), PSTR("%s"), systemVars.range_name);
+	i += snprintf_P(dst, free_size, PSTR("%s"), systemVars.range_name);
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
 
 	//xprintf_P( PSTR("DEBUG: RCKS = [%s]\r\n\0"), dst );
 	// Apunto al comienzo para recorrer el buffer
@@ -86,8 +90,13 @@ char *p;
 	}
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
+	//xprintf_P( PSTR("COMMS: range_hash OK[%d]\r\n\0"),free_size);
+
 	return(hash);
 
+exit_error:
+	xprintf_P( PSTR("COMMS: range_hash ERROR !!!\r\n\0"));
+	return(0x00);
 }
 //------------------------------------------------------------------------------------
 

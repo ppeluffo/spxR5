@@ -487,36 +487,54 @@ uint8_t hash = 0;
 char dst[32];
 char *p;
 uint8_t i = 0;
+int16_t free_size = sizeof(dst);
 
 	// calculate own checksum
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 
 	// Timerdial
-	i = snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), sVarsComms.timerDial );
+	//xprintf_P( PSTR("DEBUG1: base_free_size[%d]\r\n\0"), free_size );
+	i = snprintf_P( &dst[i], free_size, PSTR("%d,"), sVarsComms.timerDial );
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
+
 	// TimerPoll
-	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.timerPoll );
+	//xprintf_P( PSTR("DEBUG2: base_free_size[%d]\r\n\0"), free_size);
+	i += snprintf_P( &dst[i], free_size, PSTR("%d,"), systemVars.timerPoll );
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
+
 	// TimepwrSensor
-	i += snprintf_P( &dst[i], sizeof(dst), PSTR("%d,"), systemVars.ainputs_conf.pwr_settle_time );
+	//xprintf_P( PSTR("DEBUG3: base_free_size[%d]\r\n\0"), free_size);
+	i += snprintf_P( &dst[i], free_size, PSTR("%d,"), systemVars.ainputs_conf.pwr_settle_time );
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
 
 	// PwrSave
+	//xprintf_P( PSTR("DEBUG4: base_free_size[%d]\r\n\0"), free_size);
 	if ( sVarsComms.pwrSave.pwrs_enabled ) {
-		i += snprintf_P( &dst[i], sizeof(dst), PSTR("ON,"));
+		i += snprintf_P( &dst[i], free_size, PSTR("ON,"));
 	} else {
-		i += snprintf_P( &dst[i], sizeof(dst), PSTR("OFF,"));
+		i += snprintf_P( &dst[i], (  sizeof(dst) - i ) , PSTR("OFF,"));
 	}
+	i += snprintf_P(&dst[i], (  sizeof(dst) - i ) , PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_start.hour, sVarsComms.pwrSave.hora_start.min );
+	i += snprintf_P(&dst[i], (  sizeof(dst) - i ), PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_fin.hour, sVarsComms.pwrSave.hora_fin.min );
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
 
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_start.hour, sVarsComms.pwrSave.hora_start.min );
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_fin.hour, sVarsComms.pwrSave.hora_fin.min );
 
 	// Counters_hw ( 0: simple, 1 opto )
+	//xprintf_P( PSTR("DEBUG5: base_free_size[%d]\r\n\0"), free_size);
 	if ( systemVars.counters_conf.hw_type == COUNTERS_HW_SIMPLE ) {
-		i += snprintf_P(&dst[i], sizeof(dst), PSTR("SIMPLE,"));
+		i += snprintf_P(&dst[i], (  sizeof(dst) - i ) , PSTR("SIMPLE,"));
 	} else {
-		i += snprintf_P(&dst[i], sizeof(dst), PSTR("OPTO,"));
+		i += snprintf_P(&dst[i],(  sizeof(dst) - i ), PSTR("OPTO,"));
 	}
-
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
 	//xprintf_P( PSTR("DEBUG: BASEHASH = [%s]\r\n\0"), dst );
+
 
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
@@ -527,8 +545,12 @@ uint8_t i = 0;
 	}
 
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
-
+	//xprintf_P( PSTR("COMMS: base_hash OK[%d]\r\n\0"), free_size );
 	return(hash);
+
+exit_error:
+	xprintf_P( PSTR("COMMS: base_hash ERROR !!!\r\n\0"));
+	return(0x00);
 
 }
 //------------------------------------------------------------------------------------

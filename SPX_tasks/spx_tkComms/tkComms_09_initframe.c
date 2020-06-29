@@ -221,10 +221,12 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 				range_cks = range_hash();
 				psens_cks = psensor_hash();
 				app_cks = u_aplicacion_hash();
+
 				//
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("12");
 #endif
+
 
 				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
 				// Espero 100ms entre records para dejar vaciar el TXbuffer wireless del modem

@@ -35,11 +35,15 @@ uint8_t hash = 0;
 char dst[32];
 char *p;
 uint8_t i = 0;
+int16_t free_size = sizeof(dst);
 
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 
-	i = snprintf_P( &dst[i], sizeof(dst), PSTR("OFF"));
+	i += snprintf_P( &dst[i], free_size, PSTR("OFF"));
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
+
 	//xprintf_P( PSTR("DEBUG: CONS = [%s]\r\n\0"), dst );
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
@@ -47,8 +51,12 @@ uint8_t i = 0;
 		//checksum += *p++;
 		hash = u_hash(hash, *p++);
 	}
+	//xprintf_P( PSTR("COMMS: app_hash OK[%d]\r\n\0"),free_size);
 	return(hash);
 
+exit_error:
+	xprintf_P( PSTR("COMMS: app_hash ERROR !!!\r\n\0"));
+	return(0x00);
 }
 //------------------------------------------------------------------------------------
 

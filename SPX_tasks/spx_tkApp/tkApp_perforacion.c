@@ -145,14 +145,24 @@ uint8_t xAPP_perforacion_hash(void)
 uint8_t hash = 0;
 char dst[32];
 char *p;
+uint8_t i = 0;
+int16_t free_size = sizeof(dst);
 
 	memset(dst,'\0', sizeof(dst));
-	snprintf_P(dst, sizeof(dst), PSTR("PERFORACION"));
+	i += snprintf_P(dst, free_size, PSTR("PERFORACION"));
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
+
 	p = dst;
 	while (*p != '\0') {
 		hash = u_hash(hash, *p++);
 	}
+	//xprintf_P( PSTR("COMMS: app_hash OK[%d]\r\n\0"),free_size);
 	return(hash);
+
+exit_error:
+	xprintf_P( PSTR("COMMS: app_hash ERROR !!!\r\n\0"));
+	return(0x00);
 
 }
 //------------------------------------------------------------------------------------

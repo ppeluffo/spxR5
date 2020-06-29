@@ -884,10 +884,15 @@ uint8_t hash = 0;
 char dst[48];
 char *p;
 uint8_t i;
-
+uint8_t j;
+int16_t free_size = sizeof(dst);
 
 	memset(dst,'\0', sizeof(dst));
-	snprintf_P( dst, sizeof(dst), PSTR("PPOT;"));
+
+	j += snprintf_P( dst, free_size, PSTR("PPOT;"));
+	free_size = (  sizeof(dst) - j );
+	if ( free_size < 0 ) goto exit_error;
+
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
 	while (*p != '\0') {
@@ -898,8 +903,12 @@ uint8_t i;
 	for (i=0; i < MAX_NRO_SMS;i++) {
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
+		free_size = sizeof(dst);
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-		snprintf_P( dst, sizeof(dst), PSTR("SMS%02d:%s,%d;"), i, sVarsApp.l_sms[i], sVarsApp.plantapot.alm_level[i]);
+		j += snprintf_P( dst, free_size, PSTR("SMS%02d:%s,%d;"), i, sVarsApp.l_sms[i], sVarsApp.plantapot.alm_level[i]);
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
+
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
 		while (*p != '\0') {
@@ -912,10 +921,15 @@ uint8_t i;
 		// Vacio el buffer temoral
 
 		memset(dst,'\0', sizeof(dst));
-		snprintf_P( dst, sizeof(dst), PSTR("LCH%d:%.02f,%.02f,%.02f,%.02f,%.02f,%.02f;"), i,
+		free_size = sizeof(dst);
+		j += snprintf_P( dst, free_size, PSTR("LCH%d:%.02f,%.02f,%.02f,%.02f,%.02f,%.02f;"), i,
 			sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_inf,sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_sup,
 			sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_inf,sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_sup,
 			sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_inf,sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_sup );
+
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
+
 		p = dst;
 		while (*p != '\0') {
 			hash = u_hash(hash, *p++);
@@ -923,6 +937,10 @@ uint8_t i;
 	}
 
 	return(hash);
+
+exit_error:
+	xprintf_P( PSTR("COMMS: app_hash ERROR !!!\r\n\0"));
+	return(0x00);
 
 }
 //------------------------------------------------------------------------------------

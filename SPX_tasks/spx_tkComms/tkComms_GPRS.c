@@ -395,7 +395,7 @@ bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code )
 	gprs_CIPMODE(f_debug);	// modo transparente.
 	gprs_DCDMODE(f_debug);	// UART para utilizar las 7 lineas
 	gprs_CMGF(f_debug);		// Configuro para mandar SMS en modo TEXTO
-	gprs_CFGRI(f_debug);	// Configuro el RI para que sea ON y al llegar un SMS sea OFF
+	//gprs_CFGRI(f_debug);	// Configuro el RI para que sea ON y al llegar un SMS sea OFF
 
 	*err_code = ERR_NONE;
 	return(true);

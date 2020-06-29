@@ -249,12 +249,17 @@ uint8_t psensor_hash(void)
 uint8_t hash = 0;
 char dst[40];
 char *p;
+uint16_t i;
+int16_t free_size = sizeof(dst);
 
 	// calculate own checksum
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 
-	snprintf_P( dst, sizeof(dst), PSTR("%s,%d,%d,%.01f,%.01f,%.01f"),systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max,systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
+	i += snprintf_P( dst, free_size, PSTR("%s,%d,%d,%.01f,%.01f,%.01f"),systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max,systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
+
 	//xprintf_P( PSTR("DEBUG: PSENSOR = [%s]\r\n\0"), dst );
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
@@ -263,9 +268,15 @@ char *p;
 		//checksum += *p++;
 		hash = u_hash(hash, *p++);
 	}
+	//xprintf_P( PSTR("COMMS: psensor_hash OK[%d]\r\n\0"),free_size);
+
 	//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 	return(hash);
+
+exit_error:
+	xprintf_P( PSTR("COMMS: psensor_hash ERROR !!!\r\n\0"));
+	return(0x00);
 
 }
 //------------------------------------------------------------------------------------

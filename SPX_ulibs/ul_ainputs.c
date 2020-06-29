@@ -408,9 +408,10 @@ uint8_t ainputs_hash(void)
 
 uint16_t i;
 uint8_t hash = 0;
-char dst[32];
+char dst[40];
 char *p;
 uint8_t j = 0;
+int16_t free_size = sizeof(dst);
 
 	//	char name[MAX_ANALOG_CHANNELS][PARAMNAME_LENGTH];
 	//	uint8_t imin[MAX_ANALOG_CHANNELS];	// Coeficientes de conversion de I->magnitud (presion)
@@ -422,21 +423,45 @@ uint8_t j = 0;
 
 	for(i=0;i<NRO_ANINPUTS;i++) {
 		// Vacio el buffer temoral
+
 		memset(dst,'\0', sizeof(dst));
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
 		j = 0;
-		j += snprintf_P( &dst[j], sizeof(dst), PSTR("A%d:%s,"), i, systemVars.ainputs_conf.name[i] );
-		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,%d,"), systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i] );
-		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.02f,%.02f,"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
-		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.02f;"), systemVars.ainputs_conf.offset[i] );
+		//xprintf_P( PSTR("DEBUG1: analog_free_size[%d]\r\n\0"), free_size );
+		j += snprintf_P( &dst[j], free_size, PSTR("A%d:%s,"), i, systemVars.ainputs_conf.name[i] );
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
+
+		//xprintf_P( PSTR("DEBUG1: analog_free_size[%d]\r\n\0"), free_size );
+		j += snprintf_P(&dst[j], free_size, PSTR("%d,%d,"), systemVars.ainputs_conf.imin[i],systemVars.ainputs_conf.imax[i] );
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
+
+		//xprintf_P( PSTR("DEBUG1: analog_free_size[%d]\r\n\0"), free_size );
+		j += snprintf_P(&dst[j], free_size, PSTR("%.02f,%.02f,"), systemVars.ainputs_conf.mmin[i], systemVars.ainputs_conf.mmax[i] );
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
+
+		//xprintf_P( PSTR("DEBUG1: analog_free_size[%d]\r\n\0"), free_size );
+		j += snprintf_P(&dst[j], free_size , PSTR("%.02f;"), systemVars.ainputs_conf.offset[i] );
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
+
 
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
 		while (*p != '\0') {
 			hash = u_hash(hash, *p++);
 		}
+		//xprintf_P( PSTR("COMMS: analog_hash(%d) OK[%d]\r\n\0"),i,free_size);
 	}
+
+
 	return(hash);
+
+exit_error:
+	xprintf_P( PSTR("COMMS: ainputs_hash ERROR !!!\r\n\0"));
+	return(0x00);
 
 }
 //------------------------------------------------------------------------------------

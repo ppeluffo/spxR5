@@ -38,9 +38,16 @@
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
+ * ------------------------------------------------------------------------
+ * Version 3.0.2.j ( MASTER ) @ 2020-06-29
+ * 1- En el scan, antes de ver si necesito hacerlo seteo las variables server_script
+ * y esto hace que no use las que tengo configuradas.
+ * 2- Al calcular los hases de configuracion, en alguno casos se puede llegar
+ * a usar mas tamaño del buffer.
+ * Se redimensionan los buffer y se controla el overflow.
  *------------------------------------------------------------------------
  * Version 3.0.2.i ( MASTER ) @ 2020-06-25
- * Problema:
+ * 1-Problema:
  * Vemos que hay momentos en que se transmiten mensajes vacios o cortados
  * y que ciertos comandos del GPRS quedan en blanco.
  * Solucion:
@@ -50,6 +57,7 @@
  * Esto hacia que al borrarlo con memset, se sobreescribieran mas posiciones
  * de memoria ( mem_r5_3_0_2_h.xlsx ).
  * En particular se le pasa por arriba a 'uart_gprs'.
+ * 2- Elimino el comando gprs_CFGRI() porque no esta implementado en el modem.
  *
  *------------------------------------------------------------------------
  * Version 3.0.2.h ( MASTER ) @ 2020-06-24
@@ -565,7 +573,7 @@ void debug_monitor_stack_watermarks(char *id)
 st_stack_size_t stack_wmk;
 bool print_min_stack_flag = false;
 
-static st_stack_size_t stack_wmk_min = {512,512,512,512,512,512,512 };
+static st_stack_size_t stack_wmk_min = {512};
 
 	debug_read_stack_watermarks(&stack_wmk);
 

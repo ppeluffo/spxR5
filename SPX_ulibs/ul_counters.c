@@ -422,9 +422,10 @@ uint8_t counters_hash(void)
 
 uint16_t i;
 uint8_t hash = 0;
-char dst[32];
+char dst[40];
 char *p;
 uint8_t j = 0;
+int16_t free_size = sizeof(dst);
 
 	// C0:C0,1.000,100,10,0;C1:C1,1.000,100,10,0;
 
@@ -432,22 +433,35 @@ uint8_t j = 0;
 	for(i=0;i< MAX_COUNTER_CHANNELS;i++) {
 		// Vacio el buffer temoral
 		memset(dst,'\0', sizeof(dst));
+		free_size = sizeof(dst);
 		j = 0;
-		j += snprintf_P(&dst[j], sizeof(dst), PSTR("C%d:%s,"), i, systemVars.counters_conf.name[i]);
-		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%.03f,%d,"),systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i]);
-		j += snprintf_P(&dst[j], sizeof(dst), PSTR("%d,"), systemVars.counters_conf.pwidth[i] );
+		j += snprintf_P(&dst[j], free_size, PSTR("C%d:%s,"), i, systemVars.counters_conf.name[i]);
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
+
+		j += snprintf_P(&dst[j], free_size, PSTR("%.03f,%d,"),systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i]);
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
+
+		j += snprintf_P(&dst[j], free_size, PSTR("%d,"), systemVars.counters_conf.pwidth[i] );
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
 
 		if ( systemVars.counters_conf.speed[i] == CNT_LOW_SPEED ) {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("LS,"));
+			j += snprintf_P(&dst[j], free_size, PSTR("LS,"));
 		} else {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("HS,"));
+			j += snprintf_P(&dst[j], free_size, PSTR("HS,"));
 		}
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
 
 		if ( systemVars.counters_conf.sensing_edge[i] == RISING_EDGE ) {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("RISE;"));
+			j += snprintf_P(&dst[j], free_size, PSTR("RISE;"));
 		} else {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("FALL;"));
+			j += snprintf_P(&dst[j], free_size, PSTR("FALL;"));
 		}
+		free_size = (  sizeof(dst) - j );
+		if ( free_size < 0 ) goto exit_error;
 
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
@@ -456,12 +470,18 @@ uint8_t j = 0;
 			// checksum += *p++;
 			hash = u_hash(hash, *p++);
 		}
+		//xprintf_P( PSTR("COMMS: counters_hash(%d) OK[%d]\r\n\0"),i,free_size);
+
 		//xprintf_P( PSTR("DEBUG: CCKS = [%s]\r\n\0"), dst );
 		//xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 	}
+
 	return(hash);
 
+exit_error:
+	xprintf_P( PSTR("COMMS: counters_hash ERROR !!!\r\n\0"));
+	return(0x00);
 }
 //------------------------------------------------------------------------------------
 

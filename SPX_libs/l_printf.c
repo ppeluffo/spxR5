@@ -11,7 +11,7 @@
 
 #define PRINTF_BUFFER_SIZE        256U
 
-static uint8_t stdout_buff[PRINTF_BUFFER_SIZE] = { ' ' };
+static uint8_t stdout_buff[PRINTF_BUFFER_SIZE];
 xSemaphoreHandle sem_STDOUT;
 StaticSemaphore_t STDOUT_xMutexBuffer;
 
@@ -35,7 +35,7 @@ int i;
 	// Ahora tengo en stdout_buff formateado para imprimir
 	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
 	va_start(args, fmt);
-	vsnprintf_P( (char *)stdout_buff,sizeof(stdout_buff),fmt, args);
+	vsnprintf_P( (char *)stdout_buff, sizeof(stdout_buff),fmt, args);
 	i = frtos_write(fdTERM, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
 
 	xSemaphoreGive( sem_STDOUT );

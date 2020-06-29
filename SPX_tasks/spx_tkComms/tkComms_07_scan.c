@@ -39,15 +39,15 @@ t_scan_struct scan_boundle;
 	scan_boundle.tcp_port = sVarsComms.server_tcp_port;
 	scan_boundle.cpin = sVarsComms.simpwd;
 
-	// Estoy en un scan: pongo a default el server/port/cpin.
-	strncpy_P( sVarsComms.serverScript, PSTR("/cgi-bin/SPY/spy.py\0"),SCRIPT_LENGTH);
-	strncpy_P( sVarsComms.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
-	snprintf_P( sVarsComms.simpwd, sizeof( sVarsComms.simpwd), PSTR("%s\0"), SIMPIN_DEFAULT );
-
 	if ( xCOMMS_need_scan( &scan_boundle ) == true ) {
 		// Necesito descubir los parametros.
 		// Puedo demorar hasta 10 minutos  por lo que ajusto el watchdog !!!
 		ctl_watchdog_kick( WDG_COMMS, WDG_TO600 );
+
+		// Estoy en un scan: pongo a default el server/port/cpin.
+		strncpy_P( sVarsComms.serverScript, PSTR("/cgi-bin/SPY/spy.py\0"),SCRIPT_LENGTH);
+		strncpy_P( sVarsComms.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
+		snprintf_P( sVarsComms.simpwd, sizeof( sVarsComms.simpwd), PSTR("%s\0"), SIMPIN_DEFAULT );
 
 		if ( xCOMMS_scan( &scan_boundle ) == true ) {
 			// Descubri los parametros. Ya estan en el sVarsComms.

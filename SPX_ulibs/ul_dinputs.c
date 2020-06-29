@@ -324,6 +324,7 @@ uint8_t hash = 0;
 char dst[32];
 char *p;
 uint8_t j = 0;
+uint16_t free_size = sizeof(dst);
 
 	//	char name[MAX_DINPUTS_CHANNELS][PARAMNAME_LENGTH];
 	//	bool modo_normal[MAX_DINPUTS_CHANNELS];
@@ -337,9 +338,14 @@ uint8_t j = 0;
 		j = 0;
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
 		if ( systemVars.dinputs_conf.wrk_modo[channel] == DIN_NORMAL ) {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("D%d:%s,NORMAL;"), channel , systemVars.dinputs_conf.name[channel] );
+			j += snprintf_P(&dst[j], free_size, PSTR("D%d:%s,NORMAL;"), channel , systemVars.dinputs_conf.name[channel] );
+			free_size = (  sizeof(dst) - j );
+			if ( free_size < 0 ) goto exit_error;
+
 		} else {
-			j += snprintf_P(&dst[j], sizeof(dst), PSTR("D%d:%s,TIMER;"), channel, systemVars.dinputs_conf.name[channel] );
+			j += snprintf_P(&dst[j], free_size, PSTR("D%d:%s,TIMER;"), channel, systemVars.dinputs_conf.name[channel] );
+			free_size = (  sizeof(dst) - j );
+			if ( free_size < 0 ) goto exit_error;
 		}
 		// Apunto al comienzo para recorrer el buffer
 		p = dst;
@@ -348,14 +354,19 @@ uint8_t j = 0;
 			//checksum += *p++;
 			hash = u_hash(hash, *p++);
 		}
+		//xprintf_P( PSTR("COMMS: digital_hash(%d) OK[%d]\r\n\0"),channel,free_size);
 
 	//	xprintf_P( PSTR("DEBUG: DCKS = [%s]\r\n\0"), dst );
 	//	xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 	}
 
+	xprintf_P( PSTR("COMMS: dinputs_hash OK[%d]\r\n\0"),free_size);
 	return(hash);
 
+exit_error:
+	xprintf_P( PSTR("COMMS: dinputs_hash ERROR !!!\r\n\0"));
+	return(0x00);
 }
 //------------------------------------------------------------------------------------
 bool dinputs_service_read(void)
