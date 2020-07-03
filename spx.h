@@ -64,8 +64,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.2.j"
-#define SPX_FW_DATE "@ 20200629"
+#define SPX_FW_REV "3.0.2.k"
+#define SPX_FW_DATE "@ 20200703"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -137,7 +137,6 @@ StackType_t xTask_Aplicacion_Buffer [tkAplicacion_STACK_SIZE];
 #define SGN_FRAME_READY			0x01
 #define SGN_MON_SQE				0x02
 #define SGN_REDIAL				0x03
-#define SGN_RESET_COMMS_DEV		0x04
 #define SGN_SMS					0x05
 #define SGN_WAKEUP				0x06
 
@@ -180,6 +179,7 @@ void tkAplicacion(void * pvParameters);
 #define DLGID_LENGTH		12
 #define IP_LENGTH			24
 #define APN_LENGTH			32
+#define SGN_RESET_COMMS_DEV		0x04
 #define PORT_LENGTH			7
 #define SCRIPT_LENGTH		64
 #define PASSWD_LENGTH		15

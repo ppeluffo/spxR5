@@ -179,10 +179,13 @@ bool retS = false;
 
 	// CMGF: Selecciono el modo de mandar sms: 1-> texto
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS, PSTR("AT+CMGF=1\r"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 	// CMGS: Envio SMS.
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS, PSTR("AT+CMGS=\"%s\"\r"), dst_nbr);
 
 	// Espero el prompt > para enviar el mensaje.
@@ -197,6 +200,7 @@ bool retS = false;
 
 	// Envio el mensaje:
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS, PSTR("%s\r %c"), msg, ctlz  );
 	xprintf_PD( DF_COMMS, PSTR("SMS: msgtxt=[%s]\r\n"), msg);
 

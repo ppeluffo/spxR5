@@ -361,7 +361,7 @@ uint16_t free_size = sizeof(dst);
 
 	}
 
-	xprintf_P( PSTR("COMMS: dinputs_hash OK[%d]\r\n\0"),free_size);
+	//xprintf_P( PSTR("COMMS: dinputs_hash OK[%d]\r\n\0"),free_size);
 	return(hash);
 
 exit_error:

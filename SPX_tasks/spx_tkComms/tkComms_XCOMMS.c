@@ -98,8 +98,8 @@ uint8_t dbm;
 	case ST_SCAN:
 		xprintf_P( PSTR("  state: scanning"));
 		break;
-	case ST_IP:
-		xprintf_P( PSTR("  state: ip"));
+	case ST_NET:
+		xprintf_P( PSTR("  state: net"));
 		break;
 	case ST_INITFRAME:
 		xprintf_P( PSTR("  state: link up: inits"));
@@ -200,7 +200,7 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
+bool xCOMMS_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
 {
 
 	/*
@@ -210,7 +210,7 @@ bool xCOMMS_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
 
 bool retS = false;
 
-	retS = gprs_ip(f_debug, apn, ip_assigned, err_code);
+	retS = gprs_net_connect(f_debug, apn, ip_assigned, err_code);
 	return(retS);
 }
 //------------------------------------------------------------------------------------

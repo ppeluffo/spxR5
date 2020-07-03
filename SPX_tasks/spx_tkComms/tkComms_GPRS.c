@@ -99,6 +99,7 @@ bool gprs_prender(bool f_debug )
 	 * Debe suministrar energia y luego activar el pin sw.
 	 * Finalmente manda un comando AT y debe recibir un OK.
 	 * Si es asi lee el imei y el ccid y retorna true.
+	 * Si no puedo leer el imei o el ccid retorno false.
 	 */
 
 
@@ -136,8 +137,19 @@ uint8_t hw_tries, sw_tries;
 			if ( gprs_check_response("OK\0") ) {
 				// Respondio OK. Esta prendido; salgo
 				xprintf_PD( f_debug, PSTR("COMMS: gprs Modem on.\r\n\0"));
-				gprs_readImei(f_debug);
-				gprs_readCcid(f_debug);
+
+				if ( gprs_readImei(f_debug) == false ) {
+					gprs_apagar();
+					xprintf_PD( f_debug, PSTR("COMMS: ERROR Imei not available!!\r\n\0"));
+					return (false );
+				}
+
+				if ( gprs_readCcid(f_debug) == false ) {
+					gprs_apagar();
+					xprintf_PD( f_debug, PSTR("COMMS: ERROR Ccid not available!!\r\n\0"));
+					return (false );
+				}
+
 				return(true);
 			}
 		}
@@ -202,6 +214,7 @@ void gprs_print_RX_buffer( bool f_debug )
 
 		// Uso esta funcion para imprimir un buffer largo, mayor al que utiliza xprintf_P. !!!
 		xnprint( gprsRxBuffer.buffer, GPRS_RXBUFFER_LEN );
+
 		xprintf_P( PSTR ("\r\n[%d]\r\n\0"), gprsRxBuffer.ptr );
 	}
 }
@@ -237,7 +250,7 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-void gprs_readImei( bool f_debug )
+bool gprs_readImei( bool f_debug )
 {
 	// Leo el imei del modem para poder trasmitirlo al server y asi
 	// llevar un control de donde esta c/sim
@@ -246,6 +259,7 @@ uint8_t i = 0;
 uint8_t j = 0;
 uint8_t start = 0;
 uint8_t end = 0;
+bool retS = false;
 
 	// Envio un AT+CGSN para leer el IMEI
 	gprs_flush_RX_buffer();
@@ -282,13 +296,17 @@ uint8_t end = 0;
 				break;
 			}
 		}
+
+		// El IMEI tiene 15 digitos.
+		if ( j > 10 )
+			retS = true;
 	}
 
 // Exit
 EXIT:
 
 	xprintf_PD( f_debug,  PSTR("COMMS: gprs IMEI[%s]\r\n\0"), gprs_status.buff_gprs_imei);
-
+	return(retS);
 
 }
 //------------------------------------------------------------------------------------
@@ -304,7 +322,7 @@ char *gprs_get_ccid(void)
 
 }
 //------------------------------------------------------------------------------------
-void gprs_readCcid( bool f_debug )
+bool gprs_readCcid( bool f_debug )
 {
 	// Leo el ccid del sim para poder trasmitirlo al server y asi
 	// llevar un control de donde esta c/sim
@@ -318,6 +336,7 @@ uint8_t i = 0;
 uint8_t j = 0;
 uint8_t start = 0;
 uint8_t end = 0;
+bool retS = false;
 
 	// Envio un AT+CGSN para leer el SIM ID
 	gprs_flush_RX_buffer();
@@ -357,13 +376,15 @@ uint8_t end = 0;
 
 		// El CCID que usa ANTEL es de 18 digitos.
 		gprs_status.buff_gprs_ccid[18] = '\0';
+		if ( j > 10 )
+			retS = true;
 	}
 
 // Exit
 EXIT:
 
 	xprintf_PD( f_debug, PSTR("COMMS: gprs CCID[%s]\r\n\0"),gprs_status.buff_gprs_ccid);
-
+	return(retS);
 
 }
 //------------------------------------------------------------------------------------
@@ -373,6 +394,10 @@ bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code )
 	 * Consiste en enviar los comandos AT de modo que el modem GPRS
 	 * quede disponible para trabajar
 	 */
+
+	gprs_CGMI( f_debug );
+	gprs_CGMM( f_debug );
+	gprs_CGMR( f_debug );
 
 	// Vemos que halla un pin presente.
 	if ( ! gprs_CPIN( f_debug, pin) ) {
@@ -401,58 +426,6 @@ bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code )
 	return(true);
 }
 //--------------------------------------------------------------------------------------
-bool gprs_CPIN_old( bool f_debug, char *pin )
-{
-	// Chequeo que el SIM este en condiciones de funcionar.
-	// AT+CPIN?
-
-uint8_t tryes = 3;
-
-	xprintf_PD( f_debug, PSTR("GPRS: gprs CPIN\r\n\0"));
-
-	while ( tryes > 0 ) {
-		// Vemos si necesita SIMPIN
-		gprs_flush_RX_buffer();
-		xfprintf_P( fdGPRS , PSTR("AT+CPIN?\r\0"));
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		gprs_print_RX_buffer(f_debug);
-
-		// Pin desbloqueado
-		if ( gprs_check_response("+CPIN: READY\0") ) {
-			if ( tryes == 1 ) {
-				// Se destrabo con el pin x defecto. Lo grabo en la EE.
-			    snprintf_P( pin, SIM_PASSWD_LENGTH, PSTR("%s\0"), SIMPIN_DEFAULT );
-			    u_save_params_in_NVMEE();
-			}
-			vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
-			return(true);
-		}
-
-		// Requiere PIN
-		if ( gprs_check_response("+CPIN: SIM PIN\0") ) {
-			gprs_flush_RX_buffer();
-
-			if ( tryes == 3 ) {
-				// Ingreso el pin configurado en el systemVars.
-				xfprintf_P( fdGPRS, PSTR("AT+CPIN=%s\r"), pin );
-			} else if ( tryes == 2 ) {
-				// Ingreso el pin por defecto
-				xfprintf_P( fdGPRS,PSTR("AT+CPIN=%s\r"), SIMPIN_DEFAULT );
-			}
-
-			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			gprs_print_RX_buffer(f_debug);
-		}
-
-		tryes--;
-
-	}
-
-	// Pin BLOQUEADO
-	return(false);
-
-}
-//------------------------------------------------------------------------------------
 bool gprs_CPIN( bool f_debug, char *pin )
 {
 	// Chequeo que el SIM este en condiciones de funcionar.
@@ -467,6 +440,7 @@ bool retS = false;
 	for ( tryes = 0; tryes < 3; tryes++ ) {
 		// Vemos si necesita SIMPIN
 		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
 		xfprintf_P( fdGPRS , PSTR("AT+CPIN?\r\0"));
 		vTaskDelay( ( TickType_t)( ( 5000 + 2000 * tryes) / portTICK_RATE_MS ) );
 		gprs_print_RX_buffer(f_debug);
@@ -504,6 +478,7 @@ uint8_t tryes = 0;
 	for ( tryes = 0; tryes < 12; tryes++ ) {
 
 		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
 		xfprintf_P( fdGPRS, PSTR("AT+CREG?\r\0"));
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 		gprs_print_RX_buffer(f_debug);
@@ -536,12 +511,14 @@ uint8_t tryes = 0;
 	xprintf_PD( f_debug,  PSTR("COMMS: gprs NET attach\r\n\0"));
 
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CGATT=1\r\0"));
 	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
 
 	for ( tryes = 0; tryes < 12; tryes++ ) {
 		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
 		xfprintf_P( fdGPRS,PSTR("AT+CGATT?\r\0"));
 		vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
 		gprs_print_RX_buffer(f_debug);
@@ -562,6 +539,7 @@ void gprs_CIPMODE(bool f_debug)
 	// Funcion que configura el modo transparente.
 
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CIPMODE=1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
@@ -574,21 +552,19 @@ void gprs_DCDMODE( bool f_debug )
 	// el estado del socket.
 
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT&D1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
 
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CSUART=1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
-/*
+
 	gprs_flush_RX_buffer();
-	xfprintf_P( fdGPRS,PSTR("AT+CDCDMD=0\r\0"));
-	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
-	gprs_print_RX_buffer();
-*/
-	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT&C1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
@@ -600,7 +576,44 @@ void gprs_CMGF( bool f_debug )
 	// Configura para mandar SMS en modo texto
 
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CMGF=1\r\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(f_debug);
+
+}
+//------------------------------------------------------------------------------------
+void gprs_CGMI( bool f_debug )
+{
+	// Pide identificador del fabricante
+
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	xfprintf_P( fdGPRS,PSTR("AT+CGMI\r\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(f_debug);
+
+}
+//------------------------------------------------------------------------------------
+void gprs_CGMM( bool f_debug )
+{
+	// Pide identificador del modelo
+
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	xfprintf_P( fdGPRS,PSTR("AT+CGMM\r\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(f_debug);
+
+}
+//------------------------------------------------------------------------------------
+void gprs_CGMR( bool f_debug )
+{
+	// Pide identificador de revision
+
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	xfprintf_P( fdGPRS,PSTR("AT+CGMR\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
 
@@ -613,12 +626,14 @@ void gprs_CFGRI (bool f_debug)
 //uint8_t pin;
 
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CFGRI=1,1\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
 
 	// Reseteo el RI
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CRIRS\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
@@ -644,6 +659,7 @@ uint8_t csq, dbm;
 
 	// AT+CSQ
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS, PSTR("AT+CSQ\r\0"));
 	vTaskDelay( (portTickType)( 500 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
@@ -687,32 +703,39 @@ uint8_t timer = 1;
 	}
 }
 //------------------------------------------------------------------------------------
-bool gprs_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
+bool gprs_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
 {
 
 	/*
-	 *  El pedir IP es un concepto solo de GPRS
+	 * El pedir IP es un concepto solo de GPRS
+	 * - Setea el APN
+	 * - Se conecta ( se le asigna una IP )
+	 * - Lee la IP asignada.
 	 */
 
-	// Configuramos en el modem el APN
-	gprs_set_apn( f_debug, apn );
+	// Paso 1: Setea el APN
+	if ( gprs_set_apn( f_debug, apn ) == false ) {
+		return(false);
+	}
 
+	// Paso 2: Me conecto a la red
+	if ( gprs_netopen(f_debug ) == false ) {
+		xprintf_P( PSTR("GPRS: ERROR: No conectado a la red !!.\r\n\0") );
+		return(false);
+	}
+
+	// Paso 3: Leo la ip asignada
 	strcpy(ip_assigned, "0.0.0.0\0");
-
-	// Intento pedir una IP.
-	if ( gprs_netopen(f_debug ) && ( gprs_read_ip_assigned(f_debug, ip_assigned ))) {
-		return(true);
-
-	} else {
-		// Aqui es que luego de tantos reintentos no consegui la IP.
+	if ( gprs_read_ip_assigned(f_debug, ip_assigned ) == false ) {
 		xprintf_P( PSTR("GPRS: ERROR: ip no asignada !!.\r\n\0") );
 		return(false);
 	}
 
-	return(false);
+	return(true);
+
 }
 //------------------------------------------------------------------------------------
-void gprs_set_apn(bool f_debug, char *apn)
+bool gprs_set_apn(bool f_debug, char *apn)
 {
 
 	// Configura el APN de trabajo.
@@ -722,6 +745,7 @@ void gprs_set_apn(bool f_debug, char *apn)
 	//Defino el PDP indicando cual es el APN.
 	// AT+CGDCONT
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
@@ -729,9 +753,12 @@ void gprs_set_apn(bool f_debug, char *apn)
 	// Como puedo tener varios PDP definidos, indico cual va a ser el que se deba activar
 	// al usar el comando NETOPEN.
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(f_debug);
+
+	return(true);
 
 }
 //------------------------------------------------------------------------------------
@@ -757,7 +784,15 @@ uint8_t checks = 0;
 		// Envio el comando.
 		// AT+NETOPEN
 		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
+		xfprintf_P( fdGPRS,PSTR("AT+NETCLOSE\r\0"));
+		vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+		gprs_print_RX_buffer(f_debug);
+
+		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
 		xfprintf_P( fdGPRS,PSTR("AT+NETOPEN\r\0"));
+		//xfprintf_P( fdGPRS, PSTR("AT+NETOPEN=\"TCP\",%s\r\n\0"), sVarsComms.server_tcp_port );
 		vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
 
 		// Intento 5 veces ver si respondio correctamente.
@@ -777,13 +812,16 @@ uint8_t checks = 0;
 				return(true);
 
 			} else if ( gprs_check_response("+IP ERROR: Network is already opened")) {
-				return(true);
+				vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+				break;
 
 			} else if ( gprs_check_response("+NETOPEN: 1")) {
 				xprintf_PD( f_debug,  PSTR("COMMS: gprs NETOPEN FAIL !!.\r\n\0") );
-				return(false);
+				vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+				break;
 
 			} else if ( gprs_check_response("ERROR")) {
+				vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
 				break;	// Salgo de la espera
 
 			}
@@ -800,7 +838,6 @@ uint8_t checks = 0;
 	// Luego de varios reintentos no pude conectarme a la red.
 	xprintf_PD( f_debug,  PSTR("COMMS: gprs NETOPEN FAIL !!.\r\n\0"));
 	return(false);
-
 }
 //------------------------------------------------------------------------------------
 bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned )
@@ -821,8 +858,10 @@ char *ts = NULL;
 char c = '\0';
 char *ptr = NULL;
 
+
 	// AT+CGPADDR para leer la IP
 	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	//xfprintf_P( fdGPRS,PSTR("AT+CGPADDR\r\0"));
 	xfprintf_P( fdGPRS,PSTR("AT+IPADDR\r\0"));
 	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
@@ -850,7 +889,6 @@ char *ptr = NULL;
 		// Asumo algun errro pero no tengo la IP
 		return(false);
 	}
-	return(false);
 }
 //------------------------------------------------------------------------------------
 t_link_status gprs_check_socket_status(bool f_debug)
@@ -914,6 +952,8 @@ t_link_status link_status = LINK_FAIL;
 	xprintf_PD( f_debug, PSTR("COMMS: try to open gprs socket\r\n\0"));
 
 	/* Mando el comando y espero */
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS, PSTR("AT+CIPOPEN=0,\"TCP\",\"%s\",%s\r\n\0"), ip, port);
 	vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
 
@@ -1218,11 +1258,15 @@ bool gprs_SAT_set(uint8_t modo)
 	switch(modo) {
 	case 0:
 		// Disable
+		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
 		xfprintf_P( fdGPRS , PSTR("AT+STK=0\r\0"));
 		vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
 		break;
 	case 1:
 		// Enable
+		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
 		xfprintf_P( fdGPRS , PSTR("AT+STK=1\r\0"));
 		vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
 		break;
@@ -1230,6 +1274,7 @@ bool gprs_SAT_set(uint8_t modo)
 		// Check. Query STK status ?
 		xprintf_P(PSTR("GPRS: query STK status ?\r\n\0"));
 		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
 		xfprintf_P( fdGPRS , PSTR("AT+STK?\r\0"));
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 		gprs_print_RX_buffer(true);
@@ -1272,4 +1317,260 @@ char ip_tmp[IP_LENGTH];
 }
 //------------------------------------------------------------------------------------
  *
- */
+ bool gprs_set_apn(bool f_debug, char *apn)
+{
+
+	// Configura el APN de trabajo.
+
+uint8_t i,j;
+
+	xprintf_PD( f_debug, PSTR("COMMS: gprs set APN\r\n\0") );
+
+#ifdef AT_NEW_COMMANDS
+	//Defino el PDP indicando cual es el APN.
+	// AT+CGDCONT
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	xfprintf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(f_debug);
+
+	// Como puedo tener varios PDP definidos, indico cual va a ser el que se deba activar
+	// al usar el comando NETOPEN.
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	xfprintf_P( fdGPRS,PSTR("AT+CSOCKSETPN=1\0"));
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(f_debug);
+
+	return(true);
+
+#else
+
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	xfprintf_P( fdGPRS, PSTR("AT+CGDCONT=1,\"IP\",\"%s\"\r\0"), apn);
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(f_debug);
+
+	for (i=0; i < 3; i++ ) {
+		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
+		xfprintf_P( fdGPRS, PSTR("AT+CGATT=1\r\0"));
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		gprs_print_RX_buffer(f_debug);
+
+		for (j=0; j<3;j++) {
+			gprs_flush_RX_buffer();
+			gprs_flush_TX_buffer();
+			xfprintf_P( fdGPRS, PSTR("AT+CGATT?\r\0"));
+			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+			gprs_print_RX_buffer(f_debug);
+
+			if ( gprs_check_response("+CGATT: 1")) {
+				xprintf_P( PSTR("COMMS: PDP attached.\r\n\0") );
+				return(true);
+			}
+		}
+	}
+	xprintf_P( PSTR("COMMS: ERROR: PDP NOT attached !!\r\n\0") );
+	return(false);
+
+#endif
+
+}
+//------------------------------------------------------------------------------------
+bool gprs_netopen(bool f_debug)
+{
+	// Abre una conexion a la red.
+	// La red asigna una IP.
+	// Doy el comando para atachearme a la red
+	// Puede demorar unos segundos por lo que espero para chequear el resultado
+	// y reintento varias veces.
+
+uint8_t reintentos = MAX_TRYES_NET_ATTCH;
+uint8_t checks = 0;
+
+	xprintf_PD( f_debug,  PSTR("COMMS: gprs netopen (get IP).\r\n\0") );
+	// Espero 2s para dar el comando
+	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+
+#ifdef AT_NEW_COMMANDS
+	while ( reintentos-- > 0 ) {
+
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs send NETOPEN cmd (%d)\r\n\0"),reintentos );
+
+		// Envio el comando.
+		// AT+NETOPEN
+		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
+		xfprintf_P( fdGPRS,PSTR("AT+NETOPEN\r\0"));
+		//xfprintf_P( fdGPRS, PSTR("AT+NETOPEN=\"TCP\",%s\r\n\0"), sVarsComms.server_tcp_port );
+		vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+
+		// Intento 5 veces ver si respondio correctamente.
+		for ( checks = 0; checks < 5; checks++) {
+
+			xprintf_PD( f_debug,  PSTR("COMMS: gprs netopen check.(%d)\r\n\0"),checks );
+
+			gprs_print_RX_buffer(f_debug);
+
+			// Evaluo las respuestas del modem.
+			if ( gprs_check_response("+NETOPEN: 0")) {
+				xprintf_P( PSTR("COMMS: gprs NETOPEN OK !.\r\n\0") );
+				return(true);
+
+			} else if ( gprs_check_response("Network opened")) {
+				xprintf_PD( f_debug,  PSTR("COMMS: gprs NETOPEN OK !.\r\n\0") );
+				return(true);
+
+			} else if ( gprs_check_response("+IP ERROR: Network is already opened")) {
+				return(true);
+
+			} else if ( gprs_check_response("+NETOPEN: 1")) {
+				xprintf_PD( f_debug,  PSTR("COMMS: gprs NETOPEN FAIL !!.\r\n\0") );
+				return(false);
+
+			} else if ( gprs_check_response("ERROR")) {
+				break;	// Salgo de la espera
+
+			}
+			// Aun no tengo ninguna respuesta esperada.
+			// espero 5s para re-evaluar la respuesta.
+			vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+
+		}
+
+		// No pude atachearme. Debo mandar de nuevo el comando
+		// Pasaron 25s.
+	}
+
+	// Luego de varios reintentos no pude conectarme a la red.
+	xprintf_PD( f_debug,  PSTR("COMMS: gprs NETOPEN FAIL !!.\r\n\0"));
+	return(false);
+
+#else
+
+	while ( reintentos-- > 0 ) {
+
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs activate PDP (%d)\r\n\0"),reintentos );
+
+		// Envio el comando.
+		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
+		xfprintf_P( fdGPRS,PSTR("AT+CGACT=1,1\0"));
+		vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+
+		// Intento 5 veces ver si respondio correctamente.
+		for ( checks = 0; checks < 5; checks++) {
+
+			xprintf_PD( f_debug,  PSTR("COMMS: gprs check PDP activation(%d)\r\n\0"),checks );
+			gprs_flush_RX_buffer();
+			gprs_flush_TX_buffer();
+			xfprintf_P( fdGPRS, PSTR("AT+CGACT?\r\0"));
+			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+			gprs_print_RX_buffer(f_debug);
+
+			if ( gprs_check_response("+CGACT: 1")) {
+				xprintf_P( PSTR("COMMS: PDP activated.\r\n\0") );
+				return(true);
+			}
+		}
+		xprintf_P( PSTR("COMMS: ERROR: PDP NOT activated !!\r\n\0") );
+		return(false);
+	}
+
+#endif
+
+}
+//------------------------------------------------------------------------------------
+bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned )
+{
+
+	/*
+	 * Tengo la IP asignada: la leo para actualizar systemVars.ipaddress
+	 * La respuesta normal seria del tipo:
+	 * 		AT+IPADDR
+	 * 		+IPADDR: 10.204.2.115
+	 * Puede llegar a responder
+	 * 		AT+IPADDR
+	 * 		+IP ERROR: Network not opened
+	 * lo que sirve para reintentar.
+	 */
+/*
+ *
+char *ts = NULL;
+char c = '\0';
+char *ptr = NULL;
+
+
+#ifdef AT_NEW_COMMANDS
+
+	// AT+CGPADDR para leer la IP
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	//xfprintf_P( fdGPRS,PSTR("AT+CGPADDR\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+IPADDR\r\0"));
+	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(f_debug);
+
+	if ( gprs_check_response("+IP ERROR: Network not opened")) {
+		// No tengo la IP.
+		return(false);
+
+	} else if ( gprs_check_response("+IPADDR:")) {
+		// Tengo la IP: extraigo la IP del token.
+		ptr = ip_assigned;
+		ts = strchr( gprsRxBuffer.buffer, ':');
+		ts++;
+		while ( (c= *ts) != '\r') {
+			*ptr++ = c;
+			ts++;
+		}
+		*ptr = '\0';
+
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs ip address=[%s]\r\n\0"), ip_assigned );
+		return(true);
+
+	} else {
+		// Asumo algun errro pero no tengo la IP
+		return(false);
+	}
+	return(false);
+
+#else
+
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	//xfprintf_P( fdGPRS,PSTR("AT+CGPADDR\r\0"));
+	xfprintf_P( fdGPRS,PSTR("AT+CGPADDR\r\0"));
+	vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
+	gprs_print_RX_buffer(f_debug);
+
+	if ( gprs_check_response("+CGPADDR: 1,")) {
+		// Tengo la IP: extraigo la IP del token.
+		ptr = ip_assigned;
+		ts = strchr( gprsRxBuffer.buffer, ':');
+		ts++;
+		while ( (c= *ts) != '\r') {
+			*ptr++ = c;
+			ts++;
+		}
+		*ptr = '\0';
+
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs ip address=[%s]\r\n\0"), ip_assigned );
+		return(true);
+
+	} else {
+		// Asumo algun errro pero no tengo la IP
+		return(false);
+	}
+	return(false);
+
+#endif
+
+
+}
+//------------------------------------------------------------------------------------
+
+*/

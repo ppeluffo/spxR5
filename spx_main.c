@@ -39,6 +39,23 @@
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
  * ------------------------------------------------------------------------
+ * Version 3.0.2.k ( MASTER ) @ 2020-07-02
+ * 1-ERR: En  frtos_uart_ioctl al borrar el TXbuffer estaba borrando el RXbuffer.
+ * 2-WARN: En el frtos_io no uso los semaforos de los uart ya que los pase al printf asi que
+ * los elimino.
+ * 3-WARN: modifico xfputChar para que escriba directamente con frtos_write.
+ * 4-WARN: agrego un control por semaforo a xnprint.
+ * 5-Al prender el modem, si no puedo leer el imei o el ccid doy error y salgo.
+ * 6-AT+IPADDR
+ *   +IADDR: 10.204.2.106
+ *   GPRS: ERROR: ip no asignada !!.
+ *   El problema esta que en vez de responder IPADDR respondio IADDR !!!
+ * 7-Agrego que al comenzar a configurar el modem muestro su identificacion y version.
+ * 8-Modifico la rutina de gprs_net_connect() para tener c/paso bien diferenciado
+ * 9-En gprs_netopen() agrego un NETCLOSE previo y cuando da error para resetear
+ *   todas las condiciones del modem.
+ *
+ * ------------------------------------------------------------------------
  * Version 3.0.2.j ( MASTER ) @ 2020-06-29
  * 1- En el scan, antes de ver si necesito hacerlo seteo las variables server_script
  * y esto hace que no use las que tengo configuradas.
@@ -115,6 +132,7 @@
  * "
  * https://www.techopedia.com/definition/30501/sim-toolkit-stk
  * http://www.bladox.cz/devel-docs/gen_stk.html
+ * https://www.cooking-hacks.com/forum/viewtopic.php?f=20&t=3813
  *
  * El mensaje +STIN: 25 es un mensaje no solicitado que emite el PIN STK.
  *

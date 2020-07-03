@@ -68,8 +68,8 @@ t_scan_struct scan_boundle;
 
 
 	} else {
-		// No need scan: go ahead to ST_IP
-		next_state = ST_IP;
+		// No need scan: go ahead to ST_NET
+		next_state = ST_NET;
 	}
 
 	// Checkpoint de SMS's

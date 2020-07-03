@@ -19,13 +19,13 @@ int8_t xRet = -1;
 
 	switch(fd) {
 	case fdGPRS:
-		xRet = frtos_uart_open( &xComGPRS, fd, &GPRS_xMutexBuffer, iUART_GPRS, flags );
+		xRet = frtos_uart_open( &xComGPRS, fd, iUART_GPRS, flags );
 		break;
 	case fdAUX1:
-		xRet = frtos_uart_open( &xComAUX1, fd, &AUX1_xMutexBuffer, iUART_AUX1, flags );
+		xRet = frtos_uart_open( &xComAUX1, fd, iUART_AUX1, flags );
 		break;
 	case fdTERM:
-		xRet = frtos_uart_open( &xComTERM, fd, &TERM_xMutexBuffer, iUART_TERM, flags );
+		xRet = frtos_uart_open( &xComTERM, fd, iUART_TERM, flags );
 		break;
 	case fdI2C:
 		xRet = frtos_i2c_open( &xBusI2C, fd, &I2C_xMutexBuffer, flags );
@@ -74,7 +74,6 @@ int8_t xRet = -1;
 		break;
 	case fdTERM:
 		xRet = frtos_uart_write( &xComTERM, pvBuffer, xBytes );
-		//frtos_uart_write( &xComBT, pvBuffer, xBytes );		// La Tahona
 		break;
 	case fdI2C:
 		xRet = frtos_i2c_write( &xBusI2C, pvBuffer, xBytes );
@@ -112,11 +111,10 @@ int8_t xRet = -1;
 //------------------------------------------------------------------------------------
 // FUNCIONES ESPECIFICAS DE UART's
 //------------------------------------------------------------------------------------
-int frtos_uart_open( periferico_serial_port_t *xCom, file_descriptor_t fd, StaticSemaphore_t *xCom_semph, uart_id_t uart_id, uint32_t flags)
+int frtos_uart_open( periferico_serial_port_t *xCom, file_descriptor_t fd, uart_id_t uart_id, uint32_t flags)
 {
 
 	xCom->fd = fd;
-	xCom->xBusSemaphore = xSemaphoreCreateMutexStatic(xCom_semph);
 	xCom->xBlockTime = (10 / portTICK_RATE_MS );
 	// Inicializo la uart del usb (iUART_USB) y la asocio al periferico
 	xCom->uart = drv_uart_init( uart_id, flags );
@@ -140,11 +138,6 @@ int wBytes = 0;
 
 	// Controlo no hacer overflow en la cola de trasmision
 	bytes2tx = xBytes;
-
-	// Espero el semaforo en forma persistente.
-	// Lo elimino y debo pedirlo con frtos_ioctl !!!
-//	while ( xSemaphoreTake(xCom->xBusSemaphore, ( TickType_t ) 1 ) != pdTRUE )
-//		vTaskDelay( ( TickType_t)( 1 ) );
 
 	// Trasmito.
 	// Espero que los buffers esten vacios. ( La uart se va limpiando al trasmitir )
@@ -179,8 +172,6 @@ int wBytes = 0;
 	while  ( rBufferGetCount( &xCom->uart->TXringBuffer ) > 0 )
 		vTaskDelay( ( TickType_t)( 1 ) );
 
-//	xSemaphoreGive( xCom->xBusSemaphore );
-
 	return (wBytes);
 }
 //------------------------------------------------------------------------------------
@@ -192,14 +183,6 @@ int xReturn = 0;
 	switch( ulRequest )
 	{
 
-		case ioctl_OBTAIN_BUS_SEMPH:
-			// Espero el semaforo en forma persistente.
-			while ( xSemaphoreTake(xCom->xBusSemaphore, ( TickType_t ) 5 ) != pdTRUE )
-				taskYIELD();
-			break;
-		case ioctl_RELEASE_BUS_SEMPH:
-			xSemaphoreGive( xCom->xBusSemaphore );
-			break;
 		case ioctl_SET_TIMEOUT:
 			xCom->xBlockTime = *((uint8_t *)pvValue);
 			break;
@@ -207,7 +190,7 @@ int xReturn = 0;
 			rBufferFlush(&xCom->uart->RXringBuffer);
 			break;
 		case ioctl_UART_CLEAR_TX_BUFFER:
-			rBufferFlush(&xCom->uart->RXringBuffer);
+			rBufferFlush(&xCom->uart->TXringBuffer);
 			break;
 		default :
 			xReturn = -1;

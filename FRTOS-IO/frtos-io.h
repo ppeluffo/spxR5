@@ -62,7 +62,6 @@ typedef struct {
 
 // Periferico real.
 periferico_serial_port_t xComGPRS, xComAUX1, xComTERM;
-StaticSemaphore_t GPRS_xMutexBuffer,AUX1_xMutexBuffer,TERM_xMutexBuffer;
 
 periferico_i2c_port_t xBusI2C;
 StaticSemaphore_t I2C_xMutexBuffer;
@@ -85,7 +84,7 @@ StaticSemaphore_t I2C_xMutexBuffer;
 
 //-----------------------------------------------------------------------
 int frtos_open( file_descriptor_t fd, uint32_t flags);
-int frtos_uart_open( periferico_serial_port_t *xCom, file_descriptor_t fd, StaticSemaphore_t *xCom_semph, uart_id_t uart_id, uint32_t flags);
+int frtos_uart_open( periferico_serial_port_t *xCom, file_descriptor_t fd, uart_id_t uart_id, uint32_t flags);
 int frtos_i2c_open( periferico_i2c_port_t *xI2c, file_descriptor_t fd, StaticSemaphore_t *i2c_semph, uint32_t flags);
 
 int frtos_write( file_descriptor_t fd ,const char *pvBuffer, const uint16_t xBytes );

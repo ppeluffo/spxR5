@@ -70,22 +70,20 @@ int i;
 //-----------------------------------------------------------------------------------
 int xnprint( const char *pvBuffer, const uint16_t xBytes )
 {
-	// Imprime en fdUSB sin formatear
+	/* Imprime en fdTERM sin formatear
+	   No uso stdout_buff por lo tanto no requeriria semaforo pero igual
+	   lo uso para evitar colisiones. De este modo todo el acceso al uart queda
+	   siempre controlado por el semaforo
+	*/
 
 int bytes2wr = 0;
 
-	// SI la terminal esta desconectada salgo.
-//	if ( IO_read_TERMCTL_PIN() == 0 )
-//		return(bytes2wr);
-
-//	frtos_ioctl (fdUSB,ioctl_OBTAIN_BUS_SEMPH, NULL );
-//	frtos_ioctl (fdBT,ioctl_OBTAIN_BUS_SEMPH, NULL );
+	while ( xSemaphoreTake( sem_STDOUT, ( TickType_t ) 5 ) != pdTRUE )
+		vTaskDelay( ( TickType_t)( 5 ) );
 
 	bytes2wr = frtos_write( fdTERM, pvBuffer, xBytes );
 
-//	frtos_ioctl (fdBT,ioctl_RELEASE_BUS_SEMPH, NULL);
-//	frtos_ioctl (fdUSB,ioctl_RELEASE_BUS_SEMPH, NULL);
-
+	xSemaphoreGive( sem_STDOUT );
 	return(bytes2wr);
 
 }
@@ -165,6 +163,7 @@ int i;
 
 }
 //-----------------------------------------------------------------------------------
+/*
 int xfnprint( file_descriptor_t fd, const char *pvBuffer, const uint16_t xBytes )
 {
 	// Imprime en fd sin formatear
@@ -181,6 +180,7 @@ int bytes2wr = 0;
 	return(bytes2wr);
 
 }
+*/
 //-----------------------------------------------------------------------------------
 void xfputChar(file_descriptor_t fd, unsigned char c)
 {
@@ -188,7 +188,8 @@ void xfputChar(file_descriptor_t fd, unsigned char c)
 char cChar;
 
 	cChar = c;
-	xfnprint( fd, &cChar, sizeof(char));
+	frtos_write( fdTERM, &cChar, sizeof(char) );
+	//xfnprint( fd, &cChar, sizeof(char));
 }
 //-----------------------------------------------------------------------------------
 void xprintf_init(void)

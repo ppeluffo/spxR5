@@ -11,7 +11,7 @@
 
 #include "spx.h"
 
-typedef enum { ST_ENTRY = 0, ST_ESPERA_APAGADO, ST_ESPERA_PRENDIDO, ST_PRENDER, ST_CONFIGURAR, ST_MON_SQE, ST_SCAN, ST_IP, ST_INITFRAME, ST_DATAFRAME } t_comms_states;
+typedef enum { ST_ENTRY = 0, ST_ESPERA_APAGADO, ST_ESPERA_PRENDIDO, ST_PRENDER, ST_CONFIGURAR, ST_MON_SQE, ST_SCAN, ST_NET, ST_INITFRAME, ST_DATAFRAME } t_comms_states;
 typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ERR_IPSERVER_FAIL, ERR_DLGID_FAIL } t_comms_error_code;
 typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status;
 
@@ -91,7 +91,7 @@ t_comms_states tkComms_st_prender(void);
 t_comms_states tkComms_st_configurar(void);
 t_comms_states tkComms_st_mon_sqe(void);
 t_comms_states tkComms_st_scan(void);
-t_comms_states tkComms_st_ip(void);
+t_comms_states tkComms_st_net_connect(void);
 t_comms_states tkComms_st_initframe(void);
 t_comms_states tkComms_st_dataframe(void);
 
@@ -103,7 +103,7 @@ bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, uint8_t *err_code );
 bool xCOMMS_scan( t_scan_struct *scan_boundle );
 bool xCOMMS_need_scan( t_scan_struct *scan_boundle );
 void xCOMMS_mon_sqe(bool f_debug,  bool modo_continuo, uint8_t *csq );
-bool xCOMMS_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
+bool xCOMMS_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
 t_link_status xCOMMS_link_status(bool f_debug);
 void xCOMMS_flush_RX(void);
 void xCOMMS_flush_TX(void);
@@ -128,9 +128,9 @@ bool gprs_prender(bool f_debug );
 void gprs_hw_pwr_on(uint8_t delay_factor);
 void gprs_sw_pwr(void);
 void gprs_apagar(void);
-void gprs_readImei(bool f_debug);
+bool gprs_readImei(bool f_debug);
 char *gprs_get_imei(void);
-void gprs_readCcid(bool f_debug);
+bool gprs_readCcid(bool f_debug);
 char  *gprs_get_ccid(void);
 bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code );
 bool gprs_CPIN(  bool f_debug, char *pin );
@@ -144,8 +144,8 @@ void gprs_CFGRI (bool f_debug);
 void gprs_mon_sqe( bool f_debug,  bool modo_continuo, uint8_t *csq);
 bool gprs_scan( t_scan_struct *scan_boundle );
 bool gprs_need_scan( t_scan_struct *scan_boundle );
-bool gprs_ip(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
-void gprs_set_apn(bool f_debug, char *apn);
+bool gprs_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
+bool gprs_set_apn(bool f_debug, char *apn);
 bool gprs_netopen(bool f_debug);
 bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned );
 t_link_status gprs_check_socket_status(bool f_debug);
@@ -154,6 +154,9 @@ char *gprs_get_buffer_ptr( char *pattern);
 bool gprs_SAT_set(uint8_t modo);
 //void gprs_test(void);
 //void gprs_scan_test (PGM_P *dlist );
+void gprs_CGMI( bool f_debug );
+void gprs_CGMM( bool f_debug );
+void gprs_CGMR( bool f_debug );
 
 void xSMS_init(void);
 bool xSMS_enqueue(char *dst_nbr, char *msg );
