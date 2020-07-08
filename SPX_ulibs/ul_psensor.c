@@ -256,6 +256,7 @@ int16_t free_size = sizeof(dst);
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 
+	i = 0;
 	i += snprintf_P( dst, free_size, PSTR("%s,%d,%d,%.01f,%.01f,%.01f"),systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max,systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
 	free_size = (  sizeof(dst) - i );
 	if ( free_size < 0 ) goto exit_error;

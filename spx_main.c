@@ -53,11 +53,21 @@
  *   Agrego la funcion gprs_IFC() para mostrar el control de flujo configurado.
  *   Los modems estan por default sin control de flujo !!!.
  * 5-Al prender el modem espero el PB DONE que indica que termino el boot process.
- * 6-Mejoro la deteccion del imei y el ccid.
- * 7-Simplifico algunos modulos de tkComms.
- * 8-Reescribo el modulo de initframe.c
+ * 6-Agrego que al comenzar a configurar el modem muestro su identificacion y version.
+ * 7-Mejoro la deteccion del imei y el ccid.
+ * 8-Simplifico algunos modulos de tkComms.
+ * 9-Modifico la rutina de gprs_net_connect() para tener c/paso bien diferenciado
+ * 10-En gprs_netopen() agrego un NETCLOSE previo y cuando da error para resetear
+ *    todas las condiciones del modem.
+ * 11-Defino una FSM xCOMMS_process_frame() para mandar todo tipo de frames (init/data)
+ *    que resuelve el tema de los intentos y los problemas de socket.
+ * 12-Reescribo el modulo de initframe.c
+ * 13-Reescribo el modulo de dataframe.c
+ * 14-Se inicializan algunas variables en el calculo de hashes que se usaban en +=.
  *
- *
+ * PENDIENTE:
+ * -Revisar senales y envios de SMS
+ * -Idem para mon_sqe
  * ------------------------------------------------------------------------
  * Version 3.0.2.k ( MASTER ) @ 2020-07-02
  * 1-ERR: En  frtos_uart_ioctl al borrar el TXbuffer estaba borrando el RXbuffer.
@@ -70,10 +80,6 @@
  *   +IADDR: 10.204.2.106
  *   GPRS: ERROR: ip no asignada !!.
  *   El problema esta que en vez de responder IPADDR respondio IADDR !!!
- * 7-Agrego que al comenzar a configurar el modem muestro su identificacion y version.
- * 8-Modifico la rutina de gprs_net_connect() para tener c/paso bien diferenciado
- * 9-En gprs_netopen() agrego un NETCLOSE previo y cuando da error para resetear
- *   todas las condiciones del modem.
  *
  * ------------------------------------------------------------------------
  * Version 3.0.2.j ( MASTER ) @ 2020-06-29

@@ -845,7 +845,7 @@ uint8_t checks = 0;
 		 */
 		gprs_flush_RX_buffer();
 		gprs_flush_TX_buffer();
-		xfprintf_P( fdGPRS,PSTR("AT+NETOPEN=\"TCP\",80\r\0"));
+		xfprintf_P( fdGPRS,PSTR("AT+NETOPEN=\"TCP\"\r\0"));
 		vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
 
 		// Intento 5 veces ver si respondio correctamente.
@@ -952,11 +952,20 @@ t_link_status gprs_open_socket(bool f_debug, char *ip, char *port)
 
 uint8_t timeout = 0;
 t_link_status link_status = LINK_FAIL;
+uint8_t i;
 
 	xprintf_PD( f_debug, PSTR("COMMS: gprs try to open socket\r\n\0"));
 
-	// Paso a modo comando y cierro el socket por las dudas
+	// Paso a modo comando
 	gprs_switch_to_command_mode();
+
+	// El socket debe estar cerrado.
+	// Espero hasta 30s que este cerrado.
+	for (i=0; i < 30; i++) {
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		if ( IO_read_DCD() == 1)
+			break;
+	}
 
 	// Intento abrir el socket
 	gprs_flush_RX_buffer();
@@ -983,6 +992,11 @@ t_link_status link_status = LINK_FAIL;
 		} else if ( gprs_check_response("ERROR")) {
 			link_status = LINK_ERROR;
 			xprintf_PD( f_debug, PSTR("COMMS: gprs sckt ERROR\r\n\0"));
+			break;
+
+		} else if ( gprs_check_response("FAIL")) {
+			link_status = LINK_ERROR;
+			xprintf_PD( f_debug, PSTR("COMMS: gprs sckt CONNECT FAIL\r\n\0"));
 			break;
 
 		} else if ( gprs_check_response("+CIPEVENT:")) {

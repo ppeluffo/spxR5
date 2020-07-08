@@ -12,26 +12,13 @@
 
 #define WDG_COMMS_TO_DATAFRAME	WDG_TO300
 
-typedef enum { SST_ENTRY = 0, SST_ENVIAR_FRAME, SST_PROCESAR_RESPUESTA, SST_EXIT } t_data_state;
-
-static t_data_state data_state;
-static uint8_t intentos;
 static st_dataRecord_t dataRecord;
 
-#define MAX_INTENTOS_ENVIAR_DATA_FRAME	4
-
-static t_data_state data_init(void);
-static t_data_state data_enviar_frame(void);
-static t_data_state data_procesar_respuesta(void);
-
-static bool EV_envio_frame(void);
-static bool EV_procesar_respuesta(void);
-
-static void ac_send_data_record( void );
-static void ac_process_response_RESET(void);
-static void ac_process_response_MEMFORMAT(void);
-static void ac_process_response_DOUTS(void);
-static uint8_t ac_process_response_OK(void);
+static void data_send_record( void );
+static void data_process_response_RESET(void);
+static void data_process_response_MEMFORMAT(void);
+static void data_process_response_DOUTS(void);
+static uint8_t data_process_response_OK(void);
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_dataframe(void)
@@ -39,10 +26,7 @@ t_comms_states tkComms_st_dataframe(void)
 	/* Estado en que procesa los frames de datos, los transmite y procesa
 	 * las respuestas
 	 * Si no hay datos para transmitir sale
-	 * Si luego de varios reintentos no pudo, sale
 	 */
-
-t_comms_states next_state = ST_ENTRY;
 
 // ENTRY
 
@@ -50,255 +34,111 @@ t_comms_states next_state = ST_ENTRY;
 #ifdef MONITOR_STACK
 	debug_monitor_stack_watermarks("13");
 #endif
+
 	xprintf_P( PSTR("COMMS: dataframe.\r\n\0"));
-	data_state = SST_ENTRY;
+	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_DATAFRAME );
 
-// LOOP
-	for( ;; )
-	{
-
-		ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_DATAFRAME);
-
-		// Proceso las señales:
-		if ( xCOMMS_procesar_senales( ST_DATAFRAME , &next_state ) )
-			goto EXIT;
-
-		switch ( data_state ) {
-		case SST_ENTRY:
-			// Determina si hay datos o no para transmitir
-			data_state = data_init();
-			break;
-		case  SST_ENVIAR_FRAME:
-			data_state = data_enviar_frame();
-			break;
-		case SST_PROCESAR_RESPUESTA:
-			data_state = data_procesar_respuesta();
-			break;
-		case SST_EXIT:
-			// Salgo del estado.
-			next_state = ST_ENTRY;
-			goto EXIT;
-			break;
-		default:
-			xprintf_P( PSTR("COMMS: data state ERROR !!.\r\n\0"));
-			next_state = ST_ENTRY;
-			goto EXIT;
-		}
+	while ( xCOMMS_datos_para_transmitir() > 0 ) {
+		xCOMMS_process_frame(DATA);
 	}
 
-// EXIT:
-EXIT:
+	// Si llego la senal, la reseteo ya que transmiti todos los frames.
+	xCOMMS_SGN_FRAME_READY();
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_dataframe.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
-	return(next_state);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_dataframe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+	return(ST_ENTRY);
 
 }
 //------------------------------------------------------------------------------------
-// ESTADOS LOCALES
-//------------------------------------------------------------------------------------
-static t_data_state data_init(void)
+void xDATA_FRAME_send(void)
 {
-	/* Estado en que se determina si hay o no datos para transmitir.
-	 * Si hay, inicializa las variables de intentos.
-	 * So no hay, sale y pasa al estado superior de standby
-	 */
-
-	if ( xCOMMS_datos_para_transmitir() > 0 ) {
-		/* Inicializo el contador de errores y paso
-		 * al estado que intento trasmitir los frames
-		 */
-		intentos =  MAX_INTENTOS_ENVIAR_DATA_FRAME;
-		return(SST_ENVIAR_FRAME);
-
-	} else {
-		/* Al no haber datos, voy al estado local de EXIT
-		 * y actualizo la variable de salida que voy a retornar al nivel superior
-		 */
-		return(SST_EXIT);
-	}
-
-	return(SST_EXIT);
-}
-//------------------------------------------------------------------------------------
-static t_data_state data_enviar_frame(void)
-{
-
-t_data_state next_state;
-
-	// Controlo la cantidad de veces que reintente transmitir el window
-	intentos--;
-	if (intentos == 0 ) {
-		// Alcanzé el limite de reintentos
-		// Salgo apagando el device
-		SPX_SEND_SIGNAL(SGN_RESET_COMMS_DEV);
-		next_state = SST_EXIT;
-		xprintf_P( PSTR("COMMS: TXWINDOWN ERROR !!\r\n\0"));
-		return(next_state);
-	}
-
-	if ( EV_envio_frame() ) {
-
-		next_state = SST_PROCESAR_RESPUESTA;
-
-	} else {
-
-		/* Despues de varios reintentos no pude trasmitir el bloque
-		 * Debo mandar apagar y prender el dispositivo
-		 * Salgo y fijo el estado del nivel superior
-		 */
-		SPX_SEND_SIGNAL(SGN_RESET_COMMS_DEV);
-		next_state = SST_EXIT;
-	}
-
-	return(next_state);
-}
-//------------------------------------------------------------------------------------
-static t_data_state data_procesar_respuesta(void)
-{
-
-t_data_state next_state;
-
-	if ( EV_procesar_respuesta() ) {
-		// Procese correctamente la respuesta. Veo si hay mas datos para transmitir.
-		next_state = SST_ENTRY;
-
-	} else {
-		// Error al procesar: reintento enviar el frame
-		next_state = SST_ENVIAR_FRAME;
-	}
-
-	return(next_state);
-}
-//------------------------------------------------------------------------------------
-// FUNCIONES AUXILIARES
-//------------------------------------------------------------------------------------
-static bool EV_envio_frame(void)
-{
-	/* Intenta enviar un frame.
-	 * Un frame esta compuesto por varias lineas de datos
-	 * Si se genera algun problema debo esperar 3secs antes de reintentar
-	 */
 
 uint8_t registros_trasmitidos = 0;
-uint8_t i = 0;
 
-	// Loop
-	for ( i = 0; i < MAX_TRYES_OPEN_COMMLINK; i++ ) {
+	// Envio un window frame
+	registros_trasmitidos = 0;
+	FF_rewind();
 
-		if (  xCOMMS_link_status(DF_COMMS ) == LINK_OPEN ) {
-			// Envio un window frame
-			registros_trasmitidos = 0;
-			FF_rewind();
+	xCOMMS_flush_RX();
+	xCOMMS_flush_TX();
 
-			xCOMMS_flush_RX();
-			xCOMMS_flush_TX();
+	xCOMMS_send_header("DATA");
+	xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=\0") );
 
-			xCOMMS_send_header("DATA");
-			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=\0") );
-
-			while ( ( xCOMMS_datos_para_transmitir() > 0 ) && ( registros_trasmitidos < MAX_RCDS_WINDOW_SIZE ) ) {
-				ac_send_data_record();
-				registros_trasmitidos++;
-				// Espero 250ms entre records
-				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
-			}
-
-			xCOMMS_send_tail();
-			//  El bloque se trasmition OK. Paso a esperar la respuesta
-			//
-			return(true);
-
-		} else {
-			// No tengo enlace al server. Intento abrirlo
-			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			xCOMMS_open_link( DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
-		}
+	while ( ( xCOMMS_datos_para_transmitir() > 0 ) && ( registros_trasmitidos < MAX_RCDS_WINDOW_SIZE ) ) {
+		data_send_record();
+		registros_trasmitidos++;
+		// Espero 250ms entre records
+		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 	}
-	/*
-	 * Despues de varios reintentos no logre enviar el frame
-	 */
-	return(false);
+
+	xCOMMS_send_tail();
 
 }
 //------------------------------------------------------------------------------------
-static bool EV_procesar_respuesta(void)
+t_responses xDATA_FRAME_process_response(void)
 {
-	/*
-	 * Me quedo hasta 10s esperando la respuesta del server al paquete de datos.
-	 * Salgo por timeout, socket cerrado, error del server o respuesta correcta
-	 * Si la respuesta es correcta, ejecuto la misma
-	 * Ej:
-	 * <html><body><h1>TYPE=DATA&PLOAD=RX_OK:3;</h1></body></html>
-	 */
 
-uint8_t timeout = 0;
+t_responses rsp = rsp_NONE;
 
-	for ( timeout = 0; timeout < 10; timeout++) {
+	// Recibi un ERROR de respuesta
+	if ( xCOMMS_check_response("ERROR") ) {
+		xCOMMS_print_RX_buffer(true);
+		rsp = rsp_ERROR;
+		return(rsp);
+	}
 
-		vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );	// Espero 1s
+	// Respuesta completa del server
+	if ( xCOMMS_check_response("</h1>") ) {
 
-		// El socket se cerro
-		if ( xCOMMS_link_status( DF_COMMS ) != LINK_OPEN ) {
-			return(false);
+		xCOMMS_print_RX_buffer( DF_COMMS );
+
+		if ( xCOMMS_check_response ("ERROR\0")) {
+			// ERROR del server: salgo inmediatamente
+			rsp = rsp_ERROR;
+			return(rsp);
 		}
 
-		//xCOMMS_print_RX_buffer(true);
-
-		// Recibi un ERROR de respuesta
-		if ( xCOMMS_check_response("ERROR") ) {
-			xCOMMS_print_RX_buffer(true);
-			return(false);
+		if ( xCOMMS_check_response ("RESET\0")) {
+			// El sever mando la orden de resetearse inmediatamente
+			data_process_response_RESET();
+			rsp = rsp_OK;
+			return(rsp);
 		}
 
-		// Respuesta completa del server
-		if ( xCOMMS_check_response("</h1>") ) {
+		if ( xCOMMS_check_response ("MFORMAT\0")) {
+			// El sever mando la orden de formatear la memoria y resetearse
+			data_process_response_MEMFORMAT();
+			rsp = rsp_OK;
+			return(rsp);
+		}
 
-			xCOMMS_print_RX_buffer( DF_COMMS );
+		if ( xCOMMS_check_response ("DOUTS\0")) {
+			// El sever mando actualizacion de las salidas
+			data_process_response_DOUTS();
+			rsp = rsp_OK;
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response ("ERROR\0")) {
-				// ERROR del server: salgo inmediatamente
-				return(false);
-			}
-
-			if ( xCOMMS_check_response ("RESET\0")) {
-				// El sever mando la orden de resetearse inmediatamente
-				ac_process_response_RESET();
-			}
-
-			if ( xCOMMS_check_response ("MFORMAT\0")) {
-				// El sever mando la orden de formatear la memoria y resetearse
-				ac_process_response_MEMFORMAT();
-			}
-
-			if ( xCOMMS_check_response ("DOUTS\0")) {
-				// El sever mando actualizacion de las salidas
-				ac_process_response_DOUTS();
-			}
-
-			/*
-			if ( xCOMMS_check_response ("TQS\0")) {
-				// El sever mando actualizacion de los datos aun tanque
-				tanque_process_gprs_response( (const char *)&commsRxBuffer.buffer );
-			}
-			*/
-			/*
-			 * Lo ultimo que debo procesar es el OK !!!
-			 */
-			if ( xCOMMS_check_response ("RX_OK\0")) {
-				// Datos procesados por el server.
-				ac_process_response_OK();
-				return(true);
-			}
+		/*
+		 * Lo ultimo que debo procesar es el OK !!!
+		 */
+		if ( xCOMMS_check_response ("RX_OK\0")) {
+			// Datos procesados por el server.
+			data_process_response_OK();
+			rsp = rsp_OK;
+			return(rsp);
 		}
 	}
 
 // Exit:
-
-	return(false);
-
+	// No tuve respuesta aun
+	return(rsp);
 }
 //------------------------------------------------------------------------------------
-static void ac_send_data_record( void )
+// FUNCIONES AUXILIARES
+//------------------------------------------------------------------------------------
+static void data_send_record( void )
 {
 	/* Leo un registro de la memoria haciendo el proceso inverso de
 	 * cuando los grabe en spx_tkData::pv_data_guardar_en_BD y lo
@@ -324,7 +164,7 @@ FAT_t fat;
 
 }
 //------------------------------------------------------------------------------------
-static void ac_process_response_RESET(void)
+static void data_process_response_RESET(void)
 {
 	// El server me pide que me resetee de modo de mandar un nuevo init y reconfigurarme
 
@@ -336,7 +176,7 @@ static void ac_process_response_RESET(void)
 
 }
 //------------------------------------------------------------------------------------
-static void ac_process_response_MEMFORMAT(void)
+static void data_process_response_MEMFORMAT(void)
 {
 	// El server me pide que me reformatee la memoria y me resetee
 
@@ -372,7 +212,7 @@ static void ac_process_response_MEMFORMAT(void)
 
 }
 //------------------------------------------------------------------------------------
-static void ac_process_response_DOUTS(void)
+static void data_process_response_DOUTS(void)
 {
 	/*
 	 * Recibo una respuesta que me dice que valores poner en las salidas
@@ -407,7 +247,7 @@ uint8_t douts;
 	}
 }
 //------------------------------------------------------------------------------------
-static uint8_t ac_process_response_OK(void)
+static uint8_t data_process_response_OK(void)
 {
 	/*
 	 * Retorno la cantidad de registros procesados ( y borrados )

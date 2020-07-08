@@ -331,98 +331,6 @@ void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr)
 
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
-{
-	if ( SPX_SIGNAL( SGN_REDIAL )) {
-		/*
-		 * Debo apagar y prender el dispositivo. Como ya estoy apagado
-		 * salgo para pasar al estado PRENDIENDO.
-		 */
-		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_REDIAL rcvd.\r\n\0"));
-		SPX_CLEAR_SIGNAL( SGN_REDIAL );
-		xCOMMS_apagar_dispositivo();
-		*next_state = ST_PRENDER;
-		return(true);
-	}
-
-	if ( SPX_SIGNAL( SGN_FRAME_READY )) {
-		/*
-		 * En ESPERA_PRENDIDO debo salir al modo DATAFRAME a procesar el FRAME
-		 * En los otros casos solo la ignoro ( borro ) pero no tomo acciones.
-		 * En ST_DATAFRAME no proceso esta señal.
-		 */
-		SPX_CLEAR_SIGNAL( SGN_FRAME_READY );
-		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_FRAME_READY rcvd.\r\n\0"));
-
-		switch (state) {
-		case ST_ESPERA_PRENDIDO:
-			if ( xCOMMS_stateVars.gprs_inicializado ) {
-				*next_state = ST_DATAFRAME;
-			} else {
-				*next_state = ST_PRENDER;
-			}
-			return(true);
-			break;
-		case ST_DATAFRAME:
-			// Ignoro la señal.
-			return(false);
-			break;
-		default:
-			return(true);
-			break;
-		}
-	}
-
-	if ( SPX_SIGNAL( SGN_MON_SQE )) {
-		/*
-		 * La señal de monitorear sqe no la borro nunca ya que es un
-		 * estado en el que entro en modo diagnostico y no debo salir mas.
-		 * Aqui lo que hago es salir a prender el dispositivo y entrar a monitorear el sqe
-		 */
-		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_MON_SQE rcvd.\r\n\0"));
-		switch(state) {
-		default:
-			xCOMMS_apagar_dispositivo();
-			*next_state = ST_PRENDER;
-		}
-		return(true);
-	}
-
-	if ( SPX_SIGNAL( SGN_RESET_COMMS_DEV )) {
-		/*
-		 * Debo resetear el dispositivo.
-		 * Esto implica apagarlo y prenderlo
-		 */
-		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_RESET_COMMS_DEV rcvd.\r\n\0"));
-		SPX_CLEAR_SIGNAL( SGN_RESET_COMMS_DEV );
-		*next_state = ST_PRENDER;
-		return(true);
-	}
-
-
-	if ( SPX_SIGNAL( SGN_SMS )) {
-		/*
-		 * Solo las atiendo mientras estoy en modo espera.
-		 * No borro la señal sino solo luego de haberlos procesado
-		 */
-		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_SMS rcvd.\r\n\0"));
-		switch(state) {
-		case ST_ESPERA_APAGADO:
-			*next_state = ST_PRENDER;
-			break;
-		case ST_ESPERA_PRENDIDO:
-			*next_state = ST_DATAFRAME;
-			break;
-		default:
-			// Ignoro
-			break;
-		}
-		return(true);
-	}
-
-	return(false);
-}
-//------------------------------------------------------------------------------------
 uint16_t xCOMMS_datos_para_transmitir(void)
 {
 /* Veo si hay datos en memoria para trasmitir
@@ -457,3 +365,151 @@ bool xCOMMS_SGN_FRAME_READY(void)
 	return (false);
 }
 //------------------------------------------------------------------------------------
+bool xCOMMS_SGN_REDIAL(void)
+{
+	if ( SPX_SIGNAL( SGN_REDIAL )) {
+		SPX_CLEAR_SIGNAL( SGN_REDIAL );
+		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_REDIAL rcvd.\r\n\0"));
+		return (true);
+	}
+	return (false);
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_process_frame (t_frame tipo_frame )
+{
+	/*
+	 * Esta el la funcion que hace el trabajo de mandar un frame , esperar
+	 * la respuesta y procesarla.
+	 */
+
+t_frame_states fr_state = frame_ENTRY;
+int8_t tryes = 5;
+int8_t timeout = 10 ;
+t_responses rsp;
+bool retS = false;
+
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN process_frame (type=%d)\r\n\0"),tipo_frame );
+
+	while (1) {
+
+		switch(fr_state) {
+
+		case frame_ENTRY:
+			xprintf_P( PSTR("COMMS: frENTRY(tryes=%d, to=%d).\r\n\0" ), tryes,timeout );
+			if ( xCOMMS_link_status(DF_COMMS) == LINK_OPEN ) {
+				// Envio el frame
+				if (tipo_frame == DATA ) {
+					xDATA_FRAME_send();
+				} else {
+					xINIT_FRAME_send(tipo_frame);
+				}
+				timeout = 10;
+				fr_state = frame_RESPONSE;
+			} else {
+				// Voy a abrir el socket
+				tryes--;
+				fr_state = frame_SOCK;
+			}
+			break;
+
+		case frame_RESPONSE:
+			xprintf_P( PSTR("COMMS: frRESPONSE(tryes=%d, to=%d).\r\n\0" ), tryes,timeout );
+			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );	// Espero 1s
+			timeout--;
+			// Timeout de espera de respuesta
+			if ( timeout == 0 ) {
+				xprintf_P( PSTR("COMMS: TIMEOUT !!.\r\n\0" ));
+				tryes--;
+				fr_state = frame_SOCK;
+				break;
+			}
+
+			// El socket se cerro
+			if ( xCOMMS_link_status( DF_COMMS ) != LINK_OPEN ) {
+				tryes--;
+				fr_state = frame_SOCK;
+				break;
+			}
+
+			// Analizo respuestas
+			if (tipo_frame == DATA ) {
+				rsp =  xDATA_FRAME_process_response();
+			} else {
+				rsp =  xINIT_FRAME_process_response();
+			}
+
+			if ( rsp == rsp_OK ) {
+				// OK. Salgo
+				xprintf_PD( DF_COMMS, PSTR("COMMS: process_frame type %d OK !!\r\n\0"),tipo_frame );
+				retS = true;
+				goto EXIT;
+			}
+
+			if ( rsp == rsp_ERROR ){
+				// Error a nivel del servidor.
+				// Reintento.
+				tryes--;
+				fr_state = frame_SOCK;
+				break;
+			}
+
+			// En otro caso sigo esperando.
+			break;
+
+		case frame_SOCK:
+			xprintf_P( PSTR("COMMS: frSOCK(tryes=%d).\r\n\0" ), tryes );
+			switch(tryes) {
+			case 0:
+				// Ya intente todo muchas veces. No hay mas nada que hacer.
+				xprintf_PD( DF_COMMS, PSTR("COMMS: process_frame type %d failed. Max tryes !!!\r\n\0"),tipo_frame );
+				retS = false;
+				goto EXIT;
+				break;
+			case 2:
+				fr_state = frame_NET;
+				break;
+			default:
+				//xCOMMS_close_link(DF_COMMS);
+				fr_state = frame_RETRY;
+				break;
+			}
+			break;
+
+		case frame_NET:
+			xprintf_P( PSTR("COMMS: frNET(tryes=%d).\r\n\0" ), tryes );
+			xCOMMS_netclose(DF_COMMS);
+			if ( xCOMMS_netopen (DF_COMMS) ) {
+				fr_state = frame_RETRY;
+			} else {
+				// Ya intente todo muchas veces. No hay mas nada que hacer.
+				xprintf_PD( DF_COMMS, PSTR("COMMS: process_frame type %d failed. NET closed !!!\r\n\0"),tipo_frame );
+				retS = false;
+				goto EXIT;
+			}
+			break;
+
+		case frame_RETRY:
+			/*
+			 * Este es el punto crucial donde debemos poder cerrar el socket para que pueda reintentarse
+			 */
+			xprintf_P( PSTR("COMMS: frRETRY(tryes=%d).\r\n\0" ), tryes );
+			//xCOMMS_close_link (DF_COMMS);
+			xCOMMS_open_link(DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
+			fr_state = frame_ENTRY;
+			break;
+
+		default:
+			xprintf_P( PSTR("COMMS: Frame ERROR not known !!!\r\n\0" ) );
+			xprintf_PD( DF_COMMS, PSTR("COMMS: process_frame type %d failed. State error !!!\r\n\0"),tipo_frame );
+			retS = false;
+			goto EXIT;
+		}
+	}
+
+EXIT:
+
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT process_frame \r\n\0") );
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+

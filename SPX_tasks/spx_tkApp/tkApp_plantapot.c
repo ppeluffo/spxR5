@@ -889,6 +889,7 @@ int16_t free_size = sizeof(dst);
 
 	memset(dst,'\0', sizeof(dst));
 
+	j = 0;
 	j += snprintf_P( dst, free_size, PSTR("PPOT;"));
 	free_size = (  sizeof(dst) - j );
 	if ( free_size < 0 ) goto exit_error;

@@ -11,15 +11,6 @@
 // La tarea no puede demorar mas de 180s.
 #define WDG_COMMS_TO_INITFRAME	WDG_TO180
 
-#define MAX_INTENTOS_ENVIAR_INIT_FRAME	4
-
-typedef enum { INIT_AUTH = 0, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, INIT_EXIT   } t_init_frame;
-typedef enum { SST_ENTRY = 0, SST_ENVIAR_FRAME, SST_PROCESAR_RESPUESTA, SST_EXIT  } t_inits_sub_state;
-
-static bool process_frame (t_init_frame tipo_init_frame );
-static void send_init_frame(t_init_frame tipo_init_frame );
-static bool process_init_response(void);
-
 static bool init_frame_app(void);
 
 static bool init_reconfigure_params_auth(void);
@@ -57,6 +48,7 @@ t_comms_states tkComms_st_initframe(void)
 	 * Si luego de varios reintentos no pudo, sale
 	 */
 
+
 t_comms_states next_state = ST_ENTRY;
 bool retS;
 
@@ -73,14 +65,14 @@ bool retS;
 
 	reset_datalogger = false;
 
-	retS = process_frame( INIT_AUTH);
+	retS = xCOMMS_process_frame( INIT_AUTH);
 	if ( ! retS ) {
 		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
-	retS = process_frame( INIT_GLOBAL);
+	retS = xCOMMS_process_frame( INIT_GLOBAL);
 	if ( ! retS ) {
 		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
@@ -89,7 +81,7 @@ bool retS;
 
 	if ( f_send_init_frame_base ) {
 		f_send_init_frame_base = false;
-		retS = process_frame( INIT_BASE);
+		retS = xCOMMS_process_frame( INIT_BASE);
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
@@ -99,7 +91,7 @@ bool retS;
 
 	if ( f_send_init_frame_analog ) {
 		f_send_init_frame_analog = false;
-		retS = process_frame( INIT_ANALOG);
+		retS = xCOMMS_process_frame( INIT_ANALOG);
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
@@ -109,7 +101,7 @@ bool retS;
 
 	if ( f_send_init_frame_digital ) {
 		f_send_init_frame_digital = false;
-		retS = process_frame( INIT_DIGITAL);
+		retS = xCOMMS_process_frame( INIT_DIGITAL);
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
@@ -119,7 +111,7 @@ bool retS;
 
 	if ( f_send_init_frame_counters ) {
 		f_send_init_frame_counters = false;
-		retS = process_frame( INIT_COUNTERS);
+		retS = xCOMMS_process_frame( INIT_COUNTERS);
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
@@ -129,7 +121,7 @@ bool retS;
 
 	if ( f_send_init_frame_psensor ) {
 		f_send_init_frame_psensor = false;
-		retS = process_frame( INIT_PSENSOR);
+		retS = xCOMMS_process_frame( INIT_PSENSOR);
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
@@ -139,7 +131,7 @@ bool retS;
 
 	if ( f_send_init_frame_range ) {
 		f_send_init_frame_range = false;
-		retS = process_frame( INIT_RANGE);
+		retS = xCOMMS_process_frame( INIT_RANGE);
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
@@ -170,72 +162,13 @@ bool retS;
 	xCOMMS_stateVars.gprs_inicializado = true;
 	xCOMMS_stateVars.errores_comms = 0;
 
-	// Proceso las señales:
-	if ( xCOMMS_procesar_senales( ST_INITFRAME , &next_state ) )
-		goto EXIT;
-
 EXIT:
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
 	return(next_state);
 }
 //------------------------------------------------------------------------------------
-static bool process_frame (t_init_frame tipo_init_frame )
-{
-	/*
-	 * Esta el la funcion que hace el trabajo de mandar un frame , esperar
-	 * la respuesta y procesarla.
-	 */
-
-uint8_t frame_tryes;
-uint8_t sock_tryes;
-bool envio_ok = false;
-
-	for( frame_tryes = 0; frame_tryes < MAX_INTENTOS_ENVIAR_INIT_FRAME ; frame_tryes++ ) {
-
-		xprintf_P( PSTR("COMMS: InitFrame (%d,%d).\r\n\0" ), tipo_init_frame, frame_tryes );
-		// ENVIO:
-		// Intento hasta 3 veces abrir el socket.
-		for ( sock_tryes = 0; sock_tryes < MAX_TRYES_OPEN_COMMLINK; sock_tryes++ ) {
-
-			if (  xCOMMS_link_status(DF_COMMS ) == LINK_OPEN ) {
-				xprintf_P( PSTR("COMMS: InitFrame send (%d).\r\n\0" ), sock_tryes );
-				send_init_frame(tipo_init_frame);
-				envio_ok = true;
-				break;
-
-			} else {
-				// No tengo enlace al server. Intento abrirlo
-				vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-				xprintf_P( PSTR("COMMS: InitFrame try open (%d).\r\n\0" ), sock_tryes );
-				xCOMMS_open_link(DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
-			}
-		}
-
-		if ( ! envio_ok )
-			return (false);
-
-		// RESPUESTA:
-		if ( process_init_response()) {
-			xprintf_P( PSTR("COMMS: InitFrame response OK.\r\n\0" ) );
-			return(true);
-		}
-
-		xprintf_P( PSTR("COMMS: InitFrame response FAIL !!\r\n\0" ) );
-		// Si estoy aqui es que no pude procesar la respuesta.
-		// Cierro el socket y veo de rearmar la conexion.
-		xCOMMS_close_link(DF_COMMS );
-		vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-	}
-
-	// Intente 3 veces mandar un frame y procesar la respuesta y me da error.
-	// Pruebo cerrar las conexiones y volver a abrirlas al menos una vez
-
-
-	return(false);
-}
-//------------------------------------------------------------------------------------
-static void send_init_frame(t_init_frame tipo_init_frame )
+void xINIT_FRAME_send(t_frame tipo_frame )
 {
 	/*
 	 * Intenta enviar un frame de init
@@ -256,7 +189,7 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 	xCOMMS_send_header("INIT");
 	vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 
-	switch(tipo_init_frame) {
+	switch(tipo_frame) {
 	case INIT_AUTH:
 		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
 		break;
@@ -357,137 +290,166 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 
 }
 //------------------------------------------------------------------------------------
-static bool process_init_response(void)
+t_responses xINIT_FRAME_process_response(void)
 {
 
-	// Espero la respuesta al frame de INIT.
-	// Si la recibo la proceso.
-	// Salgo por timeout 10s o por socket closed.
+t_responses rsp = rsp_NONE;
 
-uint8_t timeout = 0;
-bool retS = false;
+	// Recibi un ERROR de respuesta
+	if ( xCOMMS_check_response("ERROR") ) {
+		xCOMMS_print_RX_buffer(true);
+		rsp = rsp_ERROR;
+		return(rsp);
+	}
 
-	for ( timeout = 0; timeout < 10; timeout++) {
+	// Respuesta completa del server
+	if ( xCOMMS_check_response("</h1>") ) {
 
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );	// Espero 1s
+		xCOMMS_print_RX_buffer( DF_COMMS );
 
-		// El socket se cerro
-		if ( xCOMMS_link_status( DF_COMMS ) != LINK_OPEN ) {
-			return(false);
+		// Analizo las respuestas.
+		if ( xCOMMS_check_response("CLASS:AUTH") ) {	// Respuesta correcta:
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_auth() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
+			}
+			return(rsp);
 		}
 
-		//xCOMMS_print_RX_buffer(true);
-
-		// Recibi un ERROR de respuesta
-		if ( xCOMMS_check_response("ERROR") ) {
-			xCOMMS_print_RX_buffer(true);
-			return(false);
+		// Analizo las respuestas.
+		if ( xCOMMS_check_response("CLASS:GLOBAL") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_global() )  {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
+			}
+			return(rsp);
 		}
 
-		// Respuesta completa del server
-		if ( xCOMMS_check_response("</h1>") ) {
-
-			xCOMMS_print_RX_buffer( DF_COMMS );
-
-			// Analizo las respuestas.
-			if ( xCOMMS_check_response("CLASS:AUTH") ) {	// Respuesta correcta:
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_auth();
-				return(retS);
+		if ( xCOMMS_check_response("BASE") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_base() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
 			}
+			return(rsp);
+		}
 
-			// Analizo las respuestas.
-			if ( xCOMMS_check_response("CLASS:GLOBAL") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_global();
-				return(retS);
+		if ( xCOMMS_check_response("ANALOG") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_analog() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
 			}
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response("BASE") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_base();
-				return(retS);
+		if ( xCOMMS_check_response("DIGITAL") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_digital() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
 			}
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response("ANALOG") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_analog();
-				return(retS);
+		if ( xCOMMS_check_response("COUNTER") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_counters() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
 			}
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response("DIGITAL") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_digital();
-				return(retS);
+		if ( xCOMMS_check_response("PSENSOR") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_psensor() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
 			}
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response("COUNTER") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_counters();
-				return(retS);
+		if ( xCOMMS_check_response("RANGE") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_range() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
 			}
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response("PSENSOR") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_psensor();
-				return(retS);
+		if ( xCOMMS_check_response("APP_A") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_app_A() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
 			}
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response("RANGE") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_range();
-				return(retS);
+		if ( xCOMMS_check_response("APP_B") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_app_B() )  {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
 			}
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response("APP_A") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_app_A();
-				return(retS);
+		if ( xCOMMS_check_response("APP_C") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_app_C() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
 			}
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response("APP_B") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_app_B();
-				return(retS);
-			}
+		// El servidor no pudo procesar el frame. Problema del server
+		if ( xCOMMS_check_response("SRV_ERR") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			xprintf_P( PSTR("COMMS: SERVER ERROR !!.\r\n\0" ));
+			rsp = rsp_ERROR;
+			return(rsp);
+		}
 
-			if ( xCOMMS_check_response("APP_C") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				retS = init_reconfigure_params_app_C();
-				return(retS);
-			}
-
-			// El servidor no pudo procesar el frame. Problema del server
-			if ( xCOMMS_check_response("SRV_ERR") ) {
-				// Borro la causa del reset
-				wdg_resetCause = 0x00;
-				xprintf_P( PSTR("COMMS: SERVER ERROR !!.\r\n\0" ));
-				return(false);
-			}
-
-			// Datalogger esta usando un script incorrecto
-			if ( xCOMMS_check_response("NOT_ALLOWED") ) {
-				xprintf_P( PSTR("COMMS: SCRIPT ERROR !!.\r\n\0" ));
-				return(false);
-			}
+		// Datalogger esta usando un script incorrecto
+		if ( xCOMMS_check_response("NOT_ALLOWED") ) {
+			xprintf_P( PSTR("COMMS: SCRIPT ERROR !!.\r\n\0" ));
+			rsp = rsp_ERROR;
+			return(rsp);
 		}
 	}
 
 // Exit:
-	// No tuve respuesta
-	xprintf_P( PSTR("COMMS: TIMEOUT !!.\r\n\0" ));
-	return(false);
+	// No tuve respuesta aun
+	return(rsp);
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES AUXILIARES ENVIO FRAMES
@@ -511,7 +473,7 @@ bool retS = true;
 		/*
 		 * El primer frame es el APP_A que es quien me configura el resto ( B/C)
 		 */
-	retS = process_frame( INIT_APP_A );
+	retS = xCOMMS_process_frame( INIT_APP_A );
 
 	/*
 	 * A partir de aqui veo que parte de la aplicacion debo seguir
@@ -525,7 +487,7 @@ bool retS = true;
 
 	case APP_CONSIGNA:
 		// Requiere 1 frames mas (B):
-		retS = process_frame(INIT_APP_B);
+		retS = xCOMMS_process_frame(INIT_APP_B);
 		f_send_init_frame_app = false;
 		break;
 
@@ -536,15 +498,15 @@ bool retS = true;
 
 	case APP_PLANTAPOT:
 		// Requiere 2 frames mas (B para SMS) y (C para niveles):
-		retS = process_frame(INIT_APP_B);	// SMS
-		retS = process_frame(INIT_APP_C);	// Niveles
+		retS = xCOMMS_process_frame(INIT_APP_B);	// SMS
+		retS = xCOMMS_process_frame(INIT_APP_C);	// Niveles
 		f_send_init_frame_app = false;
 		//f_reset = true;
 		break;
 
 	case APP_CAUDALIMETRO:
 		// Requiere 1 frames mas (B):
-		retS = process_frame(INIT_APP_B);
+		retS = xCOMMS_process_frame(INIT_APP_B);
 		f_send_init_frame_app = false;
 		break;
 	}
@@ -1286,4 +1248,3 @@ char str_base[8];
 	u_save_params_in_NVMEE();
 }
 //------------------------------------------------------------------------------------
-

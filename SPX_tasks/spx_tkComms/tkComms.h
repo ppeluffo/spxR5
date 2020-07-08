@@ -15,6 +15,10 @@ typedef enum { ST_ENTRY = 0, ST_ESPERA_APAGADO, ST_ESPERA_PRENDIDO, ST_PRENDER, 
 typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ERR_IPSERVER_FAIL, ERR_DLGID_FAIL } t_comms_error_code;
 typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status;
 
+typedef enum { INIT_AUTH = 0, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, DATA } t_frame;
+typedef enum { frame_ENTRY = 0, frame_RESPONSE, frame_SOCK, frame_NET, frame_RETRY } t_frame_states;
+typedef enum { rsp_OK = 0, rsp_ERROR, rsp_NONE } t_responses;
+
 #define MAX_TRIES_PWRON 		3	// Intentos de prender HW el modem
 #define MAX_TRYES_NET_ATTCH		3	// Intentos de atachearme a la red GPRS
 #define MAX_TRYES_OPEN_COMMLINK	3	// Intentos de abrir un socket
@@ -119,10 +123,18 @@ bool xCOMMS_check_response( const char *pattern );
 void xCOMMS_print_RX_buffer(bool d_flag );
 char *xCOMM_get_buffer_ptr( char *pattern);
 void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr);
-bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state );
-uint16_t xCOMMS_datos_para_transmitir(void);
-bool xCOMMS_SGN_FRAME_READY(void);
 
+bool xCOMMS_SGN_FRAME_READY(void);
+bool xCOMMS_SGN_REDIAL(void);
+
+uint16_t xCOMMS_datos_para_transmitir(void);
+bool xCOMMS_process_frame (t_frame tipo_frame );
+
+void xINIT_FRAME_send(t_frame tipo_frame );
+t_responses xINIT_FRAME_process_response(void);
+
+void xDATA_FRAME_send(void);
+t_responses xDATA_FRAME_process_response(void);
 
 void gprs_init(void);
 void gprs_rxBuffer_fill(char c);

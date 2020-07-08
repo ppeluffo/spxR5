@@ -127,9 +127,9 @@ static void esperar_apagado(void)
 		}
 
 		// Proceso las señales:
-		if ( xCOMMS_procesar_senales( ST_ESPERA_APAGADO , NULL ) )
+		if ( xCOMMS_SGN_REDIAL()) {
 			goto EXIT;
-
+		}
 
 		// E) Veo si expiro el tiempo de espera.
 		if ( time_to_next_dial == 0 ) {

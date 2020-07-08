@@ -76,6 +76,7 @@ int16_t free_size = sizeof(dst);
 	// Vacio el buffer temoral
 	memset(dst,'\0', sizeof(dst));
 	// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
+	i = 0;
 	i += snprintf_P(dst, free_size, PSTR("%s"), systemVars.range_name);
 	free_size = (  sizeof(dst) - i );
 	if ( free_size < 0 ) goto exit_error;
