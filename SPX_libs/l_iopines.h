@@ -173,7 +173,7 @@ uint8_t IO_read_PA2(void);
 //------------------------------------------------------------------------------------
 // GPRS
 
-// Salidas de micro, entradas del SIM900
+// Salidas de micro, entradas del SIM
 #define GPRS_PWR_BITPOS			4
 #define GPRS_PWR_PORT			PORTD
 #define IO_config_GPRS_PWR()	PORT_SetPinAsOutput( &GPRS_PWR_PORT, GPRS_PWR_BITPOS)
@@ -188,20 +188,14 @@ uint8_t IO_read_PA2(void);
 
 #define GPRS_CTS_BITPOS			4
 #define GPRS_CTS_PORT			PORTE
-#define IO_config_GPRS_CTS()	PORT_SetPinAsOutput( &GPRS_CTS_PORT, GPRS_CTS_BITPOS)
-#define IO_set_GPRS_CTS()		PORT_SetOutputBit( &GPRS_CTS_PORT, GPRS_CTS_BITPOS)
-#define IO_clr_GPRS_CTS()		PORT_ClearOutputBit( &GPRS_CTS_PORT, GPRS_CTS_BITPOS)
+#define IO_config_GPRS_CTS()	PORT_SetPinAsInput( &GPRS_CTS_PORT, GPRS_CTS_BITPOS)
+uint8_t IO_read_CTS(void);
 
-// Corresponde a ATXMEGA RXD (Input)
-#define GPRS_TX_BITPOS			2
-#define GPRS_TX_PORT			PORTE
-#define IO_config_GPRS_TX()		PORT_SetPinAsInput( &GPRS_TX_PORT, GPRS_TX_BITPOS)
-
-// Entradas al micro, salidas del SIM900
 #define GPRS_RTS_BITPOS			5
 #define GPRS_RTS_PORT			PORTE
-#define IO_config_GPRS_RTS()	PORT_SetPinAsInput( &GPRS_RTS_PORT, GPRS_RTS_BITPOS)
-uint8_t IO_read_RTS(void);
+#define IO_config_GPRS_RTS()	PORT_SetPinAsOutput( &GPRS_RTS_PORT, GPRS_RTS_BITPOS)
+#define IO_set_GPRS_RTS()		PORT_SetOutputBit( &GPRS_RTS_PORT, GPRS_RTS_BITPOS)
+#define IO_clr_GPRS_RTS()		PORT_ClearOutputBit( &GPRS_RTS_PORT, GPRS_RTS_BITPOS)
 
 #define GPRS_DCD_BITPOS			6
 #define GPRS_DCD_PORT			PORTD
@@ -213,11 +207,21 @@ uint8_t IO_read_DCD(void);
 #define IO_config_GPRS_RI()		PORT_SetPinAsInput( &GPRS_RI_PORT, GPRS_RI_BITPOS)
 uint8_t IO_read_RI(void);
 
+#define GPRS_DTR_BITPOS			6
+#define GPRS_DTR_PORT			PORTB
+#define IO_config_GPRS_DTR()	PORT_SetPinAsOutput( &GPRS_DTR_PORT, GPRS_DTR_BITPOS)
+#define IO_set_GPRS_DTR()		PORT_SetOutputBit( &GPRS_DTR_PORT, GPRS_DTR_BITPOS)
+#define IO_clr_GPRS_DTR()		PORT_ClearOutputBit( &GPRS_DTR_PORT, GPRS_DTR_BITPOS)
+
 // Corresponde a ATXMEGA TXD (Output)
 #define GPRS_RX_BITPOS			3
 #define GPRS_RX_PORT			PORTE
 #define IO_config_GPRS_RX()		PORT_SetPinAsOutput( &GPRS_RX_PORT, GPRS_RX_BITPOS)
 
+// Corresponde a ATXMEGA RXD (Input)
+#define GPRS_TX_BITPOS			2
+#define GPRS_TX_PORT			PORTE
+#define IO_config_GPRS_TX()		PORT_SetPinAsInput( &GPRS_TX_PORT, GPRS_TX_BITPOS)
 //------------------------------------------------------------------------------------
 // AUX1
 #define AUX1_PWR_BITPOS			1

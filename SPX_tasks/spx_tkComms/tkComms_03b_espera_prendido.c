@@ -20,7 +20,7 @@ t_comms_states tkComms_st_espera_prendido(void)
 	 *
 	 */
 
-t_comms_states next_state = ST_ENTRY;
+t_comms_states next_state = ST_DATAFRAME;
 int8_t timer = 60;
 
 // Entry:
@@ -41,14 +41,13 @@ int8_t timer = 60;
 
 		// Cada 60s salgo.
 		if ( timer <= 0) {
-			next_state = ST_DATAFRAME;
 			goto EXIT;
 		}
 
 		// Proceso las señales:
-		if ( xCOMMS_procesar_senales( ST_ESPERA_PRENDIDO , &next_state ) )
+		if ( xCOMMS_SGN_FRAME_READY()) {
 			goto EXIT;
-
+		}
  	}
 
 EXIT:
@@ -56,7 +55,7 @@ EXIT:
 	// Checkpoint de SMS's
 	xAPP_sms_checkpoint();
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_prendido.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_prendido.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
 	return(next_state);
 }
 //------------------------------------------------------------------------------------

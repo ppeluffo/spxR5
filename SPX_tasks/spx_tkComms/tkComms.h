@@ -16,7 +16,7 @@ typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ER
 typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status;
 
 #define MAX_TRIES_PWRON 		3	// Intentos de prender HW el modem
-#define MAX_TRYES_NET_ATTCH		6	// Intentos de atachearme a la red GPRS
+#define MAX_TRYES_NET_ATTCH		3	// Intentos de atachearme a la red GPRS
 #define MAX_TRYES_OPEN_COMMLINK	3	// Intentos de abrir un socket
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 
@@ -104,18 +104,25 @@ bool xCOMMS_scan( t_scan_struct *scan_boundle );
 bool xCOMMS_need_scan( t_scan_struct *scan_boundle );
 void xCOMMS_mon_sqe(bool f_debug,  bool modo_continuo, uint8_t *csq );
 bool xCOMMS_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
+
+bool xCOMMS_netopen(bool f_debug);
+void xCOMMS_netclose(bool f_debug);
+t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port);
+void xCOMMS_close_link(bool f_debug );
 t_link_status xCOMMS_link_status(bool f_debug);
+
 void xCOMMS_flush_RX(void);
 void xCOMMS_flush_TX(void);
 void xCOMMS_send_header(char *type);
 void xCOMMS_send_tail(void);
-t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port);
 bool xCOMMS_check_response( const char *pattern );
 void xCOMMS_print_RX_buffer(bool d_flag );
 char *xCOMM_get_buffer_ptr( char *pattern);
 void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr);
 bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state );
 uint16_t xCOMMS_datos_para_transmitir(void);
+bool xCOMMS_SGN_FRAME_READY(void);
+
 
 void gprs_init(void);
 void gprs_rxBuffer_fill(char c);
@@ -147,9 +154,11 @@ bool gprs_need_scan( t_scan_struct *scan_boundle );
 bool gprs_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
 bool gprs_set_apn(bool f_debug, char *apn);
 bool gprs_netopen(bool f_debug);
+void gprs_netclose(bool f_debug);
 bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned );
 t_link_status gprs_check_socket_status(bool f_debug);
 t_link_status gprs_open_socket(bool f_debug, char *ip, char *port);
+void gprs_close_socket(bool f_debug);
 char *gprs_get_buffer_ptr( char *pattern);
 bool gprs_SAT_set(uint8_t modo);
 //void gprs_test(void);
@@ -157,6 +166,10 @@ bool gprs_SAT_set(uint8_t modo);
 void gprs_CGMI( bool f_debug );
 void gprs_CGMM( bool f_debug );
 void gprs_CGMR( bool f_debug );
+void gprs_switch_to_command_mode(void);
+void gprs_IFC( bool f_debug );
+
+
 
 void xSMS_init(void);
 bool xSMS_enqueue(char *dst_nbr, char *msg );

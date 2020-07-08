@@ -34,20 +34,11 @@ t_comms_states next_state = ST_ESPERA_APAGADO;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_ENTRY);
 
-	// Modo discreto: Espero apagado
-	if ( MODO_DISCRETO ) {
-		next_state = ST_ESPERA_APAGADO;
+	if ( ! MODO_DISCRETO )									// Solo en modo continuo
+		if ( xCOMMS_stateVars.gprs_prendido )				// con el modem prendido
+			if ( xCOMMS_stateVars.gprs_inicializado )		// e inicializado
+				next_state = ST_ESPERA_PRENDIDO;
 
-	} else {
-
-		// Modo continuo:
-		if ( xCOMMS_stateVars.gprs_prendido && xCOMMS_stateVars.gprs_inicializado ) {
-			// Modo continuo: Dispositivo prendido e inicializado
-			next_state = ST_ESPERA_PRENDIDO;
-		} else {
-			next_state = ST_ESPERA_APAGADO;
-		}
-	}
 
 	// CONTROL DE ERRORES DE COMUNICACIONES
 	// Si la cantidad de errores de comunicacion llego al maximo, reseteo el micro

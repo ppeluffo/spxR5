@@ -38,26 +38,25 @@ t_comms_states next_state = ST_ENTRY;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: prendo dispositivo...\r\n\0"));
 
+	// Me aseguro que este apagado
+	xCOMMS_apagar_dispositivo();
 	// Prendo la fuente
 	if ( xCOMMS_prender_dispositivo( DF_COMMS ) == true ) {
 		next_state = ST_CONFIGURAR;
 		goto EXIT;
 	}
 
-	// Proceso las señales:
-	if ( xCOMMS_procesar_senales( ST_PRENDER , &next_state ) ) {
-		goto EXIT;
-	}
+	// No tengo que preocesar señales
 
-	// Si salgo por aqui es que el modem no prendio luego de todos los reintentos
+	// Si salgo por aqui es que el modem no prendio luego de todos los reintentos en gprs.
 	xCOMMS_stateVars.errores_comms++;
-	xprintf_P( PSTR("COMMS: ERROR!! Dispositivo no prendio HW \r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado);
+	xprintf_P( PSTR("COMMS: ERROR!! Dispositivo no prendio HW \r\n\0"));
 	next_state = ST_ENTRY;
 
 // Exit:
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_prender.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_prender.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
 	return(next_state);
 
 }

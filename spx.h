@@ -65,7 +65,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "3.0.2.k"
-#define SPX_FW_DATE "@ 20200703"
+#define SPX_FW_DATE "@ 20200707"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -439,7 +439,6 @@ uint8_t wdg_resetCause;
 #define WDG_TO300		300
 #define WDG_TO600		600
 #define WDG_TO900		900
-
 
 //------------------------------------------------------------------------
 

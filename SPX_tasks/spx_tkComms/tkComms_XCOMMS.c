@@ -137,7 +137,6 @@ bool xCOMMS_prender_dispositivo(bool f_debug )
 	/*
 	 * El modem necesita que se le mande un AT y que responda un OK para
 	 * confirmar que esta listo.
-	 * El Xbee no necesita nada.
 	 */
 
 bool retS = false;
@@ -214,6 +213,37 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
+bool xCOMMS_netopen(bool f_debug)
+{
+	return(gprs_netopen(f_debug));
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_netclose(bool f_debug)
+{
+	gprs_netclose(f_debug);
+}
+//------------------------------------------------------------------------------------
+t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port)
+{
+	/*
+	 * Intenta abrir el link hacia el servidor
+	 * En caso de XBEE no hay que hacer nada
+	 * En caso de GPRS se debe intentar abrir el socket
+	 *
+	 */
+
+t_link_status lstatus = LINK_CLOSED;
+
+	lstatus = gprs_open_socket(f_debug, ip, port);
+	return(lstatus);
+
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_close_link(bool f_debug )
+{
+	gprs_close_socket(f_debug);
+}
+//------------------------------------------------------------------------------------
 t_link_status xCOMMS_link_status( bool f_debug )
 {
 
@@ -259,23 +289,6 @@ void xCOMMS_send_tail(void)
 	// ( No mando el close ya que espero la respuesta y no quiero que el socket se cierre )
 	xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
 	vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
-}
-//------------------------------------------------------------------------------------
-t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port)
-{
-	/*
-	 * Intenta abrir el link hacia el servidor
-	 * En caso de XBEE no hay que hacer nada
-	 * En caso de GPRS se debe intentar abrir el socket
-	 *
-	 */
-
-t_link_status lstatus = LINK_CLOSED;
-
-	xCOMMS_flush_RX();
-	lstatus = gprs_open_socket(f_debug, ip, port);
-	return(lstatus);
-
 }
 //------------------------------------------------------------------------------------
 file_descriptor_t xCOMMS_get_fd(void)
@@ -368,12 +381,6 @@ bool xCOMMS_procesar_senales( t_comms_states state, t_comms_states *next_state )
 		 */
 		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_MON_SQE rcvd.\r\n\0"));
 		switch(state) {
-		case ST_PRENDER:		// Ignoro
-			break;
-		case ST_CONFIGURAR:		// Ignoro
-			break;
-		case ST_MON_SQE:		// Ignoro
-			break;
 		default:
 			xCOMMS_apagar_dispositivo();
 			*next_state = ST_PRENDER;
@@ -438,5 +445,15 @@ FAT_t fat;
 	}
 
 	return(nro_recs_pendientes);
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_SGN_FRAME_READY(void)
+{
+	if ( SPX_SIGNAL( SGN_FRAME_READY )) {
+		SPX_CLEAR_SIGNAL( SGN_FRAME_READY );
+		xprintf_PD( DF_COMMS, PSTR("COMMS: SGN_FRAME_READY rcvd.\r\n\0"));
+		return (true);
+	}
+	return (false);
 }
 //------------------------------------------------------------------------------------

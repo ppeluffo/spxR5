@@ -84,9 +84,9 @@ uint8_t IO_read_RI(void)
 	return( PORT_GetBitValue(&GPRS_RI_PORT, GPRS_RI_BITPOS));
 }
 //------------------------------------------------------------------------------------
-uint8_t IO_read_RTS(void)
+uint8_t IO_read_CTS(void)
 {
-	return( PORT_GetBitValue(&GPRS_RTS_PORT, GPRS_RTS_BITPOS));
+	return( PORT_GetBitValue(&GPRS_CTS_PORT, GPRS_CTS_BITPOS));
 }
 //------------------------------------------------------------------------------------
 

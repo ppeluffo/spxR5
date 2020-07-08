@@ -39,6 +39,26 @@
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
  * ------------------------------------------------------------------------
+ * Version 3.0.2.l ( MASTER ) @ 2020-07-04
+ * 1-Encontramos un datalogger FTEST03 reseteado a DEFAULT pero dando
+ *   continuamente el mensaje: ERROR: Checksum sVarsComms failed: calc[0x1b], sto[0x82].
+ *   Sin embargo al resetearlo por comando a default y resetearlo no da mas el error.
+ *   El problema estaria en Loading defaults.
+ *   Luego de cargar los defaults los salvo en la EE.
+ * 2-Luego de hacer un scan correcto, salvo los parametros y me reseteo.
+ *   Elimino setear el timerdial a 10s. Esto genera un loop con el punto 1.
+ * 3-Agrego la definicion y control del pin DTR.,
+ *   Defino gprs_switch_to_command_mode().
+ * 4-RTS y CTS estaban intercambiados (input/output). Corregido.
+ *   Agrego la funcion gprs_IFC() para mostrar el control de flujo configurado.
+ *   Los modems estan por default sin control de flujo !!!.
+ * 5-Al prender el modem espero el PB DONE que indica que termino el boot process.
+ * 6-Mejoro la deteccion del imei y el ccid.
+ * 7-Simplifico algunos modulos de tkComms.
+ * 8-Reescribo el modulo de initframe.c
+ *
+ *
+ * ------------------------------------------------------------------------
  * Version 3.0.2.k ( MASTER ) @ 2020-07-02
  * 1-ERR: En  frtos_uart_ioctl al borrar el TXbuffer estaba borrando el RXbuffer.
  * 2-WARN: En el frtos_io no uso los semaforos de los uart ya que los pase al printf asi que
@@ -416,7 +436,6 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, signed char *pcTaskName 
 
 }
 //------------------------------------------------------------------------------------
-
 /* configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must provide an
 implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
 used by the Idle task. */
@@ -591,7 +610,19 @@ void debug_monitor_stack_watermarks(char *id)
 st_stack_size_t stack_wmk;
 bool print_min_stack_flag = false;
 
-static st_stack_size_t stack_wmk_min = {512};
+st_stack_size_t stack_wmk_min;
+static bool init = true;
+
+	if (init == true) {
+		init = false;
+		stack_wmk_min.app = 512;
+		stack_wmk_min.cmd = 512;
+		stack_wmk_min.comms = 512;
+		stack_wmk_min.ctl = 512;
+		stack_wmk_min.idle = 512;
+		stack_wmk_min.in = 512;
+		stack_wmk_min.rx = 512;
+	}
 
 	debug_read_stack_watermarks(&stack_wmk);
 
@@ -640,4 +671,5 @@ int debug_freeRam(void)
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
 //------------------------------------------------------------------------------------
+
 

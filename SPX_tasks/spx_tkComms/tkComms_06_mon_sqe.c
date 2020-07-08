@@ -21,12 +21,13 @@ t_comms_states tkComms_st_mon_sqe(void)
 	 *
 	 */
 
+t_comms_states next_state = ST_SCAN;
+
 	ctl_watchdog_kick(WDG_COMMS,WDG_GPRS_TO_SQE);
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_mon_sqe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("6");
 #endif
-	//xprintf_P( PSTR("COMMS: mon_sqe.\r\n\0"));
 
 	/*
 	 * Si esta activada la senal, monitoreo en modo continuo
@@ -38,7 +39,7 @@ t_comms_states tkComms_st_mon_sqe(void)
 		xCOMMS_mon_sqe(DF_COMMS, false, &xCOMMS_stateVars.csq );
 	}
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_mon_sqe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
-	return(ST_SCAN);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_mon_sqe.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
+	return(next_state);
 }
 //------------------------------------------------------------------------------------

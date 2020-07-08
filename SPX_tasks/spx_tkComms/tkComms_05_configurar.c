@@ -52,12 +52,14 @@ t_comms_states next_state = ST_ENTRY;
 		xCOMMS_stateVars.reset_dlg = true;
 		next_state = ST_ENTRY;
 		break;
+
 	case ERR_NETATTACH_FAIL:
 		xprintf_P( PSTR("COMMS: net ERRROR: Reconfiguro timerdial para 30min.\r\n\0"));
 		sVarsComms.timerDial = 1800;
 		xCOMMS_stateVars.reset_dlg = true;
 		next_state = ST_ENTRY;
 		break;
+
 	default:
 		xprintf_P( PSTR("COMMS: config ERRROR: Reconfiguro timerdial para 30min.\r\n\0"));
 		sVarsComms.timerDial = 1800;
@@ -66,13 +68,11 @@ t_comms_states next_state = ST_ENTRY;
 		break;
 	}
 
-	// Proceso las señales:
-	if ( xCOMMS_procesar_senales( ST_CONFIGURAR , &next_state ) )
-		goto EXIT;
+	// No proceso las señales:
 
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_configurar.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_configurar.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
 	return(next_state);
 }
 //------------------------------------------------------------------------------------

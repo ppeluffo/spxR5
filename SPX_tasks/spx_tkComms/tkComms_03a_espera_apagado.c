@@ -27,6 +27,8 @@ t_comms_states tkComms_st_espera_apagado(void)
 	 *
 	 */
 
+t_comms_states next_state = ST_PRENDER;
+
 // Entry:
 	// Apago el dispositivo de comunicaciones.
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_apagado.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado, xCOMMS_stateVars.errores_comms);
@@ -39,8 +41,8 @@ t_comms_states tkComms_st_espera_apagado(void)
 
 	configurar_tiempo_espera_apagado();
 
-// Loop:
 	esperar_apagado();
+
 	if ( xCOMMS_stateVars.reset_dlg == true ) {
 		xprintf_P(PSTR("COMMS: RESET x errores de comunicaciones.\r\n\0"));
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
@@ -50,8 +52,8 @@ t_comms_states tkComms_st_espera_apagado(void)
 	}
 
 // Exit:
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_apagado.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
-	return(ST_PRENDER);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_apagado.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
+	return(next_state);
 
 }
 //------------------------------------------------------------------------------------

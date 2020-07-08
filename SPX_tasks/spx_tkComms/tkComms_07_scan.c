@@ -57,9 +57,11 @@ t_scan_struct scan_boundle;
 			xprintf_P( PSTR("COMMS: SCAN APN=[%s]\r\n\0"), sVarsComms.apn );
 			xprintf_P( PSTR("COMMS: SCAN IP=[%s]\r\n\0"), sVarsComms.server_ip_address );
 			xprintf_P( PSTR("COMMS: SCAN DLGID=[%s]\r\n\0"), sVarsComms.dlgId );
-			xCOMMS_apagar_dispositivo();
-			sVarsComms.timerDial = 10;	// Debo arrancar enseguida. Luego me reconfiguro
-			next_state = ST_ENTRY;
+
+			xprintf_P( PSTR("COMMS: Reset to load new configuration...\r\n\0"));
+			vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
+			CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
+
 		} else {
 			// No pude descubrir los parametros. Espero 1H para reintentar.
 			sVarsComms.timerDial = 3600;
@@ -75,7 +77,7 @@ t_scan_struct scan_boundle;
 	// Checkpoint de SMS's
 	xAPP_sms_checkpoint();
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
 	return(next_state);
 
 }

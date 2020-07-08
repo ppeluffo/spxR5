@@ -163,6 +163,7 @@ uint16_t recSize = 0;
 	// Leo los parametros del la EE y si tengo error, cargo por defecto
 	if ( ! u_load_params_from_NVMEE() ) {
 		u_load_defaults( NULL );
+		u_save_params_in_NVMEE();
 		xprintf_P( PSTR("\r\nLoading defaults !!\r\n\0"));
 	}
 

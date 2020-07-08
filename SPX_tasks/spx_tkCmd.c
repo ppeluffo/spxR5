@@ -1047,7 +1047,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("           power {on|off}\r\n\0"));
 			}
 
-			xprintf_P( PSTR("  gprs (pwr|sw|cts|dtr) {on|off}\r\n\0"));
+			xprintf_P( PSTR("  gprs (pwr|sw|rts|dtr) {on|off}\r\n\0"));
 			xprintf_P( PSTR("       cmd {atcmd}, redial, monsqe\r\n\0"));
 			xprintf_P( PSTR("       sms,qsms,fsms {nbr,msg}\r\n\0"));
 
@@ -1071,7 +1071,7 @@ static void cmdHelpFunction(void)
 			}
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
 			xprintf_P( PSTR("  dinputs\r\n\0"));
-			xprintf_P( PSTR("  gprs (rsp,rts,dcd,ri,sms)\r\n\0"));
+			xprintf_P( PSTR("  gprs (rsp,cts,dcd,ri,sms)\r\n\0"));
 		}
 		return;
 
@@ -1314,6 +1314,8 @@ uint8_t pin = 0;
 		// write gprs (pwr|sw|rts|dtr) {on|off}
 		if ( strcmp_P( strupr(argv[2]), PSTR("PWR\0")) == 0 ) {
 			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
+				// Para que pueda constestar!!!
+				xCOMMS_stateVars.gprs_prendido = true;
 				IO_set_GPRS_PWR(); pv_snprintfP_OK(); return;
 			}
 			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
@@ -1335,12 +1337,12 @@ uint8_t pin = 0;
 			return;
 		}
 
-		if ( strcmp_P( strupr(argv[2]), PSTR("CTS\0")) == 0 ) {
+		if ( strcmp_P( strupr(argv[2]), PSTR("RTS\0")) == 0 ) {
 			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
-				IO_set_GPRS_CTS(); pv_snprintfP_OK(); return;
+				IO_set_GPRS_RTS(); pv_snprintfP_OK(); return;
 			}
 			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
-				IO_clr_GPRS_CTS(); pv_snprintfP_OK(); return;
+				IO_clr_GPRS_RTS(); pv_snprintfP_OK(); return;
 			}
 			pv_snprintfP_ERR();
 			return;
@@ -1350,10 +1352,10 @@ uint8_t pin = 0;
 
 		if ( strcmp_P( strupr(argv[2]), PSTR("DTR\0")) == 0 ) {
 			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
-				IO_set_GPRS_CTS(); pv_snprintfP_OK(); return;
+				IO_set_GPRS_DTR(); pv_snprintfP_OK(); return;
 			}
 			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
-				IO_clr_GPRS_CTS(); pv_snprintfP_OK(); return;
+				IO_clr_GPRS_DTR(); pv_snprintfP_OK(); return;
 			}
 			pv_snprintfP_ERR();
 			return;
@@ -1421,10 +1423,10 @@ uint8_t pin = 0;
 			return;
 		}
 
-		// RTS
-		if ( strcmp_P( strupr(argv[2]), PSTR("RTS\0")) == 0 ) {
-			pin = IO_read_RTS();
-			xprintf_P( PSTR("RTS=%d\r\n\0"),pin);
+		// CTS
+		if ( strcmp_P( strupr(argv[2]), PSTR("CTS\0")) == 0 ) {
+			pin = IO_read_CTS();
+			xprintf_P( PSTR("CTS=%d\r\n\0"),pin);
 			pv_snprintfP_OK();
 			return;
 		}

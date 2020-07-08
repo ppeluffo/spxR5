@@ -37,13 +37,11 @@ t_comms_states next_state = ST_ENTRY;
 		next_state = ST_ENTRY;
 	}
 
-	// Proceso las señales:
-	if ( xCOMMS_procesar_senales( ST_NET , &next_state ) )
-		goto EXIT;
+	// No Proceso las señales:
 
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_net.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_net.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
 	return(next_state);
 
 }

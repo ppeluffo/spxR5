@@ -17,17 +17,9 @@ typedef enum { INIT_AUTH = 0, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL,
 typedef enum { SST_ENTRY = 0, SST_ENVIAR_FRAME, SST_PROCESAR_RESPUESTA, SST_EXIT  } t_inits_sub_state;
 
 static bool process_frame (t_init_frame tipo_init_frame );
-static bool send_init_frame(t_init_frame tipo_init_frame );
+static void send_init_frame(t_init_frame tipo_init_frame );
 static bool process_init_response(void);
 
-static bool init_frame_auth(void);
-static bool init_frame_global(void);
-static bool init_frame_base(void);
-static bool init_frame_analog(void);
-static bool init_frame_digital(void);
-static bool init_frame_counters(void);
-static bool init_frame_range(void);
-static bool init_frame_psensor(void);
 static bool init_frame_app(void);
 
 static bool init_reconfigure_params_auth(void);
@@ -66,6 +58,7 @@ t_comms_states tkComms_st_initframe(void)
 	 */
 
 t_comms_states next_state = ST_ENTRY;
+bool retS;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_initframe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
 
@@ -80,58 +73,88 @@ t_comms_states next_state = ST_ENTRY;
 
 	reset_datalogger = false;
 
-	if ( ! init_frame_auth() ) {
+	retS = process_frame( INIT_AUTH);
+	if ( ! retS ) {
 		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
-	if ( ! init_frame_global() ) {
+	retS = process_frame( INIT_GLOBAL);
+	if ( ! retS ) {
 		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
-	if ( ! init_frame_base() ) {
-		xCOMMS_stateVars.errores_comms++;
-		next_state = ST_ENTRY;
-		goto EXIT;
+	if ( f_send_init_frame_base ) {
+		f_send_init_frame_base = false;
+		retS = process_frame( INIT_BASE);
+		if ( ! retS ) {
+			xCOMMS_stateVars.errores_comms++;
+			next_state = ST_ENTRY;
+			goto EXIT;
+		}
 	}
 
-	if ( ! init_frame_analog() )  {
-		xCOMMS_stateVars.errores_comms++;
-		next_state = ST_ENTRY;
-		goto EXIT;
+	if ( f_send_init_frame_analog ) {
+		f_send_init_frame_analog = false;
+		retS = process_frame( INIT_ANALOG);
+		if ( ! retS ) {
+			xCOMMS_stateVars.errores_comms++;
+			next_state = ST_ENTRY;
+			goto EXIT;
+		}
 	}
 
-	if ( ! init_frame_digital() ) {
-		xCOMMS_stateVars.errores_comms++;
-		next_state = ST_ENTRY;
-		goto EXIT;
+	if ( f_send_init_frame_digital ) {
+		f_send_init_frame_digital = false;
+		retS = process_frame( INIT_DIGITAL);
+		if ( ! retS ) {
+			xCOMMS_stateVars.errores_comms++;
+			next_state = ST_ENTRY;
+			goto EXIT;
+		}
 	}
 
-	if ( ! init_frame_counters() ) {
-		xCOMMS_stateVars.errores_comms++;
-		next_state = ST_ENTRY;
-		goto EXIT;
+	if ( f_send_init_frame_counters ) {
+		f_send_init_frame_counters = false;
+		retS = process_frame( INIT_COUNTERS);
+		if ( ! retS ) {
+			xCOMMS_stateVars.errores_comms++;
+			next_state = ST_ENTRY;
+			goto EXIT;
+		}
 	}
 
-	if ( ! init_frame_range() ) {
-		xCOMMS_stateVars.errores_comms++;
-		next_state = ST_ENTRY;
-		goto EXIT;
+	if ( f_send_init_frame_psensor ) {
+		f_send_init_frame_psensor = false;
+		retS = process_frame( INIT_PSENSOR);
+		if ( ! retS ) {
+			xCOMMS_stateVars.errores_comms++;
+			next_state = ST_ENTRY;
+			goto EXIT;
+		}
 	}
 
-	if ( ! init_frame_psensor() ) {
-		xCOMMS_stateVars.errores_comms++;
-		next_state = ST_ENTRY;
-		goto EXIT;
+	if ( f_send_init_frame_range ) {
+		f_send_init_frame_range = false;
+		retS = process_frame( INIT_RANGE);
+		if ( ! retS ) {
+			xCOMMS_stateVars.errores_comms++;
+			next_state = ST_ENTRY;
+			goto EXIT;
+		}
 	}
 
-	if ( ! init_frame_app() ) {
-		xCOMMS_stateVars.errores_comms++;
-		next_state = ST_ENTRY;
-		goto EXIT;
+	if ( f_send_init_frame_app ) {
+		f_send_init_frame_range = false;
+		retS = init_frame_app();
+		if ( ! retS ) {
+			xCOMMS_stateVars.errores_comms++;
+			next_state = ST_ENTRY;
+			goto EXIT;
+		}
 	}
 
 	// Si alguna configuración requiere que se resetee, lo hacemos aqui.
@@ -153,7 +176,7 @@ t_comms_states next_state = ST_ENTRY;
 
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
 	return(next_state);
 }
 //------------------------------------------------------------------------------------
@@ -164,20 +187,55 @@ static bool process_frame (t_init_frame tipo_init_frame )
 	 * la respuesta y procesarla.
 	 */
 
-uint8_t intentos;
+uint8_t frame_tryes;
+uint8_t sock_tryes;
+bool envio_ok = false;
 
-	for( intentos= 0; intentos < MAX_INTENTOS_ENVIAR_INIT_FRAME ; intentos++ )
-	{
-		if ( send_init_frame(tipo_init_frame) ) {
-			if ( process_init_response()) {
-				return(true);
+	for( frame_tryes = 0; frame_tryes < MAX_INTENTOS_ENVIAR_INIT_FRAME ; frame_tryes++ ) {
+
+		xprintf_P( PSTR("COMMS: InitFrame (%d,%d).\r\n\0" ), tipo_init_frame, frame_tryes );
+		// ENVIO:
+		// Intento hasta 3 veces abrir el socket.
+		for ( sock_tryes = 0; sock_tryes < MAX_TRYES_OPEN_COMMLINK; sock_tryes++ ) {
+
+			if (  xCOMMS_link_status(DF_COMMS ) == LINK_OPEN ) {
+				xprintf_P( PSTR("COMMS: InitFrame send (%d).\r\n\0" ), sock_tryes );
+				send_init_frame(tipo_init_frame);
+				envio_ok = true;
+				break;
+
+			} else {
+				// No tengo enlace al server. Intento abrirlo
+				vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
+				xprintf_P( PSTR("COMMS: InitFrame try open (%d).\r\n\0" ), sock_tryes );
+				xCOMMS_open_link(DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 			}
 		}
+
+		if ( ! envio_ok )
+			return (false);
+
+		// RESPUESTA:
+		if ( process_init_response()) {
+			xprintf_P( PSTR("COMMS: InitFrame response OK.\r\n\0" ) );
+			return(true);
+		}
+
+		xprintf_P( PSTR("COMMS: InitFrame response FAIL !!\r\n\0" ) );
+		// Si estoy aqui es que no pude procesar la respuesta.
+		// Cierro el socket y veo de rearmar la conexion.
+		xCOMMS_close_link(DF_COMMS );
+		vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
 	}
+
+	// Intente 3 veces mandar un frame y procesar la respuesta y me da error.
+	// Pruebo cerrar las conexiones y volver a abrirlas al menos una vez
+
+
 	return(false);
 }
 //------------------------------------------------------------------------------------
-static bool send_init_frame(t_init_frame tipo_init_frame )
+static void send_init_frame(t_init_frame tipo_init_frame )
 {
 	/*
 	 * Intenta enviar un frame de init
@@ -186,128 +244,116 @@ static bool send_init_frame(t_init_frame tipo_init_frame )
 	 * pueda evacuar los datos por un wireless lento.
 	 */
 
-uint8_t i = 0;
 uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
 
-
-	// Loop
-	for ( i = 0; i < MAX_TRYES_OPEN_COMMLINK; i++ ) {
 
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("10");
 #endif
-		if (  xCOMMS_link_status(DF_COMMS ) == LINK_OPEN ) {
 
-			xCOMMS_flush_RX();
-			xCOMMS_flush_TX();
-			xCOMMS_send_header("INIT");
-			vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
+	xCOMMS_flush_RX();
+	xCOMMS_flush_TX();
+	xCOMMS_send_header("INIT");
+	vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 
-			switch(tipo_init_frame) {
-			case INIT_AUTH:
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
-				break;
+	switch(tipo_init_frame) {
+	case INIT_AUTH:
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
+		break;
 
-			case INIT_GLOBAL:
+	case INIT_GLOBAL:
 
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("11");
 #endif
 
-				base_cks = u_base_hash();
-				an_cks = ainputs_hash();
-				dig_cks = dinputs_hash();
-				cnt_cks = counters_hash();
-				range_cks = range_hash();
-				psens_cks = psensor_hash();
-				app_cks = u_aplicacion_hash();
+		base_cks = u_base_hash();
+		an_cks = ainputs_hash();
+		dig_cks = dinputs_hash();
+		cnt_cks = counters_hash();
+		range_cks = range_hash();
+		psens_cks = psensor_hash();
+		app_cks = u_aplicacion_hash();
 
-				//
+		//
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("12");
 #endif
 
 
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
-				// Espero 100ms entre records para dejar vaciar el TXbuffer wireless del modem
-				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
+		// Espero 100ms entre records para dejar vaciar el TXbuffer wireless del modem
+		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;\0" ), gprs_get_imei() );
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
-				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;\0" ), gprs_get_imei() );
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
+		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;\0" ), base_cks,an_cks,dig_cks );
-				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;\0" ), base_cks,an_cks,dig_cks );
+		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("CNT:0x%02X;RG:0x%02X;\0" ),cnt_cks,range_cks );
-				vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("CNT:0x%02X;RG:0x%02X;\0" ),cnt_cks,range_cks );
+		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("PSE:0x%02X;" ), psens_cks );
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("APP:0x%02X;" ), app_cks );
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("PSE:0x%02X;" ), psens_cks );
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("APP:0x%02X;" ), app_cks );
 
-				break;
-			case INIT_BASE:
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_BASE;"));
-				break;
-			case INIT_ANALOG:
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
-				break;
-			case INIT_DIGITAL:
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
-				break;
-			case INIT_COUNTERS:
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
-				break;
-			case INIT_RANGE:
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_RANGE;"));
-				break;
-			case INIT_PSENSOR:
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
-				break;
-			case INIT_APP_A:
-				xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_APP;"));
-				break;
+		break;
 
-			case INIT_APP_B:
-				if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
-					// En aplicacion PPOT pido la configuracion de los SMS
-					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
+	case INIT_BASE:
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_BASE;"));
+		break;
 
-				} else if ( sVarsApp.aplicacion == APP_CONSIGNA ) {
-					// En aplicacion CONSIGNA pido la configuracion de las consignas
-					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
+	case INIT_ANALOG:
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
+		break;
 
-				} else if ( sVarsApp.aplicacion == APP_CAUDALIMETRO ) {
-					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_CAUDALIMETRO;"));
-				}
-				break;
+	case INIT_DIGITAL:
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
+		break;
 
-			case INIT_APP_C:
-				if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
-					// En aplicacion PPOT pido la configuracion de los NIVELES DE ALARMA
-					xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
-				}
-				break;
+	case INIT_COUNTERS:
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
+		break;
 
-			default:
-				break;
-			}
+	case INIT_RANGE:
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_RANGE;"));
+		break;
 
-			xCOMMS_send_tail();
-			//  El bloque se trasmition OK. Paso a esperar la respuesta
-			return(true);
+	case INIT_PSENSOR:
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
+		break;
 
-		} else {
-			// No tengo enlace al server. Intento abrirlo
-			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			xCOMMS_open_link(DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
+	case INIT_APP_A:
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_APP;"));
+		break;
+
+	case INIT_APP_B:
+		if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
+			// En aplicacion PPOT pido la configuracion de los SMS
+			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
+
+		} else if ( sVarsApp.aplicacion == APP_CONSIGNA ) {
+			// En aplicacion CONSIGNA pido la configuracion de las consignas
+			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
+
+		} else if ( sVarsApp.aplicacion == APP_CAUDALIMETRO ) {
+			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_CAUDALIMETRO;"));
 		}
+		break;
+
+	case INIT_APP_C:
+		if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
+			// En aplicacion PPOT pido la configuracion de los NIVELES DE ALARMA
+			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
+		}
+		break;
+
+	default:
+		break;
 	}
 
-	/*
-	 * Despues de varios reintentos no logre enviar el frame
-	 */
-	return(false);
+	xCOMMS_send_tail();
 
 }
 //------------------------------------------------------------------------------------
@@ -446,118 +492,6 @@ bool retS = false;
 //------------------------------------------------------------------------------------
 // FUNCIONES AUXILIARES ENVIO FRAMES
 //------------------------------------------------------------------------------------
-static bool init_frame_auth(void)
-{
-	/*
-	 * Este frame es el que determina si el datalogger puede transmitir
-	 * al server o no.
-	 */
-
-	if ( process_frame( INIT_AUTH) )
-		return(true);
-
-	return(false);
-}
-//------------------------------------------------------------------------------------
-static bool init_frame_global(void)
-{
-
-	/*
-	 * Este estado es el que prende las flags para indicar que otros grupos de
-	 * parámetros deben ser configurados.
-	 */
-
-bool retS = false;
-
-	f_send_init_frame_base = false;
-	f_send_init_frame_analog = false;
-	f_send_init_frame_digital = false;
-	f_send_init_frame_counters = false;
-	f_send_init_frame_range = false;
-	f_send_init_frame_psensor = false;
-	f_send_init_frame_app = false;
-
-	retS = process_frame( INIT_GLOBAL);
-	return(retS);
-
-}
-//------------------------------------------------------------------------------------
-static bool init_frame_base(void)
-{
-	/*
-	 * Configura los parametros base. ( tdial, tpoll, pwrsave, etc)
-	 */
-
-bool retS = true;
-
-	if ( f_send_init_frame_base ) {
-		f_send_init_frame_base = false;
-		retS = process_frame( INIT_BASE);
-	}
-	return(retS);
-
-}
-//------------------------------------------------------------------------------------
-static bool init_frame_analog(void)
-{
-
-bool retS = true;
-
-	if ( f_send_init_frame_analog ) {
-		f_send_init_frame_analog = false;
-		retS = process_frame( INIT_ANALOG);
-	}
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-static bool init_frame_digital(void)
-{
-
-bool retS = true;
-
-	if ( f_send_init_frame_digital ) {
-		f_send_init_frame_digital = false;
-		retS = process_frame( INIT_DIGITAL);
-	}
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-static bool init_frame_counters(void)
-{
-
-bool retS = true;
-
-	if ( f_send_init_frame_counters ) {
-		f_send_init_frame_counters = false;
-		retS = process_frame( INIT_COUNTERS);
-	}
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-static bool init_frame_psensor(void)
-{
-
-bool retS = true;
-
-	if ( f_send_init_frame_psensor ) {
-		f_send_init_frame_psensor = false;
-		retS = process_frame( INIT_PSENSOR);
-	}
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-static bool init_frame_range(void)
-{
-
-bool retS = true;
-
-	if ( f_send_init_frame_range ) {
-		f_send_init_frame_range = false;
-		retS = process_frame( INIT_RANGE);
-	}
-	return(retS);
-}
-//------------------------------------------------------------------------------------
 static bool init_frame_app(void)
 {
 	/*
@@ -573,49 +507,48 @@ static bool init_frame_app(void)
 
 bool retS = true;
 
-	if ( f_send_init_frame_app ) {
+
 		/*
 		 * El primer frame es el APP_A que es quien me configura el resto ( B/C)
 		 */
-		retS = process_frame( INIT_APP_A );
+	retS = process_frame( INIT_APP_A );
 
-		/*
-		 * A partir de aqui veo que parte de la aplicacion debo seguir
-		 * configurando
-		 */
-		switch(sVarsApp.aplicacion) {
-		case APP_OFF:
-			// No lleva mas configuracion
-			f_send_init_frame_app = false;
-			break;
+	/*
+	 * A partir de aqui veo que parte de la aplicacion debo seguir
+	 * configurando
+	 */
+	switch(sVarsApp.aplicacion) {
+	case APP_OFF:
+		// No lleva mas configuracion
+		f_send_init_frame_app = false;
+		break;
 
-		case APP_CONSIGNA:
-			// Requiere 1 frames mas (B):
-			retS = process_frame(INIT_APP_B);
-			f_send_init_frame_app = false;
-			break;
+	case APP_CONSIGNA:
+		// Requiere 1 frames mas (B):
+		retS = process_frame(INIT_APP_B);
+		f_send_init_frame_app = false;
+		break;
 
-		case APP_PERFORACION:
-			// No lleva mas configuracion
-			f_send_init_frame_app = false;
-			break;
+	case APP_PERFORACION:
+		// No lleva mas configuracion
+		f_send_init_frame_app = false;
+		break;
 
-		case APP_PLANTAPOT:
-			// Requiere 2 frames mas (B para SMS) y (C para niveles):
-			retS = process_frame(INIT_APP_B);	// SMS
-			retS = process_frame(INIT_APP_C);	// Niveles
-			f_send_init_frame_app = false;
-			//f_reset = true;
-			break;
+	case APP_PLANTAPOT:
+		// Requiere 2 frames mas (B para SMS) y (C para niveles):
+		retS = process_frame(INIT_APP_B);	// SMS
+		retS = process_frame(INIT_APP_C);	// Niveles
+		f_send_init_frame_app = false;
+		//f_reset = true;
+		break;
 
-		case APP_CAUDALIMETRO:
-			// Requiere 1 frames mas (B):
-			retS = process_frame(INIT_APP_B);
-			f_send_init_frame_app = false;
-			break;
-		}
-
+	case APP_CAUDALIMETRO:
+		// Requiere 1 frames mas (B):
+		retS = process_frame(INIT_APP_B);
+		f_send_init_frame_app = false;
+		break;
 	}
+
 	return(retS);
 }
 //------------------------------------------------------------------------------------
