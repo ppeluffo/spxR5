@@ -383,7 +383,7 @@ bool xCOMMS_process_frame (t_frame tipo_frame )
 	 */
 
 t_frame_states fr_state = frame_ENTRY;
-int8_t tryes = 5;
+int8_t tryes = 9;
 int8_t timeout = 10 ;
 t_responses rsp;
 bool retS = false;
@@ -457,6 +457,10 @@ bool retS = false;
 			break;
 
 		case frame_SOCK:
+			/*
+			 * Vemos que solo con NETCLOSE/NETOPEN se recupera por lo tanto ponemos
+			 * mas puntos de recupero
+			 */
 			xprintf_P( PSTR("COMMS: frSOCK(tryes=%d).\r\n\0" ), tryes );
 			switch(tryes) {
 			case 0:
@@ -465,7 +469,10 @@ bool retS = false;
 				retS = false;
 				goto EXIT;
 				break;
-			case 2:
+			case 3:
+				fr_state = frame_NET;
+				break;
+			case 6:
 				fr_state = frame_NET;
 				break;
 			default:

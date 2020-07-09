@@ -64,6 +64,8 @@
  * 12-Reescribo el modulo de initframe.c
  * 13-Reescribo el modulo de dataframe.c
  * 14-Se inicializan algunas variables en el calculo de hashes que se usaban en +=.
+ * 15-Cambio la lectura del IMEI y CCID al modulo de configurar.
+ *    Si no los puedo leer no apago y salgo sino que continuo.
  *
  * PENDIENTE:
  * -Revisar senales y envios de SMS

@@ -39,6 +39,14 @@ typedef enum { rsp_OK = 0, rsp_ERROR, rsp_NONE } t_responses;
 
 #define INTER_FRAMES_DELAY	100
 
+#define TIMEOUT_CPIN		20
+#define TIMEOUT_CREG		30
+#define TIMEOUT_MODEM_BOOT	30
+#define TIMEOUT_NETOPEN		30
+#define TIMEOUT_SOCK2CLOSE	30
+#define TIMEOUT_SOCK2OPEN	15
+#define TIMEOUT_PDPATTACH	30
+
 int32_t time_to_next_dial;
 
 t_comms_states tkComms_state;
