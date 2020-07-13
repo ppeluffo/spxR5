@@ -121,8 +121,6 @@ void xCOMMS_init(void)
 	xCOMMS_stateVars.gprs_prendido = false;
 	xCOMMS_stateVars.gprs_inicializado = false;
 	xCOMMS_stateVars.errores_comms = 0;
-	xCOMMS_stateVars.reset_dlg = false;
-
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_apagar_dispositivo(void)

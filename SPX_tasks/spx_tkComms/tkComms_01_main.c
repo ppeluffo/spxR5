@@ -84,9 +84,21 @@ uint32_t ulNotifiedValue;
 
 	xprintf_P( PSTR("starting tkCommsRX..\r\n\0"));
 
+	/*
 	// loop
 	for( ;; )
 	{
+		ctl_watchdog_kick(WDG_COMMSRX, WDG_GPRSRX_TIMEOUT );
+
+		// Leo el UART de GPRS
+		if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
+			gprs_rxBuffer_fill(c);
+		}
+
+	}
+	*/
+	for( ;; )	{
+
 		ctl_watchdog_kick(WDG_COMMSRX, WDG_GPRSRX_TIMEOUT );
 
 		if ( xCOMMS_stateVars.gprs_prendido == true ) {
@@ -98,10 +110,11 @@ uint32_t ulNotifiedValue;
 		} else {
 
 			// Espero hasta 25s o que me llegue una señal
-			xTaskNotifyWait( 0x00, ULONG_MAX, &ulNotifiedValue, ((TickType_t) 25000 / portTICK_RATE_MS ) );
-		}
+			xTaskNotifyWait( 0x00, ULONG_MAX, &ulNotifiedValue, ((TickType_t) 10000 / portTICK_RATE_MS ) );
 
+		}
 	}
 }
 //------------------------------------------------------------------------------------
+
 

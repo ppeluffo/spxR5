@@ -31,6 +31,9 @@
  *  CMA 37384 515 111
  *  22923645
  *
+ *	https://stackoverflow.com/questions/36884514/get-at-command-response
+ *
+ *
  * -Manual
  *  Test:Reintentos de mandar un SMS que falla.
  *  TEst: scan discover
@@ -38,6 +41,20 @@
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
+ * ------------------------------------------------------------------------
+ * Version 3.0.2.m ( MASTER ) @ 2020-07-10
+ * 1- A veces no puede leer IMEI o CCID o CPIN. Probando a mano si lo lee. !!
+ * GPRS: rxbuff>
+ *
+ * [0]
+ * 2- Cuando da error de configuracion, en vez de abortar hay que reintentar 3 veces con
+ *    espacio de 5mins.
+ * 3- Revisar el reseteo del modem por dar error de configuracion
+ * 4- Revisar manejo de errores en abrir el socket.
+ *
+ * PENDIENTE:
+ * -Revisar senales y envios de SMS
+ * -Idem para mon_sqe
  * ------------------------------------------------------------------------
  * Version 3.0.2.l ( MASTER ) @ 2020-07-04
  * 1-Encontramos un datalogger FTEST03 reseteado a DEFAULT pero dando
@@ -67,9 +84,6 @@
  * 15-Cambio la lectura del IMEI y CCID al modulo de configurar.
  *    Si no los puedo leer no apago y salgo sino que continuo.
  *
- * PENDIENTE:
- * -Revisar senales y envios de SMS
- * -Idem para mon_sqe
  * ------------------------------------------------------------------------
  * Version 3.0.2.k ( MASTER ) @ 2020-07-02
  * 1-ERR: En  frtos_uart_ioctl al borrar el TXbuffer estaba borrando el RXbuffer.

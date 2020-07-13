@@ -43,14 +43,6 @@ t_comms_states next_state = ST_PRENDER;
 
 	esperar_apagado();
 
-	if ( xCOMMS_stateVars.reset_dlg == true ) {
-		xprintf_P(PSTR("COMMS: RESET x errores de comunicaciones.\r\n\0"));
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
-		while(1)
-			;
-	}
-
 // Exit:
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_apagado.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
 	return(next_state);

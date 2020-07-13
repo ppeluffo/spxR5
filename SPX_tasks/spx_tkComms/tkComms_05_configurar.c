@@ -21,7 +21,7 @@ t_comms_states tkComms_st_configurar(void)
 	 *
 	 */
 
-uint8_t err_code;
+uint8_t err_code = ERR_NONE;
 t_comms_states next_state = ST_ENTRY;
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_CONFIG);
@@ -29,41 +29,40 @@ t_comms_states next_state = ST_ENTRY;
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("5");
 #endif
-	//xprintf_PD( DF_COMMS, PSTR("COMMS: configurar.\r\n\0"));
 
 	if ( xCOMMS_configurar_dispositivo(DF_COMMS, sVarsComms.simpwd, &err_code ) == true ) {
 		next_state = ST_MON_SQE;
 		goto EXIT;
 	}
 
-//	xprintf_P( PSTR("DEBUG: gprs_prendido=%d\r\n\0"), xCOMMS_stateVars.gprs_prendido);
-//	xprintf_P(PSTR("DEBUG: gprs_inicializado=%d\r\n\0"), xCOMMS_stateVars.gprs_inicializado);
-
 	// Error de configuracion.
 	xCOMMS_stateVars.errores_comms++;
-	xCOMMS_stateVars.reset_dlg = false;
 	switch (err_code) {
 	case ERR_CPIN_FAIL:
 		/*
-		 * No tengo el pin correcto. Reintento dentro de 1 hora
+		 * No tengo el pin correcto. Apago y vuelvo a empezar.
 		 */
-		xprintf_P( PSTR("COMMS: pin ERROR: Reconfiguro timerdial para 1H\r\n\0"));
-		sVarsComms.timerDial = 3600;
-		xCOMMS_stateVars.reset_dlg = true;
+		xCOMMS_apagar_dispositivo();
+		xprintf_P( PSTR("COMMS: ERROR cpin. !!!\r\n\0"));
+		next_state = ST_ENTRY;
+		break;
+
+	case ERR_CREG_FAIL:
+		/*
+		 * No ms puedo registrar en la red. Apago y vuelvo a empezar.
+		 */
+		xCOMMS_apagar_dispositivo();
+		xprintf_P( PSTR("COMMS: ERROR registration. !!!\r\n\0"));
 		next_state = ST_ENTRY;
 		break;
 
 	case ERR_NETATTACH_FAIL:
-		xprintf_P( PSTR("COMMS: net ERRROR: Reconfiguro timerdial para 30min.\r\n\0"));
-		sVarsComms.timerDial = 1800;
-		xCOMMS_stateVars.reset_dlg = true;
+		xprintf_P( PSTR("COMMS: ERROR net attack.\r\n\0"));
 		next_state = ST_ENTRY;
 		break;
 
 	default:
-		xprintf_P( PSTR("COMMS: config ERRROR: Reconfiguro timerdial para 30min.\r\n\0"));
-		sVarsComms.timerDial = 1800;
-		xCOMMS_stateVars.reset_dlg = true;
+		xprintf_P( PSTR("COMMS: ERRROR no considerado. !!!\r\n\0"));
 		next_state = ST_ENTRY;
 		break;
 	}

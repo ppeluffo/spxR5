@@ -12,7 +12,7 @@
 #include "spx.h"
 
 typedef enum { ST_ENTRY = 0, ST_ESPERA_APAGADO, ST_ESPERA_PRENDIDO, ST_PRENDER, ST_CONFIGURAR, ST_MON_SQE, ST_SCAN, ST_NET, ST_INITFRAME, ST_DATAFRAME } t_comms_states;
-typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ERR_IPSERVER_FAIL, ERR_DLGID_FAIL } t_comms_error_code;
+typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_CREG_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ERR_IPSERVER_FAIL, ERR_DLGID_FAIL } t_comms_error_code;
 typedef enum { LINK_CLOSED = 0, LINK_OPEN, LINK_FAIL, LINK_ERROR } t_link_status;
 
 typedef enum { INIT_AUTH = 0, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, DATA } t_frame;
@@ -39,14 +39,6 @@ typedef enum { rsp_OK = 0, rsp_ERROR, rsp_NONE } t_responses;
 
 #define INTER_FRAMES_DELAY	100
 
-#define TIMEOUT_CPIN		20
-#define TIMEOUT_CREG		30
-#define TIMEOUT_MODEM_BOOT	30
-#define TIMEOUT_NETOPEN		30
-#define TIMEOUT_SOCK2CLOSE	30
-#define TIMEOUT_SOCK2OPEN	15
-#define TIMEOUT_PDPATTACH	30
-
 int32_t time_to_next_dial;
 
 t_comms_states tkComms_state;
@@ -57,7 +49,6 @@ typedef struct {
 	bool gprs_prendido;
 	bool gprs_inicializado;
 	uint8_t errores_comms;
-	bool reset_dlg;
 } t_xCOMMS_stateVars;
 
 t_xCOMMS_stateVars xCOMMS_stateVars;
@@ -164,17 +155,13 @@ bool gprs_CPIN(  bool f_debug, char *pin );
 bool gprs_CGREG( bool f_debug );
 uint8_t gprs_read_sqe( bool f_debug );
 bool gprs_CGATT(bool f_debug);
-void gprs_CIPMODE(bool f_debug);
-void gprs_DCDMODE( bool f_debug );
-void gprs_CMGF( bool f_debug );
-void gprs_CFGRI (bool f_debug);
 void gprs_mon_sqe( bool f_debug,  bool modo_continuo, uint8_t *csq);
 bool gprs_scan( t_scan_struct *scan_boundle );
 bool gprs_need_scan( t_scan_struct *scan_boundle );
 bool gprs_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
 bool gprs_set_apn(bool f_debug, char *apn);
 bool gprs_netopen(bool f_debug);
-void gprs_netclose(bool f_debug);
+bool gprs_netclose(bool f_debug);
 bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned );
 t_link_status gprs_check_socket_status(bool f_debug);
 t_link_status gprs_open_socket(bool f_debug, char *ip, char *port);
@@ -183,11 +170,9 @@ char *gprs_get_buffer_ptr( char *pattern);
 bool gprs_SAT_set(uint8_t modo);
 //void gprs_test(void);
 //void gprs_scan_test (PGM_P *dlist );
-void gprs_CGMI( bool f_debug );
-void gprs_CGMM( bool f_debug );
-void gprs_CGMR( bool f_debug );
+
 void gprs_switch_to_command_mode(void);
-void gprs_IFC( bool f_debug );
+
 
 
 

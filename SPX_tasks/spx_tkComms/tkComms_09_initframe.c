@@ -161,7 +161,6 @@ bool retS;
 	next_state = ST_DATAFRAME;
 	xCOMMS_stateVars.gprs_inicializado = true;
 	xCOMMS_stateVars.errores_comms = 0;
-
 EXIT:
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
