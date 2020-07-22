@@ -213,12 +213,12 @@ bool retS = false;
 //------------------------------------------------------------------------------------
 bool xCOMMS_netopen(bool f_debug)
 {
-	return(gprs_netopen(f_debug));
+	return(gprs_NETOPEN(f_debug));
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_netclose(bool f_debug)
 {
-	gprs_netclose(f_debug);
+	gprs_NETCLOSE(f_debug);
 }
 //------------------------------------------------------------------------------------
 t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port)

@@ -146,23 +146,18 @@ bool gprs_prender(bool f_debug );
 void gprs_hw_pwr_on(uint8_t delay_factor);
 void gprs_sw_pwr(void);
 void gprs_apagar(void);
-bool gprs_readImei(bool f_debug);
 char *gprs_get_imei(void);
-bool gprs_readCcid(bool f_debug);
 char  *gprs_get_ccid(void);
 bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code );
-bool gprs_CPIN(  bool f_debug, char *pin );
-bool gprs_CGREG( bool f_debug );
-uint8_t gprs_read_sqe( bool f_debug );
-bool gprs_CGATT(bool f_debug);
+
 void gprs_mon_sqe( bool f_debug,  bool modo_continuo, uint8_t *csq);
 bool gprs_scan( t_scan_struct *scan_boundle );
 bool gprs_need_scan( t_scan_struct *scan_boundle );
 bool gprs_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code );
-bool gprs_set_apn(bool f_debug, char *apn);
-bool gprs_netopen(bool f_debug);
-bool gprs_netclose(bool f_debug);
-bool gprs_read_ip_assigned(bool f_debug, char *ip_assigned );
+
+bool gprs_NETOPEN(bool f_debug);
+bool gprs_NETCLOSE(bool f_debug);
+
 t_link_status gprs_check_socket_status(bool f_debug);
 t_link_status gprs_open_socket(bool f_debug, char *ip, char *port);
 void gprs_close_socket(bool f_debug);
@@ -172,9 +167,6 @@ bool gprs_SAT_set(uint8_t modo);
 //void gprs_scan_test (PGM_P *dlist );
 
 void gprs_switch_to_command_mode(void);
-
-
-
 
 void xSMS_init(void);
 bool xSMS_enqueue(char *dst_nbr, char *msg );

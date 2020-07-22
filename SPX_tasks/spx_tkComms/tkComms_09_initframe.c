@@ -65,14 +65,14 @@ bool retS;
 
 	reset_datalogger = false;
 
-	retS = xCOMMS_process_frame( INIT_AUTH);
+	retS = xCOMMS_process_frame(INIT_AUTH);
 	if ( ! retS ) {
 		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;
 		goto EXIT;
 	}
 
-	retS = xCOMMS_process_frame( INIT_GLOBAL);
+	retS = xCOMMS_process_frame(INIT_GLOBAL);
 	if ( ! retS ) {
 		xCOMMS_stateVars.errores_comms++;
 		next_state = ST_ENTRY;

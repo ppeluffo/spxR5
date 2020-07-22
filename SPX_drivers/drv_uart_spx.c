@@ -189,16 +189,16 @@ void drv_uart_gprs_open( uint32_t baudrate )
 	// baudrate / frame format
 	// Enable TX,RX
 
-uint8_t baudA = 0;
-uint8_t baudB = 0;
-uint8_t ctl = 0;
+uint8_t baudA = 0x00;
+uint8_t baudB = 0x00;
+uint8_t ctl = 0x00;
 
 	PORTE.DIRSET   = PIN3_bm;	// PD3 (TXD0) as output.
 	PORTE.DIRCLR   = PIN2_bm;	// PD2 (RXD0) as input.
 	// USARTE0, 8 Data bits, No Parity, 1 Stop bit.
 	USARTE0.CTRLC = (uint8_t) USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc;
 
-	ctl = USARTE0.CTRLB;
+	//ctl = USARTE0.CTRLB;
 	drv_set_baudrate( baudrate, &baudA, &baudB, &ctl);
 	USARTE0.BAUDCTRLA = baudA;
 	USARTE0.BAUDCTRLB = baudB;

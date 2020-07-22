@@ -43,18 +43,19 @@
  *
  * ------------------------------------------------------------------------
  * Version 3.0.2.m ( MASTER ) @ 2020-07-10
- * 1- A veces no puede leer IMEI o CCID o CPIN. Probando a mano si lo lee. !!
- * GPRS: rxbuff>
- *
- * [0]
- * 2- Cuando da error de configuracion, en vez de abortar hay que reintentar 3 veces con
- *    espacio de 5mins.
+
+ * 1- Reescribo una FSM para el prender el modem.
  * 3- Revisar el reseteo del modem por dar error de configuracion
  * 4- Revisar manejo de errores en abrir el socket.
+ * 5- Normalizo los mensajes de log para poder analizarlos con software
+ * 6- Todos los comandos salen por OK/ERR o timeout.
+ * 7- Agrego el comando AT_CBC para leer el voltaje del modem.
+ * 8- Agrego el comando CPOF para apagar el modem 'soft'
+ * 9- Agrego un comando AT que lo envio cuando un comando no responde. De este modo
+ *    puedo deducir si el modem esta respondiendo o no
+ * 10- Normalizo la forma de enviar todos los comandos y sus logs.
+ * 11- Agrego el comando ATI para sustituir los comandos CGMM,CGMR, CGMI, IMEI.
  *
- * PENDIENTE:
- * -Revisar senales y envios de SMS
- * -Idem para mon_sqe
  * ------------------------------------------------------------------------
  * Version 3.0.2.l ( MASTER ) @ 2020-07-04
  * 1-Encontramos un datalogger FTEST03 reseteado a DEFAULT pero dando
