@@ -46,6 +46,8 @@ typedef enum { prender_RXRDY = 0, prender_HW, prender_SW, prender_CPAS, prender_
 #define MAX_TRYES_NETOPEN		3
 #define MAX_TRYES_CGSN			3
 #define MAX_TRYES_CCID			3
+#define MAX_TRYES_CPSI			3
+#define MAX_TRYES_SWITCHCMDMODE	3
 
 
 #define TIMEOUT_MODEM_BOOT	30
@@ -78,13 +80,14 @@ typedef enum { prender_RXRDY = 0, prender_HW, prender_SW, prender_CPAS, prender_
 #define TIMEOUT_D1			5
 #define TIMEOUT_CSUART		5
 #define TIMEOUT_C1			5
-#define TIMEOUT_CGATT		5
+#define TIMEOUT_CGATT		60
+#define TIMEOUT_CPSI		10
+#define TIMEOUT_SWITCHCMDMODE	10
 
 bool gprs_scan_try (t_scan_struct *scan_boundle, PGM_P *dlist );
 bool gprs_send_scan_frame( t_scan_struct *scan_boundle, char *ip_tmp );
 bool gprs_process_scan_response(t_scan_struct *scan_boundle);
 void gprs_extract_dlgid(t_scan_struct *scan_boundle);
-bool gprs_set_apn(bool f_debug, char *apn);
 
 void gprs_START_SIMULATOR(void);
 bool gprs_PBDONE( bool f_debug );
@@ -109,10 +112,10 @@ void gprs_C1(bool f_debug);
 bool gprs_CCID(bool f_debug);
 bool gprs_CPIN(  bool f_debug, char *pin );
 bool gprs_CREG( bool f_debug );
+bool gprs_CPSI( bool f_debug );
 bool gprs_CGATT(bool f_debug);
 bool gprs_CGSOCKCONT( bool f_debug, char *apn);
 bool gprs_CSOCKSETPN( bool f_debug );
-bool gprs_IPADDR(bool f_debug, char *ip_assigned );
 uint8_t gprs_CSQ( bool f_debug );
 
 //------------------------------------------------------------------------------------
@@ -289,13 +292,12 @@ bool retS = false;
 
 		switch (state ) {
 		case prender_RXRDY:
+			// Avisa a la tarea de rx que se despierte.
 			xprintf_PD( f_debug, PSTR("COMMS: gprs modem pwr_on RXDDY.\r\n\0"));
 			// Aviso a la tarea de RX que se despierte ( para leer las respuestas del AT ) !!!
 			while ( xTaskNotify( xHandle_tkCommsRX, SGN_WAKEUP , eSetBits ) != pdPASS ) {
 				vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 			}
-			// Terminarlo
-
 			hw_tryes = 0;
 			state = prender_HW;
 			break;
@@ -394,7 +396,7 @@ void gprs_AT( void )
 	// Esto me sirve para ver si el modem esta respondiendo o no.
 
 	xprintf_P( PSTR("GPRS: gprs AT TESTING START >>>>>>>>>>\r\n\0"));
-	xfprintf_P( fdGPRS , PSTR("AT\r\n\0"));
+	xfprintf_P( fdGPRS , PSTR("AT\r\0"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer(true);
 	xprintf_P( PSTR("GPRS: gprs AT TESTING END <<<<<<<<<<<\r\n\0"));
@@ -431,7 +433,7 @@ bool retS = false;
 	return (retS);
 
 }
-//------------------------------------------------------------------------------------
+ //------------------------------------------------------------------------------------
 bool gprs_CFUN( bool f_debug )
 {
 	/*
@@ -551,7 +553,7 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code )
+bool gprs_configurar_dispositivo( bool f_debug, char *pin, char *apn, uint8_t *err_code )
 {
 	/*
 	 * Consiste en enviar los comandos AT de modo que el modem GPRS
@@ -559,23 +561,13 @@ bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code )
 	 */
 
 	gprs_CBC( f_debug );
-	//gprs_CGMI( f_debug );
-	//gprs_CGMM( f_debug );
-	//gprs_CGMR( f_debug );
 	gprs_ATI(f_debug);
 	gprs_IFC( f_debug );
 
-	// AT+CGSN
-	//if ( gprs_CGSN(f_debug) == false ) {
-	//	gprs_apagar();
-	//	xprintf_PD( f_debug, PSTR("COMMS: gprs ERROR: Imei not available!!\r\n\0"));
-		//return (false );
-	//}
-
 	// AT+CCID
 	if ( gprs_CCID(f_debug) == false ) {
-		gprs_apagar();
-		xprintf_PD( f_debug, PSTR("COMMS: gprs ERROR: Ccid not available!!\r\n\0"));
+		xprintf_PD( f_debug, PSTR("COMMS: gprs ERROR: CCID not available!!\r\n\0"));
+		//gprs_apagar();
 		//return (false );
 	}
 
@@ -598,10 +590,22 @@ bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code )
 		return(false);
 	}
 
+	// Vemos que la red este operativa
+	if ( ! gprs_CPSI(f_debug) ) {
+		*err_code = ERR_CPSI_FAIL;
+		return(false);
+	}
+
 	// Me debo atachear a la red. Con esto estoy conectado a la red movil pero
 	// aun no puedo trasmitir datos.
 	if ( ! gprs_CGATT(f_debug) ) {
 		*err_code = ERR_NETATTACH_FAIL;
+		return(false);
+	}
+
+	// Fijo el APN
+	if ( ! gprs_set_apn( f_debug, apn ) ) {
+		*err_code = ERR_APN_FAIL;
 		return(false);
 	}
 
@@ -612,6 +616,7 @@ bool gprs_configurar_dispositivo( bool f_debug, char *pin, uint8_t *err_code )
 void gprs_CBC( bool f_debug )
 {
 	// Lee el voltaje del modem
+	// Solo espero un OK.
 
 uint8_t timeout;
 bool retS = false;
@@ -770,7 +775,7 @@ bool retS = false;
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 		if ( gprs_check_response("OK") ) {
-			if ( gprs_check_response("+IFC: 0,0")) {
+			if ( gprs_check_response("IFC: 0,0")) {
 				retS = true;
 			}
 			break;
@@ -815,7 +820,7 @@ uint8_t timeout;
 	gprs_print_RX_buffer(f_debug);
 
 	if (retS) {
-		xprintf_PD( f_debug,  PSTR("COMMS: gprs ATI OK [%s] en [%d] secs\r\n\0"), gprs_status.buff_gprs_imei, timeout );
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs ATI OK imei [%s] en [%d] secs\r\n\0"), gprs_status.buff_gprs_imei, timeout );
 	} else {
 		gprs_AT();
 		xprintf_PD( f_debug,  PSTR("COMMS: ERROR gprs ATI FAIL !!.\r\n\0"));
@@ -868,7 +873,7 @@ char *p;
 EXIT:
 
 	if (retS) {
-		xprintf_PD( f_debug,  PSTR("COMMS: gprs CGSN OK  imei[%s] en [%d] secs\r\n\0"), gprs_status.buff_gprs_imei, timeout );
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs CGSN OK  imei [%s] en [%d] secs\r\n\0"), gprs_status.buff_gprs_imei, timeout );
 	} else {
 		gprs_AT();
 		xprintf_PD( f_debug,  PSTR("COMMS: ERROR gprs CGSN FAIL !!.\r\n\0"));
@@ -911,7 +916,7 @@ char *p;
 
 			if ( gprs_check_response("OK") ) {
 				gprs_print_RX_buffer( f_debug);
-				p = strstr(gprsRxBuffer.buffer,"+CCID:");
+				p = strstr(gprsRxBuffer.buffer,"CCID:");
 				retS = pv_get_token(p, gprs_status.buff_gprs_ccid, CCIDBUFFSIZE );
 				goto EXIT;
 			}
@@ -924,7 +929,7 @@ char *p;
 EXIT:
 
 	if (retS) {
-		xprintf_PD( f_debug,  PSTR("COMMS: gprs CCID OK  ccid[%s] en [%d] secs\r\n\0"), gprs_status.buff_gprs_imei, timeout );
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs CCID OK  ccid [%s] en [%d] secs\r\n\0"), gprs_status.buff_gprs_imei, timeout );
 	} else {
 		gprs_AT();
 		xprintf_PD( f_debug,  PSTR("COMMS: ERROR gprs CCID FAIL !!.\r\n\0"));
@@ -958,9 +963,9 @@ char c;
 		goto EXIT;
 	}
 
-	memset( buff, '\0', IMEIBUFFSIZE);
+	memset( buff, '\0', size);
 
-	// Start. Busco el primer caracter.
+	// Start. Busco el primer caracter en rxbuffer
 	for (i=0; i<64; i++) {
 		c = *p;
 		if ( isdigit(c) ) {
@@ -1269,13 +1274,71 @@ int8_t timeout;
 			}
 
 			if ( gprs_check_response("OK") ) {
-				if ( gprs_check_response("+CREG: 0,1") ) {
+				if ( gprs_check_response("CREG: 0,1") ) {
 					// Respuesta correcta.
 					gprs_print_RX_buffer( f_debug);
 					retS = true;
 					goto EXIT;
 				}
 				// OK pero no correcto: Reintento
+				break;
+			}
+		}
+
+		// Sali por TO/ERROR/rsp.no correcta: Muestro la respuesta y reintento.
+		gprs_print_RX_buffer( f_debug);
+		gprs_AT();
+	}
+
+EXIT:
+
+	if (retS) {
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs gprs CREG OK en [%d] secs\r\n\0"), (( 10 * (tryes-1) ) + timeout) );
+	} else {
+		gprs_AT();
+		xprintf_PD( f_debug,  PSTR("COMMS: ERROR gprs gprs CREG FAIL !!.\r\n\0"));
+	}
+
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+bool gprs_CPSI( bool f_debug )
+{
+	/* Chequeo que la red este operativa
+	*/
+
+bool retS = false;
+uint8_t tryes;
+int8_t timeout;
+
+	xprintf_PD( f_debug,  PSTR("COMMS: gprs CPSI( service )\r\n\0"));
+	tryes = 0;
+	while ( tryes++ < MAX_TRYES_CPSI ) {
+
+		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
+		xprintf_PD( f_debug, PSTR("GPRS: gprs send CPSI (%d)\r\n\0"),tryes );
+		xfprintf_P( fdGPRS, PSTR("AT+CPSI?\r\0"));
+
+		timeout = 0;
+		while ( timeout++ < TIMEOUT_CPSI ) {
+			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+			if ( gprs_check_response("ERROR") ) {
+				// Salgo y reintento el comando.
+				break;
+			}
+
+			if ( gprs_check_response("OK") ) {
+				gprs_print_RX_buffer( f_debug);
+				if ( gprs_check_response("NO SERVICE") ) {
+					// Sin servicio.
+					retS = false;
+				} else {
+					retS = true;
+				}
+				goto EXIT;
 				break;
 			}
 		}
@@ -1352,7 +1415,7 @@ uint8_t tryes;
 			}
 
 			if ( gprs_check_response("OK") ) {
-				if ( gprs_check_response("+CGATT: 1") ) {
+				if ( gprs_check_response("CGATT: 1") ) {
 					// Respuesta correcta.
 					gprs_print_RX_buffer( f_debug);
 					retS = true;
@@ -1447,38 +1510,6 @@ uint8_t timer = 1;
 			timer = 10;
 		}
 	}
-}
-//------------------------------------------------------------------------------------
-bool gprs_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
-{
-
-	/*
-	 * El pedir IP es un concepto solo de GPRS
-	 * - Setea el APN
-	 * - Se conecta ( se le asigna una IP )
-	 * - Lee la IP asignada.
-	 */
-
-	// Paso 1: Setea el APN ( Configuro el PDP context )
-	if ( gprs_set_apn( f_debug, apn ) == false ) {
-		return(false);
-	}
-
-	// Paso 2: Me conecto a la red ( Activo el PDP context )
-	// Siempre antes de un NETOPEN doy este que cierra la conexion TCP y desactiva el PDP context.
-	gprs_NETCLOSE(f_debug);
-
-	if ( gprs_NETOPEN(f_debug ) == false ) {
-		return(false);
-	}
-
-	// Paso 3: Leo la ip asignada
-	if ( gprs_IPADDR(f_debug, ip_assigned ) == false ) {
-		return(false);
-	}
-
-	return(true);
-
 }
 //------------------------------------------------------------------------------------
 bool gprs_set_apn(bool f_debug, char *apn)
@@ -1606,9 +1637,6 @@ uint8_t tryes;
 int8_t timeout;
 
 	xprintf_PD( f_debug,  PSTR("COMMS: gprs NETCLOSE\r\n\0"));
-
-	gprs_switch_to_command_mode();
-
 	tryes = 0;
 	while (tryes++ <  MAX_TRYES_NETCLOSE ) {
 		gprs_flush_RX_buffer();
@@ -1618,24 +1646,27 @@ int8_t timeout;
 
 		timeout = 0;
 		while ( timeout++ < TIMEOUT_NETCLOSE ) {
+
 			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-			if ( gprs_check_response("Network closed")) {
-				retS = true;
-				goto EXIT;
-
-			} else if ( gprs_check_response("Network is already closed")) {
-				retS = true;
-				goto EXIT;
-
-			} else if ( gprs_check_response("OK") ) {
-				retS = true;
-				goto EXIT;
-
-			} else if ( gprs_check_response("ERROR") ) {
-				retS = false;
-				goto EXIT;
+			if ( gprs_check_response("OK") ) {
+				if ( gprs_check_response("Network closed")) {
+					retS = true;
+					goto EXIT;
+				}
 			}
+
+			if ( gprs_check_response("ERROR") ) {
+				if ( gprs_check_response("Network is already closed")) {
+					retS = true;
+					goto EXIT;
+				} else {
+					retS = false;
+					goto EXIT;
+				}
+			}
+
+			// Sin respuesta aun
 		}
 
 		gprs_print_RX_buffer( f_debug);
@@ -1657,10 +1688,10 @@ EXIT:
 //------------------------------------------------------------------------------------
 bool gprs_NETOPEN(bool f_debug)
 {
-	// Abre una conexion a la red..
-	// Activa el contexto y crea el socket
+	// Inicia el servicio de sockets abriendo un socket. ( no es una conexion sino un
+	// socket local por el cual se va a comunicar. )
+	// Activa el contexto y crea el socket local
 	// La red asigna una IP.
-	// Doy el comando para atachearme a la red
 	// Puede demorar unos segundos por lo que espero para chequear el resultado
 	// y reintento varias veces.
 
@@ -1669,9 +1700,6 @@ uint8_t tryes;
 int8_t timeout;
 
 	xprintf_PD( f_debug,  PSTR("COMMS: gprs NETOPEN\r\n\0"));
-
-	gprs_switch_to_command_mode();
-
 	tryes = 0;
 	while (tryes++ <  MAX_TRYES_NETOPEN ) {
 
@@ -1685,26 +1713,23 @@ int8_t timeout;
 			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 			// Evaluo las respuestas del modem.
-			if ( gprs_check_response("Network opened")) {
-				retS = true;
-				goto EXIT;
-
-			} else if ( gprs_check_response("+IP ERROR: Network is already opened")) {
-				retS = true;
-				goto EXIT;
-
-			} else if ( gprs_check_response("+NETOPEN: 0")) {
-				retS = true;
-				goto EXIT;
-
-			} else if ( gprs_check_response("+NETOPEN: 1")) {
-				retS = false;
-				goto EXIT;
-
-			} else if ( gprs_check_response("ERROR")) {
-				retS = false;
-				goto EXIT;
+			if ( gprs_check_response("OK") ) {
+				if ( gprs_check_response("Network opened")) {
+					retS = true;
+					goto EXIT;
+				}
 			}
+
+			if ( gprs_check_response("ERROR") ) {
+				if ( gprs_check_response("Network is already opened")) {
+					retS = true;
+					goto EXIT;
+				} else {
+					retS = false;
+					goto EXIT;
+				}
+			}
+			// Sin respuesta aun
 		}
 
 		gprs_print_RX_buffer( f_debug);
@@ -1723,6 +1748,48 @@ EXIT:
 
 	return(retS);
 
+}
+//------------------------------------------------------------------------------------
+bool gprs_check_NETOPEN_status( bool f_debug)
+{
+
+uint8_t timeout;
+bool retS = false;
+
+	xprintf_PD( f_debug, PSTR("COMMS: gprs NETSERVICE.\r\n\0"));
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	xfprintf_P( fdGPRS, PSTR("AT+NETOPEN?\r\0"));
+	timeout = 0;
+	while ( timeout++ < TIMEOUT_NETOPEN ) {
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+		if ( gprs_check_response("OK")) {
+			if ( gprs_check_response("NETOPEN: 0,0")) {
+				retS = false;
+				break;
+			}
+			if ( gprs_check_response("NETOPEN: 1,0")) {
+				retS = true;
+				break;
+			}
+
+		} else if ( gprs_check_response("ERROR")) {
+			retS = false;
+			break;
+		}
+		// Espero
+	}
+
+	gprs_print_RX_buffer(f_debug);
+
+	if ( retS ) {
+		xprintf_PD( f_debug, PSTR("COMMS: gprs NETSERVICE is open.\r\n\0"));
+	} else {
+		xprintf_PD( f_debug, PSTR("COMMS: gprs NETSERVICE is close.\r\n\0") );
+	}
+
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 bool gprs_IPADDR(bool f_debug, char *ip_assigned )
@@ -1755,31 +1822,35 @@ bool retS = false;
 	while ( timeout++ < TIMEOUT_READIP ) {
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-		if ( gprs_check_response("+IP ERROR: Network not opened")) {
-			// No tengo la IP.
+		// Evaluo las respuestas del modem.
+		if ( gprs_check_response("OK") ) {
+			if ( gprs_check_response("IPADDR:")) {
+				// Tengo la IP: extraigo la IP del token.
+				ptr = ip_assigned;
+				ts = strchr( gprsRxBuffer.buffer, ':');
+				ts++;
+				while ( (c= *ts) != '\r') {
+					*ptr++ = c;
+					ts++;
+				}
+				*ptr = '\0';
+				retS = true;
+				break;
+			}
+		}
+
+		if ( gprs_check_response("ERROR") ) {
+			// +IP ERROR: Network not opened
 			retS = false;
 			break;
 		}
-
-		if ( gprs_check_response("+IPADDR:")) {
-			// Tengo la IP: extraigo la IP del token.
-			ptr = ip_assigned;
-			ts = strchr( gprsRxBuffer.buffer, ':');
-			ts++;
-			while ( (c= *ts) != '\r') {
-				*ptr++ = c;
-				ts++;
-			}
-			*ptr = '\0';
-			retS = true;
-			break;
-		}
+		// Sin respuesta aun
 	}
 
 	gprs_print_RX_buffer(f_debug);
 
 	if ( retS ) {
-		xprintf_PD( f_debug,  PSTR("COMMS: gprs IPADDR [%s] OK\r\n\0"), ip_assigned );
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs IPADDR OK [%s]\r\n\0"), ip_assigned );
 	} else {
 		gprs_AT();
 		xprintf_P( PSTR("COMMS: ERROR gprs IPADDR FAIL !!.\r\n\0") );
@@ -1789,36 +1860,27 @@ bool retS = false;
 
 }
 //------------------------------------------------------------------------------------
-t_link_status gprs_open_socket(bool f_debug, char *ip, char *port)
+t_link_status gprs_open_connection(bool f_debug, char *ip, char *port)
 {
+
+	// only <link_num>=0 is allowed to operate with transparent mode.
+	// Cuando el link queda abierto en modo transparente, lo que escribo en el puerto serial
+	// se va por el link.
 
 uint8_t timeout = 0;
 t_link_status link_status = LINK_FAIL;
 
-	xprintf_PD( f_debug, PSTR("COMMS: gprs try to open socket\r\n\0"));
-
-	// Paso a modo comando
-	gprs_switch_to_command_mode();
-
-	// El socket debe estar cerrado.
-	// Espero hasta 30s que este cerrado.
-	timeout = 0;
-	while ( timeout++ < TIMEOUT_SOCKCLOSE ) {
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( IO_read_DCD() == 1)
-			break;
+	xprintf_PD( f_debug, PSTR("COMMS: gprs LINK open.\r\n\0"));
 
 #ifdef MODEM_SIMULATOR
 		break;
 #endif
 
-	}
-
 	// Intento abrir el socket una sola vez
 	gprs_flush_RX_buffer();
 	gprs_flush_TX_buffer();
 	xfprintf_P( fdGPRS, PSTR("AT+TCPCONNECT=\"%s\",%s\r\n\0"), ip, port);
-	vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
+	//xfprintf_P( fdGPRS, PSTR("AT+CIPOPEN=0,\"TCP\",\"%s\",%s\r\0"), ip, port);
 
 	// Espero hasta 15s la respuesta
 	timeout = 0;
@@ -1828,96 +1890,87 @@ t_link_status link_status = LINK_FAIL;
 
 		if ( gprs_check_response("CONNECT 115200")) {
 			link_status = LINK_OPEN;
-			//xprintf_PD( f_debug , PSTR("COMMS: gprs sckt is open (connect 115200)\r\n\0"));
 			break;
 
-		} else if ( gprs_check_response("Operation not supported")) {
-			link_status = LINK_ERROR;
-			//xprintf_PD( f_debug , PSTR("COMMS: gprs sckt ERROR\r\n\0"));
+		} else if ( gprs_check_response("Connect ok")) {
+			link_status = LINK_OPEN;
+			break;
+
+		} else if ( gprs_check_response("OK")) {
+			link_status = LINK_OPEN;
 			break;
 
 		} else if ( gprs_check_response("ERROR")) {
+
+			if ( gprs_check_response("Connection is already created")) {
+				// Me respondio que la conexion esta abierta pero estoy en modo comando
+				link_status = LINK_OPEN;
+				break;
+			}
+
 			link_status = LINK_ERROR;
-			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt ERROR\r\n\0"));
-			break;
-
-		} else if ( gprs_check_response("FAIL")) {
-			link_status = LINK_ERROR;
-			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt CONNECT FAIL\r\n\0"));
-			break;
-
-		} else if ( gprs_check_response("+CIPEVENT:")) {
-			// El socket no se va a recuperar. Hay que cerrar el net y volver a abrirlo.
-			link_status = LINK_FAIL;
-			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt FAIL +CIPEVENT:\r\n\0"));
-			break;
-
-		} else if ( gprs_check_response("+CIPOPEN: 0,2")) {
-			// El socket no se va a recuperar. Hay que cerrar el net y volver a abrirlo.
-			link_status = LINK_FAIL;
-			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt FAIL +CIPOPEN: 0,2\r\n\0"));
-			break;
-
-		} else if ( gprs_check_response("+IP ERROR: Operation not supported")) {
-			// El socket no se va a recuperar. Hay que cerrar el net y volver a abrirlo.
-			link_status = LINK_FAIL;
-			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt FAIL: Operation not supported\r\n\0"));
 			break;
 		}
-
+		// Espero
 	}
 
 	gprs_print_RX_buffer(f_debug);
 
 	if (link_status == LINK_OPEN ) {
-		xprintf_PD( f_debug,  PSTR("COMMS: gprs Socket open OK en [%d] secs\r\n\0"), timeout );
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs LINK open OK en [%d] secs\r\n\0"), timeout );
 	} else {
-		xprintf_PD( f_debug,  PSTR("COMMS: gprs ERROR: Socket open FAIL !!.\r\n\0"));
+		xprintf_PD( f_debug,  PSTR("COMMS: ERROR gprs LINK open FAIL !!.\r\n\0"));
 	}
 
 	return(link_status);
 
 }
 //------------------------------------------------------------------------------------
-void gprs_close_socket(bool f_debug)
+bool gprs_close_connection(bool f_debug)
 {
-	xprintf_PD( f_debug, PSTR("COMMS: gprs try to close socket\r\n\0"));
-
-	// Paso a modo comando y cierro el socket por las dudas
-	gprs_switch_to_command_mode();
 
 uint8_t timeout;
 bool retS = false;
 
-	xprintf_PD( f_debug, PSTR("COMMS: gprs try to close socket\r\n\0"));
+	xprintf_PD( f_debug, PSTR("COMMS: gprs LINK close.\r\n\0"));
 	gprs_flush_RX_buffer();
 	gprs_flush_TX_buffer();
-	xfprintf_P( fdGPRS, PSTR("AT+TCPCLOSE\n\0"));
+	//xfprintf_P( fdGPRS, PSTR("AT+TCPCLOSE\n\0"));
+	xfprintf_P( fdGPRS, PSTR("AT+CIPCLOSE=0\r\0"));
 	timeout = 0;
 	while ( timeout++ < TIMEOUT_SOCKCLOSE ) {
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( IO_read_DCD() == 1 ) {
+
+		if ( gprs_check_response("OK")) {
 			retS = true;
 			break;
+
+		} else if ( gprs_check_response("ERROR")) {
+
+			if ( gprs_check_response("Connection is already created")) {
+				retS = true;
+				break;
+			}
+
+			retS = false;
+			break;
 		}
-#ifdef MODEM_SIMULATOR
-		retS = true;
-		break;
-#endif
+		// Espero
 	}
 
 	gprs_print_RX_buffer(f_debug);
+
 	if ( retS ) {
-		xprintf_PD( f_debug, PSTR("COMMS: gprs SOCK closed OK en [%d] secs\r\n\0"), timeout );
+		xprintf_PD( f_debug, PSTR("COMMS: gprs LINK close OK en [%d] secs\r\n\0"), timeout );
 	} else {
-		xprintf_PD( f_debug, PSTR("COMMS: WARN gprs SOCK closed failed !!!\r\n\0") );
+		xprintf_PD( f_debug, PSTR("COMMS: WARN gprs LINK close FAIL !!\r\n\0") );
 	}
 
-	return;
+	return(retS);
 
 }
 //------------------------------------------------------------------------------------
-t_link_status gprs_check_socket_status(bool f_debug)
+t_link_status gprs_check_connection_status(bool f_debug)
 {
 	/* En el caso de un link GPRS, el socket puede estar abierto
 	 * o no.
@@ -1940,11 +1993,11 @@ t_link_status socket_status = LINK_CLOSED;
 
 	if (  pin_dcd == 0 ) {
 		socket_status = LINK_OPEN;
-		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt is open (dcd=%d)\r\n\0"),pin_dcd);
+		xprintf_PD( f_debug, PSTR("COMMS: gprs LINK open. (dcd=%d)\r\n\0"),pin_dcd);
 
 	} else {
 		socket_status = LINK_CLOSED;
-		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt is close (dcd=%d)\r\n\0"),pin_dcd);
+		xprintf_PD( f_debug, PSTR("COMMS: gprs LINK close. (dcd=%d)\r\n\0"),pin_dcd);
 
 	}
 
@@ -2025,20 +2078,9 @@ uint8_t intentos;
 
 	// Configuro
 	// EL pin es el de default ya que si estoy aqui es porque no tengo configuracion valida.
-	if (  ! gprs_configurar_dispositivo( scan_boundle->f_debug, scan_boundle->cpin, NULL ) ) {
+	if (  ! gprs_configurar_dispositivo( scan_boundle->f_debug, scan_boundle->cpin, apn_tmp, NULL ) ) {
 		return(false);
 	}
-
-	// Apn
-	gprs_set_apn(scan_boundle->f_debug, apn_tmp );
-
-	// Intento pedir una IP
-	if ( ! gprs_NETOPEN(scan_boundle->f_debug) ) {
-		return(false);
-	}
-
-	// Tengo la IP. La leo.
-	gprs_IPADDR(scan_boundle->f_debug, NULL);
 
 	// Envio un frame de SCAN al servidor.
 	for( intentos= 0; intentos < 3 ; intentos++ )
@@ -2069,7 +2111,7 @@ uint8_t i = 0;
 	// Loop
 	for ( i = 0; i < 3; i++ ) {
 
-		if (  gprs_check_socket_status( scan_boundle->f_debug) == LINK_OPEN ) {
+		if (  gprs_check_connection_status( scan_boundle->f_debug) == LINK_OPEN ) {
 
 			gprs_flush_RX_buffer();
 			gprs_flush_TX_buffer();
@@ -2082,7 +2124,8 @@ uint8_t i = 0;
 		} else {
 			// No tengo enlace al server. Intento abrirlo
 			vTaskDelay( (portTickType)( 3000 / portTICK_RATE_MS ) );
-			gprs_open_socket(scan_boundle->f_debug, ip_tmp, scan_boundle->tcp_port );
+			gprs_switch_to_command_mode(scan_boundle->f_debug);
+			gprs_open_connection(scan_boundle->f_debug, ip_tmp, scan_boundle->tcp_port );
 		}
 	}
 
@@ -2102,7 +2145,7 @@ uint8_t timeout = 0;
 		vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );	// Espero 1s
 
 		// El socket se cerro
-		if ( gprs_check_socket_status( scan_boundle->f_debug) != LINK_OPEN ) {
+		if ( gprs_check_connection_status( scan_boundle->f_debug) != LINK_OPEN ) {
 			return(false);
 		}
 
@@ -2252,14 +2295,205 @@ bool gprs_SAT_set(uint8_t modo)
 
 }
 //------------------------------------------------------------------------------------
-void gprs_switch_to_command_mode(void)
+void gprs_switch_to_command_mode(bool f_debug)
 {
 	/*
 	 * Para switchear de data mode a command mode, DTR=0 al menos 1s.
 	 */
+
+//uint8_t tryes;
+//int8_t timeout;
+
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+
+	vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
+	xfprintf_P( fdGPRS , PSTR("+++"));
 	IO_clr_GPRS_DTR();
 	vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
 	IO_set_GPRS_DTR();
+
+	/*
+	tryes = 0;
+	while (tryes++ <  MAX_TRYES_SWITCHCMDMODE ) {
+
+		gprs_flush_RX_buffer();
+		gprs_flush_TX_buffer();
+
+		vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
+		xfprintf_P( fdGPRS , PSTR("+++"));
+		IO_clr_GPRS_DTR();
+		vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
+		IO_set_GPRS_DTR();
+
+		timeout = 0;
+		while ( timeout++ < TIMEOUT_NETOPEN ) {
+			if ( gprs_check_response("OK")) {
+				xprintf_PD( f_debug,  PSTR("COMMS: back to command mode OK.\r\n\0"));
+				return;
+			}
+			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		}
+	}
+	xprintf_PD( f_debug,  PSTR("COMMS: back to command mode FAIL !!.\r\n\0"));
+	return;
+	*/
+
 }
+//------------------------------------------------------------------------------------
+/*
+t_link_status gprs_open_socket(bool f_debug, char *ip, char *port)
+{
+
+	// only <link_num>=0 is allowed to operate with transparent mode.
+
+uint8_t timeout = 0;
+t_link_status link_status = LINK_FAIL;
+
+	xprintf_PD( f_debug, PSTR("COMMS: gprs SOCK opening.\r\n\0"));
+
+	// El socket debe estar cerrado.
+	// Espero hasta 30s que este cerrado.
+	timeout = 0;
+	while ( timeout++ < TIMEOUT_SOCKCLOSE ) {
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		if ( IO_read_DCD() == 1)
+			break;
+
+#ifdef MODEM_SIMULATOR
+		break;
+#endif
+
+	}
+
+	// Intento abrir el socket una sola vez
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	//xfprintf_P( fdGPRS, PSTR("AT+TCPCONNECT=\"%s\",%s\r\n\0"), ip, port);
+	xfprintf_P( fdGPRS, PSTR("AT+CIPOPEN=0,\"TCP\",\"%s\",%s\r"), ip, port);
+
+	vTaskDelay( (portTickType)( 1500 / portTICK_RATE_MS ) );
+
+	// Espero hasta 15s la respuesta
+	timeout = 0;
+	while ( timeout++ < TIMEOUT_SOCK2OPEN ) {
+
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+		if ( gprs_check_response("CONNECT 115200")) {
+			link_status = LINK_OPEN;
+			//xprintf_PD( f_debug , PSTR("COMMS: gprs sckt is open (connect 115200)\r\n\0"));
+			break;
+
+		} else if ( gprs_check_response("Operation not supported")) {
+			link_status = LINK_ERROR;
+			//xprintf_PD( f_debug , PSTR("COMMS: gprs sckt ERROR\r\n\0"));
+			break;
+
+		} else if ( gprs_check_response("ERROR")) {
+			link_status = LINK_ERROR;
+			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt ERROR\r\n\0"));
+			break;
+
+		} else if ( gprs_check_response("FAIL")) {
+			link_status = LINK_ERROR;
+			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt CONNECT FAIL\r\n\0"));
+			break;
+
+		} else if ( gprs_check_response("CIPEVENT:")) {
+			// El socket no se va a recuperar. Hay que cerrar el net y volver a abrirlo.
+			link_status = LINK_FAIL;
+			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt FAIL +CIPEVENT:\r\n\0"));
+			break;
+
+		} else if ( gprs_check_response("CIPOPEN: 0,2")) {
+			// El socket no se va a recuperar. Hay que cerrar el net y volver a abrirlo.
+			link_status = LINK_FAIL;
+			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt FAIL +CIPOPEN: 0,2\r\n\0"));
+			break;
+
+		} else if ( gprs_check_response("IP ERROR: Operation not supported")) {
+			// El socket no se va a recuperar. Hay que cerrar el net y volver a abrirlo.
+			link_status = LINK_FAIL;
+			//xprintf_PD( f_debug, PSTR("COMMS: gprs sckt FAIL: Operation not supported\r\n\0"));
+			break;
+		}
+
+	}
+
+	gprs_print_RX_buffer(f_debug);
+
+	if (link_status == LINK_OPEN ) {
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs Socket open OK en [%d] secs\r\n\0"), timeout );
+	} else {
+		xprintf_PD( f_debug,  PSTR("COMMS: gprs ERROR: Socket open FAIL !!.\r\n\0"));
+	}
+
+	return(link_status);
+
+}
+//------------------------------------------------------------------------------------
+void gprs_close_socket(bool f_debug)
+{
+	xprintf_PD( f_debug, PSTR("COMMS: gprs try to close socket\r\n\0"));
+
+uint8_t timeout;
+bool retS = false;
+
+	xprintf_PD( f_debug, PSTR("COMMS: gprs SOCK closing.\r\n\0"));
+	gprs_flush_RX_buffer();
+	gprs_flush_TX_buffer();
+	xfprintf_P( fdGPRS, PSTR("AT+TCPCLOSE\n\0"));
+	timeout = 0;
+	while ( timeout++ < TIMEOUT_SOCKCLOSE ) {
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		if ( IO_read_DCD() == 1 ) {
+			retS = true;
+			break;
+		}
+#ifdef MODEM_SIMULATOR
+		retS = true;
+		break;
+#endif
+	}
+
+	gprs_print_RX_buffer(f_debug);
+	if ( retS ) {
+		xprintf_PD( f_debug, PSTR("COMMS: gprs SOCK closed OK en [%d] secs\r\n\0"), timeout );
+	} else {
+		xprintf_PD( f_debug, PSTR("COMMS: WARN gprs SOCK closed failed !!!\r\n\0") );
+	}
+
+	return;
+
+}
+//------------------------------------------------------------------------------------
+t_link_status gprs_check_socket_status(bool f_debug)
+{
+
+
+uint8_t pin_dcd = 0;
+t_link_status socket_status = LINK_CLOSED;
+
+	pin_dcd = IO_read_DCD();
+
+#ifdef MODEM_SIMULATOR
+	pin_dcd = 0;
+#endif
+
+	if (  pin_dcd == 0 ) {
+		socket_status = LINK_OPEN;
+		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt is open (dcd=%d)\r\n\0"),pin_dcd);
+
+	} else {
+		socket_status = LINK_CLOSED;
+		xprintf_PD( f_debug, PSTR("COMMS: gprs sckt is close (dcd=%d)\r\n\0"),pin_dcd);
+
+	}
+
+	return(socket_status);
+
+}
+*/
 //------------------------------------------------------------------------------------
 

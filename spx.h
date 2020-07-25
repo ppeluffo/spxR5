@@ -64,14 +64,14 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.2.m03"
-#define SPX_FW_DATE "@ 20200722"
+#define SPX_FW_REV "3.0.2.m04"
+#define SPX_FW_DATE "@ 20200725"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master"
 
-#define MODEM_SIMULATOR
+//#define MODEM_SIMULATOR
 
 //#define F_CPU (32000000UL)
 

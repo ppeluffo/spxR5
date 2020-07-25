@@ -42,8 +42,8 @@
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
  * ------------------------------------------------------------------------
- * Version 3.0.2.m ( MASTER ) @ 2020-07-10
-
+ * Version 3.0.2.m ( MASTER ) @ 2020-07-25
+ *
  * 1- Reescribo una FSM para el prender el modem.
  * 3- Revisar el reseteo del modem por dar error de configuracion
  * 4- Revisar manejo de errores en abrir el socket.
@@ -55,6 +55,19 @@
  *    puedo deducir si el modem esta respondiendo o no
  * 10- Normalizo la forma de enviar todos los comandos y sus logs.
  * 11- Agrego el comando ATI para sustituir los comandos CGMM,CGMR, CGMI, IMEI.
+ * 12- En NETOPEN se asigna la IP y la leo con IPADDR.
+ *     Arreglo que cada vez que se usa el primero, si es ok se da el segundo asi siempre
+ *     se que IP tengo.
+ * 13- Modifico algunas funciones de gprs para que evaluen OK y ERROR primero.
+ *     Luego en los strings que se evaluan, recorto las +
+ * 14- Arreglo el comando +++ que al final no lleva /r.
+ * 15- En gprs_opensocket y gprs_closesocket NO paso a modo comando. Lo hago en capas superiores.
+ * 16- Elimino gprs_net_connect().
+ * 17- tcpclose() terminaba en \n y no en \r.
+ * 18- Elimino gprs_net_connect: el set apn lo paso a configurar y el netopen/ipaddress a
+ *     process_frame.
+ * 19- Agrego una funcion para determinar el estado del netopen().
+ * 20- Reescribo la funcion FSM de procesar_frame.
  *
  * ------------------------------------------------------------------------
  * Version 3.0.2.l ( MASTER ) @ 2020-07-04

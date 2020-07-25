@@ -57,7 +57,7 @@ bool retS;
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("9");
 #endif
-	xprintf_P( PSTR("COMMS: initframe.\r\n\0"));
+	xprintf_P( PSTR("COMMS: IN st_initframe.\r\n\0"));
 
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_INITFRAME );
 

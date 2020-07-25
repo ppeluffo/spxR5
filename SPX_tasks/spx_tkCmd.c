@@ -1378,7 +1378,11 @@ uint8_t pin = 0;
 			//xprintf_P( PSTR("%s\r\0"),argv[3] );
 
 			gprs_flush_RX_buffer();
-			xfprintf_P( fdGPRS,PSTR("%s\r\0"),argv[3] );
+			if (strcmp_P( argv[3], PSTR("+++")) == 0 ) {
+				xfprintf_P( fdGPRS,PSTR("%s"),argv[3] );
+			} else {
+				xfprintf_P( fdGPRS,PSTR("%s\r\0"),argv[3] );
+			}
 
 			xprintf_P( PSTR("sent->%s\r\n\0"),argv[3] );
 			return;

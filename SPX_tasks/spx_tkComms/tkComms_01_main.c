@@ -50,9 +50,6 @@ void tkComms(void * pvParameters)
 		case ST_SCAN:
 			tkComms_state = tkComms_st_scan();
 			break;
-		case ST_NET:
-			tkComms_state = tkComms_st_net_connect();
-			break;
 		case ST_INITFRAME:
 			tkComms_state = tkComms_st_initframe();
 			break;

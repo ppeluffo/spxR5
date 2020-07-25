@@ -30,7 +30,7 @@ t_comms_states next_state = ST_ENTRY;
 	debug_print_stack_watermarks("5");
 #endif
 
-	if ( xCOMMS_configurar_dispositivo(DF_COMMS, sVarsComms.simpwd, &err_code ) == true ) {
+	if ( xCOMMS_configurar_dispositivo(DF_COMMS, sVarsComms.simpwd, sVarsComms.apn, &err_code ) == true ) {
 		next_state = ST_MON_SQE;
 		goto EXIT;
 	}
@@ -56,8 +56,22 @@ t_comms_states next_state = ST_ENTRY;
 		next_state = ST_ENTRY;
 		break;
 
+	case ERR_CPSI_FAIL:
+		/*
+		 * La red no esta operativa
+		 */
+		xCOMMS_apagar_dispositivo();
+		xprintf_P( PSTR("COMMS: ERROR red NO operativa. !!!\r\n\0"));
+		next_state = ST_ENTRY;
+		break;
+
 	case ERR_NETATTACH_FAIL:
-		xprintf_P( PSTR("COMMS: ERROR net attack.\r\n\0"));
+		xprintf_P( PSTR("COMMS: ERROR net attach.\r\n\0"));
+		next_state = ST_ENTRY;
+		break;
+
+	case ERR_APN_FAIL:
+		xprintf_P( PSTR("COMMS: ERROR apn.\r\n\0"));
 		next_state = ST_ENTRY;
 		break;
 

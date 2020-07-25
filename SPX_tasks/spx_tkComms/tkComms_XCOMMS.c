@@ -98,9 +98,6 @@ uint8_t dbm;
 	case ST_SCAN:
 		xprintf_P( PSTR("  state: scanning"));
 		break;
-	case ST_NET:
-		xprintf_P( PSTR("  state: net"));
-		break;
 	case ST_INITFRAME:
 		xprintf_P( PSTR("  state: link up: inits"));
 		break;
@@ -149,7 +146,7 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, uint8_t *err_code )
+bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, char *apn, uint8_t *err_code )
 {
 	/*
 	 * El modem necesita que se le mande un AT y que responda un OK para
@@ -159,7 +156,7 @@ bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, uint8_t *err_code )
 
 bool retS = false;
 
-	retS = gprs_configurar_dispositivo( f_debug, pin, err_code );
+	retS = gprs_configurar_dispositivo( f_debug, pin, apn, err_code );
 	return(retS);
 }
 //------------------------------------------------------------------------------------
@@ -197,28 +194,30 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_net_connect(bool f_debug, char *apn, char *ip_assigned, uint8_t *err_code )
+bool xCOMMS_netopen(bool f_debug, char *ip_assigned )
 {
 
-	/*
-	 * El proceso de pedir una IP se aplica solo a GPRS
-	 *
-	 */
+	if ( gprs_NETOPEN(f_debug ) == false ) {
+		return(false);
+	}
 
-bool retS = false;
+	//Leo la ip asignada
+	if ( gprs_IPADDR(f_debug, ip_assigned ) == false ) {
+		return(false);
+	}
 
-	retS = gprs_net_connect(f_debug, apn, ip_assigned, err_code);
-	return(retS);
+	return(true);
+
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_netopen(bool f_debug)
+bool xCOMMS_netclose(bool f_debug)
 {
-	return(gprs_NETOPEN(f_debug));
+	return(gprs_NETCLOSE(f_debug));
 }
 //------------------------------------------------------------------------------------
-void xCOMMS_netclose(bool f_debug)
+bool xCOMMS_net_status(bool f_debug)
 {
-	gprs_NETCLOSE(f_debug);
+	return(gprs_check_NETOPEN_status(f_debug));
 }
 //------------------------------------------------------------------------------------
 t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port)
@@ -232,14 +231,20 @@ t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port)
 
 t_link_status lstatus = LINK_CLOSED;
 
-	lstatus = gprs_open_socket(f_debug, ip, port);
+	// Paso a modo comando
+	gprs_switch_to_command_mode(f_debug);
+
+	lstatus = gprs_open_connection(f_debug, ip, port);
 	return(lstatus);
 
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_close_link(bool f_debug )
 {
-	gprs_close_socket(f_debug);
+
+	// Paso a modo comando
+	gprs_switch_to_command_mode(f_debug);
+	gprs_close_connection(f_debug);
 }
 //------------------------------------------------------------------------------------
 t_link_status xCOMMS_link_status( bool f_debug )
@@ -247,7 +252,7 @@ t_link_status xCOMMS_link_status( bool f_debug )
 
 t_link_status lstatus = LINK_CLOSED;
 
-	lstatus = gprs_check_socket_status( f_debug);
+	lstatus = gprs_check_connection_status( f_debug);
 	return(lstatus);
 }
 //------------------------------------------------------------------------------------
@@ -381,55 +386,105 @@ bool xCOMMS_process_frame (t_frame tipo_frame )
 	 */
 
 t_frame_states fr_state = frame_ENTRY;
+t_link_status link_status;
 int8_t tryes = 9;
 int8_t timeout = 10 ;
 t_responses rsp;
+bool net_status;
 bool retS = false;
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN process_frame (type=%d)\r\n\0"),tipo_frame );
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN  pf_fsm (type=%d).\r\n\0"),tipo_frame );
 
 	while (1) {
 
 		switch(fr_state) {
 
 		case frame_ENTRY:
-			xprintf_P( PSTR("COMMS: frENTRY(tryes=%d, to=%d).\r\n\0" ), tryes,timeout );
-			if ( xCOMMS_link_status(DF_COMMS) == LINK_OPEN ) {
+			xprintf_P( PSTR("COMMS: pf_fsm ENTRY(tryes=%d).\r\n\0" ), tryes );
+
+			if ( tryes <= 0 ) {
+				retS = false;
+				goto EXIT;
+			}
+
+			// Veo si el socket esta abierto.
+			link_status = xCOMMS_link_status(DF_COMMS);
+			if ( link_status == LINK_OPEN ) {
 				// Envio el frame
 				if (tipo_frame == DATA ) {
 					xDATA_FRAME_send();
 				} else {
 					xINIT_FRAME_send(tipo_frame);
 				}
+				tryes--;
 				timeout = 10;
 				fr_state = frame_RESPONSE;
 			} else {
-				// Voy a abrir el socket
-				tryes--;
-				fr_state = frame_SOCK;
+				// Socket cerrado:
+				fr_state = frame_NET;
+				break;
 			}
 			break;
 
+		case frame_NET:
+			xprintf_P( PSTR("COMMS: pf_fsm NET (tryes=%d).\r\n\0" ), tryes );
+			// El socket esta cerrado por lo tanto estoy en modo comando !!!
+			// Veo si el servicio de sockets esta abierto.
+			net_status = xCOMMS_net_status( DF_COMMS );
+			tryes--;
+			if ( net_status == true) {
+				// NETOPEN: Intento abrir el socket
+				link_status = xCOMMS_open_link(DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
+			} else {
+				// NETCLOSE: intento abrir el servicio de sockets
+				if ( xCOMMS_netopen( DF_COMMS, xCOMMS_stateVars.ip_assigned ) == false ) {
+					// No puede abrir el servicio local de sockets o leer la ip.
+					// Intento cerrarlo antes de seguir. Si no puedo salgo y me voy
+					if ( xCOMMS_netclose(DF_COMMS) == false ) {
+						retS = false;
+						goto EXIT;
+					}
+				}
+			}
+			fr_state = frame_ENTRY;
+ 			break;
+
 		case frame_RESPONSE:
-			xprintf_P( PSTR("COMMS: frRESPONSE(tryes=%d, to=%d).\r\n\0" ), tryes,timeout );
+			// Estoy con el socket abierto en modo transparente !!
+			// Antes de dar un comando debo pasarlo a modo comando !!
+			xprintf_P( PSTR("COMMS: pf_fsm RESPONSE(tryes=%d, to=%d).\r\n\0" ), tryes,timeout );
+
 			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );	// Espero 1s
 			timeout--;
+
+			// Estado del link
+			link_status = xCOMMS_link_status(DF_COMMS);
+			if ( link_status != LINK_OPEN ) {
+				// Se cerro: Aseguro el socket cerrado, Si no puedo me voy.
+				xCOMMS_close_link(DF_COMMS);
+				if ( xCOMMS_netclose(DF_COMMS) == false ) {
+					retS = false;
+					goto EXIT;
+				} else {
+					fr_state = frame_ENTRY;
+					break;
+				}
+			}
+
 			// Timeout de espera de respuesta
 			if ( timeout == 0 ) {
 				xprintf_P( PSTR("COMMS: TIMEOUT !!.\r\n\0" ));
-				tryes--;
-				fr_state = frame_SOCK;
-				break;
+				xCOMMS_close_link(DF_COMMS);
+				if ( xCOMMS_netclose(DF_COMMS) == false ) {
+					retS = false;
+					goto EXIT;
+				} else {
+					fr_state = frame_ENTRY;
+					break;
+				}
 			}
 
-			// El socket se cerro
-			if ( xCOMMS_link_status( DF_COMMS ) != LINK_OPEN ) {
-				tryes--;
-				fr_state = frame_SOCK;
-				break;
-			}
-
-			// Analizo respuestas
+			// Analizo posibles respuestas
 			if (tipo_frame == DATA ) {
 				rsp =  xDATA_FRAME_process_response();
 			} else {
@@ -438,74 +493,24 @@ bool retS = false;
 
 			if ( rsp == rsp_OK ) {
 				// OK. Salgo
-				xprintf_PD( DF_COMMS, PSTR("COMMS: process_frame type %d OK !!\r\n\0"),tipo_frame );
+				xprintf_PD( DF_COMMS, PSTR("COMMS: pf_fsm type %d OK !!\r\n\0"),tipo_frame );
 				retS = true;
 				goto EXIT;
 			}
 
 			if ( rsp == rsp_ERROR ){
 				// Error a nivel del servidor.
-				// Reintento.
-				tryes--;
-				fr_state = frame_SOCK;
-				break;
-			}
-
-			// En otro caso sigo esperando.
-			break;
-
-		case frame_SOCK:
-			/*
-			 * Vemos que solo con NETCLOSE/NETOPEN se recupera por lo tanto ponemos
-			 * mas puntos de recupero
-			 */
-			xprintf_P( PSTR("COMMS: frSOCK(tryes=%d).\r\n\0" ), tryes );
-			switch(tryes) {
-			case 0:
-				// Ya intente todo muchas veces. No hay mas nada que hacer.
-				xprintf_PD( DF_COMMS, PSTR("COMMS: process_frame type %d failed. Max tryes !!!\r\n\0"),tipo_frame );
 				retS = false;
 				goto EXIT;
 				break;
-			case 3:
-				fr_state = frame_NET;
-				break;
-			case 6:
-				fr_state = frame_NET;
-				break;
-			default:
-				//xCOMMS_close_link(DF_COMMS);
-				fr_state = frame_RETRY;
-				break;
 			}
-			break;
 
-		case frame_NET:
-			xprintf_P( PSTR("COMMS: frNET(tryes=%d).\r\n\0" ), tryes );
-			xCOMMS_netclose(DF_COMMS);
-			if ( xCOMMS_netopen (DF_COMMS) ) {
-				fr_state = frame_RETRY;
-			} else {
-				// Ya intente todo muchas veces. No hay mas nada que hacer.
-				xprintf_PD( DF_COMMS, PSTR("COMMS: process_frame type %d failed. NET closed !!!\r\n\0"),tipo_frame );
-				retS = false;
-				goto EXIT;
-			}
-			break;
-
-		case frame_RETRY:
-			/*
-			 * Este es el punto crucial donde debemos poder cerrar el socket para que pueda reintentarse
-			 */
-			xprintf_P( PSTR("COMMS: frRETRY(tryes=%d).\r\n\0" ), tryes );
-			//xCOMMS_close_link (DF_COMMS);
-			xCOMMS_open_link(DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
-			fr_state = frame_ENTRY;
+			// En otro caso sigo esperando en el mismo estado.
 			break;
 
 		default:
-			xprintf_P( PSTR("COMMS: Frame ERROR not known !!!\r\n\0" ) );
-			xprintf_PD( DF_COMMS, PSTR("COMMS: process_frame type %d failed. State error !!!\r\n\0"),tipo_frame );
+			xprintf_P( PSTR("COMMS: pf_fsm ERROR not known !!!\r\n\0" ) );
+			xprintf_PD( DF_COMMS, PSTR("COMMS: pf_fsm type %d failed. State error !!!\r\n\0"),tipo_frame );
 			retS = false;
 			goto EXIT;
 		}
@@ -513,8 +518,7 @@ bool retS = false;
 
 EXIT:
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT process_frame \r\n\0") );
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT pf_fsm.\r\n\0") );
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-
