@@ -31,7 +31,13 @@ t_comms_states next_state = ST_PRENDER;
 
 // Entry:
 	// Apago el dispositivo de comunicaciones.
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_apagado.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado, xCOMMS_stateVars.errores_comms);
+#ifdef BETA_TEST
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_apagado.[%d,%d,%d]\r\n"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado, xCOMMS_stateVars.errores_comms);
+#else
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_apagado.\r\n"));
+#endif
+
+
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("2");
 #endif
@@ -44,7 +50,12 @@ t_comms_states next_state = ST_PRENDER;
 	esperar_apagado();
 
 // Exit:
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_apagado.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
+#ifdef BETA_TEST
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_apagado.[%d,%d,%d](%d)\r\n"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
+#else
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_apagado.\r\n"));
+#endif
+
 	return(next_state);
 
 }

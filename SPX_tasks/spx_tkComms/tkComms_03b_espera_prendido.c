@@ -24,12 +24,17 @@ t_comms_states next_state = ST_DATAFRAME;
 int8_t timer = 60;
 
 // Entry:
-	ctl_watchdog_kick(WDG_COMMS,WDG_COMMS_TO_ESPERA_ON );
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_prendido.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+#ifdef BETA_TEST
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_prendido.[%d,%d,%d]\r\n"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+#else
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_espera_prendido.\r\n"));
+#endif
+
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("3");
 #endif
 
+	ctl_watchdog_kick(WDG_COMMS,WDG_COMMS_TO_ESPERA_ON );
 // Loop:
 	while (true) {
 
@@ -55,7 +60,12 @@ EXIT:
 	// Checkpoint de SMS's
 	xAPP_sms_checkpoint();
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_prendido.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
+#ifdef BETA_TEST
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_prendido.[%d,%d,%d](%d)\r\n"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
+#else
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_espera_prendido.\r\n"));
+#endif
+
 	return(next_state);
 }
 //------------------------------------------------------------------------------------

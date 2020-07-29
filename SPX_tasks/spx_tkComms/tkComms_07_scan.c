@@ -8,8 +8,10 @@
 #include <tkComms.h>
 #include "spx_tkApp/tkApp.h"
 
-// La tarea no puede demorar mas de 180s.
-#define WDG_COMMS_TO_SCAN	WDG_TO180
+// La tarea no puede demorar mas de 600s.
+#define WDG_COMMS_TO_SCAN	WDG_TO600
+
+static void scan_process_response_RECONF(void);
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_scan(void)
@@ -23,23 +25,20 @@ t_comms_states tkComms_st_scan(void)
 	 */
 
 t_comms_states next_state = ST_ENTRY;
-t_scan_struct scan_boundle;
 
-	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_SCAN );
+#ifdef BETA_TEST
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+#else
+	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.\r\n\0"));
+#endif
+
 #ifdef MONITOR_STACK
 	debug_print_stack_watermarks("7");
 #endif
 
-	// El scan_boundle ( punteros ) apunta a los sVarsComms homologos
-	scan_boundle.apn = sVarsComms.apn;
-	scan_boundle.dlgid = sVarsComms.dlgId;
-	scan_boundle.server_ip = sVarsComms.server_ip_address;
-	scan_boundle.script = sVarsComms.serverScript;
-	scan_boundle.tcp_port = sVarsComms.server_tcp_port;
-	scan_boundle.cpin = sVarsComms.simpwd;
+	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_SCAN );
 
-	if ( xCOMMS_need_scan( &scan_boundle ) == true ) {
+	if ( xCOMMS_need_scan() == true ) {
 		// Necesito descubir los parametros.
 		// Puedo demorar hasta 10 minutos  por lo que ajusto el watchdog !!!
 		ctl_watchdog_kick( WDG_COMMS, WDG_TO600 );
@@ -49,7 +48,7 @@ t_scan_struct scan_boundle;
 		strncpy_P( sVarsComms.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
 		snprintf_P( sVarsComms.simpwd, sizeof( sVarsComms.simpwd), PSTR("%s\0"), SIMPIN_DEFAULT );
 
-		if ( xCOMMS_scan( &scan_boundle ) == true ) {
+		if ( xCOMMS_scan() == true ) {
 			// Descubri los parametros. Ya estan en el sVarsComms.
 			// Los salvo y salgo a reiniciarme con estos.
 			u_save_params_in_NVMEE();
@@ -77,12 +76,123 @@ t_scan_struct scan_boundle;
 	// Checkpoint de SMS's
 	xAPP_sms_checkpoint();
 
+#ifdef BETA_TEST
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
+#else
+	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.\r\n"));
+#endif
+
 	return(next_state);
 
 }
 //------------------------------------------------------------------------------------
+void xSCAN_FRAME_send(void)
+{
+	xCOMMS_flush_RX();
+	xCOMMS_flush_TX();
+	xCOMMS_send_header("SCAN");
+	xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
+	xCOMMS_send_tail();
 
+}
+//------------------------------------------------------------------------------------
+t_responses xSCAN_FRAME_process_response(void)
+{
+
+t_responses rsp = rsp_NONE;
+
+	// Recibi un ERROR de respuesta
+	if ( xCOMMS_check_response("ERROR") ) {
+		xCOMMS_print_RX_buffer(true);
+		rsp = rsp_ERROR;
+		return(rsp);
+	}
+
+	if ( xCOMMS_check_response("404 Not Found") ) {
+		xCOMMS_print_RX_buffer(true);
+		rsp = rsp_ERROR;
+		return(rsp);
+	}
+
+	if ( xCOMMS_check_response("Internal Server Error") ) {
+		xCOMMS_print_RX_buffer(true);
+		rsp = rsp_ERROR;
+		return(rsp);
+	}
+
+	// Respuesta completa del server
+	if ( xCOMMS_check_response("</h1>") ) {
+
+		xCOMMS_print_RX_buffer( DF_COMMS );
+
+		if ( xCOMMS_check_response ("STATUS:OK")) {
+			// Respuesta correcta. El dlgid esta definido en la BD
+			rsp = rsp_OK;
+			return(rsp);
+		}
+
+		if ( xCOMMS_check_response ("STATUS:RECONF")) {
+			// Respuesta correcta
+			// Configure el DLGID correcto y la SERVER_IP usada es la correcta.
+			scan_process_response_RECONF();
+			rsp = rsp_OK;
+			return(rsp);
+		}
+
+		if ( xCOMMS_check_response ("STATUS:UNDEF")) {
+			// Datalogger esta usando un script incorrecto
+			xprintf_P( PSTR("COMMS: ERROR SCAN SCRIPT !!.\r\n\0" ));
+			rsp = rsp_ERROR;
+			return(rsp);
+		}
+
+		if ( xCOMMS_check_response ("NOTDEFINED")) {
+			// Datalogger no definido en la base GDA
+			xprintf_P( PSTR("COMMS: ERROR SCAN dlg not defined in BD !!!\r\n\0" ));
+			rsp = rsp_ERROR;
+			return(rsp);
+		}
+
+	}
+
+// Exit:
+	// No tuve respuesta aun
+	return(rsp);
+}
+//------------------------------------------------------------------------------------
+static void scan_process_response_RECONF(void)
+{
+	// La linea recibida es del tipo: <h1>TYPE=CTL&PLOAD=CLASS:SCAN;STATUS:RECONF;DLGID:TEST01</h1>
+	// Es la respuesta del server a un frame de SCAN.
+	// Indica 2 cosas: - El server es el correcto por lo que debo salvar la IP
+	//                 - Me pasa el DLGID correcto.
+
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *token = NULL;
+char *delim = ",;:=><";
+
+	p = xCOMM_get_buffer_ptr("DLGID");
+	if ( p == NULL ) {
+		return;
+	}
+
+	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+	memset(localStr,'\0',32);
+	memcpy(localStr,p,sizeof(localStr));
+
+	stringp = localStr;
+	token = strsep(&stringp,delim);	// DLGID
+	token = strsep(&stringp,delim);	// TH001
+
+	// Copio el dlgid recibido al systemVars.dlgid que esta en el scan_boundle
+	memset( sVarsComms.dlgId,'\0', DLGID_LENGTH );
+	strncpy(sVarsComms.dlgId, token, DLGID_LENGTH);
+	xprintf_P( PSTR("COMMS: SCAN discover DLGID to %s\r\n\0"), sVarsComms.dlgId );
+}
+//------------------------------------------------------------------------------------
 
 
 

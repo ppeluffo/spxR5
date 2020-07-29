@@ -7,6 +7,31 @@
 
 #include "tkComms.h"
 
+const char apn_spy[] PROGMEM = "SPYMOVIL.VPNANTEL";		// SPYMOVIL | UTE | TAHONA
+const char apn_ose[] PROGMEM = "STG1.VPNANTEL";			// OSE
+const char apn_claro[] PROGMEM = "ipgrs.claro.com.uy";	// CLARO
+
+const char ip_server_spy1[] PROGMEM = "192.168.0.9\0";		// SPYMOVIL
+const char ip_server_spy2[] PROGMEM = "190.64.69.34\0";		// SPYMOVIL PUBLICA (CLARO)
+const char ip_server_ose[] PROGMEM = "172.27.0.26\0";		// OSE
+const char ip_server_ute[] PROGMEM = "192.168.1.9\0";		// UTE
+
+//const char * const scan_list1[] PROGMEM = { apn_spy, ip_server_spy1 };
+
+PGM_P const scan_list1[] PROGMEM = { apn_spy, ip_server_spy1 };
+PGM_P const scan_list2[] PROGMEM = { apn_spy, ip_server_ute };
+PGM_P const scan_list3[] PROGMEM = { apn_ose, ip_server_ose };
+PGM_P const scan_list4[] PROGMEM = { apn_claro, ip_server_spy2 };
+
+
+//* Para testing
+/*
+PGM_P const scan_list4[] PROGMEM = { apn_spy, ip_server_spy1 };
+PGM_P const scan_list3[] PROGMEM = { apn_spy, ip_server_ute };
+PGM_P const scan_list2[] PROGMEM = { apn_ose, ip_server_ose };
+PGM_P const scan_list1[] PROGMEM = { apn_claro, ip_server_spy2 };
+*/
+
 //------------------------------------------------------------------------------------
 void xCOMMS_config_defaults( char *opt )
 {
@@ -160,17 +185,32 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-void xCOMMS_mon_sqe(bool f_debug, bool modo_continuo, uint8_t *csq )
+void xCOMMS_mon_sqe(bool f_debug, bool forever, uint8_t *csq )
 {
 	/*
 	 * Solo en GPRS monitoreo la calidad de señal.
 	 */
 
-	gprs_mon_sqe( f_debug, modo_continuo, csq);
+	gprs_mon_sqe( f_debug, forever, csq);
 
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_scan(t_scan_struct *scan_boundle )
+bool xCOMMS_need_scan( void )
+{
+
+	// Veo si es necesario hacer un SCAN de la IP del server
+	if ( ( strcmp_P( sVarsComms.apn, PSTR("DEFAULT\0")) == 0 ) ||
+			( strcmp_P( sVarsComms.dlgId, PSTR("DEFAULT\0")) == 0 ) ||
+			( strcmp_P( sVarsComms.dlgId, PSTR("DEFAULT\0")) == 0 ) ) {
+		// Alguno de los parametros estan en DEFAULT.
+		return(true);
+	}
+
+	return(false);
+
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_scan(void)
 {
 
 	/*
@@ -178,82 +218,113 @@ bool xCOMMS_scan(t_scan_struct *scan_boundle )
 	 * El SERVER_IP y DLGID se aplica a ambos, gprs y xbee
 	 *
 	 */
+	// Inicio un ciclo de SCAN
+	// Pruebo con c/boundle de datos: el que me de OK es el correcto
 
-bool retS = false;
+	xprintf_PD( DF_COMMS, PSTR("COMMS: starting to SCAN...\r\n\0" ));
 
-	retS = gprs_scan(scan_boundle);
-	return(retS);
+	// scan_list1: datos de Spymovil.
+	if ( xCOMMS_scan_try( (PGM_P *)scan_list1 ))
+		return(true);
+
+	// scan_list2: datos de UTE.
+	if ( xCOMMS_scan_try( (PGM_P *)scan_list2 ))
+		return(true);
+
+	// scan_list3: datos de OSE.
+	if ( xCOMMS_scan_try( (PGM_P *)scan_list3 ))
+		return(true);
+
+	// scan_list4: datos de SPY PUBLIC_IP.
+	if ( xCOMMS_scan_try( (PGM_P *)scan_list4 ))
+		return(true);
+
+	return(false);
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_need_scan( t_scan_struct *scan_boundle )
+bool xCOMMS_scan_try ( PGM_P *dlist )
 {
+	/*
+	 * Recibe una lista de PGM_P cuyo primer elemento es un APN y el segundo una IP.
+	 * Intenta configurar el APN y abrir un socket a la IP.
+	 * Si lo hace manda un frame de SCAN en el que le devuelven el dlgid.
+	 * Si todo esta bien, guarda los datos descubiertos en sVars. !!
+	 */
 
-bool retS = false;
+char apn_tmp[APN_LENGTH];
+char ip_tmp[IP_LENGTH];
 
-	retS = gprs_need_scan(scan_boundle);
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_netopen(bool f_debug, char *ip_assigned )
-{
+	strcpy_P( apn_tmp, (PGM_P)pgm_read_word( &dlist[0]));
+	strcpy_P( ip_tmp, (PGM_P)pgm_read_word( &dlist[1]));
 
-	if ( gprs_NETOPEN(f_debug ) == false ) {
+	xprintf_PD( DF_COMMS, PSTR("COMMS: GPRS_SCAN trying APN:%s, IP:%s\r\n\0"), apn_tmp, ip_tmp );
+	ctl_watchdog_kick( WDG_COMMS, WDG_TO600 );
+
+	// Apago
+	gprs_apagar();
+	vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+
+	// Prendo
+	if ( ! gprs_prender( DF_COMMS ) )
+		return(false);
+
+	// Configuro
+	// EL pin es el de default ya que si estoy aqui es porque no tengo configuracion valida.
+	if (  ! gprs_configurar_dispositivo( DF_COMMS, sVarsComms.simpwd , apn_tmp, NULL ) ) {
 		return(false);
 	}
 
+	// Envio un frame de SCAN al servidor.
+	if ( xCOMMS_process_frame(SCAN, ip_tmp,"80") ) {
+		// Resultado OK. Los parametros son correctos asi que los salvo en el systemVars. !!!
+		// que es a donde esta apuntando el scan_boundle
+		// El dlgid quedo salvado al procesar la respuesta.
+		memset( sVarsComms.apn,'\0', APN_LENGTH );
+		strncpy(sVarsComms.apn, apn_tmp, APN_LENGTH);
+		memset( sVarsComms.server_ip_address,'\0', IP_LENGTH );
+		strncpy(sVarsComms.server_ip_address, ip_tmp, IP_LENGTH);
+		return(true);
+	} else {
+		return (false);
+	}
+}
+//------------------------------------------------------------------------------------
+t_net_status xCOMMS_netopen(bool f_debug )
+{
+	return( gprs_NETOPEN(f_debug ));
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_ipaddr(bool f_debug, char *ip_assigned )
+{
 	//Leo la ip asignada
-	if ( gprs_IPADDR(f_debug, ip_assigned ) == false ) {
-		return(false);
-	}
-
-	return(true);
-
+	return( gprs_IPADDR(f_debug, ip_assigned ) == false );
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_netclose(bool f_debug)
+t_net_status  xCOMMS_netclose(bool f_debug)
 {
 	return(gprs_NETCLOSE(f_debug));
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_net_status(bool f_debug)
+t_net_status  xCOMMS_netstatus(bool f_debug)
 {
-	return(gprs_check_NETOPEN_status(f_debug));
+	return(gprs_NET_status(f_debug));
 }
 //------------------------------------------------------------------------------------
-t_link_status xCOMMS_open_link(bool f_debug, char *ip, char *port)
+t_link_status xCOMMS_linkopen(bool f_debug, char *ip, char *port)
 {
-	/*
-	 * Intenta abrir el link hacia el servidor
-	 * En caso de XBEE no hay que hacer nada
-	 * En caso de GPRS se debe intentar abrir el socket
-	 *
-	 */
-
-t_link_status lstatus = LINK_CLOSED;
-
-	// Paso a modo comando
-	gprs_switch_to_command_mode(f_debug);
-
-	lstatus = gprs_open_connection(f_debug, ip, port);
-	return(lstatus);
-
+	 // Intenta abrir el link hacia el servidor
+	return( gprs_LINK_open(f_debug, ip, port));
 }
 //------------------------------------------------------------------------------------
-void xCOMMS_close_link(bool f_debug )
+t_link_status xCOMMS_linkclose(bool f_debug )
 {
 
-	// Paso a modo comando
-	gprs_switch_to_command_mode(f_debug);
-	gprs_close_connection(f_debug);
+	return(gprs_LINK_close(f_debug ));
 }
 //------------------------------------------------------------------------------------
-t_link_status xCOMMS_link_status( bool f_debug )
+t_link_status xCOMMS_linkstatus( bool f_debug, bool dcd_mode )
 {
-
-t_link_status lstatus = LINK_CLOSED;
-
-	lstatus = gprs_check_connection_status( f_debug);
-	return(lstatus);
+	return( gprs_LINK_status( f_debug, dcd_mode) );
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_flush_RX(void)
@@ -283,7 +354,12 @@ void xCOMMS_flush_TX(void)
 //------------------------------------------------------------------------------------
 void xCOMMS_send_header(char *type)
 {
-	xprintf_PVD( xCOMMS_get_fd(), DF_COMMS, PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), sVarsComms.serverScript, sVarsComms.dlgId, type, SPX_FW_REV );
+	if ( strcmp(type,"SCAN") == 0 ) {
+		xprintf_PVD( xCOMMS_get_fd(), DF_COMMS, PSTR("GET %s?DLGID=DEFAULT&TYPE=CTL&VER=%s\0" ), sVarsComms.serverScript, SPX_FW_REV );
+	} else {
+		// INIT, DATA
+		xprintf_PVD( xCOMMS_get_fd(), DF_COMMS, PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), sVarsComms.serverScript, sVarsComms.dlgId, type, SPX_FW_REV );
+	}
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_send_tail(void)
@@ -378,7 +454,7 @@ bool xCOMMS_SGN_REDIAL(void)
 	return (false);
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_process_frame (t_frame tipo_frame )
+bool xCOMMS_process_frame (t_frame tipo_frame, char *dst_ip, char *dst_port )
 {
 	/*
 	 * Esta el la funcion que hace el trabajo de mandar un frame , esperar
@@ -387,118 +463,170 @@ bool xCOMMS_process_frame (t_frame tipo_frame )
 
 t_frame_states fr_state = frame_ENTRY;
 t_link_status link_status;
-int8_t tryes = 9;
-int8_t timeout = 10 ;
-t_responses rsp;
 bool net_status;
+int8_t tryes;
+int8_t timeout = 10 ;
+t_responses frame_response = rsp_NONE;
 bool retS = false;
 
+#ifdef BETA_TEST
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN  pf_fsm (type=%d).\r\n\0"),tipo_frame );
+#endif
+
+	// Ajusto los intentos en SCAN ya que sino repito los errores.
+	if ( tipo_frame == SCAN ) {
+		tryes = 4;
+	} else {
+		tryes = 9;
+	}
 
 	while (1) {
 
 		switch(fr_state) {
 
 		case frame_ENTRY:
+#ifdef BETA_TEST
 			xprintf_P( PSTR("COMMS: pf_fsm ENTRY(tryes=%d).\r\n\0" ), tryes );
-
-			if ( tryes <= 0 ) {
+#endif
+			// Maximo esfuerzo. Salgo.
+			if ( tryes-- <= 0 ) {
 				retS = false;
 				goto EXIT;
 			}
 
-			// Veo si el socket esta abierto.
-			link_status = xCOMMS_link_status(DF_COMMS);
+			// Veo si el socket esta abierto( por dcd).
+			link_status = xCOMMS_linkstatus(DF_COMMS, true );
+
+			// Enlace TCP abierto ( socket )
 			if ( link_status == LINK_OPEN ) {
 				// Envio el frame
 				if (tipo_frame == DATA ) {
 					xDATA_FRAME_send();
+				} else if (tipo_frame == SCAN ) {
+					xSCAN_FRAME_send();
 				} else {
 					xINIT_FRAME_send(tipo_frame);
 				}
-				tryes--;
 				timeout = 10;
 				fr_state = frame_RESPONSE;
-			} else {
-				// Socket cerrado:
+				break;
+			}
+
+			// Enlace TCP cerrado ( socket )
+			if ( link_status == LINK_CLOSE ) {
 				fr_state = frame_NET;
 				break;
 			}
+
 			break;
 
 		case frame_NET:
+#ifdef BETA_TEST
 			xprintf_P( PSTR("COMMS: pf_fsm NET (tryes=%d).\r\n\0" ), tryes );
-			// El socket esta cerrado por lo tanto estoy en modo comando !!!
-			// Veo si el servicio de sockets esta abierto.
-			net_status = xCOMMS_net_status( DF_COMMS );
-			tryes--;
-			if ( net_status == true) {
-				// NETOPEN: Intento abrir el socket
-				link_status = xCOMMS_open_link(DF_COMMS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
-			} else {
-				// NETCLOSE: intento abrir el servicio de sockets
-				if ( xCOMMS_netopen( DF_COMMS, xCOMMS_stateVars.ip_assigned ) == false ) {
-					// No puede abrir el servicio local de sockets o leer la ip.
-					// Intento cerrarlo antes de seguir. Si no puedo salgo y me voy
-					if ( xCOMMS_netclose(DF_COMMS) == false ) {
-						retS = false;
-						goto EXIT;
-					}
-				}
-			}
+#endif
+			// Siempre vulevo a ENTRY
 			fr_state = frame_ENTRY;
+
+			// El socket esta cerrado por lo tanto estoy en modo comando !!!
+			gprs_switch_to_command_mode(DF_COMMS);
+
+			// Veo si el servicio de sockets esta abierto.
+			net_status = xCOMMS_netstatus( DF_COMMS );
+
+			// NET open: Intento abrir el link.
+			if ( net_status == NET_OPEN ) {
+				link_status = xCOMMS_linkopen(DF_COMMS, dst_ip, dst_port );
+				if ( link_status == LINK_OPEN ) {
+					 break;
+				}
+				if ( link_status == LINK_CLOSE ) {
+					gprs_switch_to_command_mode(DF_COMMS);
+					break;
+				}
+				if ( link_status == LINK_UNKNOWN ) {
+					gprs_switch_to_command_mode(DF_COMMS);
+					break;
+				}
+				break;
+			}
+
+			// NET close: Intento abrir el servicio de sockets local.
+			if ( net_status == NET_CLOSE ) {
+				net_status = xCOMMS_netopen( DF_COMMS);
+				if ( net_status == NET_OPEN ) {
+					xCOMMS_ipaddr(DF_COMMS, xCOMMS_stateVars.ip_assigned );
+					break;
+				}
+				// Algo paso que no pude abrir el servicio de NET
+				// Dejo el sistema en modo comando
+				gprs_switch_to_command_mode(DF_COMMS);
+				break;
+			}
+
+			// NET unknown. Timeout ?.
+			if ( net_status == NET_UNKNOWN ) {
+				gprs_switch_to_command_mode(DF_COMMS);
+				break;
+			}
+
  			break;
 
 		case frame_RESPONSE:
 			// Estoy con el socket abierto en modo transparente !!
 			// Antes de dar un comando debo pasarlo a modo comando !!
+#ifdef BETA_TEST
 			xprintf_P( PSTR("COMMS: pf_fsm RESPONSE(tryes=%d, to=%d).\r\n\0" ), tryes,timeout );
+#endif
 
-			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );	// Espero 1s
+			// Sleep: espero 1s.
+			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 			timeout--;
 
-			// Estado del link
-			link_status = xCOMMS_link_status(DF_COMMS);
-			if ( link_status != LINK_OPEN ) {
-				// Se cerro: Aseguro el socket cerrado, Si no puedo me voy.
-				xCOMMS_close_link(DF_COMMS);
-				if ( xCOMMS_netclose(DF_COMMS) == false ) {
-					retS = false;
-					goto EXIT;
-				} else {
-					fr_state = frame_ENTRY;
-					break;
-				}
-			}
-
 			// Timeout de espera de respuesta
+			// El socket esta abierto aún !!. Puedo reenviar la query.
 			if ( timeout == 0 ) {
 				xprintf_P( PSTR("COMMS: TIMEOUT !!.\r\n\0" ));
-				xCOMMS_close_link(DF_COMMS);
-				if ( xCOMMS_netclose(DF_COMMS) == false ) {
-					retS = false;
-					goto EXIT;
-				} else {
+				fr_state = frame_ENTRY;
+				break;
+			}
+
+			// Estado del link ( por DCD )
+			link_status = xCOMMS_linkstatus(DF_COMMS, true );
+			if ( link_status == LINK_CLOSE ) {
+				// Se cerro: Aseguro el socket cerrado, Si no puedo me voy.
+				gprs_switch_to_command_mode(DF_COMMS);
+				xCOMMS_linkclose(DF_COMMS);
+				net_status = xCOMMS_netclose(DF_COMMS);
+				if ( net_status == NET_CLOSE ) {
 					fr_state = frame_ENTRY;
 					break;
+				} else {
+					// No puedo resetear el estado. Salgo a reintentar todo de nuevo.
+					retS = false;
+					goto EXIT;
 				}
+				break;
 			}
 
 			// Analizo posibles respuestas
 			if (tipo_frame == DATA ) {
-				rsp =  xDATA_FRAME_process_response();
+				frame_response =  xDATA_FRAME_process_response();
+			} else if (tipo_frame == SCAN ) {
+				frame_response =  xSCAN_FRAME_process_response();
 			} else {
-				rsp =  xINIT_FRAME_process_response();
+				frame_response =  xINIT_FRAME_process_response();
 			}
 
-			if ( rsp == rsp_OK ) {
+			if ( frame_response == rsp_OK ) {
 				// OK. Salgo
+#ifdef BETA_TEST
 				xprintf_PD( DF_COMMS, PSTR("COMMS: pf_fsm type %d OK !!\r\n\0"),tipo_frame );
+#endif
 				retS = true;
 				goto EXIT;
 			}
 
-			if ( rsp == rsp_ERROR ){
+			if ( frame_response == rsp_ERROR ){
 				// Error a nivel del servidor.
 				retS = false;
 				goto EXIT;
@@ -506,6 +634,7 @@ bool retS = false;
 			}
 
 			// En otro caso sigo esperando en el mismo estado.
+			// frame_response == rsp_NONE
 			break;
 
 		default:
@@ -518,7 +647,11 @@ bool retS = false;
 
 EXIT:
 
+#ifdef BETA_TEST
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT pf_fsm.\r\n\0") );
+#endif
+
 	return(retS);
 }
 //------------------------------------------------------------------------------------
+

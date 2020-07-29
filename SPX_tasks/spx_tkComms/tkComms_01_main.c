@@ -41,11 +41,11 @@ void tkComms(void * pvParameters)
 		case ST_PRENDER:
 			tkComms_state = tkComms_st_prender();
 			break;
-		case ST_CONFIGURAR:
-			tkComms_state = tkComms_st_configurar();
-			break;
 		case ST_MON_SQE:
 			tkComms_state = tkComms_st_mon_sqe();
+			break;
+		case ST_CONFIGURAR:
+			tkComms_state = tkComms_st_configurar();
 			break;
 		case ST_SCAN:
 			tkComms_state = tkComms_st_scan();

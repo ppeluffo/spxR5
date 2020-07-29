@@ -42,7 +42,7 @@
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
  * ------------------------------------------------------------------------
- * Version 3.0.2.m ( MASTER ) @ 2020-07-25
+ * Version 3.0.2.m ( MASTER ) @ 2020-07-27
  *
  * 1- Reescribo una FSM para el prender el modem.
  * 3- Revisar el reseteo del modem por dar error de configuracion
@@ -68,6 +68,20 @@
  *     process_frame.
  * 19- Agrego una funcion para determinar el estado del netopen().
  * 20- Reescribo la funcion FSM de procesar_frame.
+ * 21- Pongo un #ifdef BETA_TEST para dejar los mesajes de debug solo en estas versiones
+ * 22- Si NETOPEN da ERROR salgo enseguida.
+ * 23- Reescribo el modulo de SCAN
+ * 24- Reescribo el XCOMM_process_frame:
+ *     Si un socket se cierra esperando una respuesta, no debo reabrirlo para esperar ya que el server
+ *     no va a mandar mas la respuesta por dicho socket. Debo salir a reenviar el query !!.
+ * 25- Modifico gprs_close_link para que primero chequee si ya esta cerrado y no dar mensaje de error.
+ * 26- De acuerdo a TELIT, espero 50ms antes de c/comando nuevo.
+ * 27- Cambio el MON_SQE para antes de CONFIGURAR ya que el tiempo que demora en registrarse en la red
+ *     depende de la calidad de senal y si da error, tenemos entonces un parametro para evaluarlo.
+ * 28- Sigo los flowchart de UBLOX para armar los estados.
+ * 29- El comando AT+CIPTIMEOUT nos da los timeouts de NETOPEN / TCPOPEN.
+ *     Por defecto son 120s.
+ *     Los configuro en 60s.!!
  *
  * ------------------------------------------------------------------------
  * Version 3.0.2.l ( MASTER ) @ 2020-07-04

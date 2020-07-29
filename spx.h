@@ -64,14 +64,16 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.2.m04"
-#define SPX_FW_DATE "@ 20200725"
+#define SPX_FW_REV "3.0.3a"
+#define SPX_FW_DATE "@ 20200729"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master"
 
+#define BETA_TEST
 //#define MODEM_SIMULATOR
+//#define MONITOR_STACK	1
 
 //#define F_CPU (32000000UL)
 
@@ -92,10 +94,6 @@
 #define IO8_DINPUTS_CHANNELS	8
 #define IO8_COUNTER_CHANNELS	2
 #define IO8_DOUTPUTS_CHANNELS	8
-
-#define MODBUS_CHANNELS	2
-
-//#define MONITOR_STACK	1
 
 #define CHAR32	32
 #define CHAR64	64
@@ -211,7 +209,6 @@ typedef struct {
 	float psensor;								// 4 * 1 =  4
 	float temp;									// 4 * 1 =  4
 	float battery;								// 4 * 1 =  4
-	float mbus_inputs[MODBUS_CHANNELS];			// 4 * 2 =  8
 } st_io5_t;										// ----- = 54
 
 // Estructura de un registro de IO8CH
