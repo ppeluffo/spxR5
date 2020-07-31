@@ -18,12 +18,12 @@
 
 //-----------------------------------------------------------------------
 #define TERM_RXSTORAGE_SIZE	128
-#define TERM_TXSTORAGE_SIZE	128
+#define TERM_TXSTORAGE_SIZE	8	// trasmito por poleo. Si uso interrupcion lo subo a 128
 uint8_t term_rxStorage[TERM_RXSTORAGE_SIZE];
 uint8_t term_txStorage[TERM_TXSTORAGE_SIZE];
 
 #define GPRS_RXSTORAGE_SIZE	512
-#define GPRS_TXSTORAGE_SIZE	128
+#define GPRS_TXSTORAGE_SIZE	8	// trasmito por poleo. Si uso interrupcion lo subo a 128
 uint8_t gprs_rxStorage[GPRS_RXSTORAGE_SIZE];
 uint8_t gprs_txStorage[GPRS_TXSTORAGE_SIZE];
 
@@ -42,9 +42,10 @@ typedef enum {
 
 // Estructura generica de una UART
 typedef struct {
-	uart_id_t uart_id;	// Identificador de la uart fisico
+	uart_id_t uart_id;			// Identificador de la uart fisico
 	ringBuffer_s TXringBuffer;	// ringbuffer de trasmision
 	ringBuffer_s RXringBuffer;	// ringbuffer de recepcion.
+	USART_t *usart;
 } uart_control_t;
 
 // Creo las uart's en memoria.

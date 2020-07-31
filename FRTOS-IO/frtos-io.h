@@ -45,7 +45,7 @@ typedef struct {
 	SemaphoreHandle_t xBusSemaphore;		//
 	uint8_t xBlockTime;						// ticks to block in read operations. Set by ioctl
 	uart_control_t *uart;					// puntero a una estructura con los miembros adecuados al periferico
-	                                        // La uart pertenece al driver. El periferico la apunta.
+											// La uart pertenece al driver. El periferico la apunta.
 } periferico_serial_port_t;
 
 // Estructuctura generica de un periferico tipo bus i2c.
@@ -89,6 +89,7 @@ int frtos_i2c_open( periferico_i2c_port_t *xI2c, file_descriptor_t fd, StaticSem
 
 int frtos_write( file_descriptor_t fd ,const char *pvBuffer, const uint16_t xBytes );
 int frtos_uart_write( periferico_serial_port_t *xCom, const char *pvBuffer, const uint16_t xBytes );
+int frtos_uart_write_poll( periferico_serial_port_t *xCom, const char *pvBuffer, const uint16_t xBytes );
 int frtos_i2c_write( periferico_i2c_port_t *xI2c, const char *pvBuffer, const uint16_t xBytes );
 
 int frtos_ioctl( file_descriptor_t fd, uint32_t ulRequest, void *pvValue );

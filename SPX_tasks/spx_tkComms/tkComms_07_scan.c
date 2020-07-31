@@ -103,19 +103,19 @@ t_responses rsp = rsp_NONE;
 
 	// Recibi un ERROR de respuesta
 	if ( xCOMMS_check_response("ERROR") ) {
-		xCOMMS_print_RX_buffer(true);
+		xCOMMS_print_RX_buffer();
 		rsp = rsp_ERROR;
 		return(rsp);
 	}
 
 	if ( xCOMMS_check_response("404 Not Found") ) {
-		xCOMMS_print_RX_buffer(true);
+		xCOMMS_print_RX_buffer();
 		rsp = rsp_ERROR;
 		return(rsp);
 	}
 
 	if ( xCOMMS_check_response("Internal Server Error") ) {
-		xCOMMS_print_RX_buffer(true);
+		xCOMMS_print_RX_buffer();
 		rsp = rsp_ERROR;
 		return(rsp);
 	}
@@ -123,7 +123,7 @@ t_responses rsp = rsp_NONE;
 	// Respuesta completa del server
 	if ( xCOMMS_check_response("</h1>") ) {
 
-		xCOMMS_print_RX_buffer( DF_COMMS );
+		xCOMMS_print_RX_buffer();
 
 		if ( xCOMMS_check_response ("STATUS:OK")) {
 			// Respuesta correcta. El dlgid esta definido en la BD

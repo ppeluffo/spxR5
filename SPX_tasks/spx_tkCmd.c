@@ -1405,7 +1405,7 @@ uint8_t pin = 0;
 		// ATCMD RSP
 		// read gprs rsp
 		if ( strcmp_P(strupr(argv[2]), PSTR("RSP\0")) == 0 ) {
-			gprs_print_RX_buffer(true);
+			gprs_print_RX_buffer();
 			//p = pub_gprs_rxbuffer_getPtr();
 			//xprintf_P( PSTR("rx->%s\r\n\0"),p );
 			return;

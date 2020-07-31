@@ -196,7 +196,7 @@ bool retS = false;
 
 	// Recibi el prompt
 	//xprintf_P( PSTR("\r\n Prompt OK.\r\n0" ));
-	gprs_print_RX_buffer(DF_COMMS);
+	gprs_print_RX_buffer();
 
 	// Envio el mensaje:
 	gprs_flush_RX_buffer();
@@ -213,7 +213,7 @@ bool retS = false;
 		retS = true;
 	}
 
-	gprs_print_RX_buffer(DF_COMMS);
+	gprs_print_RX_buffer();
 
 	return(retS);
 
@@ -282,7 +282,7 @@ char *delim = "\r";
 	xfprintf_P( fdGPRS, PSTR("AT+CMGRD=%d\r"), msg_index);
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-	gprs_print_RX_buffer(DF_COMMS);
+	gprs_print_RX_buffer();
 
 	p = gprs_get_buffer_ptr("+CMGRD:");
 	if ( p != NULL ) {
@@ -322,7 +322,7 @@ char *delim = ",:";
 
 	retS = gprs_check_response_with_to( "+CMGL:", 5 );
 
-	gprs_print_RX_buffer(DF_COMMS);
+	gprs_print_RX_buffer();
 
 	if ( retS ) {
 		// Hay al menos un mensaje pendiente. Decodifico su indice

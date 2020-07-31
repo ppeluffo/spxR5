@@ -15,6 +15,7 @@ typedef enum { ST_ENTRY = 0, ST_ESPERA_APAGADO, ST_ESPERA_PRENDIDO, ST_PRENDER, 
 typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_CREG_FAIL, ERR_CPSI_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ERR_IPSERVER_FAIL, ERR_DLGID_FAIL } t_comms_error_code;
 typedef enum { LINK_OPEN = 0, LINK_CLOSE, LINK_UNKNOWN } t_link_status;
 typedef enum { NET_OPEN = 0, NET_CLOSE, NET_UNKNOWN } t_net_status;
+typedef enum { ATCMD_ENTRY = 0, ATCMD_TEST, ATCMD_CMD, ATCMD_WAIT, ATCMD_EXIT } atcmd_state_t;
 
 typedef enum { INIT_AUTH = 0, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, DATA, SCAN } t_frame;
 typedef enum { frame_ENTRY = 0, frame_RESPONSE, frame_NET } t_frame_states;
@@ -91,19 +92,19 @@ t_comms_states tkComms_st_dataframe(void);
 void xCOMMS_init(void);
 file_descriptor_t xCOMMS_get_fd(void);
 void xCOMMS_apagar_dispositivo(void);
-bool xCOMMS_prender_dispositivo(bool f_debug );
-bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, char *apn, uint8_t *err_code );
+bool xCOMMS_prender_dispositivo(void);
+bool xCOMMS_configurar_dispositivo( char *pin, char *apn, uint8_t *err_code );
 
 bool xCOMMS_need_scan( void );
 bool xCOMMS_scan(void);
 bool xCOMMS_scan_try ( PGM_P *dlist );
 
-void xCOMMS_mon_sqe(bool f_debug,  bool modo_continuo, uint8_t *csq );
+void xCOMMS_mon_sqe( bool modo_continuo, uint8_t *csq );
 
 t_net_status xCOMMS_netopen(bool f_debug );
 t_net_status xCOMMS_netclose(bool f_debug);
 t_net_status xCOMMS_netstatus(bool f_debug);
-bool xCOMMS_ipaddr(bool f_debug, char *ip_assigned );
+bool xCOMMS_ipaddr( char *ip_assigned );
 
 t_link_status xCOMMS_linkopen(bool f_debug, char *ip, char *port);
 t_link_status xCOMMS_linkclose(bool f_debug );
@@ -114,7 +115,7 @@ void xCOMMS_flush_TX(void);
 void xCOMMS_send_header(char *type);
 void xCOMMS_send_tail(void);
 bool xCOMMS_check_response( const char *pattern );
-void xCOMMS_print_RX_buffer(bool d_flag );
+void xCOMMS_print_RX_buffer(void);
 char *xCOMM_get_buffer_ptr( char *pattern);
 void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr);
 
@@ -138,23 +139,23 @@ void gprs_init(void);
 void gprs_rxBuffer_fill(char c);
 void gprs_flush_RX_buffer(void);
 void gprs_flush_TX_buffer(void);
-void gprs_print_RX_buffer(bool f_debug );
+void gprs_print_RX_buffer(void);
 bool gprs_check_response( const char *rsp );
 bool gprs_check_response_with_to( const char *rsp, uint8_t timeout );
-bool gprs_prender(bool f_debug );
+bool gprs_prender( void );
 void gprs_hw_pwr_on(uint8_t delay_factor);
 void gprs_sw_pwr(void);
 void gprs_apagar(void);
 char *gprs_get_imei(void);
 char  *gprs_get_ccid(void);
-bool gprs_configurar_dispositivo( bool f_debug, char *pin, char *apn, uint8_t *err_code );
+bool gprs_configurar_dispositivo( char *pin, char *apn, uint8_t *err_code );
 
-void gprs_mon_sqe( bool f_debug,  bool forever, uint8_t *csq);
+void gprs_mon_sqe( bool forever, uint8_t *csq);
 
 t_net_status gprs_NETCLOSE(bool f_debug);
 t_net_status  gprs_NETOPEN(bool f_debug);
 t_net_status gprs_NET_status( bool f_debug);
-bool gprs_IPADDR(bool f_debug, char *ip_assigned );
+bool gprs_IPADDR( char *ip_assigned );
 
 t_link_status gprs_LINK_status(bool f_debug, bool dcd_mode );
 t_link_status gprs_LINK_open(bool f_debug, char *ip, char *port);
@@ -162,7 +163,7 @@ t_link_status gprs_LINK_close(bool f_debug );
 
 char *gprs_get_buffer_ptr( char *pattern);
 bool gprs_SAT_set(uint8_t modo);
-void gprs_switch_to_command_mode(bool f_debug);
+bool gprs_switch_to_command_mode(bool f_debug, bool verbose );
 
 void xSMS_init(void);
 bool xSMS_enqueue(char *dst_nbr, char *msg );

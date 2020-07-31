@@ -46,7 +46,7 @@ t_comms_states next_state = ST_ENTRY;
 	// Me aseguro que este apagado
 	xCOMMS_apagar_dispositivo();
 	// Prendo la fuente
-	if ( xCOMMS_prender_dispositivo( DF_COMMS ) == true ) {
+	if ( xCOMMS_prender_dispositivo() == true ) {
 		next_state = ST_MON_SQE;
 		goto EXIT;
 	}

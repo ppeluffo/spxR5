@@ -27,6 +27,7 @@ uart_control_t *pUart = NULL;
 		rBufferCreateStatic( &uart_gprs.TXringBuffer, &gprs_txStorage[0], GPRS_TXSTORAGE_SIZE );
 		// Asigno el identificador
 		uart_gprs.uart_id = iUART_GPRS;
+		uart_gprs.usart = &USARTE0;
 		// Devuelvo la direccion de uart_gprs para que la asocie al dispositvo GPRS el frtos.
 		pUart = (uart_control_t *)&uart_gprs;
 		break;
@@ -38,6 +39,7 @@ uart_control_t *pUart = NULL;
 		rBufferCreateStatic( &uart_aux1.TXringBuffer, &aux1_txStorage[0], AUX1_TXSTORAGE_SIZE );
 		// Asigno el identificador
 		uart_aux1.uart_id = iUART_AUX1;
+		uart_aux1.usart = &USARTC0;
 		// Devuelvo la direccion de uart_gprs para que la asocie al dispositvo GPRS el frtos.
 		pUart = (uart_control_t *)&uart_aux1;
 		break;
@@ -49,6 +51,7 @@ uart_control_t *pUart = NULL;
 		rBufferCreateStatic( &uart_term.TXringBuffer, &term_txStorage[0], TERM_TXSTORAGE_SIZE );
 		// Asigno el identificador
 		uart_term.uart_id = iUART_TERM;
+		uart_term.usart = &USARTF0;
 		// Devuelvo la direccion de uart_gprs para que la asocie al dispositvo GPRS el frtos.
 		pUart = (uart_control_t *)&uart_term;
 		break;

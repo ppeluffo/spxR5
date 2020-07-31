@@ -7,6 +7,12 @@
 
 #include "frtos-io.h"
 
+//#define GPRS_IsTXDataRegisterEmpty() ((USARTE0.STATUS & USART_DREIF_bm) != 0)
+
+#define USART_IsTXDataRegisterEmpty(_usart) (((_usart)->STATUS & USART_DREIF_bm) != 0)
+#define USART_PutChar(_usart, _data) ((_usart)->DATA = _data)
+
+#define GPRS_USART	USARTE0
 //------------------------------------------------------------------------------------
 int frtos_open( file_descriptor_t fd, uint32_t flags)
 {
@@ -67,13 +73,14 @@ int8_t xRet = -1;
 
 	switch(fd) {
 	case fdGPRS:
-		xRet = frtos_uart_write( &xComGPRS, pvBuffer, xBytes );
+		//xRet = frtos_uart_write( &xComGPRS, pvBuffer, xBytes );
+		xRet = frtos_uart_write_poll( &xComGPRS, pvBuffer, xBytes );
 		break;
 	case fdAUX1:
 		xRet = frtos_uart_write( &xComAUX1, pvBuffer, xBytes );
 		break;
 	case fdTERM:
-		xRet = frtos_uart_write( &xComTERM, pvBuffer, xBytes );
+		xRet = frtos_uart_write_poll( &xComTERM, pvBuffer, xBytes );
 		break;
 	case fdI2C:
 		xRet = frtos_i2c_write( &xBusI2C, pvBuffer, xBytes );
@@ -171,6 +178,56 @@ int wBytes = 0;
 	// Espero que trasmita todo
 	while  ( rBufferGetCount( &xCom->uart->TXringBuffer ) > 0 )
 		vTaskDelay( ( TickType_t)( 1 ) );
+
+	return (wBytes);
+}
+//------------------------------------------------------------------------------------
+int frtos_uart_write_poll( periferico_serial_port_t *xCom, const char *pvBuffer, const uint16_t xBytes )
+{
+	// Transmite los datos del pvBuffer de a uno. No usa interrupcion de TX.
+	//
+
+char cChar = '\0';
+char *p = NULL;
+uint16_t bytes2tx = 0;
+int wBytes = 0;
+int timeout;
+
+	// Controlo no hacer overflow en la cola de trasmision
+	bytes2tx = xBytes;
+
+	// Trasmito.
+	// Espero que los buffers esten vacios. ( La uart se va limpiando al trasmitir )
+	while  ( rBufferGetCount( &xCom->uart->TXringBuffer ) > 0 )
+		vTaskDelay( ( TickType_t)( 1 ) );
+
+
+	// Cargo el buffer en la cola de trasmision.
+	p = (char *)pvBuffer;
+
+	while (*p && (bytes2tx-- > 0) ) {
+		// Voy cargando la cola de a uno.
+		cChar = *p;
+		timeout = 10;	// Espero 10 ticks maximo
+		while( --timeout > 0) {
+
+			if ( USART_IsTXDataRegisterEmpty(xCom->uart->usart) ) {
+				USART_PutChar(xCom->uart->usart, cChar);
+				p++;
+				wBytes++;	// Cuento los bytes que voy trasmitiendo
+				break;
+			} else {
+				// Espero
+				vTaskDelay( ( TickType_t)( 1 ) );
+			}
+
+			if ( timeout == 0 ) {
+				// Error de transmision: SALGO
+				return(-1);
+			}
+
+		}
+	}
 
 	return (wBytes);
 }

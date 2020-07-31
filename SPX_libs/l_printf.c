@@ -36,7 +36,7 @@ int i;
 	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
 	va_start(args, fmt);
 	vsnprintf_P( (char *)stdout_buff, sizeof(stdout_buff),fmt, args);
-	i = frtos_write(fdTERM, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
+	i = frtos_write(fdTERM, (char *)stdout_buff, strlen((char *)stdout_buff) );
 
 	xSemaphoreGive( sem_STDOUT );
 	return(i);
@@ -61,7 +61,7 @@ int i;
 	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
 	va_start(args, fmt);
 	vsnprintf( (char *)stdout_buff,sizeof(stdout_buff),fmt,args);
-	i = frtos_write(fdTERM, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
+	i = frtos_write(fdTERM, (char *)stdout_buff, strlen((char *)stdout_buff) );
 
 	xSemaphoreGive( sem_STDOUT );
 	return(i);
@@ -115,7 +115,7 @@ int i;
 	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
 	va_start(args, fmt);
 	vsnprintf_P( (char *)stdout_buff,sizeof(stdout_buff),fmt,args);
-	i = frtos_write(fd, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
+	i = frtos_write(fd, (char *)stdout_buff, strlen((char *)stdout_buff) );
 
 	xSemaphoreGive( sem_STDOUT );
 	return(i);
@@ -137,7 +137,7 @@ int i;
 	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
 	va_start(args, fmt);
 	vsnprintf( (char *)stdout_buff,sizeof(stdout_buff),fmt,args);
-	i = frtos_write(fd, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
+	i = frtos_write(fd, (char *)stdout_buff, strlen((char *)stdout_buff) );
 
 	xSemaphoreGive( sem_STDOUT );
 	return(i);
@@ -156,7 +156,7 @@ int i;
 	// Ahora tengo en stdout_buff formateado para imprimir
 	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
 	vsnprintf( (char *)stdout_buff, sizeof(stdout_buff), fmt, argp);
-	i = frtos_write(fd, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
+	i = frtos_write(fd, (char *)stdout_buff, strlen((char *)stdout_buff) );
 
 //	xSemaphoreGive( sem_STDOUT );
 	return(i);
@@ -219,7 +219,7 @@ int i;
 	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
 	va_start(args, fmt);
 	vsnprintf_P( (char *)stdout_buff,sizeof(stdout_buff),fmt, args);
-	i = frtos_write(fdTERM, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
+	i = frtos_write(fdTERM, (char *)stdout_buff, strlen((char *)stdout_buff) );
 
 	xSemaphoreGive( sem_STDOUT );
 	return(i);
@@ -244,11 +244,11 @@ int i;
 	memset(stdout_buff,'\0',PRINTF_BUFFER_SIZE);
 	va_start(args, fmt);
 	vsnprintf_P( (char *)stdout_buff,sizeof(stdout_buff),fmt, args);
-	i = frtos_write(fd, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
 
+	i = frtos_write(fd, (char *)stdout_buff, strlen((char *)stdout_buff) );
 
 	if ( dflag ) {
-		frtos_write(fdTERM, (char *)stdout_buff, PRINTF_BUFFER_SIZE );
+		frtos_write(fdTERM, (char *)stdout_buff, strlen((char *)stdout_buff) );
 	}
 
 	xSemaphoreGive( sem_STDOUT );

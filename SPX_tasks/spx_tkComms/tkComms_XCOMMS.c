@@ -152,7 +152,7 @@ void xCOMMS_apagar_dispositivo(void)
 	xCOMMS_stateVars.gprs_inicializado = false;
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_prender_dispositivo(bool f_debug )
+bool xCOMMS_prender_dispositivo(void)
 {
 	/*
 	 * El modem necesita que se le mande un AT y que responda un OK para
@@ -162,7 +162,7 @@ bool xCOMMS_prender_dispositivo(bool f_debug )
 bool retS = false;
 
 	xCOMMS_stateVars.gprs_prendido = true;
-	retS = gprs_prender( f_debug );
+	retS = gprs_prender();
 	if ( retS == false ) {
 		// No prendio
 		xCOMMS_stateVars.gprs_prendido = false;
@@ -171,7 +171,7 @@ bool retS = false;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, char *apn, uint8_t *err_code )
+bool xCOMMS_configurar_dispositivo(char *pin, char *apn, uint8_t *err_code )
 {
 	/*
 	 * El modem necesita que se le mande un AT y que responda un OK para
@@ -181,17 +181,17 @@ bool xCOMMS_configurar_dispositivo(bool f_debug, char *pin, char *apn, uint8_t *
 
 bool retS = false;
 
-	retS = gprs_configurar_dispositivo( f_debug, pin, apn, err_code );
+	retS = gprs_configurar_dispositivo( pin, apn, err_code );
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-void xCOMMS_mon_sqe(bool f_debug, bool forever, uint8_t *csq )
+void xCOMMS_mon_sqe( bool forever, uint8_t *csq )
 {
 	/*
 	 * Solo en GPRS monitoreo la calidad de señal.
 	 */
 
-	gprs_mon_sqe( f_debug, forever, csq);
+	gprs_mon_sqe( forever, csq);
 
 }
 //------------------------------------------------------------------------------------
@@ -265,12 +265,12 @@ char ip_tmp[IP_LENGTH];
 	vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
 
 	// Prendo
-	if ( ! gprs_prender( DF_COMMS ) )
+	if ( ! gprs_prender() )
 		return(false);
 
 	// Configuro
 	// EL pin es el de default ya que si estoy aqui es porque no tengo configuracion valida.
-	if (  ! gprs_configurar_dispositivo( DF_COMMS, sVarsComms.simpwd , apn_tmp, NULL ) ) {
+	if (  ! gprs_configurar_dispositivo( sVarsComms.simpwd , apn_tmp, NULL ) ) {
 		return(false);
 	}
 
@@ -294,10 +294,10 @@ t_net_status xCOMMS_netopen(bool f_debug )
 	return( gprs_NETOPEN(f_debug ));
 }
 //------------------------------------------------------------------------------------
-bool xCOMMS_ipaddr(bool f_debug, char *ip_assigned )
+bool xCOMMS_ipaddr( char *ip_assigned )
 {
 	//Leo la ip asignada
-	return( gprs_IPADDR(f_debug, ip_assigned ) == false );
+	return( gprs_IPADDR( ip_assigned ) == false );
 }
 //------------------------------------------------------------------------------------
 t_net_status  xCOMMS_netclose(bool f_debug)
@@ -385,10 +385,9 @@ bool xCOMMS_check_response( const char *pattern )
 	return( gprs_check_response(pattern));
 }
 //------------------------------------------------------------------------------------
-void xCOMMS_print_RX_buffer(bool d_flag)
+void xCOMMS_print_RX_buffer(void)
 {
-	gprs_print_RX_buffer(d_flag);
-
+	gprs_print_RX_buffer();
 }
 //------------------------------------------------------------------------------------
 char *xCOMM_get_buffer_ptr( char *pattern)
@@ -463,7 +462,7 @@ bool xCOMMS_process_frame (t_frame tipo_frame, char *dst_ip, char *dst_port )
 
 t_frame_states fr_state = frame_ENTRY;
 t_link_status link_status;
-bool net_status;
+t_net_status net_status;
 int8_t tryes;
 int8_t timeout = 10 ;
 t_responses frame_response = rsp_NONE;
@@ -528,7 +527,7 @@ bool retS = false;
 			fr_state = frame_ENTRY;
 
 			// El socket esta cerrado por lo tanto estoy en modo comando !!!
-			gprs_switch_to_command_mode(DF_COMMS);
+			gprs_switch_to_command_mode(DF_COMMS, true);
 
 			// Veo si el servicio de sockets esta abierto.
 			net_status = xCOMMS_netstatus( DF_COMMS );
@@ -540,11 +539,11 @@ bool retS = false;
 					 break;
 				}
 				if ( link_status == LINK_CLOSE ) {
-					gprs_switch_to_command_mode(DF_COMMS);
+					gprs_switch_to_command_mode(DF_COMMS, true);
 					break;
 				}
 				if ( link_status == LINK_UNKNOWN ) {
-					gprs_switch_to_command_mode(DF_COMMS);
+					gprs_switch_to_command_mode(DF_COMMS, true);
 					break;
 				}
 				break;
@@ -554,18 +553,18 @@ bool retS = false;
 			if ( net_status == NET_CLOSE ) {
 				net_status = xCOMMS_netopen( DF_COMMS);
 				if ( net_status == NET_OPEN ) {
-					xCOMMS_ipaddr(DF_COMMS, xCOMMS_stateVars.ip_assigned );
+					xCOMMS_ipaddr( xCOMMS_stateVars.ip_assigned );
 					break;
 				}
 				// Algo paso que no pude abrir el servicio de NET
 				// Dejo el sistema en modo comando
-				gprs_switch_to_command_mode(DF_COMMS);
+				gprs_switch_to_command_mode(DF_COMMS, true);
 				break;
 			}
 
 			// NET unknown. Timeout ?.
 			if ( net_status == NET_UNKNOWN ) {
-				gprs_switch_to_command_mode(DF_COMMS);
+				gprs_switch_to_command_mode(DF_COMMS, true);
 				break;
 			}
 
@@ -594,7 +593,7 @@ bool retS = false;
 			link_status = xCOMMS_linkstatus(DF_COMMS, true );
 			if ( link_status == LINK_CLOSE ) {
 				// Se cerro: Aseguro el socket cerrado, Si no puedo me voy.
-				gprs_switch_to_command_mode(DF_COMMS);
+				gprs_switch_to_command_mode(DF_COMMS, true);
 				xCOMMS_linkclose(DF_COMMS);
 				net_status = xCOMMS_netclose(DF_COMMS);
 				if ( net_status == NET_CLOSE ) {
