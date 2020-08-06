@@ -42,7 +42,10 @@
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
  * ------------------------------------------------------------------------
- * Version 3.0.3.a( MASTER ) @ 2020-07-30
+ * - Ajustes menores en logs
+ * - Ajustes menores en funciones
+ * ------------------------------------------------------------------------
+ * Version 3.0.3.b( MASTER ) @ 2020-07-30
  * En los printf controlo el largo con strlen() y no todo el tamanio del buffer
  * Las trasmisiones seriales las hago por poleo !! y no mas interrupcion.
  * Normalizo los comandos AT usando tablas de flash.

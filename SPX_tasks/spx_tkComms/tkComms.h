@@ -101,14 +101,14 @@ bool xCOMMS_scan_try ( PGM_P *dlist );
 
 void xCOMMS_mon_sqe( bool modo_continuo, uint8_t *csq );
 
-t_net_status xCOMMS_netopen(bool f_debug );
-t_net_status xCOMMS_netclose(bool f_debug);
-t_net_status xCOMMS_netstatus(bool f_debug);
+t_net_status xCOMMS_netopen(void);
+t_net_status xCOMMS_netclose(void);
+t_net_status xCOMMS_netstatus(void);
 bool xCOMMS_ipaddr( char *ip_assigned );
 
-t_link_status xCOMMS_linkopen(bool f_debug, char *ip, char *port);
-t_link_status xCOMMS_linkclose(bool f_debug );
-t_link_status xCOMMS_linkstatus(bool f_debug, bool dcd_mode);
+t_link_status xCOMMS_linkopen( char *ip, char *port);
+t_link_status xCOMMS_linkclose( void );
+t_link_status xCOMMS_linkstatus( bool dcd_mode);
 
 void xCOMMS_flush_RX(void);
 void xCOMMS_flush_TX(void);
@@ -152,18 +152,18 @@ bool gprs_configurar_dispositivo( char *pin, char *apn, uint8_t *err_code );
 
 void gprs_mon_sqe( bool forever, uint8_t *csq);
 
-t_net_status gprs_NETCLOSE(bool f_debug);
-t_net_status  gprs_NETOPEN(bool f_debug);
-t_net_status gprs_NET_status( bool f_debug);
+t_net_status gprs_NETCLOSE( void );
+t_net_status  gprs_NETOPEN( void );
+t_net_status gprs_NET_status( void );
 bool gprs_IPADDR( char *ip_assigned );
 
-t_link_status gprs_LINK_status(bool f_debug, bool dcd_mode );
-t_link_status gprs_LINK_open(bool f_debug, char *ip, char *port);
-t_link_status gprs_LINK_close(bool f_debug );
+t_link_status gprs_LINK_status(  bool dcd_mode );
+t_link_status gprs_LINK_open( char *ip, char *port);
+t_link_status gprs_LINK_close( void );
 
 char *gprs_get_buffer_ptr( char *pattern);
 bool gprs_SAT_set(uint8_t modo);
-bool gprs_switch_to_command_mode(bool f_debug, bool verbose );
+bool gprs_switch_to_command_mode( bool verbose );
 
 void xSMS_init(void);
 bool xSMS_enqueue(char *dst_nbr, char *msg );

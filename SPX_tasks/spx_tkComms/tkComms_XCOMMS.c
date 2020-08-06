@@ -289,9 +289,9 @@ char ip_tmp[IP_LENGTH];
 	}
 }
 //------------------------------------------------------------------------------------
-t_net_status xCOMMS_netopen(bool f_debug )
+t_net_status xCOMMS_netopen( void )
 {
-	return( gprs_NETOPEN(f_debug ));
+	return( gprs_NETOPEN());
 }
 //------------------------------------------------------------------------------------
 bool xCOMMS_ipaddr( char *ip_assigned )
@@ -300,31 +300,31 @@ bool xCOMMS_ipaddr( char *ip_assigned )
 	return( gprs_IPADDR( ip_assigned ) == false );
 }
 //------------------------------------------------------------------------------------
-t_net_status  xCOMMS_netclose(bool f_debug)
+t_net_status  xCOMMS_netclose( void )
 {
-	return(gprs_NETCLOSE(f_debug));
+	return(gprs_NETCLOSE());
 }
 //------------------------------------------------------------------------------------
-t_net_status  xCOMMS_netstatus(bool f_debug)
+t_net_status  xCOMMS_netstatus( void )
 {
-	return(gprs_NET_status(f_debug));
+	return(gprs_NET_status());
 }
 //------------------------------------------------------------------------------------
-t_link_status xCOMMS_linkopen(bool f_debug, char *ip, char *port)
+t_link_status xCOMMS_linkopen( char *ip, char *port)
 {
 	 // Intenta abrir el link hacia el servidor
-	return( gprs_LINK_open(f_debug, ip, port));
+	return( gprs_LINK_open( ip, port));
 }
 //------------------------------------------------------------------------------------
-t_link_status xCOMMS_linkclose(bool f_debug )
+t_link_status xCOMMS_linkclose( void )
 {
 
-	return(gprs_LINK_close(f_debug ));
+	return(gprs_LINK_close());
 }
 //------------------------------------------------------------------------------------
-t_link_status xCOMMS_linkstatus( bool f_debug, bool dcd_mode )
+t_link_status xCOMMS_linkstatus( bool dcd_mode )
 {
-	return( gprs_LINK_status( f_debug, dcd_mode) );
+	return( gprs_LINK_status( dcd_mode) );
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_flush_RX(void)
@@ -494,7 +494,7 @@ bool retS = false;
 			}
 
 			// Veo si el socket esta abierto( por dcd).
-			link_status = xCOMMS_linkstatus(DF_COMMS, true );
+			link_status = xCOMMS_linkstatus(true );
 
 			// Enlace TCP abierto ( socket )
 			if ( link_status == LINK_OPEN ) {
@@ -527,23 +527,23 @@ bool retS = false;
 			fr_state = frame_ENTRY;
 
 			// El socket esta cerrado por lo tanto estoy en modo comando !!!
-			gprs_switch_to_command_mode(DF_COMMS, true);
+			gprs_switch_to_command_mode(true);
 
 			// Veo si el servicio de sockets esta abierto.
-			net_status = xCOMMS_netstatus( DF_COMMS );
+			net_status = xCOMMS_netstatus();
 
 			// NET open: Intento abrir el link.
 			if ( net_status == NET_OPEN ) {
-				link_status = xCOMMS_linkopen(DF_COMMS, dst_ip, dst_port );
+				link_status = xCOMMS_linkopen( dst_ip, dst_port );
 				if ( link_status == LINK_OPEN ) {
 					 break;
 				}
 				if ( link_status == LINK_CLOSE ) {
-					gprs_switch_to_command_mode(DF_COMMS, true);
+					gprs_switch_to_command_mode(true);
 					break;
 				}
 				if ( link_status == LINK_UNKNOWN ) {
-					gprs_switch_to_command_mode(DF_COMMS, true);
+					gprs_switch_to_command_mode( true);
 					break;
 				}
 				break;
@@ -551,20 +551,20 @@ bool retS = false;
 
 			// NET close: Intento abrir el servicio de sockets local.
 			if ( net_status == NET_CLOSE ) {
-				net_status = xCOMMS_netopen( DF_COMMS);
+				net_status = xCOMMS_netopen();
 				if ( net_status == NET_OPEN ) {
 					xCOMMS_ipaddr( xCOMMS_stateVars.ip_assigned );
 					break;
 				}
 				// Algo paso que no pude abrir el servicio de NET
 				// Dejo el sistema en modo comando
-				gprs_switch_to_command_mode(DF_COMMS, true);
+				gprs_switch_to_command_mode(true);
 				break;
 			}
 
 			// NET unknown. Timeout ?.
 			if ( net_status == NET_UNKNOWN ) {
-				gprs_switch_to_command_mode(DF_COMMS, true);
+				gprs_switch_to_command_mode( true);
 				break;
 			}
 
@@ -590,12 +590,12 @@ bool retS = false;
 			}
 
 			// Estado del link ( por DCD )
-			link_status = xCOMMS_linkstatus(DF_COMMS, true );
+			link_status = xCOMMS_linkstatus( true );
 			if ( link_status == LINK_CLOSE ) {
 				// Se cerro: Aseguro el socket cerrado, Si no puedo me voy.
-				gprs_switch_to_command_mode(DF_COMMS, true);
-				xCOMMS_linkclose(DF_COMMS);
-				net_status = xCOMMS_netclose(DF_COMMS);
+				gprs_switch_to_command_mode(true);
+				xCOMMS_linkclose();
+				net_status = xCOMMS_netclose();
 				if ( net_status == NET_CLOSE ) {
 					fr_state = frame_ENTRY;
 					break;
