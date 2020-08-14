@@ -1290,6 +1290,13 @@ uint8_t pin = 0;
 
 	if ( cmd_mode == WR_CMD ) {
 
+		// write gprs test at
+/*		if ( strcmp_P( strupr(argv[2]), PSTR("TEST\0")) == 0 ) {
+			gprs_CSOCKAUTH();
+			pv_snprintfP_OK();
+			return;
+		}
+*/
 		// write gprs sms nbr msg
 		if ( strcmp_P( strupr(argv[2]), PSTR("SMS\0")) == 0 ) {
 			xSMS_enqueue( argv[3], (char *) xSMS_format(argv[4]) );

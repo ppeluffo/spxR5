@@ -3,6 +3,44 @@
  *
  *  Created on: 5 mar. 2020
  *      Author: pablo
+ *
+ * MS: Mobile Station ( modem )
+ * SGSN: Nodo de soporte ( registro / autentificacion )
+ * GGSN: Nodo gateway(router). Interfase de la red celular a la red de datos IP
+ *
+ * ATTACH: Proceso por el cual el MS se conecta al SGSN en una red GPRS
+ * PDP Activation: Proceso por el cual se establece una sesion entre el MS y la red destino.
+ * Primero hay que attachearse y luego activarse !!!
+ *
+ * 1- Verificar el CPIN
+ *    Nos indica que el dispositivo puede usarse
+ *
+ * 2- CREG?
+ *    Nos indica que el dispositivo esta registrado en la red celular, que tiene senal.
+ *    Si no se registra: 1-verificar la antena, 2-verificar la banda
+ *
+ * 3- Solicitar informacion a la red.
+ *
+ * 4- Ver la calidad de senal (CSQ)
+ *
+ * 5- Atachearse a la red GPRS
+ *    Se usa el comando AT+CGATT
+ *    Atachearse no significa que pueda establecer un enlace de datos ya que la sesión queda identificada
+ *    por el PDP context(APN).
+ *    El PDP establece la relacion entre el dipositivo y el GGSN por lo tanto debemos establecer un
+ *    contexto PDP antes de enviar/recibir datos
+ *
+ * 6- Definir el contexto.
+ *    Si uso un dial-up uso el comando AT+CGDCONT
+ *    Si uso el stack TCP/IP uso el comando AT+CGSOCKCONT
+ *    Indico cual es el contexto por defecto:
+ *    Indico la autentificacion requerida
+ *
+ * 7- Debo activar el contexto y la red IP me va a devolver una direccion IP.
+ *    Como estoy usando el stack TCP/IP, esto automaticamente ( activacion, abrir un socket local y pedir una IP )
+ *    lo hace el comado NETOPEN.
+ *
+ * 8- Para abrir un socket remoto usamos TCPCONNECT
  */
 
 #include "tkComms.h"
@@ -42,18 +80,19 @@ bool gprs_CIPMODE(void);
 bool gprs_D2( void );
 bool gprs_CSUART( void );
 bool gprs_C1( void );
+bool gprs_CGAUTH( void );
+bool gprs_CSOCKAUTH( void );
 bool gprs_CPIN(  char *pin );
 bool gprs_CCID( void );
 bool gprs_CREG( void );
 bool gprs_CPSI( void );
-bool gprs_CGDCONT( char *apn);
+bool gprs_CGDSOCKCONT( char *apn);
 bool gprs_CGATT( void );
 bool gprs_CGATTQ( void );
 bool gprs_CMGF( void );
-
+bool gprs_CSOCKSETPN( void );
 
 void gprs_AT( void );
-
 
 bool pv_get_token( char *p, char *buff, uint8_t size);
 bool gprs_test_cmd(char *cmd);
@@ -68,6 +107,7 @@ const char PBDONE_CMD[]   PROGMEM = "";
 const char PBDONE_RSPOK[] PROGMEM = "PB DONE";
 PGM_P const AT_PBDONE[]   PROGMEM = { PBDONE_NAME, PBDONE_TEST, PBDONE_CMD, PBDONE_RSPOK };
 
+// CPAS: Status de actividad del modem
 #define MAX_TRYES_CPAS		3
 #define TIMEOUT_CPAS		30
 const char CPAS_NAME[]  PROGMEM = "CPAS";
@@ -76,6 +116,7 @@ const char CPAS_CMD[]   PROGMEM = "AT+CPAS";
 const char CPAS_RSPOK[]	PROGMEM = "CPAS: 0";
 PGM_P const AT_CPAS[]	PROGMEM = { CPAS_NAME, CPAS_TEST, CPAS_CMD, CPAS_RSPOK };
 
+// CFUN: Consulta de las funcionalidades del modem.
 #define MAX_TRYES_CFUN		3
 #define TIMEOUT_CFUN		30
 const char CFUN_NAME[]  PROGMEM = "CFUN";
@@ -84,6 +125,7 @@ const char CFUN_CMD[]   PROGMEM = "AT+CFUN?";
 const char CFUN_RSPOK[] PROGMEM = "CFUN: 1";
 PGM_P const AT_CFUN[]   PROGMEM = { CFUN_NAME, CFUN_TEST, CFUN_CMD, CFUN_RSPOK };
 
+// CSQ: Calidad de senal.
 #define MAX_TRYES_CSQ		1
 #define TIMEOUT_CSQ			30
 const char CSQ_NAME[]  PROGMEM = "CSQ";
@@ -92,6 +134,7 @@ const char CSQ_CMD[]   PROGMEM = "AT+CSQ";
 const char CSQ_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_CSQ[]   PROGMEM = { CSQ_NAME, CSQ_TEST, CSQ_CMD, CSQ_RSPOK };
 
+// CBC: Voltaje de la bateria.
 #define MAX_TRYES_CBC		2
 #define TIMEOUT_CBC			30
 const char CBC_NAME[]  PROGMEM = "CBC";
@@ -100,6 +143,7 @@ const char CBC_CMD[]   PROGMEM = "AT+CBC";
 const char CBC_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_CBC[]   PROGMEM = { CBC_NAME, CBC_TEST, CBC_CMD, CBC_RSPOK };
 
+// ATI: Identificaciones: fabricante,modelo, revision,imei.
 #define MAX_TRYES_ATI		2
 #define TIMEOUT_ATI			30
 const char ATI_NAME[]  PROGMEM = "ATI";
@@ -108,6 +152,7 @@ const char ATI_CMD[]   PROGMEM = "ATI";
 const char ATI_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_ATI[]   PROGMEM = { ATI_NAME, ATI_TEST, ATI_CMD, ATI_RSPOK };
 
+// IFC: Seteo el control de flujo.(none)
 #define MAX_TRYES_IFC		2
 #define TIMEOUT_IFC			30
 const char IFC_NAME[]  PROGMEM = "IFC";
@@ -116,6 +161,7 @@ const char IFC_CMD[]   PROGMEM = "AT+IFC?";
 const char IFC_RSPOK[] PROGMEM = "IFC: 0,0";
 PGM_P const AT_IFC[]   PROGMEM = { IFC_NAME, IFC_TEST, IFC_CMD, IFC_RSPOK };
 
+// CIPMODE: Selecciono modo transparente en TCP/IP.
 #define MAX_TRYES_CIPMODE		2
 #define TIMEOUT_CIPMODE			30
 const char CIPMODE_NAME[]  PROGMEM = "CIPMODE";
@@ -124,6 +170,7 @@ const char CIPMODE_CMD[]   PROGMEM = "AT+CIPMODE=1";
 const char CIPMODE_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_CIPMODE[]  PROGMEM = { CIPMODE_NAME, CIPMODE_TEST, CIPMODE_CMD, CIPMODE_RSPOK };
 
+// &D2: Como actua DTR ( pasar a modo comando )
 #define MAX_TRYES_D2		1
 #define TIMEOUT_D2			30
 const char D2_NAME[]  PROGMEM = "&D2";
@@ -132,6 +179,7 @@ const char D2_CMD[]   PROGMEM = "AT&D2";
 const char D2_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_D2[]   PROGMEM = { D2_NAME, D2_TEST, D2_CMD, D2_RSPOK };
 
+// CSUART: serial port de 7 lineas
 #define MAX_TRYES_CSUART	1
 #define TIMEOUT_CSUART		30
 const char CSUART_NAME[]  PROGMEM = "CSUART";
@@ -140,6 +188,7 @@ const char CSUART_CMD[]   PROGMEM = "AT+CSUART=1";
 const char CSUART_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_CSUART[]   PROGMEM = { CSUART_NAME, CSUART_TEST, CSUART_CMD, CSUART_RSPOK };
 
+// &C1: DCD on cuando hay carrier.
 #define MAX_TRYES_C1		1
 #define TIMEOUT_C1			30
 const char C1_NAME[]  PROGMEM = "&C1";
@@ -148,6 +197,25 @@ const char C1_CMD[]   PROGMEM = "AT&C1";
 const char C1_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_C1[]   PROGMEM = { C1_NAME, C1_TEST, C1_CMD, C1_RSPOK };
 
+// CGAUTH: Autentificacion PAP
+#define MAX_TRYES_CGAUTH	1
+#define TIMEOUT_CGAUTH		10
+const char CGAUTH_NAME[]  PROGMEM = "CGAUTH";
+const char CGAUTH_TEST[]  PROGMEM = "AT+CGAUTH=?";
+const char CGAUTH_CMD[]   PROGMEM = "AT+CGAUTH=1,1";
+const char CGAUTH_RSPOK[] PROGMEM = "OK";
+PGM_P const AT_CGAUTH[]   PROGMEM = { CGAUTH_NAME, CGAUTH_TEST, CGAUTH_CMD, CGAUTH_RSPOK };
+
+// CSOCKAUTH: Autentificacion PAP
+#define MAX_TRYES_CSOCKAUTH		1
+#define TIMEOUT_CSOCKAUTH		10
+const char CSOCKAUTH_NAME[]  PROGMEM = "CSOCKAUTH";
+const char CSOCKAUTH_TEST[]  PROGMEM = "AT+CSOCKAUTH=?";
+const char CSOCKAUTH_CMD[]   PROGMEM = "AT+CSOCKAUTH=1,1";
+const char CSOCKAUTH_RSPOK[] PROGMEM = "OK";
+PGM_P const AT_CSOCKAUTH[]   PROGMEM = { CSOCKAUTH_NAME, CSOCKAUTH_TEST, CSOCKAUTH_CMD, CSOCKAUTH_RSPOK };
+
+// CPIN: SIM listo para operar.
 #define MAX_TRYES_CPIN		3
 #define TIMEOUT_CPIN		30
 const char CPIN_NAME[]  PROGMEM = "CPIN";
@@ -156,14 +224,16 @@ const char CPIN_CMD[]   PROGMEM = "AT+CPIN?";
 const char CPIN_RSPOK[] PROGMEM = "READY";
 PGM_P const AT_CPIN[]   PROGMEM = { CPIN_NAME, CPIN_TEST, CPIN_CMD, CPIN_RSPOK };
 
+// CCID: ??
 #define MAX_TRYES_CCID		3
 #define TIMEOUT_CCID		30
 const char CCID_NAME[]  PROGMEM = "CCID";
 const char CCID_TEST[]  PROGMEM = "AT+CCID=?";
-const char CCID_CMD[]   PROGMEM = "AT+CCID?";
+const char CCID_CMD[]   PROGMEM = "AT+CCID";
 const char CCID_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_CCID[]   PROGMEM = { CCID_NAME, CCID_TEST, CCID_CMD, CCID_RSPOK };
 
+// CREG: Indica el estado de registro del modem en la red
 #define MAX_TRYES_CREG		3
 #define TIMEOUT_CREG		30
 const char CREG_NAME[]  PROGMEM = "CREG";
@@ -172,6 +242,7 @@ const char CREG_CMD[]   PROGMEM = "AT+CREG?";
 const char CREG_RSPOK[] PROGMEM = "CREG: 0,1";
 PGM_P const AT_CREG[]   PROGMEM = { CREG_NAME, CREG_TEST, CREG_CMD, CREG_RSPOK };
 
+// CPSI: Solicita informacion de la red en la que esta registrado.
 #define MAX_TRYES_CPSI		3
 #define TIMEOUT_CPSI		30
 const char CPSI_NAME[]  PROGMEM = "CPSI";
@@ -180,6 +251,8 @@ const char CPSI_CMD[]   PROGMEM = "AT+CPSI?";
 const char CPSI_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_CPSI[]   PROGMEM = { CPSI_NAME, CPSI_TEST, CPSI_CMD, CPSI_RSPOK };
 
+// CGACT
+// CGATT: Se atachea al servicio de paquetes.(PDP)
 #define MAX_TRYES_CGATT		3
 #define TIMEOUT_CGATT		60
 const char CGATT_NAME[]  PROGMEM = "CGATT";
@@ -188,6 +261,7 @@ const char CGATT_CMD[]   PROGMEM = "AT+CGATT=1";
 const char CGATT_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_CGATT[]   PROGMEM = { CGATT_NAME, CGATT_TEST, CGATT_CMD, CGATT_RSPOK };
 
+// CGATT: Pregunta el estado de la conexion al servicio de paquetes PDP.
 #define MAX_TRYES_CGATTQ	3
 #define TIMEOUT_CGATTQ		60
 const char CGATTQ_NAME[]  PROGMEM = "CGATTQ";
@@ -196,6 +270,17 @@ const char CGATTQ_CMD[]   PROGMEM = "AT+CGATT?";
 const char CGATTQ_RSPOK[] PROGMEM = "CGATT: 1";
 PGM_P const AT_CGATTQ[]   PROGMEM = { CGATTQ_NAME, CGATTQ_TEST, CGATTQ_CMD, CGATTQ_RSPOK };
 
+// CSOCKSETPN
+// CSOCKSETPN: Indica cual PDP usar
+#define MAX_TRYES_CSOCKSETPN	1
+#define TIMEOUT_CSOCKSETPN		10
+const char CSOCKSETPN_NAME[]  PROGMEM = "CSOCKSETPN";
+const char CSOCKSETPN_TEST[]  PROGMEM = "AT+CSOCKSETPN=?";
+const char CSOCKSETPN_CMD[]   PROGMEM = "AT+CSOCKSETPN=1";
+const char CSOCKSETPN_RSPOK[] PROGMEM = "OK";
+PGM_P const AT_CSOCKSETPN[]   PROGMEM = { CSOCKSETPN_NAME, CSOCKSETPN_TEST, CSOCKSETPN_CMD, CSOCKSETPN_RSPOK };
+
+// CMGF: Configura los SMS para enviarse en modo texto.
 #define MAX_TRYES_CMGF		1
 #define TIMEOUT_CMGF		30
 const char CMGF_NAME[]  PROGMEM = "CMGF";
@@ -204,6 +289,7 @@ const char CMGF_CMD[]   PROGMEM = "AT+CMGF=1";
 const char CMGF_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_CMGF[]   PROGMEM = { CMGF_NAME, CMGF_TEST, CMGF_CMD, CMGF_RSPOK };
 
+// IPADDR: Pregunta la IP asignada.
 #define MAX_TRYES_IPADDR	1
 #define TIMEOUT_IPADDR		30
 const char IPADDR_NAME[]  PROGMEM = "IPADDR";
@@ -230,10 +316,10 @@ struct {
 	char buff_gprs_ccid[CCIDBUFFSIZE];
 } gprs_status;
 
-char cmd_name[10];
-char cmd_test[15];
-char cmd_at[15];
-char cmd_rspok[15];
+char cmd_name[16];
+char cmd_test[16];
+char cmd_at[20];
+char cmd_rspok[16];
 
 //------------------------------------------------------------------------------------
 void gprs_atcmd_preamble(void)
@@ -593,7 +679,7 @@ atcmd_state_t state = ATCMD_ENTRY;
 	strcpy_P( cmd_at, (PGM_P)pgm_read_word( &atcmdlist[2]));
 	strcpy_P( cmd_rspok, (PGM_P)pgm_read_word( &atcmdlist[3]));
 
-	//xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_ATCMD TESTING 1 !!!:[%s], [%s]\r\n\0"), cmd_name, cmd_test );
+	//xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_ATCMD TESTING 1 !!!:[%s],[%s],[%s],[%s]\r\n\0"), cmd_name,cmd_test,cmd_at,cmd_rspok );
 	//return(false);
 
 	while(1) {
@@ -790,9 +876,13 @@ bool gprs_configurar_dispositivo( char *pin, char *apn, uint8_t *err_code )
 	gprs_CSUART();
 	gprs_C1();
 
+	//gprs_CGAUTH();
+	gprs_CSOCKAUTH();
+
 	// PASO 2: Vemos que halla un SIM operativo.
 	// AT+CPIN?
 	// Vemos que halla un pin presente.
+	// Nos indica que el sim esta listo para usarse
 	if ( ! gprs_CPIN(pin) ) {
 		*err_code = ERR_CPIN_FAIL;
 		return(false);
@@ -810,36 +900,60 @@ bool gprs_configurar_dispositivo( char *pin, char *apn, uint8_t *err_code )
 	// NETWORK GSM/GPRS (base de trasmision de datos)
 	// Vemos que el modem este registrado en la red. Pude demorar hasta 1 minuto ( CLARO )
 	// Con esto estoy conectado a la red movil.
+	// El dispositivo debe adquirir la señal de la estacion base.(celular)
+	// El otro comando similar es CGREG que nos indica si estamos registrados en la red GPRS.
+	// Este segundo depende del primero.
 	if ( ! gprs_CREG() ) {
 		*err_code = ERR_CREG_FAIL;
 		return(false);
 	}
 
+	// PASO 4: Solicito informacion a la red
 	// Vemos que la red este operativa
 	if ( ! gprs_CPSI() ) {
 		*err_code = ERR_CPSI_FAIL;
 		return(false);
 	}
 
-	// PASO 4: Comandos de conexion a la red de datos ( PDP )
+	// PASO 5: Comandos de conexion a la red de datos ( PDP )
 	// Dependen de la red por lo que pueden demorar hasta 3 minutos
 	// Debo atachearme a la red de paquetes de datos.
-	// Configuro el APN ( PDP context)
-	if ( ! gprs_CGDCONT( apn ) ) {
+	//
+	// Si me conectara por medio de dial-up usaria AT+CGDCONT.
+	// Como voy a usar el stack TCP, debo usar AT+CGDSOCKCONT
+
+	// 4.1: Configuro el APN ( PDP context)
+	if ( ! gprs_CGDSOCKCONT( apn ) ) {
 		*err_code = ERR_APN_FAIL;
 		return(false);
 	}
 
-	// Activo el APN
-	if ( ! gprs_CGATT()) {
-		*err_code = ERR_NETATTACH_FAIL;
-		return(false);
-	}
+	// 4.2: Indico cual va a ser el profile que deba activar.
+	gprs_CSOCKSETPN();
 
-	if ( ! gprs_CGATTQ()) {
-		*err_code = ERR_NETATTACH_FAIL;
-		return(false);
-	}
+
+	// 4.3: Debo Attachearme a la red GPRS.
+	// Este proceso conecta al MS al SGSN en una red GPRS.
+	// Esto no significa que pueda enviar datos ya que antes debo activar el PDP.
+	// Si estoy en dial-up, usaria el comando CGATT pero esto usando el stack TCP
+	// por lo tanto lo hace el NETOPEN.
+//	if ( ! gprs_CGATT()) {
+//		*err_code = ERR_NETATTACH_FAIL;
+//		return(false);
+//	}
+
+	// https://www.tutorialspoint.com/gprs/gprs_pdp_context.htm
+	// When a MS is already attached to a SGSN and it is about to transfer data,
+	// it must activate a PDP address.
+	// Activating a PDP address establishes an association between the current SGSN of
+	// mobile device and the GGSN that anchors the PDP address.
+
+//	if ( ! gprs_CGATTQ()) {
+//		*err_code = ERR_NETATTACH_FAIL;
+//		return(false);
+//	}
+
+	// La activacion la hace el comando NETOPEN !!!
 
 	gprs_CMGF();		// Configuro para mandar SMS en modo TEXTO
 
@@ -924,6 +1038,26 @@ bool retS;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
+bool gprs_CGAUTH( void )
+{
+	// Configura para autentificar PAP
+
+bool retS;
+
+	retS = gprs_ATCMD( true, MAX_TRYES_CGAUTH , TIMEOUT_CGAUTH, (PGM_P *)AT_CGAUTH );
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+bool gprs_CSOCKAUTH( void )
+{
+	// Configura para autentificar PAP
+
+bool retS;
+
+	retS = gprs_ATCMD( true, MAX_TRYES_CSOCKAUTH , TIMEOUT_CSOCKAUTH, (PGM_P *)AT_CSOCKAUTH );
+	return(retS);
+}
+//------------------------------------------------------------------------------------
 bool gprs_CPIN( char *pin )
 {
 	// Chequeo que el SIM este en condiciones de funcionar.
@@ -977,6 +1111,11 @@ bool gprs_CREG( void )
 	 En realidad el comando retorna en no mas de 5s, pero el registro puede demorar hasta 1 minuto
 	 o mas, dependiendo de la calidad de señal ( antena ) y la red.
 	 Para esto, el mon_sqe lo ponemos antes.
+
+	 CREG testea estar registrado en la red celular
+	 CGREG testea estar registrado en la red GPRS.
+	 https://www.multitech.com/documents/publications/manuals/S000700.pdf
+
 	*/
 
 bool retS;
@@ -1003,24 +1142,29 @@ bool retS;
 	return(retS);
 }
 //------------------------------------------------------------------------------------
-bool gprs_CGDCONT( char *apn)
+bool gprs_CGDSOCKCONT( char *apn)
 {
+
+	// Indico cual va a ser el PDP (APN)
+	// Si me conectar por medio de dial-up usaria CGDCONT
+	// Cuando uso el stack TCP/IP debo usar CGDSOCKCONT
+	// SIM52xx_TCP_IP_Application_note_V0.03.pdf
 
 uint8_t tryes;
 int8_t timeout;
 bool retS = false;
 t_responses cmd_rsp = rsp_NONE;
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS: gprs CGDCONT (define PDP)\r\n\0") );
+	xprintf_PD( DF_COMMS, PSTR("COMMS: gprs CGDSOCKCONT (define PDP)\r\n\0") );
 	//Defino el PDP indicando cual es el APN.
 	tryes = 0;
 	while (tryes++ <  MAX_TRYES_CGDCONT ) {
 		gprs_flush_RX_buffer();
 		gprs_flush_TX_buffer();
-		xprintf_PD( DF_COMMS, PSTR("GPRS: gprs send CGDCONT (%d)\r\n\0"),tryes);
+		xprintf_PD( DF_COMMS, PSTR("GPRS: gprs send CGDSOCKCONT (%d)\r\n\0"),tryes);
 		gprs_atcmd_preamble();
-		// xfprintf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);
-		xfprintf_P( fdGPRS, PSTR("AT+CGDCONT=1,\"IP\",\"%s\"\r\0"), apn);
+		xfprintf_P( fdGPRS, PSTR("AT+CGSOCKCONT=1,\"IP\",\"%s\"\r\0"), apn);
+		//xfprintf_P( fdGPRS, PSTR("AT+CGDCONT=1,\"IP\",\"%s\"\r\0"), apn);
 
 		timeout = 0;
 		while ( timeout++ < TIMEOUT_CGDCONT ) {
@@ -1050,11 +1194,11 @@ EXIT:
 
 	switch(cmd_rsp) {
 	case rsp_OK:
-		xprintf_PD( DF_COMMS,  PSTR("COMMS: gprs CGDCONT OK en [%d] secs\r\n\0"), (( 10 * (tryes-1) ) + timeout) );
+		xprintf_PD( DF_COMMS,  PSTR("COMMS: gprs CGDSOCKCONT OK en [%d] secs\r\n\0"), (( 10 * (tryes-1) ) + timeout) );
 		retS = true;
 		break;
 	case rsp_ERROR:
-		xprintf_PD( DF_COMMS,  PSTR("COMMS: ERROR gprs CGDCONT FAIL !!.\r\n\0"));
+		xprintf_PD( DF_COMMS,  PSTR("COMMS: ERROR gprs CGDSOCKCONT FAIL !!.\r\n\0"));
 		retS = false;
 		break;
 	default:
@@ -1069,11 +1213,16 @@ EXIT:
 //------------------------------------------------------------------------------------
 bool gprs_CGATT( void )
 {
-	/* Una vez registrado, me atacheo a la red
-	 AT+CGATT=1
-	 AT+CGATT?
-	 +CGATT: 1
-	 Puede demorar mucho, hasta 75s. ( 1 min en CLARO )
+	/*
+	 * Este proceso conecta al MS al SGSN en una red GPRS.
+	   Esto no significa que pueda enviar datos ya que antes debo activar el PDP.
+	   Si estoy en dial-up, usaria el comando CGATT pero esto usando el stack TCP
+	   por lo tanto lo hace el NETOPEN.
+	   Una vez registrado, me atacheo a la red
+	   AT+CGATT=1
+	   AT+CGATT?
+	   +CGATT: 1
+	   Puede demorar mucho, hasta 75s. ( 1 min en CLARO )
 	*/
 bool retS;
 
@@ -1088,6 +1237,14 @@ bool gprs_CGATTQ(void)
 bool retS;
 
 	retS = gprs_ATCMD( true, MAX_TRYES_CGATTQ , TIMEOUT_CGATTQ, (PGM_P *)AT_CGATTQ );
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+bool gprs_CSOCKSETPN( void )
+{
+bool retS;
+
+	retS = gprs_ATCMD( true, MAX_TRYES_CSOCKSETPN , TIMEOUT_CSOCKSETPN, (PGM_P *)AT_CSOCKSETPN );
 	return(retS);
 }
 //------------------------------------------------------------------------------------
@@ -1251,12 +1408,19 @@ int8_t timeout;
 		xprintf_PD( DF_COMMS, PSTR("GPRS: gprs send NETOPEN (%d)\r\n\0"),tryes);
 		gprs_atcmd_preamble();
 		xfprintf_P( fdGPRS,PSTR("AT+NETOPEN=\"TCP\"\r\0"));
+		//xfprintf_P( fdGPRS,PSTR("AT+NETOPEN\r\0"));
 
 		timeout = 0;
 		while ( timeout++ < TIMEOUT_NETOPEN ) {
 			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 			// Evaluo las respuestas del modem.
+			if ( gprs_check_response("+NETOPEN: 0")) {
+				//cmd_rsp = rsp_OK;
+				net_status = NET_OPEN;
+				goto EXIT;
+			}
+
 			if ( gprs_check_response("Connect ok")) {
 				//cmd_rsp = rsp_OK;
 				net_status = NET_OPEN;
@@ -1335,12 +1499,12 @@ uint8_t timeout;
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 		if ( gprs_check_response("OK")) {
-			if ( gprs_check_response("NETOPEN: 0,0")) {
+			if ( gprs_check_response("+NETOPEN: 0")) {
 				//cmd_rsp = rsp_OK;
 				net_status = NET_CLOSE;
 				goto EXIT;
 			}
-			if ( gprs_check_response("NETOPEN: 1,0")) {
+			if ( gprs_check_response("+NETOPEN: 1")) {
 				//cmd_rsp = rsp_OK;
 				net_status = NET_OPEN;
 				goto EXIT;
@@ -1394,7 +1558,6 @@ bool gprs_IPADDR( char *ip_assigned )
 	 */
 
 bool retS;
-char *p;
 char *ts = NULL;
 char c = '\0';
 char *ptr = NULL;
