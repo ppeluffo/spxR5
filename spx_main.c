@@ -42,6 +42,11 @@
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
  * ------------------------------------------------------------------------
+ * Version 3.0.3.e( MASTER ) @ 2020-08-18
+ * -Agrego la calibracion de los canales analogicos por 2 puntos.
+ * -Agrego en el protocolo que el datalogger le mande al server la calibracion
+ * ------------------------------------------------------------------------
+ * Version 3.0.3.c( MASTER ) @ 2020-08-05
  * - Ajustes menores en logs
  * - Ajustes menores en funciones
  * ------------------------------------------------------------------------

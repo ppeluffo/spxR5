@@ -271,6 +271,7 @@ void u_load_defaults( char *opt )
 
 	// pwrsave se configura en gprs_utils
 	// timepwrsensor se configura en ul_ainputs
+	systemVars.an_calibrados = 0x00;
 
 	psensor_config_defaults();
 	range_config_defaults();

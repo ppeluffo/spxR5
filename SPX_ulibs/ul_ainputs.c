@@ -33,6 +33,17 @@ static void pv_ainputs_read_battery(float *battery);
 static void pv_ainputs_prender_sensores(void);
 static void pv_ainputs_apagar_sensores(void);
 
+typedef struct {
+	bool calibrado;
+	float I;
+	float M;
+} st_cal_point_t;
+
+struct {
+	st_cal_point_t p1;
+	st_cal_point_t p2;
+} cal_point;
+
 //------------------------------------------------------------------------------------
 void ainputs_init(void)
 {
@@ -145,6 +156,116 @@ void ainputs_config_timepwrsensor ( char *s_timepwrsensor )
 		systemVars.ainputs_conf.pwr_settle_time = 15;
 
 	return;
+}
+//------------------------------------------------------------------------------------
+bool ainputs_config_mcal( char *s_channel, char *s_point , char *s_mag )
+{
+	// Configura uno de los puntos de la recta de calibracion
+
+uint8_t channel = 0;
+bool retS = false;
+float magnitud;
+uint8_t point = 0;
+uint16_t an_raw_val = 0;
+float I = 0.0;
+float D;
+
+	channel = atoi(s_channel);
+	if ( channel >= NRO_ANINPUTS ) {
+		return(retS);
+	}
+	magnitud = atof(s_mag);
+
+	if (!strcmp_P( strupr(s_point), PSTR("P1"))){
+		point = 1;
+	}
+
+	if (!strcmp_P( strupr(s_point), PSTR("P2"))){
+		point = 2;
+	}
+
+	if (point == 0) {
+		return(retS);
+	}
+
+	xprintf_P(PSTR("Calibrando CH_0%d (punto %d).\r\n"), channel,point);
+
+	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
+	autocal_running = true;
+	// Leo la corriente en este momento en el canal
+	pv_ainputs_prender_sensores();
+	// Leo el canal del ina.
+	//ainputs_awake();
+	an_raw_val = pv_ainputs_read_channel_raw( channel );
+	// Convierto el raw_value a la magnitud
+	I = (float)( an_raw_val ) / INA_FACTOR;
+	//ainputs_sleep();
+	pv_ainputs_apagar_sensores();
+	// Habilito a la tkData a volver a polear
+	autocal_running = false;
+	//
+	// Asigno los valores a la estructura correspondiente
+	if ( point == 1 ) {
+		cal_point.p1.calibrado = true;
+		cal_point.p1.I = I;
+		cal_point.p1.M = magnitud;
+		xprintf_P(PSTR("Punto 1 calibrado: I=%.03f, mag=%.03f\r\n"), I, magnitud);
+		retS = true;
+		goto EXIT;
+	}
+
+	if ( point == 2 ) {
+		cal_point.p2.calibrado = true;
+		cal_point.p2.I = I;
+		cal_point.p2.M = magnitud;
+		xprintf_P(PSTR("Punto 2 calibrado: I=%.03f, mag=%.03f\r\n"), I, magnitud);
+		retS = true;
+		goto EXIT;
+	}
+
+
+EXIT:
+
+	if ( ( cal_point.p2.I - cal_point.p1.I ) != 0 ) {
+		D = ( cal_point.p2.M - cal_point.p1.M) / ( cal_point.p2.I - cal_point.p1.I );
+	} else {
+		return(false);
+	}
+
+	if ( ( cal_point.p1.calibrado == true ) && ( cal_point.p2.calibrado == true )) {
+		// Ajusto los parametros del canal del systemVars.
+		xprintf_P( PSTR(" Valores originales: ch=%02d [%d-%d mA/ %.02f,%.02f | %.02f | %s]\r\n\0"),
+			channel,
+			systemVars.ainputs_conf.imin[channel],
+			systemVars.ainputs_conf.imax[channel],
+			systemVars.ainputs_conf.mmin[channel],
+			systemVars.ainputs_conf.mmax[channel],
+			systemVars.ainputs_conf.offset[channel] ,
+			systemVars.ainputs_conf.name[channel] );
+
+		// Calculo los nuevos valores para 4 y 20 mA
+		systemVars.ainputs_conf.imin[channel] = 4;
+		systemVars.ainputs_conf.imax[channel] = 20;
+		systemVars.ainputs_conf.mmin[channel] =  D * ( 4 - cal_point.p1.I ) + cal_point.p1.M;
+		systemVars.ainputs_conf.mmax[channel] =  D * ( 20 - cal_point.p1.I ) + cal_point.p1.M;
+		systemVars.ainputs_conf.offset[channel] = 0;
+
+		xprintf_P( PSTR(" Valores calibrados: ch=%02d [%d-%d mA/ %.02f,%.02f | %.02f | %s]\r\n\0"),
+			channel,
+			systemVars.ainputs_conf.imin[channel],
+			systemVars.ainputs_conf.imax[channel],
+			systemVars.ainputs_conf.mmin[channel],
+			systemVars.ainputs_conf.mmax[channel],
+			systemVars.ainputs_conf.offset[channel] ,
+			systemVars.ainputs_conf.name[channel] );
+
+		cal_point.p1.calibrado = false;
+		cal_point.p2.calibrado = false;
+		systemVars.an_calibrados |= (1<<channel);
+		u_save_params_in_NVMEE();
+	}
+
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 bool ainputs_config_ical( char *s_channel, char *s_ieqv )

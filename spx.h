@@ -64,14 +64,14 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.3d"
-#define SPX_FW_DATE "@ 20200814"
+#define SPX_FW_REV "3.0.3e"
+#define SPX_FW_DATE "@ 20200819"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
 #define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master"
 
-#define BETA_TEST
+//#define BETA_TEST
 //#define MODEM_SIMULATOR
 //#define MONITOR_STACK	1
 
@@ -297,6 +297,8 @@ typedef struct {
 	ainputs_conf_t ainputs_conf;	// Estructura con la configuracion de las entradas analogicas
 	psensor_conf_t psensor_conf;
 
+	uint8_t an_calibrados;
+
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
 
@@ -402,6 +404,7 @@ void ainputs_config_defaults(void);
 void ainputs_config_timepwrsensor ( char *s_timepwrsensor );
 bool ainputs_config_autocalibrar( char *s_channel, char *s_mag_val );
 bool ainputs_config_ical( char *s_channel, char *s_ieqv );
+bool ainputs_config_mcal( char *s_channel, char *s_point , char *s_mag );
 bool ainputs_read( float ain[], float *battery );
 void ainputs_print(file_descriptor_t fd, float src[] );
 void ainputs_battery_print( file_descriptor_t fd, float battery );

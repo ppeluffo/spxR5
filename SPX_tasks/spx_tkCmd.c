@@ -241,7 +241,7 @@ st_dataRecord_t dr;
 
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
-		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %.02f | %.03f | %.03f | %s]\r\n\0"),
+		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %.02f | %.03f | %.03f | %s]"),
 				channel,
 				systemVars.ainputs_conf.imin[channel],
 				systemVars.ainputs_conf.imax[channel],
@@ -251,6 +251,13 @@ st_dataRecord_t dr;
 				systemVars.ainputs_conf.ieq_min[channel] ,
 				systemVars.ainputs_conf.ieq_max[channel],
 				systemVars.ainputs_conf.name[channel] );
+
+		if ( ( systemVars.an_calibrados & ( 1<<channel)) == 0 ) {
+			xprintf_P(PSTR("\r\n"));
+		} else {
+			xprintf_P(PSTR("(*)\r\n"));
+		}
+
 	}
 
 	// dinputs
@@ -831,9 +838,16 @@ bool retS = false;
 	}
 
 	// ICAL
-	// config ical {ch} {4 | 20}
+	// config ical {ch} {4|20}
 	if (!strcmp_P( strupr(argv[1]), PSTR("ICAL\0")) ) {
 		ainputs_config_ical( argv[2], argv[3] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
+	// MCAL
+	// config mcal {ch} {p1|p2} {mag}
+	if (!strcmp_P( strupr(argv[1]), PSTR("MCAL\0")) ) {
+		ainputs_config_mcal( argv[2], argv[3], argv[4] ) ? pv_snprintfP_OK() : pv_snprintfP_ERR();
 		return;
 	}
 
@@ -1107,6 +1121,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  analog {0..%d} aname imin imax mmin mmax offset\r\n\0"),( NRO_ANINPUTS - 1 ) );
 		xprintf_P( PSTR("  autocal {ch,PSENSOR} {mag}\r\n\0"));
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
+		xprintf_P( PSTR("  mcal {ch} {p1|p2} {mag}\r\n\0"));
 
 		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque}\r\n\0"));
 		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
