@@ -45,6 +45,8 @@
  * Version 3.0.3.e( MASTER ) @ 2020-08-18
  * -Agrego la calibracion de los canales analogicos por 2 puntos.
  * -Agrego en el protocolo que el datalogger le mande al server la calibracion
+ * -Ajusto un bag que no permitia configurar la MMIN en los canales analogicos
+ *  que no fuese entero.
  * ------------------------------------------------------------------------
  * Version 3.0.3.c( MASTER ) @ 2020-08-05
  * - Ajustes menores en logs

@@ -128,7 +128,7 @@ bool retS = false;
 		}
 
 		if ( s_mmin != NULL ) {
-			systemVars.ainputs_conf.mmin[channel] = atoi(s_mmin);
+			systemVars.ainputs_conf.mmin[channel] = atof(s_mmin);
 		}
 
 		if ( s_mmax != NULL ) {
