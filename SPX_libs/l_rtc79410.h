@@ -54,6 +54,7 @@ bool RTC_write_dtime(RtcTimeType_t *rtc);
 bool RTC_write_time( char *stime );
 void RTC_read_time( void );
 char *RTC_logprint( void );
+bool RTC_has_drift(RtcTimeType_t *rtc_new, uint16_t max_drift );
 
 // API END
 //--------------------------------------------------------------------------------

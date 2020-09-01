@@ -197,6 +197,8 @@ float D;
 	// Leo el canal del ina.
 	//ainputs_awake();
 	an_raw_val = pv_ainputs_read_channel_raw( channel );
+	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
+	an_raw_val = pv_ainputs_read_channel_raw( channel );
 	// Convierto el raw_value a la magnitud
 	I = (float)( an_raw_val ) / INA_FACTOR;
 	//ainputs_sleep();
@@ -226,6 +228,7 @@ float D;
 
 EXIT:
 
+	// Del denominador no puede ser 0.
 	if ( ( cal_point.p2.I - cal_point.p1.I ) != 0 ) {
 		D = ( cal_point.p2.M - cal_point.p1.M) / ( cal_point.p2.I - cal_point.p1.I );
 	} else {
@@ -243,11 +246,10 @@ EXIT:
 			systemVars.ainputs_conf.offset[channel] ,
 			systemVars.ainputs_conf.name[channel] );
 
-		// Calculo los nuevos valores para 4 y 20 mA
-		systemVars.ainputs_conf.imin[channel] = 4;
-		systemVars.ainputs_conf.imax[channel] = 20;
-		systemVars.ainputs_conf.mmin[channel] =  D * ( 4 - cal_point.p1.I ) + cal_point.p1.M;
-		systemVars.ainputs_conf.mmax[channel] =  D * ( 20 - cal_point.p1.I ) + cal_point.p1.M;
+		// Calculo los nuevos valores para Imin e Imax.
+		// Imin,Imax son las que tiene configurado el datalogger.
+		systemVars.ainputs_conf.mmin[channel] =  cal_point.p1.M + D * ( systemVars.ainputs_conf.imin[channel] - cal_point.p1.I );
+		systemVars.ainputs_conf.mmax[channel] =  cal_point.p1.M + D * ( systemVars.ainputs_conf.imax[channel] - cal_point.p1.I );
 		systemVars.ainputs_conf.offset[channel] = 0;
 
 		xprintf_P( PSTR(" Valores calibrados: ch=%02d [%d-%d mA/ %.02f,%.02f | %.02f | %s]\r\n\0"),
@@ -305,6 +307,9 @@ bool retS = false;
 	// Leo el canal del ina.
 	//ainputs_awake();
 	an_raw_val = pv_ainputs_read_channel_raw( channel );
+	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
+	an_raw_val = pv_ainputs_read_channel_raw( channel );
+
 	//ainputs_sleep();
 	pv_ainputs_apagar_sensores();
 
@@ -470,6 +475,7 @@ bool retS = false;
 		pv_ainputs_read_channel(7, &ain[7], NULL );
 	}
 
+	/*
 	if ( spx_io_board == SPX_IO5CH ) {
 		// Leo la bateria
 		// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
@@ -477,6 +483,8 @@ bool retS = false;
 	} else {
 		*battery = 0.0;
 	}
+	*/
+	pv_ainputs_read_battery(battery);
 
 	// Apago los sensores y pongo a los INA a dormir si estoy con la board IO5.
 	// Sino dejo todo prendido porque estoy en modo continuo
@@ -504,6 +512,12 @@ void ainputs_print(file_descriptor_t fd, float src[] )
 uint8_t i = 0;
 
 	for ( i = 0; i < NRO_ANINPUTS; i++) {
+		// Excepcion para 8 canales
+		if ( (systemVars.mide_bateria == true) && (i==7) ) {
+			xfprintf_P(fd, PSTR("bt:%.02f;"), src[i] );
+			continue;
+		}
+
 		if ( strcmp ( systemVars.ainputs_conf.name[i], "X" ) != 0 )
 			xfprintf_P(fd, PSTR("%s:%.02f;"), systemVars.ainputs_conf.name[i], src[i] );
 	}
@@ -513,9 +527,12 @@ uint8_t i = 0;
 void ainputs_battery_print( file_descriptor_t fd, float battery )
 {
 	// bateria
+	/*
 	if ( spx_io_board == SPX_IO5CH ) {
 		xfprintf_P(fd, PSTR("bt:%.02f;"), battery );
 	}
+	*/
+	xfprintf_P(fd, PSTR("bt:%.02f;"), battery );
 }
 //------------------------------------------------------------------------------------
 bool ainputs_autocal_running(void)
@@ -594,17 +611,24 @@ uint16_t raw;
 
 	pv_ainputs_prender_sensores();
 	pv_ainputs_read_channel ( io_channel, &mag, &raw );
+	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
+	pv_ainputs_read_channel ( io_channel, &mag, &raw );
 	pv_ainputs_apagar_sensores();
 
 	if ( io_channel != 99) {
 		xprintf_P( PSTR("Analog Channel Test: CH[%02d] raw=%d,mag=%.02f\r\n\0"),io_channel,raw, mag);
 	} else {
+		/*
 		if ( spx_io_board != SPX_IO5CH ) {
 			mag = -1;
 		} else {
 			// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
 			mag =  0.008 * raw;
 		}
+		*/
+
+		// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
+		mag =  0.008 * raw;
 
 		xprintf_P( PSTR("Analog Channel Test: Battery raw=%d,mag=%.02f\r\n\0"),raw, mag);
 
@@ -654,9 +678,11 @@ static void pv_ainputs_apagar_12Vsensors(void)
 //------------------------------------------------------------------------------------
 static uint16_t pv_ainputs_read_battery_raw(void)
 {
+	/*
 	if ( spx_io_board != SPX_IO5CH ) {
 		return(-1);
 	}
+	*/
 
 	return( pv_ainputs_read_channel_raw(99));
 }
@@ -742,6 +768,9 @@ int8_t xBytes = 0;
 		case 8:
 			ina_id = INA_C; ina_reg = INA3221_CH3_SHV;
 			break;
+		case 99:
+			ina_id = INA_C; ina_reg = INA3221_CH3_BUSV;
+			break;	// Battery
 		default:
 			return(-1);
 			break;
@@ -848,10 +877,11 @@ float Icorr = 0.0;	// Corriente corregida por span y offset
 static void pv_ainputs_read_battery(float *battery)
 {
 
+	/*
 	if ( spx_io_board != SPX_IO5CH ) {
 		*battery = -1;
 	}
-
+	*/
 	// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
 	*battery =  0.008 * pv_ainputs_read_battery_raw();
 

@@ -64,12 +64,12 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.3f"
-#define SPX_FW_DATE "@ 20200821"
+#define SPX_FW_REV "3.0.4a"
+#define SPX_FW_DATE "@ 20200831"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
-//#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
-#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master"
+#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
+//#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master"
 
 //#define BETA_TEST
 //#define MODEM_SIMULATOR
@@ -299,6 +299,8 @@ typedef struct {
 
 	uint8_t an_calibrados;
 
+	bool mide_bateria;
+
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
 
@@ -339,6 +341,7 @@ void u_configPwrSave( char *s_modo, char *s_startTime, char *s_endTime);
 uint8_t u_checksum( uint8_t *s, uint16_t size );
 uint8_t u_hash(uint8_t checksum, char ch );
 void u_hash_test(void);
+bool u_config_bateria( char *s_mide_bateria );
 
 
 // TKCTL

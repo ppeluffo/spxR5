@@ -829,6 +829,22 @@ bool save_flag = false;
 		xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig COUNTERS_HW\r\n\0"));
 	}
 
+	// BAT
+	p = xCOMM_get_buffer_ptr("BAT");
+	if ( p != NULL ) {
+
+		memset( &localStr, '\0', sizeof(localStr) );
+		memcpy(localStr,p,sizeof(localStr));
+
+		stringp = localStr;
+		token = strsep(&stringp,delim);		// BAT
+		token = strsep(&stringp,delim);		// ON/OFF
+
+		u_config_bateria(token);
+		save_flag = true;
+		xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig BATT.\r\n\0"));
+	}
+
 
 	if ( save_flag ) {
 		u_save_params_in_NVMEE();

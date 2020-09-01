@@ -18,6 +18,7 @@ static void data_send_record( void );
 static void data_process_response_RESET(void);
 static void data_process_response_MEMFORMAT(void);
 static void data_process_response_DOUTS(void);
+static void data_process_response_CLOCK(void);
 static uint8_t data_process_response_OK(void);
 
 //------------------------------------------------------------------------------------
@@ -129,6 +130,13 @@ t_responses rsp = rsp_NONE;
 		if ( xCOMMS_check_response ("DOUTS\0")) {
 			// El sever mando actualizacion de las salidas
 			data_process_response_DOUTS();
+			// rsp = rsp_OK;
+			// return(rsp);
+		}
+
+		if ( xCOMMS_check_response ("CLOCK\0")) {
+			// El sever mando actualizacion del rtc
+			data_process_response_CLOCK();
 			// rsp = rsp_OK;
 			// return(rsp);
 		}
@@ -282,6 +290,68 @@ FAT_t fat;
 	}
 
 	return(recds_borrados);
+}
+//------------------------------------------------------------------------------------
+static void data_process_response_CLOCK(void)
+{
+	/*
+	 * Recibi algo del estilo CLOCK:1910120345
+	 * Extraigo el valor, veo que tan desfasado estoy del RTC
+	 * Si estoy mas de 60s, actualizo el RTC
+	 */
+
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *token = NULL;
+char *delim = ",;:=><";
+char *p = NULL;
+char rtcStr[12];
+uint8_t i = 0;
+char c = '\0';
+RtcTimeType_t rtc;
+int8_t xBytes = 0;
+
+	// CLOCK
+	p = xCOMM_get_buffer_ptr("CLOCK");
+	if ( p != NULL ) {
+		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+		memset( &localStr, '\0', sizeof(localStr) );
+		memcpy(localStr,p,sizeof(localStr));
+		// Estraigo el string con la hora del server y lo dejo en una estructura RtcTimeType
+		stringp = localStr;
+		token = strsep(&stringp,delim);			// CLOCK
+		token = strsep(&stringp,delim);			// 1910120345
+
+		memset(rtcStr, '\0', sizeof(rtcStr));
+		memcpy(rtcStr,token, sizeof(rtcStr));	// token apunta al comienzo del string con la hora
+		for ( i = 0; i<12; i++) {
+			c = *token;
+			rtcStr[i] = c;
+			c = *(++token);
+			if ( c == '\0' )
+				break;
+		}
+		if ( strlen(rtcStr) < 10 ) {
+			// Hay un error en el string que tiene la fecha.
+			// No lo reconfiguro
+			xprintf_P(PSTR("COMMS: ERROR rspCLOCK RTCstring [%s]\r\n\0"), rtcStr );
+			return;
+		}
+
+		memset( &rtc, '\0', sizeof(rtc) );
+		RTC_str2rtc(rtcStr, &rtc);			// Convierto el string YYMMDDHHMM a RTC.
+
+		// Vemos si es necesario ajustar el RTC del datalogger.
+		if ( RTC_has_drift(&rtc, 60 ) ) {
+			xBytes = RTC_write_dtime(&rtc);		// Grabo el RTC
+			if ( xBytes == -1 )
+				xprintf_P(PSTR("ERROR: I2C:RTC:data_process_response_CLOCK\r\n\0"));
+
+			xprintf_PD( DF_COMMS, PSTR("COMMS: DATA ONLINE Update rtc to: %s\r\n\0"), rtcStr );
+		}
+
+	}
 }
 //------------------------------------------------------------------------------------
 

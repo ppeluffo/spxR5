@@ -20,6 +20,7 @@
 #include "SPX_tasks/spx_tkApp/tkApp.h"
 
 st_dataRecord_t dataRecd;
+float battery;
 
 //------------------------------------------------------------------------------------
 // PROTOTIPOS
@@ -136,7 +137,11 @@ int8_t xBytes = 0;
 		counters_read( dst->df.io8.counters );
 		counters_clear();
 
-		ainputs_read( dst->df.io8.ainputs, NULL );
+		ainputs_read( dst->df.io8.ainputs, &battery );
+
+		// Si mide bateria, el canal 7 es el que la lleva
+		if ( systemVars.mide_bateria)
+			 dst->df.io8.ainputs[7] = battery;
 
 		// En el caso de la aplicacion PLANTAPOT debo ajustar los valores de las
 		// entradas analogicas, digitales y contadores para que reflejen el estado de las alarmas

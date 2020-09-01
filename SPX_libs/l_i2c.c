@@ -74,10 +74,11 @@ uint8_t i2c_error_code = 0;
 	if (i2c_error_code != I2C_OK ) {
 		memset(buffer,'\0', sizeof(buffer));
 		strcpy_P(buffer, (PGM_P)pgm_read_word(&(I2C_names[pv_i2_addr_2_idx( i2c_bus_address )])));
-		xprintf_P(PSTR("ERROR: I2C RD err 0x0%X, %s.\r\n\0"), i2c_bus_address, buffer );
+		xprintf_P(PSTR("ERROR: I2C RD err 0x0%X, err_code= 0x0%X, %s.\r\n\0"), i2c_bus_address, i2c_error_code, buffer );
 	}
 
 	if (xReturn != xBytes ) {
+		xprintf_P(PSTR("ERROR: I2C RD err 0x0%X, xbytes=%d, xReturn=%d.\r\n\0"), i2c_bus_address, xBytes, xReturn  );
 		xReturn = -1;
 	}
 
@@ -130,10 +131,11 @@ uint8_t i2c_error_code = 0;
 	if (i2c_error_code != I2C_OK ) {
 		memset(buffer,'\0', 10);
 		strcpy_P(buffer, (PGM_P)pgm_read_word(&(I2C_names[pv_i2_addr_2_idx( i2c_bus_address )])));
-		xprintf_P(PSTR("ERROR: I2C WR err 0x0%X, %s.\r\n\0"), i2c_bus_address, buffer );
+		xprintf_P(PSTR("ERROR: I2C WR err 0x0%X, err_code= 0x0%X, %s.\r\n\0"), i2c_bus_address, i2c_error_code, buffer );
 	}
 
 	if (xReturn != xBytes ) {
+		xprintf_P(PSTR("ERROR: I2C WR err 0x0%X, xbytes=%d, xReturn=%d.\r\n\0"), i2c_bus_address, xBytes, xReturn  );
 		xReturn = -1 ;
 	}
 
@@ -194,6 +196,7 @@ uint8_t olatb = 0;
 		MCP_write( MCP_OLATB, (char *)&olatb , 1 );
 
 	}
+
 	xprintf_P(PSTR("ERROR: I2C_reinit_devices.\r\n\0") );
 }
 //------------------------------------------------------------------------------------

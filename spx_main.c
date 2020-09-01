@@ -42,10 +42,16 @@
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
  * ------------------------------------------------------------------------
- * Version 3.0.3.e( MASTER ) @ 2020-08-18
+ * Version 3.0.3.g( MASTER ) @ 2020-08-28
+ * 1- Ajusto el protocolo para que en c/RX_OK de un frame me mande el CLOCK.
+ *    Si el RTC esta desfasado mas de 60s lo ajusto
+ * 2- En el SPX8, siempre mando el canal de la bateria.(igual que en los SPX5)
+ * 3- Incremento la informacion de errores de I2C
+ * ------------------------------------------------------------------------
+ * Version 3.0.3.f( MASTER ) @ 2020-08-18
  * -Agrego la calibracion de los canales analogicos por 2 puntos.
  * -Agrego en el protocolo que el datalogger le mande al server la calibracion
- * -Ajusto un bag que no permitia configurar la MMIN en los canales analogicos
+ * -Ajusto un bug que no permitia configurar la MMIN en los canales analogicos
  *  que no fuese entero.
  * ------------------------------------------------------------------------
  * Version 3.0.3.c( MASTER ) @ 2020-08-05

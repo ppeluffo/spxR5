@@ -20,6 +20,7 @@ static void pv_cmd_rwGPRS(uint8_t cmd_mode );
 static void pv_cmd_rwMCP(uint8_t cmd_mode );
 static void pv_cmd_I2Cscan(bool busscan);
 static bool pv_cmd_configGPRS(void);
+static void pv_RTC_drift_test(void);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -202,11 +203,18 @@ st_dataRecord_t dr;
 	xprintf_P( PSTR("  timerPoll: [%d s]/ %d\r\n\0"), systemVars.timerPoll, ctl_readTimeToNextPoll() );
 
 	// Timerdial
-	xprintf_P( PSTR("  timerDial: [%d s]/\0"), sVarsComms.timerDial );
+	xprintf_P( PSTR("  timerDial: [%ld s]/\0"), sVarsComms.timerDial );
 	xprintf_P( PSTR(" %d \r\n\0"), xcomms_time_to_next_dial() );
 
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
+
+	// Mide bateria ?
+	if ( systemVars.mide_bateria ==  false ) {
+		xprintf_P(  PSTR("  bateria: OFF\r\n"));
+	} else {
+		xprintf_P(  PSTR("  bateria: ON\r\n"));
+	}
 
 //	if ( ( spx_io_board == SPX_IO5CH ) || (strcmp_P( strupr(argv[1]), PSTR("ALL\0")) == 0 ) ) {
 	if ( spx_io_board == SPX_IO5CH ) {
@@ -536,6 +544,11 @@ uint8_t cks;
 		 return;
 	}
 
+	if (!strcmp_P( strupr(argv[1]), PSTR("RTCDTEST\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_RTC_drift_test();
+		return;
+	}
+
 	// READ HASH
 /*	if (!strcmp_P( strupr(argv[1]), PSTR("HASH\0"))) {
 		u_hash_test();
@@ -742,6 +755,14 @@ static void cmdConfigFunction(void)
 bool retS = false;
 
 	FRTOS_CMD_makeArgv();
+
+	// BATERIA ( si reporta )
+	// bateria { on | off }
+	if (!strcmp_P( strupr(argv[1]), PSTR("BATERIA\0")) ) {
+		retS = u_config_bateria( argv[2] );
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
 
 	// GPRS SAT
 	// config gprs SAT {enable|disable}
@@ -1109,6 +1130,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
 		xprintf_P( PSTR("  rangemeter {name}\r\n\0"));
+		xprintf_P( PSTR("  bateria {on|off}\r\n\0"));
 		xprintf_P( PSTR("  psensor name countMin countMax pmin pmax offset\r\n\0"));
 
 		xprintf_P( PSTR("  debug {none,counter,data,comms,aplicacion }\r\n\0"));
@@ -1717,4 +1739,18 @@ static bool pv_cmd_configGPRS(void)
 	return(false);
 }
 //------------------------------------------------------------------------------------
+static void pv_RTC_drift_test(void)
+{
 
+RtcTimeType_t rtc_new;
+
+	RTC_str2rtc(argv[2], &rtc_new);
+	if ( RTC_has_drift( &rtc_new, atoi(argv[3]) )) {
+		xprintf_P(PSTR("DRIFT positivo\r\n"));
+	} else {
+		xprintf_P(PSTR("NO DRIFT\r\n"));
+	}
+
+
+}
+//------------------------------------------------------------------------------------

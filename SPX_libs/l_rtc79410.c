@@ -221,31 +221,31 @@ bool RTC_str2rtc(char *str, RtcTimeType_t *rtc)
 
 char dateTimeStr[11] = { 0 };
 char tmp[3] = { 0 };
-bool retS = false;
-
 
 	/* YYMMDDhhmm */
 	if ( str == NULL )
 		return(false);
 
-		memcpy(dateTimeStr, str, 10);
-		// year
-		tmp[0] = dateTimeStr[0]; tmp[1] = dateTimeStr[1];	tmp[2] = '\0';
-		rtc->year = atoi(tmp);
-		// month
-		tmp[0] = dateTimeStr[2]; tmp[1] = dateTimeStr[3];	tmp[2] = '\0';
-		rtc->month = atoi(tmp);
-		// day of month
-		tmp[0] = dateTimeStr[4]; tmp[1] = dateTimeStr[5];	tmp[2] = '\0';
-		rtc->day = atoi(tmp);
-		// hour
-		tmp[0] = dateTimeStr[6]; tmp[1] = dateTimeStr[7];	tmp[2] = '\0';
-		rtc->hour = atoi(tmp);
-		// minute
-		tmp[0] = dateTimeStr[8]; tmp[1] = dateTimeStr[9];	tmp[2] = '\0';
-		rtc->min = atoi(tmp);
+	memcpy(dateTimeStr, str, 10);
+	// year
+	tmp[0] = dateTimeStr[0]; tmp[1] = dateTimeStr[1];	tmp[2] = '\0';
+	rtc->year = atoi(tmp);
+	// month
+	tmp[0] = dateTimeStr[2]; tmp[1] = dateTimeStr[3];	tmp[2] = '\0';
+	rtc->month = atoi(tmp);
+	// day of month
+	tmp[0] = dateTimeStr[4]; tmp[1] = dateTimeStr[5];	tmp[2] = '\0';
+	rtc->day = atoi(tmp);
+	// hour
+	tmp[0] = dateTimeStr[6]; tmp[1] = dateTimeStr[7];	tmp[2] = '\0';
+	rtc->hour = atoi(tmp);
+	// minute
+	tmp[0] = dateTimeStr[8]; tmp[1] = dateTimeStr[9];	tmp[2] = '\0';
+	rtc->min = atoi(tmp);
+	// seconds siempre en 0.
+	rtc->sec = 0;
 
-		return(retS);
+	return(true);
 
 }
 //------------------------------------------------------------------------------------
@@ -266,6 +266,61 @@ bool retS = false;
 		xprintf_P(PSTR("ERROR: I2C:RTC:pv_cmd_rwRTC\r\n\0"));
 
 	return( retS );
+}
+//------------------------------------------------------------------------------------
+bool RTC_has_drift(RtcTimeType_t *rtc_new, uint16_t max_drift )
+{
+	// Compara la hora pasada en el parametro con la del RTC del datalogger.
+	// Si la diferencia es mayor a max_drift secs indica que hay drift.
+
+uint8_t xBytes;
+RtcTimeType_t rtc_dlg;
+uint32_t secs_dlg, secs_new;
+
+	xBytes = RTC_read_dtime( &rtc_dlg );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("ERROR: I2C:RTC RTC_check_drift\r\n\0"));
+		return (false);
+	}
+
+	//xprintf_P(PSTR("DRIFT: year: %d:%d\r\n"),rtc_dlg.year,rtc_new->year);
+	//xprintf_P(PSTR("DRIFT: month: %d:%d\r\n"),rtc_dlg.month,rtc_new->month);
+	//xprintf_P(PSTR("DRIFT: day: %d:%d\r\n"),rtc_dlg.day,rtc_new->day);
+	//xprintf_P(PSTR("DRIFT: hour: %d:%d\r\n"),rtc_dlg.hour,rtc_new->hour);
+	//xprintf_P(PSTR("DRIFT: min: %d:%d\r\n"),rtc_dlg.min,rtc_new->min);
+	//xprintf_P(PSTR("DRIFT: sec: %d:%d\r\n"),rtc_dlg.sec,rtc_new->sec);
+
+	if ( rtc_dlg.year != rtc_new->year )
+		return(true);
+
+	if ( rtc_dlg.month != rtc_new->month )
+		return(true);
+
+	if ( rtc_dlg.day != rtc_new->day )
+		return(true);
+
+	secs_dlg = rtc_dlg.hour;
+	secs_dlg *= 3600;
+	secs_dlg += rtc_dlg.min * 60;
+	secs_dlg += rtc_dlg.sec;
+
+	secs_new = rtc_new->hour;
+	secs_new *= 3600;
+	secs_new += rtc_new->min * 60;
+	secs_new += rtc_new->sec;
+
+	//xprintf_P(PSTR("DRIFT: secs_dlg=%ld\r\n"),secs_dlg);
+	//xprintf_P(PSTR("DRIFT: secs_new=%ld\r\n"),secs_new);
+	//xprintf_P(PSTR("DRIFT: max_drift=%d\r\n"),max_drift);
+
+	if ( labs(secs_dlg - secs_new ) > max_drift ) {
+		return(true);
+	} else {
+		return(false);
+	}
+
+	return(false);
+
 }
 //------------------------------------------------------------------------------------
 void RTC_read_time( void )

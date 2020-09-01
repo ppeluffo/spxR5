@@ -265,8 +265,10 @@ void u_load_defaults( char *opt )
 
 	if ( spx_io_board == SPX_IO8CH ) {
 		systemVars.timerPoll = 60;
+		systemVars.mide_bateria = false;
 	} else {
 		systemVars.timerPoll = 300;
+		systemVars.mide_bateria = true;
 	}
 
 	// pwrsave se configura en gprs_utils
@@ -536,6 +538,15 @@ int16_t free_size = sizeof(dst);
 	if ( free_size < 0 ) goto exit_error;
 	//xprintf_P( PSTR("DEBUG: BASEHASH = [%s]\r\n\0"), dst );
 
+
+	// VERSION 3.0.4: mide_bateria
+	if ( systemVars.mide_bateria) {
+		i += snprintf_P( &dst[i], free_size, PSTR("ON,"));
+	} else {
+		i += snprintf_P( &dst[i], (  sizeof(dst) - i ) , PSTR("OFF,"));
+	}
+	free_size = (  sizeof(dst) - i );
+	if ( free_size < 0 ) goto exit_error;
 
 	// Apunto al comienzo para recorrer el buffer
 	p = dst;
@@ -965,4 +976,40 @@ char *p;
 	xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 }
+//------------------------------------------------------------------------------------
+bool u_config_bateria( char *s_mide_bateria )
+{
+
+bool retS = false;
+
+	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
+	//xprintf_P( PSTR("DEBUG_A: PWRS modo=%s, startitme=%s, endtime=%s\r\n\0"), s_modo, s_startTime, s_endTime );
+
+	if (spx_io_board == SPX_IO5CH ) {
+		systemVars.mide_bateria = true;
+		retS = true;
+		goto quit;
+	}
+
+	if (strcmp_P( strupr(s_mide_bateria), PSTR( "OFF")) == 0 ) {
+		systemVars.mide_bateria = false;
+		retS = true;
+		goto quit;
+	}
+
+	if (strcmp_P( strupr(s_mide_bateria), PSTR( "ON")) == 0 ) {
+		systemVars.mide_bateria = true;
+		retS = true;
+		goto quit;
+	}
+
+quit:
+
+	xSemaphoreGive( sem_SYSVars );
+	return(retS);
+
+}
+//------------------------------------------------------------------------------------
 
