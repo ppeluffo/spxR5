@@ -92,6 +92,60 @@ int8_t xRet = -1;
 	return(xRet);
 }
 //------------------------------------------------------------------------------------
+int frtos_send( file_descriptor_t fd ,const char *pvBuffer, const uint16_t xBytes )
+{
+	// Trasmite el buffer sin considerar si tiene NULL 0x00 en el medio.
+	// Transmite en forma transparente los xBytes.
+
+int8_t xRet = -1;
+
+	switch(fd) {
+	case fdGPRS:
+		break;
+	case fdAUX1:
+		xRet = frtos_uart_send( &xComAUX1, pvBuffer, xBytes );
+		break;
+	case fdTERM:
+	case fdI2C:
+	default:
+		break;
+	}
+
+	return(xRet);
+}
+//------------------------------------------------------------------------------------
+void frtos_putchar( file_descriptor_t fd ,const char cChar )
+{
+	// Escribe en el puerto (serial) en modo transparente.
+
+	switch(fd) {
+	case fdGPRS:
+		// Espero que este libre para transmitir
+
+		// Transmito.
+		USARTE0.DATA = cChar;
+		while ( ( USARTE0.STATUS & USART_DREIF_bm) == 0)
+			vTaskDelay( ( TickType_t)( 1 ) );
+		break;
+	case fdAUX1:
+		while ( ( USARTC0.STATUS & USART_DREIF_bm) == 0)
+			vTaskDelay( ( TickType_t)( 1 ) );
+		USARTC0.DATA = cChar;
+		break;
+	case fdTERM:
+		while ( ( USARTF0.STATUS & USART_DREIF_bm) == 0)
+			vTaskDelay( ( TickType_t)( 1 ) );
+		USARTF0.DATA = cChar;
+
+		break;
+	case fdI2C:
+		break;
+	default:
+		break;
+	}
+
+}
+//------------------------------------------------------------------------------------
 int frtos_read( file_descriptor_t fd , char *pvBuffer, uint16_t xBytes )
 {
 int8_t xRet = -1;
@@ -154,6 +208,59 @@ int wBytes = 0;
 	// Cargo el buffer en la cola de trasmision.
 	p = (char *)pvBuffer;
 	while (*p && (bytes2tx-- > 0) ) {
+
+		// Voy cargando la cola de a uno.
+		cChar = *p;
+		rBufferPoke( &xCom->uart->TXringBuffer, &cChar  );
+		//rBufferPoke( &uart_usb.TXringBuffer, &cChar  );
+		p++;
+		wBytes++;	// Cuento los bytes que voy trasmitiendo
+
+		// Si la cola esta llena, empiezo a trasmitir y espero que se vacie.
+		if (  rBufferReachHighWaterMark( &xCom->uart->TXringBuffer ) ) {
+			// Habilito a trasmitir para que se vacie
+			drv_uart_interruptOn( xCom->uart->uart_id );
+			// Y espero que se haga mas lugar.
+			while ( ! rBufferReachLowWaterMark( &xCom->uart->TXringBuffer ) )
+				vTaskDelay( ( TickType_t)( 1 ) );
+		}
+	}
+
+	// Luego inicio la trasmision invocando la interrupcion.
+	drv_uart_interruptOn( xCom->uart->uart_id );
+
+	// Espero que trasmita todo
+	while  ( rBufferGetCount( &xCom->uart->TXringBuffer ) > 0 )
+		vTaskDelay( ( TickType_t)( 1 ) );
+
+	return (wBytes);
+}
+//------------------------------------------------------------------------------------
+int frtos_uart_send( periferico_serial_port_t *xCom, const char *pvBuffer, const uint16_t xBytes )
+{
+	// Esta funcion debe poner los caracteres apuntados en pvBuffer en la cola de trasmision del
+	// puerto serial apuntado por xCom
+	// Actua como si fuese rprintfStr.
+	// Debe tomar el semaforo antes de trasmitir. Los semaforos los manejamos en la capa FreeRTOS
+	// y no en la de los drivers.
+	// NO CONSIDERA SI EL CARACTER ES NULL 0x00. Tansmite xBytes.
+
+char cChar = '\0';
+char *p = NULL;
+uint16_t bytes2tx = 0;
+int wBytes = 0;
+
+	// Controlo no hacer overflow en la cola de trasmision
+	bytes2tx = xBytes;
+
+	// Trasmito.
+	// Espero que los buffers esten vacios. ( La uart se va limpiando al trasmitir )
+	while  ( rBufferGetCount( &xCom->uart->TXringBuffer ) > 0 )
+		vTaskDelay( ( TickType_t)( 1 ) );
+
+	// Cargo el buffer en la cola de trasmision.
+	p = (char *)pvBuffer;
+	while ( bytes2tx-- > 0 ) {
 
 		// Voy cargando la cola de a uno.
 		cChar = *p;
@@ -248,6 +355,30 @@ int xReturn = 0;
 			break;
 		case ioctl_UART_CLEAR_TX_BUFFER:
 			rBufferFlush(&xCom->uart->TXringBuffer);
+			break;
+		case ioctl_UART_ENABLE_TX_INT:
+			drv_uart_enable_tx_int( xCom->uart->uart_id );
+			break;
+		case ioctl_UART_DISABLE_TX_INT:
+			drv_uart_disable_tx_int( xCom->uart->uart_id );
+			break;
+		case ioctl_UART_ENABLE_RX_INT:
+			drv_uart_enable_rx_int( xCom->uart->uart_id );
+			break;
+		case ioctl_UART_DISABLE_RX_INT:
+			drv_uart_disable_rx_int( xCom->uart->uart_id );
+			break;
+		case ioctl_UART_ENABLE_TX:
+			drv_uart_enable_tx( xCom->uart->uart_id );
+			break;
+		case ioctl_UART_DISABLE_TX:
+			drv_uart_disable_tx( xCom->uart->uart_id );
+			break;
+		case ioctl_UART_ENABLE_RX:
+			drv_uart_enable_rx( xCom->uart->uart_id );
+			break;
+		case ioctl_UART_DISABLE_RX:
+			drv_uart_disable_rx( xCom->uart->uart_id );
 			break;
 		default :
 			xReturn = -1;

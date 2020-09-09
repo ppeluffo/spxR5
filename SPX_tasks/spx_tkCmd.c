@@ -21,6 +21,8 @@ static void pv_cmd_rwMCP(uint8_t cmd_mode );
 static void pv_cmd_I2Cscan(bool busscan);
 static bool pv_cmd_configGPRS(void);
 static void pv_RTC_drift_test(void);
+static void pv_cmd_rwAUX(uint8_t cmd_mode );
+static bool pv_cmd_configMODBUS(void);
 
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
@@ -194,6 +196,9 @@ st_dataRecord_t dr;
 	case DEBUG_APLICACION:
 		xprintf_P( PSTR("  debug: aplicacion\r\n\0") );
 		break;
+	case DEBUG_MODBUS:
+		xprintf_P( PSTR("  debug: modbus\r\n\0") );
+		break;
 	default:
 		xprintf_P( PSTR("  debug: ???\r\n\0") );
 		break;
@@ -235,6 +240,7 @@ st_dataRecord_t dr;
 		} else {
 			xprintf_P( PSTR("  psensor: %s (%d-%d / %.01f-%.01f)[offset=%0.02f]\r\n\0"), systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max, systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
 		}
+
 	}
 
 	// contadores( Solo hay 2 )
@@ -247,6 +253,11 @@ st_dataRecord_t dr;
 		break;
 	}
 
+	if ( spx_io_board == SPX_IO5CH ) {
+		modbus_status();
+	}
+
+	xprintf_P( PSTR(">Channels:\r\n\0"));
 	// aninputs
 	for ( channel = 0; channel < NRO_ANINPUTS; channel++) {
 		xprintf_P( PSTR("  a%d [%d-%d mA/ %.02f,%.02f | %.02f | %.03f | %.03f | %s]"),
@@ -379,6 +390,22 @@ char l_data[10] = { '\0' };
 	}
 */
 
+
+	// MODBUS
+	// write modbus {slave} {fcode} {start_addr} {nro_regs}
+	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		modbus_wr_test( argv[2], argv[3], argv[4], argv[5] );
+		pv_snprintfP_OK();
+		return;
+	}
+
+	// AUX
+	// write aux rts {on|off}
+	// write aux cmd {acmd}
+	if ( ( strcmp_P( strupr(argv[1]), PSTR("AUX\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_rwAUX(WR_CMD);
+		return;
+	}
 
 	// GPRS
 	// write gprs pwr|sw|rts {on|off}
@@ -537,6 +564,21 @@ uint8_t cks;
 
 	FRTOS_CMD_makeArgv();
 
+
+	// MODBUS
+	// read modbus
+	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		modbus_rd_test();
+		return;
+	}
+
+	// AUX
+	// read aux rsp
+	if (!strcmp_P( strupr(argv[1]), PSTR("AUX\0")) && ( tipo_usuario == USER_TECNICO) ) {
+		pv_cmd_rwAUX(RD_CMD);
+		return;
+	}
+
 	// ALMTEST
 	// read almtest
 	if (!strcmp_P( strupr(argv[1]), PSTR("ALMTEST\0")) && ( tipo_usuario == USER_TECNICO) ) {
@@ -573,6 +615,8 @@ uint8_t cks;
 		xprintf_P( PSTR("Range hash = [0x%02x]\r\n\0"), cks );
 		cks = u_aplicacion_hash();
 		xprintf_P( PSTR("App hash = [0x%02x]\r\n\0"), cks );
+		cks = modbus_hash();
+		xprintf_P( PSTR("Mbus hash = [0x%02x]\r\n\0"), cks );
 		return;
 	}
 
@@ -755,6 +799,13 @@ static void cmdConfigFunction(void)
 bool retS = false;
 
 	FRTOS_CMD_makeArgv();
+
+	// MODBUS:
+	if ( strcmp_P ( strupr( argv[1]), PSTR("MODBUS\0")) == 0 ) {
+		retS = pv_cmd_configMODBUS();
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
 
 	// BATERIA ( si reporta )
 	// bateria { on | off }
@@ -969,6 +1020,9 @@ bool retS = false;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("APLICACION\0"))) {
 			systemVars.debug = DEBUG_APLICACION;
 			retS = true;
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("MBUS\0"))) {
+			systemVars.debug = DEBUG_MODBUS;
+			retS = true;
 		} else {
 			retS = false;
 		}
@@ -1080,11 +1134,15 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("           (open|close) (A|B)\r\n\0"));
 				xprintf_P( PSTR("           pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("           power {on|off}\r\n\0"));
+				xprintf_P( PSTR("  modbus {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|rts|dtr) {on|off}\r\n\0"));
 			xprintf_P( PSTR("       cmd {atcmd}, redial, monsqe\r\n\0"));
 			xprintf_P( PSTR("       sms,qsms,fsms {nbr,msg}\r\n\0"));
+
+			xprintf_P( PSTR("  aux rts {on|off}\r\n\0"));
+			xprintf_P( PSTR("      cmd {acmd}\r\n\0"));
 
 		}
 		return;
@@ -1107,6 +1165,10 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
 			xprintf_P( PSTR("  dinputs\r\n\0"));
 			xprintf_P( PSTR("  gprs (rsp,cts,dcd,ri,sms)\r\n\0"));
+			xprintf_P( PSTR("  aux rsp\r\n\0"));
+			if ( spx_io_board == SPX_IO5CH ) {
+				xprintf_P( PSTR("  modbus rsp\r\n\0"));
+			}
 		}
 		return;
 
@@ -1133,7 +1195,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  bateria {on|off}\r\n\0"));
 		xprintf_P( PSTR("  psensor name countMin countMax pmin pmax offset\r\n\0"));
 
-		xprintf_P( PSTR("  debug {none,counter,data,comms,aplicacion }\r\n\0"));
+		xprintf_P( PSTR("  debug {none,counter,data,comms,aplicacion,mbus}\r\n\0"));
 
 		xprintf_P( PSTR("  digital {0..%d} dname {normal,timer}\r\n\0"), ( NRO_DINPUTS - 1 ) );
 
@@ -1156,6 +1218,11 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("         {nivelB,nivelA} valor\r\n\0"));
 		xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  caudal {pwidth} {factorQ}\r\n\0"));
+
+		if ( spx_io_board == SPX_IO5CH ) {
+			xprintf_P( PSTR("  modbus slave {hex_addr}\r\n\0"));
+			xprintf_P( PSTR("         channel {0..%d} name addr length rcode(3,4)\r\n\0"), ( MODBUS_CHANNELS - 1));
+		}
 
 		xprintf_P( PSTR("  default {SPY|OSE|UTE|CLARO}\r\n\0"));
 		xprintf_P( PSTR("  save\r\n\0"));
@@ -1751,6 +1818,91 @@ RtcTimeType_t rtc_new;
 		xprintf_P(PSTR("NO DRIFT\r\n"));
 	}
 
+
+}
+//------------------------------------------------------------------------------------
+static void pv_cmd_rwAUX(uint8_t cmd_mode )
+{
+
+	if ( cmd_mode == WR_CMD ) {
+
+		// write aux (pwr|rts) {on|off}
+		if ( strcmp_P( strupr(argv[2]), PSTR("PWR\0")) == 0 ) {
+			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
+				aux_prender(); pv_snprintfP_OK(); return;
+			}
+			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
+				aux_apagar(); pv_snprintfP_OK(); return;
+			}
+			pv_snprintfP_ERR();
+			return;
+		}
+
+
+		if ( strcmp_P( strupr(argv[2]), PSTR("RTS\0")) == 0 ) {
+			if ( strcmp_P( strupr(argv[3]), PSTR("ON\0")) == 0 ) {
+				aux_rts_on(); pv_snprintfP_OK(); return;
+			}
+			if ( strcmp_P( strupr(argv[3]), PSTR("OFF\0")) == 0 ) {
+				aux_rts_off(); pv_snprintfP_OK(); return;
+			}
+			pv_snprintfP_ERR();
+			return;
+		}
+
+
+		// CMD
+		// write aux cmd {atcmd}
+		if ( strcmp_P(strupr(argv[2]), PSTR("CMD\0")) == 0 ) {
+			//xprintf_P( PSTR("%s\r\0"),argv[3] );
+
+			aux_flush_RX_buffer();
+			xfprintf_P( fdAUX1,PSTR("%s\r\0"),argv[3] );
+			xprintf_P( PSTR("sent->%s\r\n\0"),argv[3] );
+			return;
+		}
+
+		return;
+	}
+
+
+	if ( cmd_mode == RD_CMD ) {
+
+		// CMD RSP
+		// read aux rsp ( el aux lo leo en modo ascci)
+		if ( strcmp_P(strupr(argv[2]), PSTR("RSP\0")) == 0 ) {
+			aux_print_RX_buffer( true );
+			aux_flush_RX_buffer();
+			return;
+		}
+
+		pv_snprintfP_ERR();
+		return;
+	}
+
+}
+//------------------------------------------------------------------------------------
+static bool pv_cmd_configMODBUS(void)
+{
+
+	if ( spx_io_board == SPX_IO8CH )
+		return(false);
+
+
+	// config modbus slave {hex_addr}
+	//        channel {0..%d} name addr length rcode(3,4)
+
+	// config modbus slave {hex_addr}
+	if ( strcmp_P( strupr(argv[2]), PSTR("SLAVE\0")) == 0 ) {
+		return ( modbus_config_slave_address(argv[3]) );
+	}
+
+	// config modbus channel {0..%d} name addr length rcode(3,4)
+	if ( strcmp_P( strupr(argv[2]), PSTR("CHANNEL\0")) == 0 ) {
+		return (modbus_config_channel(atoi(argv[3]),argv[4],argv[5],argv[6],argv[7]) );
+	}
+
+	return(false);
 
 }
 //------------------------------------------------------------------------------------

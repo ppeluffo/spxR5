@@ -41,8 +41,20 @@
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
+  * ------------------------------------------------------------------------
+ * Version 3.0.4.b( MASTER ) @ 2020-09-01
+ * - Incorporo MODBUS Master.
+ *   - Rutinas de trasmision / recepcion por puerto AUX ( modo cmd )
+ *   	Tarea de aux1_RX.
+ *   - Manejo del RTS
+ *   - Actualmente no se puede trasmitir un 0x00 por los puertos seriales ya que
+ *   se toma como NULL. Debemos crear una funcion que trasnmita por el puerto AUX en
+ *   modo transparente.
+ *   Defino la funcion void frtos_putchar( file_descriptor_t fd ,const char cChar ).
+ *
+ *
  * ------------------------------------------------------------------------
- * Version 3.0.3.g( MASTER ) @ 2020-08-28
+ * Version 3.0.4.a( MASTER ) @ 2020-08-28
  * 1- Ajusto el protocolo para que en c/RX_OK de un frame me mande el CLOCK.
  *    Si el RTC esta desfasado mas de 60s lo ajusto
  * 2- En el SPX8, siempre mando el canal de la bateria.(igual que en los SPX5)
@@ -478,6 +490,7 @@ int main( void )
 	xHandle_tkAplicacion = xTaskCreateStatic(tkAplicacion, "APP", tkAplicacion_STACK_SIZE,(void *)1, tkAplicacion_TASK_PRIORITY,xTask_Aplicacion_Buffer, &xTask_Aplicacion_Buffer_Ptr );
 	xHandle_tkComms = xTaskCreateStatic(tkComms, "COMMS", tkComms_STACK_SIZE, (void *)1, tkComms_TASK_PRIORITY, xTask_Comms_Buffer, &xTask_Comms_Buffer_Ptr );
 	xHandle_tkCommsRX = xTaskCreateStatic(tkCommsRX, "RX", tkCommsRX_STACK_SIZE, (void *)1, tkCommsRX_TASK_PRIORITY, xTask_CommsRX_Buffer, &xTask_CommsRX_Buffer_Ptr );
+	xHandle_tkAuxRX = xTaskCreateStatic(tkAuxRX, "AUX", tkAuxRX_STACK_SIZE, (void *)1, tkAuxRX_TASK_PRIORITY, xTask_AuxRX_Buffer, &xTask_AuxRX_Buffer_Ptr );
 
 	/* Arranco el RTOS. */
 	vTaskStartScheduler();

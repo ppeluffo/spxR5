@@ -17,7 +17,7 @@ typedef enum { LINK_OPEN = 0, LINK_CLOSE, LINK_UNKNOWN } t_link_status;
 typedef enum { NET_OPEN = 0, NET_CLOSE, NET_UNKNOWN } t_net_status;
 typedef enum { ATCMD_ENTRY = 0, ATCMD_TEST, ATCMD_CMD, ATCMD_WAIT, ATCMD_EXIT } atcmd_state_t;
 
-typedef enum { INIT_AUTH = 0, INIT_SRVUPDATE, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, DATA, SCAN } t_frame;
+typedef enum { INIT_AUTH = 0, INIT_SRVUPDATE, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, INIT_MODBUS, DATA, SCAN } t_frame;
 typedef enum { frame_ENTRY = 0, frame_RESPONSE, frame_NET } t_frame_states;
 typedef enum { rsp_OK = 0, rsp_ERROR, rsp_NONE } t_responses;
 
@@ -27,7 +27,7 @@ typedef enum { rsp_OK = 0, rsp_ERROR, rsp_NONE } t_responses;
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 
 #define GPRS_RXBUFFER_LEN	512
-#define AUX1_RXBUFFER_LEN	512
+#define AUX_RXBUFFER_LEN	 32
 
 #define MAX_XCOMM_TO_TIMER	180
 
@@ -177,5 +177,16 @@ char *xSMS_read_and_delete_by_index( uint8_t msg_index );
 bool xSMS_received( uint8_t *first_msg_index );
 void xSMS_process( char *sms_msg);
 
+void aux_init(void);
+void aux_prender(void);
+void aux_apagar(void);
+void aux_rts_on(void);
+void aux_rts_off(void);
+void aux_rxBuffer_fill(char c);
+void aux_flush_RX_buffer(void);
+void aux_flush_TX_buffer(void);
+void aux_print_RX_buffer( bool ascii_mode );
+char *aux_get_buffer( void );
+uint16_t aux_get_buffer_ptr( void );
 
 #endif /* SRC_SPX_TASKS_SPX_TKCOMMS_TKCOMMS_H_ */

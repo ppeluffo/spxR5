@@ -65,11 +65,11 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "3.0.4a"
-#define SPX_FW_DATE "@ 20200831"
+#define SPX_FW_DATE "@ 20200909"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
-#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
-//#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master"
+//#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
+#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master Mbus."
 
 //#define BETA_TEST
 //#define MODEM_SIMULATOR
@@ -95,6 +95,8 @@
 #define IO8_COUNTER_CHANNELS	2
 #define IO8_DOUTPUTS_CHANNELS	8
 
+#define MODBUS_CHANNELS			2
+
 #define CHAR32	32
 #define CHAR64	64
 #define CHAR128	128
@@ -106,6 +108,7 @@
 #define tkComms_STACK_SIZE		640
 #define tkCommsRX_STACK_SIZE	384
 #define tkAplicacion_STACK_SIZE	384
+#define tkAuxRX_STACK_SIZE		256
 
 StaticTask_t xTask_Ctl_Buffer_Ptr;
 StackType_t xTask_Ctl_Buffer [tkCtl_STACK_SIZE];
@@ -125,6 +128,8 @@ StackType_t xTask_CommsRX_Buffer [tkCommsRX_STACK_SIZE];
 StaticTask_t xTask_Aplicacion_Buffer_Ptr;
 StackType_t xTask_Aplicacion_Buffer [tkAplicacion_STACK_SIZE];
 
+StaticTask_t xTask_AuxRX_Buffer_Ptr;
+StackType_t xTask_AuxRX_Buffer [tkAuxRX_STACK_SIZE];
 
 #define tkCtl_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
 #define tkCmd_TASK_PRIORITY	 		( tskIDLE_PRIORITY + 1 )
@@ -132,6 +137,8 @@ StackType_t xTask_Aplicacion_Buffer [tkAplicacion_STACK_SIZE];
 #define tkComms_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkCommsRX_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 #define tkAplicacion_TASK_PRIORITY	( tskIDLE_PRIORITY + 1 )
+#define tkCommsRX_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define tkAuxRX_TASK_PRIORITY		( tskIDLE_PRIORITY + 1 )
 
 // Mensajes entre tareas
 #define SGN_FRAME_READY			0x01
@@ -149,14 +156,14 @@ struct {
 	bool sgn_sms;
 } system_signals;
 
-typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_COMMS, DEBUG_APLICACION } t_debug;
+typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_COMMS, DEBUG_APLICACION, DEBUG_MODBUS } t_debug;
 typedef enum { USER_NORMAL, USER_TECNICO } usuario_t;
 typedef enum { SPX_IO5CH = 0, SPX_IO8CH } ioboard_t;
 typedef enum { modoPWRSAVE_OFF = 0, modoPWRSAVE_ON } t_pwrSave;
 typedef enum { DIN_NORMAL = 0, DIN_TIMER  } dinputs_modo_t;
 typedef enum { CNT_LOW_SPEED = 0, CNT_HIGH_SPEED  } dcounters_modo_t;
 
-TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkComms, xHandle_tkCommsRX, xHandle_tkAplicacion;
+TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHandle_tkComms, xHandle_tkCommsRX, xHandle_tkAplicacion, xHandle_tkAuxRX;
 
 bool startTask;
 uint8_t spx_io_board;
@@ -175,6 +182,7 @@ void tkInputs(void * pvParameters);
 void tkComms(void * pvParameters);
 void tkCommsRX(void * pvParameters);
 void tkAplicacion(void * pvParameters);
+void tkAuxRX(void * pvParameters);
 
 #define DLGID_LENGTH		12
 #define IP_LENGTH			24
@@ -209,7 +217,8 @@ typedef struct {
 	float psensor;								// 4 * 1 =  4
 	float temp;									// 4 * 1 =  4
 	float battery;								// 4 * 1 =  4
-} st_io5_t;										// ----- = 54
+	uint16_t mbus_inputs[MODBUS_CHANNELS];		// 2 * 2 =  4
+} st_io5_t;										// ----- = 50
 
 // Estructura de un registro de IO8CH
 typedef struct {
@@ -220,7 +229,7 @@ typedef struct {
 
 // Estructura de datos comun independiente de la arquitectura de IO
 typedef union u_dataframe {
-	st_io5_t io5;	// 54
+	st_io5_t io5;	// 50
 	st_io8_t io8;	// 56
 } u_dataframe_t;	// 56
 
@@ -282,6 +291,15 @@ typedef struct {
 	float offset;
 } psensor_conf_t;
 
+// Configuracion de modbus
+typedef struct {
+	uint8_t modbus_slave_address;
+	char var_name[MODBUS_CHANNELS][PARAMNAME_LENGTH];
+	uint16_t var_address[MODBUS_CHANNELS];				// Direccion en el slave de la variable a leer
+	uint8_t var_length[MODBUS_CHANNELS];				// Cantidad de bytes a leer
+	uint8_t var_function_code[MODBUS_CHANNELS];			// Funcion de lectura (3-Holding reg, 4-Normal reg)
+} modbus_conf_t;
+
 
 typedef struct {
 
@@ -300,6 +318,8 @@ typedef struct {
 	uint8_t an_calibrados;
 
 	bool mide_bateria;
+
+	modbus_conf_t modbus_conf;
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
 	uint8_t checksum;
@@ -419,6 +439,19 @@ void ainputs_test_channel( uint8_t io_channel);
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );
 void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr);
 
+// MODBUS
+void modbus_init(void);
+bool modbus_config_slave_address( char *address);
+bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_length,char *s_rcode);
+void modbus_config_defaults(void);
+uint8_t modbus_hash(void);
+bool modbus_poll( uint16_t mbus_in[] );
+void modbus_print(file_descriptor_t fd, uint16_t mbus[] );
+void modbus_status(void);
+void modbus_wr_test( char* c_slave_address, char *c_function_code, char * c_start_address, char * c_nro_regs);
+void modbus_rd_test(void);
+
+
 bool SPX_SIGNAL( uint8_t signal );
 bool SPX_SEND_SIGNAL( uint8_t signal );
 bool SPX_CLEAR_SIGNAL( uint8_t signal );
@@ -434,8 +467,9 @@ uint8_t wdg_resetCause;
 #define WDG_COMMS		3
 #define WDG_COMMSRX		4
 #define WDG_APP			5
+#define WDG_AUXRX		6
 
-#define NRO_WDGS		6
+#define NRO_WDGS		7
 
 #define WDG_TO30		30
 #define WDG_TO60		60

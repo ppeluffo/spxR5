@@ -29,7 +29,7 @@ static void init_reconfigure_params_app_B_caudalimetro(void);
 static bool init_reconfigure_params_app_C(void);
 static void init_reconfigure_params_app_C_plantapot(void);
 static bool init_reconfigure_params_update(void);
-
+static bool init_reconfigure_params_modbus(void);
 
 static bool f_send_init_frame_base = false;
 static bool f_send_init_frame_analog = false;
@@ -38,6 +38,7 @@ static bool f_send_init_frame_counters = false;
 static bool f_send_init_frame_range = false;
 static bool f_send_init_frame_psensor = false;
 static bool f_send_init_frame_app = false;
+static bool f_send_init_frame_modbus = false;
 
 bool reset_datalogger = false;
 
@@ -136,6 +137,16 @@ bool retS;
 		}
 	}
 
+	if ( f_send_init_frame_modbus ) {
+		f_send_init_frame_modbus = false;
+		retS = xCOMMS_process_frame( INIT_MODBUS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
+		if ( ! retS ) {
+			xCOMMS_stateVars.errores_comms++;
+			next_state = ST_ENTRY;
+			goto EXIT;
+		}
+	}
+
 	if ( f_send_init_frame_psensor ) {
 		f_send_init_frame_psensor = false;
 		retS = xCOMMS_process_frame( INIT_PSENSOR, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
@@ -199,7 +210,7 @@ void xINIT_FRAME_send(t_frame tipo_frame )
 	 * pueda evacuar los datos por un wireless lento.
 	 */
 
-uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks;
+uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks, mbus_cks;
 uint8_t ch;
 
 #ifdef MONITOR_STACK
@@ -246,6 +257,7 @@ uint8_t ch;
 		range_cks = range_hash();
 		psens_cks = psensor_hash();
 		app_cks = u_aplicacion_hash();
+		mbus_cks = modbus_hash();
 
 		//
 #ifdef MONITOR_STACK
@@ -269,6 +281,7 @@ uint8_t ch;
 
 		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("PSE:0x%02X;" ), psens_cks );
 		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("APP:0x%02X;" ), app_cks );
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("MBUS:0x%02X;" ), mbus_cks );
 
 		break;
 
@@ -319,6 +332,10 @@ uint8_t ch;
 			// En aplicacion PPOT pido la configuracion de los NIVELES DE ALARMA
 			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
 		}
+		break;
+
+	case INIT_MODBUS:
+		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_MODBUS;"));
 		break;
 
 	default:
@@ -480,6 +497,17 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
+		if ( xCOMMS_check_response("MODBUS") ) {
+			// Borro la causa del reset
+			wdg_resetCause = 0x00;
+			if ( init_reconfigure_params_modbus() ) {
+				rsp = rsp_OK;
+			} else {
+				rsp = rsp_ERROR;
+			}
+			return(rsp);
+		}
+
 		// El servidor no pudo procesar el frame. Problema del server
 		if ( xCOMMS_check_response("SRV_ERR") ) {
 			// Borro la causa del reset
@@ -626,7 +654,7 @@ static bool init_reconfigure_params_global(void)
 
 	// Recibimos un frame que trae la fecha y hora y parametros que indican
 	// que otras flags de configuraciones debemos prender.
-	// GLOBAL;CLOCK:1910120345;BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;APP_A;APP_B;APP_C
+	// GLOBAL;CLOCK:1910120345;BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;APP_A;APP_B;APP_C,MBUS;
 
 char *p = NULL;
 char localStr[32] = { 0 };
@@ -716,6 +744,11 @@ int8_t xBytes = 0;
 	p = xCOMM_get_buffer_ptr("APLICACION");
 	if ( p != NULL ) {
 		f_send_init_frame_app = true;
+	}
+
+	p = xCOMM_get_buffer_ptr("MBUS");
+	if ( p != NULL ) {
+		f_send_init_frame_modbus = true;
 	}
 
 	return(true);
@@ -1334,3 +1367,76 @@ char *p = NULL;
 
 }
 //------------------------------------------------------------------------------------
+static bool init_reconfigure_params_modbus(void)
+{
+
+	//  TYPE=INIT&PLOAD=CLASS:MODBUS;SLA:0x00;M0:MB0,0x00a1,0x01,0x02;M1:MB1,0x00a2,0x01,0x02;
+
+char *p = NULL;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_sla = NULL;
+char *tk_name = NULL;
+char *tk_addr = NULL;
+char *tk_length = NULL;
+char *tk_rcode = NULL;
+char *delim = ",;:=><";
+bool save_flag = false;
+uint8_t ch;
+char str_base[8];
+
+	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_MODBUS\r\n\0"));
+
+	// SLA
+	p = xCOMM_get_buffer_ptr("SLA");
+	if ( p != NULL ) {
+
+		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
+		memset( &localStr, '\0', sizeof(localStr) );
+		memcpy(localStr,p,sizeof(localStr));
+
+		stringp = localStr;
+		tk_sla = strsep(&stringp,delim);		// TDIAL
+		tk_sla = strsep(&stringp,delim);		// timerDial
+
+		if ( modbus_config_slave_address(tk_sla) ) {
+			save_flag = true;
+			xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig SLA\r\n\0"));
+		} else {
+			xprintf_PD( DF_COMMS, PSTR("COMMS: ERROR Reconfig SLA\r\n\0"));
+		}
+	}
+
+	// M?
+	for (ch=0; ch < MODBUS_CHANNELS; ch++ ) {
+		memset( &str_base, '\0', sizeof(str_base) );
+		snprintf_P( str_base, sizeof(str_base), PSTR("M%d\0"), ch );
+		p = xCOMM_get_buffer_ptr(str_base);
+		if ( p != NULL ) {
+			memset(localStr,'\0',sizeof(localStr));
+			memcpy(localStr,p,sizeof(localStr));
+			stringp = localStr;
+			tk_name = strsep(&stringp,delim);		//M0
+			tk_name = strsep(&stringp,delim);		//name
+			tk_addr = strsep(&stringp,delim);		//addr
+			tk_length = strsep(&stringp,delim);
+			tk_rcode = strsep(&stringp,delim);
+
+			if ( modbus_config_channel( ch,tk_name,tk_addr,tk_length, tk_rcode) ) {
+				xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig M%d\r\n\0"), ch);
+				save_flag = true;
+			} else {
+				xprintf_PD( DF_COMMS, PSTR("COMMS: ERROR Reconfig M%d\r\n\0"), ch);
+			}
+		}
+	}
+
+	if ( save_flag ) {
+		u_save_params_in_NVMEE();
+	}
+
+	return(true);
+
+}
+//------------------------------------------------------------------------------------
+

@@ -226,9 +226,9 @@ uint8_t IO_read_RI(void);
 // AUX1
 #define AUX1_PWR_BITPOS			1
 #define AUX1_PWR_PORT			PORTD
-#define IO_config_AUX1_PWR()	PORT_SetPinAsOutput( &AUX1_PWR_PORT, AUX1_PWR_BITPOS)
-#define IO_set_AUX1_PWR()		PORT_SetOutputBit( &AUX1_PWR_PORT, AUX1_PWR_BITPOS)
-#define IO_clr_AUX1_PWR()		PORT_ClearOutputBit( &AUX1_PWR_PORT, AUX1_PWR_BITPOS)
+#define IO_config_AUX_PWR()		PORT_SetPinAsOutput( &AUX1_PWR_PORT, AUX1_PWR_BITPOS)
+#define IO_set_AUX_PWR()		PORT_SetOutputBit( &AUX1_PWR_PORT, AUX1_PWR_BITPOS)
+#define IO_clr_AUX_PWR()		PORT_ClearOutputBit( &AUX1_PWR_PORT, AUX1_PWR_BITPOS)
 
 #define AUX1_SLEEP_BITPOS		0
 #define AUX1_SLEEP_PORT			PORTD
@@ -241,6 +241,10 @@ uint8_t IO_read_RI(void);
 #define IO_config_AUX1_RESET()	PORT_SetPinAsOutput( &AUX1_RESET_PORT, AUX1_RESET_BITPOS)
 #define IO_set_AUX1_RESET()		PORT_SetOutputBit( &AUX1_RESET_PORT, AUX1_RESET_BITPOS)
 #define IO_clr_AUX1_RESET()		PORT_ClearOutputBit( &AUX1_RESET_PORT, AUX1_RESET_BITPOS)
+
+#define IO_config_AUX_RTS()		PORT_SetPinAsOutput( &AUX1_RESET_PORT, AUX1_RESET_BITPOS)
+#define IO_set_AUX_RTS() 		PORT_SetOutputBit( &AUX1_RESET_PORT, AUX1_RESET_BITPOS)
+#define IO_clr_AUX_RTS()		PORT_ClearOutputBit( &AUX1_RESET_PORT, AUX1_RESET_BITPOS)
 
 //------------------------------------------------------------------------------------
 // MAIN POWER SLEEP MODE

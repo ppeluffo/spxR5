@@ -182,6 +182,143 @@ void drv_set_baudrate(uint32_t baudRate, uint8_t *baudA, uint8_t *baudB, uint8_t
 #endif
 }
 //----------------------------------------------------------------------------------------
+void drv_uart_enable_tx_int( uart_id_t iUART )
+{
+	// Habilita la interrrupcion por DRE
+
+	switch(iUART) {
+	case iUART_GPRS:
+		USARTE0.CTRLA = (USARTE0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_LO_gc;
+		break;
+	case iUART_AUX1:
+		USARTC0.CTRLA = (USARTC0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_LO_gc;
+		break;
+	case iUART_TERM:
+		USARTF0.CTRLA = (USARTF0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_LO_gc;
+		break;
+	}
+}
+//----------------------------------------------------------------------------------------
+void drv_uart_disable_tx_int( uart_id_t iUART )
+{
+	// Deshabilita la interrrupcion por DRE
+
+	switch(iUART) {
+	case iUART_GPRS:
+		USARTE0.CTRLA = (USARTE0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_OFF_gc;
+		break;
+	case iUART_AUX1:
+		USARTC0.CTRLA = (USARTC0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_OFF_gc;
+		break;
+	case iUART_TERM:
+		USARTF0.CTRLA = (USARTF0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_OFF_gc;
+		break;
+	}
+}
+//----------------------------------------------------------------------------------------
+void drv_uart_enable_rx_int( uart_id_t iUART )
+{
+	// Habilita la interrrupcion por RXC
+
+	switch(iUART) {
+	case iUART_GPRS:
+		USARTE0.CTRLA = (USARTE0.CTRLA & ~USART_RXCINTLVL_gm) | USART_RXCINTLVL_LO_gc;
+		break;
+	case iUART_AUX1:
+		USARTC0.CTRLA = (USARTC0.CTRLA & ~USART_RXCINTLVL_gm) | USART_RXCINTLVL_LO_gc;
+		break;
+	case iUART_TERM:
+		USARTF0.CTRLA = (USARTF0.CTRLA & ~USART_RXCINTLVL_gm) | USART_RXCINTLVL_LO_gc;
+		break;
+	}
+}
+//----------------------------------------------------------------------------------------
+void drv_uart_disable_rx_int( uart_id_t iUART )
+{
+	// Deshabilita la interrrupcion por RXC
+
+	switch(iUART) {
+	case iUART_GPRS:
+		USARTE0.CTRLA = (USARTE0.CTRLA & ~USART_RXCINTLVL_gm) | USART_RXCINTLVL_OFF_gc;
+		break;
+	case iUART_AUX1:
+		USARTC0.CTRLA = (USARTC0.CTRLA & ~USART_RXCINTLVL_gm) | USART_RXCINTLVL_OFF_gc;
+		break;
+	case iUART_TERM:
+		USARTF0.CTRLA = (USARTF0.CTRLA & ~USART_RXCINTLVL_gm) | USART_RXCINTLVL_OFF_gc;
+		break;
+	}
+}
+//----------------------------------------------------------------------------------------
+void drv_uart_enable_tx( uart_id_t iUART )
+{
+	// Enable USART transmitter
+
+	switch(iUART) {
+	case iUART_GPRS:
+		USARTE0.CTRLB = (USARTE0.CTRLB |= USART_TXEN_bm);
+		break;
+	case iUART_AUX1:
+		USARTC0.CTRLB = (USARTC0.CTRLB |= USART_TXEN_bm);
+		break;
+	case iUART_TERM:
+		USARTF0.CTRLB = (USARTF0.CTRLB |= USART_TXEN_bm);
+		break;
+	}
+
+}
+//----------------------------------------------------------------------------------------
+void drv_uart_disable_tx( uart_id_t iUART )
+{
+	// Disable USART transmitter
+
+	switch(iUART) {
+	case iUART_GPRS:
+		USARTE0.CTRLB = (USARTE0.CTRLB &= ~USART_TXEN_bm);
+		break;
+	case iUART_AUX1:
+		USARTC0.CTRLB = (USARTC0.CTRLB &= ~USART_TXEN_bm);
+		break;
+	case iUART_TERM:
+		USARTF0.CTRLB = (USARTF0.CTRLB &= ~USART_TXEN_bm);
+		break;
+	}
+}
+//----------------------------------------------------------------------------------------
+void drv_uart_enable_rx( uart_id_t iUART )
+{
+	// Enable USART receiver
+
+	switch(iUART) {
+	case iUART_GPRS:
+		USARTE0.CTRLB = (USARTE0.CTRLB |= USART_RXEN_bm);
+		break;
+	case iUART_AUX1:
+		USARTC0.CTRLB = (USARTC0.CTRLB |= USART_RXEN_bm);
+		break;
+	case iUART_TERM:
+		USARTF0.CTRLB = (USARTF0.CTRLB |= USART_RXEN_bm);
+		break;
+	}
+}
+//----------------------------------------------------------------------------------------
+void drv_uart_disable_rx( uart_id_t iUART )
+{
+	// Disable USART receiver
+
+	switch(iUART) {
+	case iUART_GPRS:
+		USARTE0.CTRLB = (USARTE0.CTRLB &= ~USART_RXEN_bm);
+		break;
+	case iUART_AUX1:
+		USARTC0.CTRLB = (USARTC0.CTRLB &= ~USART_RXEN_bm);
+		break;
+	case iUART_TERM:
+		USARTF0.CTRLB = (USARTF0.CTRLB &= ~USART_RXEN_bm);
+		break;
+	}
+}
+//----------------------------------------------------------------------------------------
 // UART GPRS:
 //----------------------------------------------------------------------------------------
 void drv_uart_gprs_open( uint32_t baudrate )
@@ -282,7 +419,7 @@ uint8_t ctl = 0;
 	// low level, RXint enabled
 	USARTC0.CTRLA |= _BV(4);	// RXCINTLVL_0 = 1
 	USARTC0.CTRLA &= ~(_BV(5));	// RXCINTLVL_1 = 0
-	//USARTC0.CTRLA = ( USARTE0.CTRLA & ~USART_RXCINTLVL_gm ) | USART_RXCINTLVL_LO_gc;
+	//USARTC0.CTRLA = USARTE0.CTRLA | USART_RXCINTLVL_LO_gc;
 
 	return;
 

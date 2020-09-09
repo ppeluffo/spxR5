@@ -71,12 +71,20 @@ StaticSemaphore_t I2C_xMutexBuffer;
 #define ioctl_SET_TIMEOUT				3
 #define ioctl_UART_CLEAR_RX_BUFFER		4
 #define ioctl_UART_CLEAR_TX_BUFFER		5
+#define ioctl_UART_ENABLE_TX_INT		6
+#define ioctl_UART_DISABLE_TX_INT		7
+#define ioctl_UART_ENABLE_RX_INT		8
+#define ioctl_UART_DISABLE_RX_INT		9
+#define ioctl_UART_ENABLE_TX			10
+#define ioctl_UART_DISABLE_TX			11
+#define ioctl_UART_ENABLE_RX			12
+#define ioctl_UART_DISABLE_RX			13
 
-#define ioctl_I2C_SET_DEVADDRESS		6
-#define ioctl_I2C_SET_BYTEADDRESS		7
-#define ioctl_I2C_SET_BYTEADDRESSLENGTH	8
-#define ioctl_I2C_GET_LAST_ERROR		9
-#define ioctl_I2C_SCAN					10
+#define ioctl_I2C_SET_DEVADDRESS		14
+#define ioctl_I2C_SET_BYTEADDRESS		15
+#define ioctl_I2C_SET_BYTEADDRESSLENGTH	16
+#define ioctl_I2C_GET_LAST_ERROR		17
+#define ioctl_I2C_SCAN					18
 
 #define I2C_OK			0
 #define I2C_RD_ERROR	1
@@ -86,6 +94,11 @@ StaticSemaphore_t I2C_xMutexBuffer;
 int frtos_open( file_descriptor_t fd, uint32_t flags);
 int frtos_uart_open( periferico_serial_port_t *xCom, file_descriptor_t fd, uart_id_t uart_id, uint32_t flags);
 int frtos_i2c_open( periferico_i2c_port_t *xI2c, file_descriptor_t fd, StaticSemaphore_t *i2c_semph, uint32_t flags);
+
+
+void frtos_putchar( file_descriptor_t fd ,const char cChar );
+int frtos_send( file_descriptor_t fd ,const char *pvBuffer, const uint16_t xBytes );
+int frtos_uart_send( periferico_serial_port_t *xCom, const char *pvBuffer, const uint16_t xBytes );
 
 int frtos_write( file_descriptor_t fd ,const char *pvBuffer, const uint16_t xBytes );
 int frtos_uart_write( periferico_serial_port_t *xCom, const char *pvBuffer, const uint16_t xBytes );

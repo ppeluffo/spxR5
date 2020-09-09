@@ -39,8 +39,8 @@ void initMCU(void)
 //	IO_config_PWR_SLEEP();
 //	IO_set_PWR_SLEEP();
 
-	// Configuro los pines del modulo Xbee
-	IO_config_AUX1_PWR();
+	// Configuro los pines del AUX port
+//	IO_config_AUX_PWR();
 //	IO_config_XBEE_SLEEP();
 //	IO_config_XBEE_RESET();
 
@@ -269,6 +269,7 @@ void u_load_defaults( char *opt )
 	} else {
 		systemVars.timerPoll = 300;
 		systemVars.mide_bateria = true;
+		modbus_config_defaults();
 	}
 
 	// pwrsave se configura en gprs_utils

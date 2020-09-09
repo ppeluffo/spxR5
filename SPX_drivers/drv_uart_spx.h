@@ -55,6 +55,16 @@ uart_control_t uart_term, uart_gprs, uart_aux1;
 uart_control_t *drv_uart_init( uart_id_t iUART, uint32_t baudrate );
 void drv_uart_interruptOn(uart_id_t iUART);
 void drv_uart_interruptOff(uart_id_t iUART);
+
+void drv_uart_enable_tx_int( uart_id_t iUART );
+void drv_uart_disable_tx_int( uart_id_t iUART );
+void drv_uart_enable_rx_int( uart_id_t iUART );
+void drv_uart_disable_rx_int( uart_id_t iUART );
+void drv_uart_enable_tx( uart_id_t iUART );
+void drv_uart_disable_tx( uart_id_t iUART );
+void drv_uart_enable_rx( uart_id_t iUART );
+void drv_uart_disable_rx( uart_id_t iUART );
+
 void drv_set_baudrate(uint32_t baudRate, uint8_t *baudA, uint8_t *baudB, uint8_t *ctl );
 
 void drv_uart_gprs_open( uint32_t baudrate );

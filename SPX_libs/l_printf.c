@@ -88,6 +88,27 @@ int bytes2wr = 0;
 
 }
 //-----------------------------------------------------------------------------------
+int xprintf_FS( file_descriptor_t fd, const char *pvBuffer, const uint16_t xBytes )
+{
+	/* Imprime en fd sin formatear
+	   No uso stdout_buff por lo tanto no requeriria semaforo pero igual
+	   lo uso para evitar colisiones. De este modo todo el acceso al uart queda
+	   siempre controlado por el semaforo
+	*/
+
+int bytes2wr = 0;
+
+	while ( xSemaphoreTake( sem_STDOUT, ( TickType_t ) 5 ) != pdTRUE )
+		vTaskDelay( ( TickType_t)( 5 ) );
+
+	bytes2wr = frtos_send( fd, pvBuffer, xBytes );
+
+	xSemaphoreGive( sem_STDOUT );
+	return(bytes2wr);
+
+}
+//-----------------------------------------------------------------------------------
+
 void xputChar(unsigned char c)
 {
 	// Funcion intermedia necesaria por cmdline para escribir de a 1 caracter en consola
@@ -98,6 +119,24 @@ char cChar;
 
 	cChar = c;
 	xnprint( &cChar, sizeof(char));
+}
+//-----------------------------------------------------------------------------------
+void xfputChar(file_descriptor_t fd, unsigned char c)
+{
+	// Funcion intermedia necesaria por cmdline para escribir de a 1 caracter en consola
+	// El tema es que el prototipo de funcion que requiere cmdlineSetOutputFunc no se ajusta
+	// al de FreeRTOS_UART_write, por lo que defino esta funcion intermedia.
+
+char cChar = c;
+
+	// Espero el semaforo del buffer en forma persistente.
+	while ( xSemaphoreTake( sem_STDOUT, ( TickType_t ) 5 ) != pdTRUE )
+		vTaskDelay( ( TickType_t)( 5 ) );
+
+	frtos_putchar(fd , cChar );
+
+	xSemaphoreGive( sem_STDOUT );
+
 }
 //-----------------------------------------------------------------------------------
 int xfprintf_P( file_descriptor_t fd, PGM_P fmt, ...)
@@ -181,16 +220,6 @@ int bytes2wr = 0;
 
 }
 */
-//-----------------------------------------------------------------------------------
-void xfputChar(file_descriptor_t fd, unsigned char c)
-{
-
-char cChar;
-
-	cChar = c;
-	frtos_write( fdTERM, &cChar, sizeof(char) );
-	//xfnprint( fd, &cChar, sizeof(char));
-}
 //-----------------------------------------------------------------------------------
 void xprintf_init(void)
 {

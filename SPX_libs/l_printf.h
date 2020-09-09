@@ -26,6 +26,8 @@ int xprintf_P( PGM_P fmt, ...);
 int xprintf( const char *fmt, ...);
 void xputChar(unsigned char c);
 int xnprint( const char *pvBuffer, const uint16_t xBytes );
+int xprintf_FS( file_descriptor_t fd, const char *pvBuffer, const uint16_t xBytes );
+void xfputChar(file_descriptor_t fd, unsigned char c);
 
 int xfprintf_P( file_descriptor_t fd, PGM_P fmt, ...);
 int xfprintf_V( file_descriptor_t fd, const char *fmt, va_list argp );

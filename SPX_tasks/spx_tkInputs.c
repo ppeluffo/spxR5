@@ -58,6 +58,10 @@ TickType_t xLastWakeTime = 0;
     tempsensor_init();
     range_init();
 
+    if ( systemVars.modbus_conf.modbus_slave_address != 0x00 ) {
+    	modbus_init();
+    }
+
 	// loop
 	for( ;; )
 	{
@@ -129,6 +133,10 @@ int8_t xBytes = 0;
 
 		range_read( &dst->df.io5.range );
 
+	    if ( systemVars.modbus_conf.modbus_slave_address != 0x00 ) {
+	    	modbus_poll( dst->df.io5.mbus_inputs );
+	    }
+
 		break;
 	case SPX_IO8CH:
 		dinputs_read( dst->df.io8.dinputs );
@@ -183,6 +191,11 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
 		}
 
 		range_print( fd, dr->df.io5.range );
+
+	    if ( systemVars.modbus_conf.modbus_slave_address != 0x00 ) {
+	    	modbus_print( fd, dr->df.io5.mbus_inputs );
+	    }
+
 		ainputs_battery_print( fd, dr->df.io5.battery );
 		break;
 	case SPX_IO8CH:
