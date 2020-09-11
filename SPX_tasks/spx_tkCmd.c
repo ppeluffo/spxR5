@@ -392,11 +392,19 @@ char l_data[10] = { '\0' };
 
 
 	// MODBUS
-	// write modbus {slave} {fcode} {start_addr} {nro_regs}
+	// write modbus get {slave} {fcode} {start_addr} {nro_regs}
 	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
-		modbus_wr_test( argv[2], argv[3], argv[4], argv[5] );
-		pv_snprintfP_OK();
-		return;
+		if ( ( strcmp_P( strupr(argv[2]), PSTR("GET")) == 0)) {
+			modbus_wr_test( 0, argv[3], argv[4], argv[5], argv[6] );
+			pv_snprintfP_OK();
+			return;
+		}
+		if ( ( strcmp_P( strupr(argv[2]), PSTR("SET")) == 0)) {
+			modbus_set_hr( true, argv[3], argv[4], argv[5], argv[6]);
+			//modbus_wr_test( 1, argv[3], argv[4], argv[5], argv[6] );
+			pv_snprintfP_OK();
+			return;
+		}
 	}
 
 	// AUX
@@ -1134,7 +1142,8 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("           (open|close) (A|B)\r\n\0"));
 				xprintf_P( PSTR("           pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("           power {on|off}\r\n\0"));
-				xprintf_P( PSTR("  modbus {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
+				xprintf_P( PSTR("  modbus get {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
+				xprintf_P( PSTR("         set {slave} {fcode} {addr} {value}\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|rts|dtr) {on|off}\r\n\0"));

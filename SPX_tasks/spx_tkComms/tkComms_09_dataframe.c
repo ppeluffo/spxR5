@@ -20,6 +20,7 @@ static void data_process_response_MEMFORMAT(void);
 static void data_process_response_DOUTS(void);
 static void data_process_response_CLOCK(void);
 static uint8_t data_process_response_OK(void);
+static void data_process_response_MBUS(void);
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_dataframe(void)
@@ -137,6 +138,12 @@ t_responses rsp = rsp_NONE;
 		if ( xCOMMS_check_response ("CLOCK\0")) {
 			// El sever mando actualizacion del rtc
 			data_process_response_CLOCK();
+			// rsp = rsp_OK;
+			// return(rsp);
+		}
+
+		if ( xCOMMS_check_response ("MBUS\0")) {
+			data_process_response_MBUS();
 			// rsp = rsp_OK;
 			// return(rsp);
 		}
@@ -350,6 +357,41 @@ int8_t xBytes = 0;
 
 			xprintf_PD( DF_COMMS, PSTR("COMMS: DATA ONLINE Update rtc to: %s\r\n\0"), rtcStr );
 		}
+
+	}
+}
+//------------------------------------------------------------------------------------
+static void data_process_response_MBUS(void)
+{
+	/*
+	 * Recibo una respuesta que me dice que valores enviar por modbus
+	 * para escribir un holding register
+	 * Recibi algo del estilo MBUS:0xABCD,0x1234
+	 * 0xABCD es la direccion del holding register
+	 * 0x1234 es el valor
+	 */
+
+
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_hr_address = NULL;
+char *tk_hr_value = NULL;
+char *delim = ",;:=><";
+char *p = NULL;
+
+	p = xCOMM_get_buffer_ptr("MBUS");
+	if ( p != NULL ) {
+		memset( &localStr, '\0', sizeof(localStr) );
+		memcpy(localStr,p,sizeof(localStr));
+
+		stringp = localStr;
+		tk_hr_address = strsep(&stringp,delim);	// MBUS
+		tk_hr_address = strsep(&stringp,delim);	// Str. con la direccion del holding register
+		tk_hr_value = strsep(&stringp,delim);	// Str. con el valor del holding register
+
+		modbus_set_hr( DF_COMMS , systemVars.modbus_conf.modbus_slave_address ,"0x06", tk_hr_address, tk_hr_value);
+
+		xprintf_PD( DF_COMMS, PSTR("COMMS: MBUS set HR[%s]=%s\r\n\0"), tk_hr_address, tk_hr_value );
 
 	}
 }

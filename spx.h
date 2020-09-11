@@ -65,7 +65,7 @@
 // DEFINES
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "3.0.4a"
-#define SPX_FW_DATE "@ 20200909"
+#define SPX_FW_DATE "@ 20200911"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -448,9 +448,9 @@ uint8_t modbus_hash(void);
 bool modbus_poll( uint16_t mbus_in[] );
 void modbus_print(file_descriptor_t fd, uint16_t mbus[] );
 void modbus_status(void);
-void modbus_wr_test( char* c_slave_address, char *c_function_code, char * c_start_address, char * c_nro_regs);
+void modbus_wr_test( uint8_t modo, char* c_slave_address, char *c_function_code, char * c_start_address, char * c_nro_regs);
 void modbus_rd_test(void);
-
+void modbus_set_hr( bool f_debug, char* c_slave_address, char *c_function_code, char * c_start_address, char * c_values);
 
 bool SPX_SIGNAL( uint8_t signal );
 bool SPX_SEND_SIGNAL( uint8_t signal );

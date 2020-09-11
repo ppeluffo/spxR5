@@ -71,7 +71,7 @@ const uint8_t auchCRCLo[] PROGMEM = {
 
 
 uint16_t pv_modbus_CRC16( uint8_t *msg, uint8_t msg_size );
-void pv_modbus_tx(bool f_debug, uint8_t slave_address, uint8_t function_code, uint16_t start_address, uint8_t nro_regs );
+void pv_modbus_tx(bool f_debug, uint8_t slave_address, uint8_t function_code, uint16_t start_address, uint16_t nro_regs );
 bool pv_modbus_rx(bool f_debug );
 uint16_t pv_modbus_decode_response( bool f_debug );
 bool pv_modbus_poll_channel (bool f_debug, uint8_t channel, uint16_t *response );
@@ -237,6 +237,33 @@ uint16_t response;
 	return(true);
 }
 //------------------------------------------------------------------------------------
+void modbus_set_hr( bool f_debug, char* c_slave_address, char *c_function_code, char * c_start_address, char * c_values)
+{
+	// Escribe un holding register.
+
+char *ptr;
+uint8_t slave_address = strtol(c_slave_address, &ptr, 16);
+uint8_t function_code = strtol(c_function_code, &ptr, 16);
+uint16_t start_address = strtol(c_start_address, &ptr, 16);
+uint16_t values = strtol(c_values, &ptr, 16);
+
+
+	if (f_debug) {
+		xprintf_P(PSTR("MBUS: slave_addr=%s [0x%04x]\r\n\0"), c_slave_address, slave_address);
+		xprintf_P(PSTR("MBUS: rcode=%s [0x%02x]\r\n\0"), c_function_code, function_code );
+		xprintf_P(PSTR("MBUS: addr=%s [0x%02x]\r\n\0"), c_start_address, start_address );
+		xprintf_P(PSTR("MBUS: value=%s [0x%02x]\r\n\0"), c_values, values);
+	}
+
+	// Escribo al modbus
+	pv_modbus_tx(true, slave_address, function_code, start_address, values);
+	// Espero
+	vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+	//Leo la respuesta
+	pv_modbus_rx( f_debug );
+
+}
+//------------------------------------------------------------------------------------
 void modbus_print(file_descriptor_t fd,  uint16_t mbus[] )
 {
 	// Imprime los canales configurados ( no X ) en un fd ( tty_gprs,tty_xbee,tty_term) en
@@ -274,7 +301,7 @@ uint8_t uindex;
 
 }
 //------------------------------------------------------------------------------------
-void pv_modbus_tx(bool f_debug, uint8_t slave_address, uint8_t function_code, uint16_t start_address, uint8_t nro_regs )
+void pv_modbus_tx(bool f_debug, uint8_t slave_address, uint8_t function_code, uint16_t start_address, uint16_t nro_regs )
 {
 uint8_t mbus_msg[MBUS_TXMSG_LENGTH];
 uint16_t crc;
@@ -303,9 +330,9 @@ uint8_t i;
 	msg_size++;
 	mbus_msg[3] = (uint8_t)( (start_address) & 0x00FF );				// start addreess LOW
 	msg_size++;
-	mbus_msg[4] = 0x00;													// Nro.reg. HIGH
+	mbus_msg[4] = (uint8_t)( ( (nro_regs) & 0xFF00 ) >> 8 );			// Nro.reg/value. HIGH
 	msg_size++;
-	mbus_msg[5] = nro_regs;												// Nro.reg. LOW
+	mbus_msg[5] = (uint8_t)( (nro_regs) & 0x00FF );				// Nro.reg/value  LOW
 	msg_size++;
 
 	crc = pv_modbus_CRC16(mbus_msg, 6);
@@ -357,7 +384,7 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-void modbus_wr_test( char* c_slave_address, char *c_function_code, char * c_start_address, char * c_nro_regs)
+void modbus_wr_test( uint8_t modo, char* c_slave_address, char *c_function_code, char * c_start_address, char * c_nro_regs)
 {
 	// Funcion de prueba desde cmd_mode para enviar comandos por el aux_port con formato MODBUS..
 
@@ -365,13 +392,17 @@ char *ptr;
 uint8_t slave_address = strtol(c_slave_address, &ptr, 16);
 uint8_t function_code = strtol(c_function_code, &ptr, 16);
 uint16_t start_address = strtol(c_start_address, &ptr, 16);
-uint8_t nro_regs = strtol(c_nro_regs, &ptr, 16);
+uint16_t nro_regs = strtol(c_nro_regs, &ptr, 16);
 
 
 	xprintf_P(PSTR("MBUS: slave_addr=%s [0x%04x]\r\n\0"), c_slave_address, slave_address);
 	xprintf_P(PSTR("MBUS: rcode=%s [0x%02x]\r\n\0"), c_function_code, function_code );
 	xprintf_P(PSTR("MBUS: addr=%s [0x%02x]\r\n\0"), c_start_address, start_address );
-	xprintf_P(PSTR("MBUS: length=%s [0x%02x]\r\n\0"), c_nro_regs, nro_regs);
+	if (modo == 0) {	// GET: Lee un registro del modbus
+		xprintf_P(PSTR("MBUS: length=%s [0x%02x]\r\n\0"), c_nro_regs, nro_regs);
+	} else if ( modo == 1) {	// SET: Fija un valor en un holding register
+		xprintf_P(PSTR("MBUS: value=%s [0x%02x]\r\n\0"), c_nro_regs, nro_regs);
+	}
 
 	pv_modbus_tx(true, slave_address, function_code, start_address, nro_regs);
 
@@ -486,7 +517,7 @@ uint8_t rsp_HI, rsp_LO;
 	bytes_read = mbus_rxbuffer[2];
 	if ( bytes_read == 1 ) {
 		rsp_HI = 0;
-		rsp_LO = mbus_rxbuffer[4];
+		rsp_LO = mbus_rxbuffer[3];
 	} else {
 		// Solo considero un maximos de 2 bytes por respuesta
 		rsp_HI = mbus_rxbuffer[3];
