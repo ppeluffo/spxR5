@@ -488,7 +488,7 @@ uint8_t u_base_hash(void)
 	 *
 	 */
 uint8_t hash = 0;
-char dst[32];
+char dst[38];
 char *p;
 uint8_t i = 0;
 int16_t free_size = sizeof(dst);
@@ -539,7 +539,7 @@ int16_t free_size = sizeof(dst);
 	if ( free_size < 0 ) goto exit_error;
 	//xprintf_P( PSTR("DEBUG: BASEHASH = [%s]\r\n\0"), dst );
 
-
+	//xprintf_P( PSTR("DEBUG6: base_free_size[%d]\r\n\0"), free_size);
 	// VERSION 3.0.4: mide_bateria
 	if ( systemVars.mide_bateria) {
 		i += snprintf_P( &dst[i], free_size, PSTR("ON,"));
@@ -547,6 +547,7 @@ int16_t free_size = sizeof(dst);
 		i += snprintf_P( &dst[i], (  sizeof(dst) - i ) , PSTR("OFF,"));
 	}
 	free_size = (  sizeof(dst) - i );
+	//xprintf_P( PSTR("DEBUG7: base_free_size[%d]\r\n\0"), free_size);
 	if ( free_size < 0 ) goto exit_error;
 
 	// Apunto al comienzo para recorrer el buffer

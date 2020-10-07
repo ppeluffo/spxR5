@@ -41,7 +41,11 @@
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
-  * ------------------------------------------------------------------------
+ * ------------------------------------------------------------------------
+ * Version 3.0.4.b( MASTER ) @2020-10-07
+ * - Corregimos el tamaño del buffer de hash base ya que quedaba muy justo.
+ *
+ * ------------------------------------------------------------------------
  * Version 3.0.4.b( MASTER ) @ 2020-09-01
  * - Incorporo MODBUS Master.
  *   - Rutinas de trasmision / recepcion por puerto AUX ( modo cmd )
