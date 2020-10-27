@@ -13,7 +13,7 @@
 
 #define DF_APP ( systemVars.debug == DEBUG_APLICACION )
 
-typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT, APP_CAUDALIMETRO } aplicacion_t;
+typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT, APP_CAUDALIMETRO, APP_EXTERNAL_POLL } aplicacion_t;
 typedef enum { APP_PERF_NORMAL = 0, APP_PERF_CTLFREQ } t_modo_perforacion;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { PERF_CTL_EMERGENCIA, PERF_CTL_SISTEMA } perforacion_control_t;
@@ -135,6 +135,10 @@ void xAPP_perforacion_adjust_x_douts(uint8_t dout);
 void tkApp_caudalimetro(void);
 bool xAPP_caudalimetro_config ( char *pwidth, char *factorQ);
 uint8_t xAPP_caudalimetro_hash(void);
+
+// EXTERNAL POLL
+void tkApp_external_poll(void);
+uint8_t xAPP_external_poll_hash(void);
 
 // GENERAL
 void xAPP_set_douts_remote( uint8_t dout );

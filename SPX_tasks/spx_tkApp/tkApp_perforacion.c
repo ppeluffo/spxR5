@@ -143,17 +143,17 @@ bool retS = false;
 uint8_t xAPP_perforacion_hash(void)
 {
 uint8_t hash = 0;
-char dst[32];
+//char dst[32];
 char *p;
 uint8_t i = 0;
-int16_t free_size = sizeof(dst);
+int16_t free_size = sizeof(hash_buffer);
 
-	memset(dst,'\0', sizeof(dst));
-	i += snprintf_P(dst, free_size, PSTR("PERFORACION"));
-	free_size = (  sizeof(dst) - i );
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
+	i += snprintf_P(hash_buffer, free_size, PSTR("PERFORACION"));
+	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
 
-	p = dst;
+	p = hash_buffer;
 	while (*p != '\0') {
 		hash = u_hash(hash, *p++);
 	}

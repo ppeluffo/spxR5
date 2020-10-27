@@ -64,8 +64,8 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.4b"
-#define SPX_FW_DATE "@ 20201007"
+#define SPX_FW_REV "3.0.5a"
+#define SPX_FW_DATE "@ 20201027"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -146,6 +146,7 @@ StackType_t xTask_AuxRX_Buffer [tkAuxRX_STACK_SIZE];
 #define SGN_REDIAL				0x03
 #define SGN_SMS					0x05
 #define SGN_WAKEUP				0x06
+#define SGN_POLL_NOW			0x07
 
 // Estructura que maneja las señales del sistema
 struct {
@@ -154,6 +155,7 @@ struct {
 	bool sgn_frame_ready;
 	bool sgn_reset_comms_device;
 	bool sgn_sms;
+	bool sgn_poll_now;
 } system_signals;
 
 typedef enum { DEBUG_NONE = 0, DEBUG_COUNTER, DEBUG_DATA, DEBUG_COMMS, DEBUG_APLICACION, DEBUG_MODBUS } t_debug;
@@ -327,6 +329,8 @@ typedef struct {
 } systemVarsType;
 
 systemVarsType systemVars;
+
+char hash_buffer[64];
 
 // UTILS
 void xCOMMS_config_defaults( char *opt );

@@ -247,23 +247,23 @@ uint8_t psensor_hash(void)
 {
 
 uint8_t hash = 0;
-char dst[40];
+//char dst[40];
 char *p;
 uint16_t i;
-int16_t free_size = sizeof(dst);
+int16_t free_size = sizeof(hash_buffer);
 
 	// calculate own checksum
 	// Vacio el buffer temoral
-	memset(dst,'\0', sizeof(dst));
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
 
 	i = 0;
-	i += snprintf_P( dst, free_size, PSTR("%s,%d,%d,%.01f,%.01f,%.01f"),systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max,systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
-	free_size = (  sizeof(dst) - i );
+	i += snprintf_P( hash_buffer, free_size, PSTR("%s,%d,%d,%.01f,%.01f,%.01f"),systemVars.psensor_conf.name, systemVars.psensor_conf.count_min, systemVars.psensor_conf.count_max,systemVars.psensor_conf.pmin, systemVars.psensor_conf.pmax, systemVars.psensor_conf.offset );
+	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
 
-	//xprintf_P( PSTR("DEBUG: PSENSOR = [%s]\r\n\0"), dst );
+	//xprintf_P( PSTR("DEBUG: PSENSOR = [%s]\r\n\0"), hash_buffer );
 	// Apunto al comienzo para recorrer el buffer
-	p = dst;
+	p = hash_buffer;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
 		//checksum += *p++;

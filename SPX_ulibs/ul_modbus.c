@@ -151,9 +151,9 @@ uint8_t modbus_hash(void)
 
 uint16_t i;
 uint8_t hash = 0;
-char dst[32];
+//char dst[48];
 char *p;
-int16_t free_size = sizeof(dst);
+int16_t free_size = sizeof(hash_buffer);
 
 	//	uint8_t modbus_slave_address;
 	//	char var_name[MODBUS_CHANNELS][PARAMNAME_LENGTH];
@@ -162,33 +162,33 @@ int16_t free_size = sizeof(dst);
 	//	uint8_t var_function_code[MODBUS_CHANNELS];			// Funcion de lectura (3-Holding reg, 4-Normal reg)
 	//  SLA:0x%02x;M0:MBU1,0x0004,0x02,0x02;M1:MBU2,0x0004,0x02,0x02;
 
-	memset(dst,'\0', sizeof(dst));
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
 	i = 0;
-	memset(dst,'\0', sizeof(dst));
-	i = snprintf_P( &dst[i], free_size, PSTR("SLA:0x%02x;"), systemVars.modbus_conf.modbus_slave_address );
-	free_size = (  sizeof(dst) - i );
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
+	i = snprintf_P( &hash_buffer[i], free_size, PSTR("SLA:0x%02x;"), systemVars.modbus_conf.modbus_slave_address );
+	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
-	p = dst;
+	p = hash_buffer;
 	while (*p != '\0') {
 		hash = u_hash(hash, *p++);
 	}
 	i=0;
-	memset(dst,'\0', sizeof(dst));
-	i += snprintf_P( &dst[i], sizeof(dst), PSTR("M0:%s,"), systemVars.modbus_conf.var_name[0] );
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[0],systemVars.modbus_conf.var_length[0],systemVars.modbus_conf.var_function_code[0] );
-	free_size = (  sizeof(dst) - i );
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
+	i += snprintf_P( &hash_buffer[i], sizeof(hash_buffer), PSTR("M0:%s,"), systemVars.modbus_conf.var_name[0] );
+	i += snprintf_P(&hash_buffer[i], sizeof(hash_buffer), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[0],systemVars.modbus_conf.var_length[0],systemVars.modbus_conf.var_function_code[0] );
+	free_size = (  sizeof(hash_buffer) - i );
 		if ( free_size < 0 ) goto exit_error;
-	p = dst;
+	p = hash_buffer;
 	while (*p != '\0') {
 		hash = u_hash(hash, *p++);
 	}
 	i = 0;
-	memset(dst,'\0', sizeof(dst));
-	i += snprintf_P( &dst[i], sizeof(dst), PSTR("M1:%s,"), systemVars.modbus_conf.var_name[1] );
-	i += snprintf_P(&dst[i], sizeof(dst), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[1],systemVars.modbus_conf.var_length[1],systemVars.modbus_conf.var_function_code[1] );
-	free_size = (  sizeof(dst) - i );
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
+	i += snprintf_P( &hash_buffer[i], sizeof(hash_buffer), PSTR("M1:%s,"), systemVars.modbus_conf.var_name[1] );
+	i += snprintf_P(&hash_buffer[i], sizeof(hash_buffer), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[1],systemVars.modbus_conf.var_length[1],systemVars.modbus_conf.var_function_code[1] );
+	free_size = (  sizeof(hash_buffer) - i );
 		if ( free_size < 0 ) goto exit_error;
-	p = dst;
+	p = hash_buffer;
 	while (*p != '\0') {
 		hash = u_hash(hash, *p++);
 	}

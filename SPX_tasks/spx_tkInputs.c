@@ -29,26 +29,20 @@ static void pv_data_guardar_en_BD(void);
 // La tarea pasa por el mismo lugar c/timerPoll secs.
 #define WDG_DIN_TIMEOUT	 ( systemVars.timerPoll + WDG_TO60 )
 
+void tkInputs_normal(void);
+void tkInputs_external_poll(void);
+
 //------------------------------------------------------------------------------------
 void tkInputs(void * pvParameters)
 {
 
 ( void ) pvParameters;
 
-uint32_t waiting_ticks = 0;
-TickType_t xLastWakeTime = 0;
-
 	// Espero la notificacion para arrancar
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
 	xprintf_P( PSTR("starting tkInputs..\r\n\0"));
-
-   // Initialise the xLastWakeTime variable with the current time.
-    xLastWakeTime = xTaskGetTickCount();
-
-    // Al arrancar poleo a los 10s
-    waiting_ticks = (uint32_t)(10) * 1000 / portTICK_RATE_MS;
 
     // Creo y arranco el timer que va a contar las entradas digitales.
     ainputs_init();
@@ -62,42 +56,99 @@ TickType_t xLastWakeTime = 0;
     	modbus_init();
     }
 
+	if ( sVarsApp.aplicacion == APP_EXTERNAL_POLL ) {
+		tkInputs_external_poll();
+	} else {
+		tkInputs_normal();
+	}
+}
+//------------------------------------------------------------------------------------
+void tkInputs_external_poll(void)
+{
+	// Espero la señal de poleo.
+
+	xprintf_P( PSTR("starting tkInputs External Poll..\r\n\0"));
 	// loop
-	for( ;; )
-	{
+	for( ;; ) {
 
 		ctl_watchdog_kick(WDG_DINPUTS , WDG_DIN_TIMEOUT);
 
-		// Espero. Da el tiempo necesario para entrar en tickless.
-		vTaskDelayUntil( &xLastWakeTime, waiting_ticks );
+		if ( SPX_SIGNAL( SGN_POLL_NOW )) {
+			SPX_CLEAR_SIGNAL( SGN_POLL_NOW );
+			xprintf_PD(DF_APP,"TKINPUTS: SSGN_POLL_NOW rcvd.\r\n\0");
 
-		// Poleo si no estoy en autocal
-		if ( ! ainputs_autocal_running() ) {
-			data_read_inputs(&dataRecd, false);
-			data_print_inputs(fdTERM, &dataRecd);
-			pv_data_guardar_en_BD();
+			xprintf_P(PSTR("ExtPoll:"));
 
-			// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
-			if ( ! MODO_DISCRETO ) {
-				SPX_SEND_SIGNAL( SGN_FRAME_READY );
-			}
+			// Poleo si no estoy en autocal
+	 		if ( ! ainputs_autocal_running() ) {
+	 			data_read_inputs(&dataRecd, false);
+	 			data_print_inputs(fdTERM, &dataRecd);
+	 			pv_data_guardar_en_BD();
 
-			// Dejo el range en una variable de intercambio con la aplicacion de caudalimetro
-			sVarsApp.caudalimetro.range_actual = dataRecd.df.io5.range;
+	 			// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
+	 			if ( ! MODO_DISCRETO ) {
+	 				SPX_SEND_SIGNAL( SGN_FRAME_READY );
+	 			}
+
+	 			// Dejo el range en una variable de intercambio con la aplicacion de caudalimetro
+	 			sVarsApp.caudalimetro.range_actual = dataRecd.df.io5.range;
+	 		}
+
 		}
 
-		// Calculo el tiempo para una nueva espera
-		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
-			taskYIELD();
+		vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
+	}
+}
+//------------------------------------------------------------------------------------
+void tkInputs_normal(void)
+{
 
-			// timpo real que voy a dormir esta tarea
-			waiting_ticks = (uint32_t)(systemVars.timerPoll) * 1000 / portTICK_RATE_MS;
-			// tiempo similar que voy a decrementar y mostrar en consola.
-			ctl_reload_timerPoll(systemVars.timerPoll);
+TickType_t xLastWakeTime = 0;
+uint32_t waiting_ticks = 0;
+
+	xprintf_P( PSTR("starting tkInputs Normal..\r\n\0"));
+
+	// Initialise the xLastWakeTime variable with the current time.
+ 	 xLastWakeTime = xTaskGetTickCount();
+
+ 	 // Al arrancar poleo a los 10s
+ 	 waiting_ticks = (uint32_t)(10) * 1000 / portTICK_RATE_MS;
+
+ 	// loop
+ 	for( ;; ) {
+
+ 		ctl_watchdog_kick(WDG_DINPUTS , WDG_DIN_TIMEOUT);
+
+ 		// Espero. Da el tiempo necesario para entrar en tickless.
+ 		vTaskDelayUntil( &xLastWakeTime, waiting_ticks );
+
+ 		// Poleo si no estoy en autocal
+ 		if ( ! ainputs_autocal_running() ) {
+ 			data_read_inputs(&dataRecd, false);
+ 			data_print_inputs(fdTERM, &dataRecd);
+ 			pv_data_guardar_en_BD();
+
+ 			// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
+ 			if ( ! MODO_DISCRETO ) {
+ 				SPX_SEND_SIGNAL( SGN_FRAME_READY );
+ 			}
+
+ 			// Dejo el range en una variable de intercambio con la aplicacion de caudalimetro
+ 			sVarsApp.caudalimetro.range_actual = dataRecd.df.io5.range;
+ 		}
+
+ 		// Calculo el tiempo para una nueva espera
+ 		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+ 			taskYIELD();
+
+		// timpo real que voy a dormir esta tarea
+		waiting_ticks = (uint32_t)(systemVars.timerPoll) * 1000 / portTICK_RATE_MS;
+		// tiempo similar que voy a decrementar y mostrar en consola.
+		ctl_reload_timerPoll(systemVars.timerPoll);
 
 		xSemaphoreGive( sem_SYSVars );
-	}
 
+ 	}
 }
 //------------------------------------------------------------------------------------
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy )

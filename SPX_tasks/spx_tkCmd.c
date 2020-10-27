@@ -173,7 +173,10 @@ st_dataRecord_t dr;
 		break;
 	case APP_CAUDALIMETRO:
 		xprintf_P( PSTR("  modo: Caudalimetro: (Qinst:%0.2f, pWidth:%02d, period=%02d:%02d)\r\n"), sVarsApp.caudalimetro.range_actual, sVarsApp.consigna.hhmm_c_diurna.min, sVarsApp.caudalimetro.pulse_width, sVarsApp.caudalimetro.periodo_actual );
-
+		break;
+	case APP_EXTERNAL_POLL:
+		xprintf_P( PSTR("  modo: External Poll\r\n"));
+		break;
 	}
 
 	// CONFIG
@@ -842,7 +845,7 @@ bool retS = false;
 	}
 
 	// APLICACION
-	// aplicacion { off,consigna,perforacion,piloto, tanque, alarmas }
+	// aplicacion { off,consigna,perforacion,piloto, tanque, alarmas, extpoll }
 	if (!strcmp_P( strupr(argv[1]), PSTR("APLICACION\0")) ) {
 		retS = u_config_aplicacion( argv[2] );
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
@@ -1216,7 +1219,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
 		xprintf_P( PSTR("  mcal {ch} {p1|p2} {mag}\r\n\0"));
 
-		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque}\r\n\0"));
+		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque, extpoll}\r\n\0"));
 		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
 		xprintf_P( PSTR("            nivel {chid} {alerta} {inf|sup} val\r\n\0"));
 		xprintf_P( PSTR("  piloto reg {CHICA|MEDIA|GRANDE}\r\n\0"));

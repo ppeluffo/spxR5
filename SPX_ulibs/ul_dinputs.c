@@ -321,10 +321,10 @@ uint8_t dinputs_hash(void)
 
 uint8_t channel;
 uint8_t hash = 0;
-char dst[32];
+//char dst[32];
 char *p;
 uint8_t j = 0;
-uint16_t free_size = sizeof(dst);
+uint16_t free_size = sizeof(hash_buffer);
 
 	//	char name[MAX_DINPUTS_CHANNELS][PARAMNAME_LENGTH];
 	//	bool modo_normal[MAX_DINPUTS_CHANNELS];
@@ -334,21 +334,21 @@ uint16_t free_size = sizeof(dst);
 	// calculate own checksum
 	for(channel=0;channel<NRO_DINPUTS;channel++) {
 		// Vacio el buffer temoral
-		memset(dst,'\0', sizeof(dst));
+		memset(hash_buffer,'\0', sizeof(hash_buffer));
 		j = 0;
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
 		if ( systemVars.dinputs_conf.wrk_modo[channel] == DIN_NORMAL ) {
-			j += snprintf_P(&dst[j], free_size, PSTR("D%d:%s,NORMAL;"), channel , systemVars.dinputs_conf.name[channel] );
-			free_size = (  sizeof(dst) - j );
+			j += snprintf_P(&hash_buffer[j], free_size, PSTR("D%d:%s,NORMAL;"), channel , systemVars.dinputs_conf.name[channel] );
+			free_size = (  sizeof(hash_buffer) - j );
 			if ( free_size < 0 ) goto exit_error;
 
 		} else {
-			j += snprintf_P(&dst[j], free_size, PSTR("D%d:%s,TIMER;"), channel, systemVars.dinputs_conf.name[channel] );
-			free_size = (  sizeof(dst) - j );
+			j += snprintf_P(&hash_buffer[j], free_size, PSTR("D%d:%s,TIMER;"), channel, systemVars.dinputs_conf.name[channel] );
+			free_size = (  sizeof(hash_buffer) - j );
 			if ( free_size < 0 ) goto exit_error;
 		}
 		// Apunto al comienzo para recorrer el buffer
-		p = dst;
+		p = hash_buffer;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
 			//checksum += *p++;
@@ -389,7 +389,7 @@ uint8_t dst[IO8_DINPUTS_CHANNELS];
 		dst[0] = IO_read_PA0();
 		// DIN1
 		dst[1] = IO_read_PB7();
-		xprintf_P(PSTR("Dinputs: din_1=%d,din_0=%d"), dst[1], dst[0]);
+		xprintf_P(PSTR("Dinputs: din_1=%d,din_0=%d\r\n"), dst[1], dst[0]);
 		break;
 
 	case SPX_IO8CH:

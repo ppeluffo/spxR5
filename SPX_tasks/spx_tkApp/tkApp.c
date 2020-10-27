@@ -54,6 +54,9 @@ void tkAplicacion(void * pvParameters)
 	case APP_CAUDALIMETRO:
 		tkApp_caudalimetro();
 		break;
+	case APP_EXTERNAL_POLL:
+		tkApp_external_poll();
+		break;
 	default:
 		break;
 	}

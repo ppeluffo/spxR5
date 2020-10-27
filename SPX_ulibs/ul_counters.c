@@ -422,49 +422,49 @@ uint8_t counters_hash(void)
 
 uint16_t i;
 uint8_t hash = 0;
-char dst[40];
+//char dst[40];
 char *p;
 uint8_t j = 0;
-int16_t free_size = sizeof(dst);
+int16_t free_size = sizeof(hash_buffer);
 
 	// C0:C0,1.000,100,10,0;C1:C1,1.000,100,10,0;
 
 	// calculate own checksum
 	for(i=0;i< MAX_COUNTER_CHANNELS;i++) {
 		// Vacio el buffer temoral
-		memset(dst,'\0', sizeof(dst));
-		free_size = sizeof(dst);
+		memset(hash_buffer,'\0', sizeof(hash_buffer));
+		free_size = sizeof(hash_buffer);
 		j = 0;
-		j += snprintf_P(&dst[j], free_size, PSTR("C%d:%s,"), i, systemVars.counters_conf.name[i]);
-		free_size = (  sizeof(dst) - j );
+		j += snprintf_P(&hash_buffer[j], free_size, PSTR("C%d:%s,"), i, systemVars.counters_conf.name[i]);
+		free_size = (  sizeof(hash_buffer) - j );
 		if ( free_size < 0 ) goto exit_error;
 
-		j += snprintf_P(&dst[j], free_size, PSTR("%.03f,%d,"),systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i]);
-		free_size = (  sizeof(dst) - j );
+		j += snprintf_P(&hash_buffer[j], free_size, PSTR("%.03f,%d,"),systemVars.counters_conf.magpp[i], systemVars.counters_conf.period[i]);
+		free_size = (  sizeof(hash_buffer) - j );
 		if ( free_size < 0 ) goto exit_error;
 
-		j += snprintf_P(&dst[j], free_size, PSTR("%d,"), systemVars.counters_conf.pwidth[i] );
-		free_size = (  sizeof(dst) - j );
+		j += snprintf_P(&hash_buffer[j], free_size, PSTR("%d,"), systemVars.counters_conf.pwidth[i] );
+		free_size = (  sizeof(hash_buffer) - j );
 		if ( free_size < 0 ) goto exit_error;
 
 		if ( systemVars.counters_conf.speed[i] == CNT_LOW_SPEED ) {
-			j += snprintf_P(&dst[j], free_size, PSTR("LS,"));
+			j += snprintf_P(&hash_buffer[j], free_size, PSTR("LS,"));
 		} else {
-			j += snprintf_P(&dst[j], free_size, PSTR("HS,"));
+			j += snprintf_P(&hash_buffer[j], free_size, PSTR("HS,"));
 		}
-		free_size = (  sizeof(dst) - j );
+		free_size = (  sizeof(hash_buffer) - j );
 		if ( free_size < 0 ) goto exit_error;
 
 		if ( systemVars.counters_conf.sensing_edge[i] == RISING_EDGE ) {
-			j += snprintf_P(&dst[j], free_size, PSTR("RISE;"));
+			j += snprintf_P(&hash_buffer[j], free_size, PSTR("RISE;"));
 		} else {
-			j += snprintf_P(&dst[j], free_size, PSTR("FALL;"));
+			j += snprintf_P(&hash_buffer[j], free_size, PSTR("FALL;"));
 		}
-		free_size = (  sizeof(dst) - j );
+		free_size = (  sizeof(hash_buffer) - j );
 		if ( free_size < 0 ) goto exit_error;
 
 		// Apunto al comienzo para recorrer el buffer
-		p = dst;
+		p = hash_buffer;
 		// Mientras no sea NULL calculo el checksum deol buffer
 		while (*p != '\0') {
 			// checksum += *p++;

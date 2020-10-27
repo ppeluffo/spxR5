@@ -66,24 +66,24 @@ uint8_t range_hash(void)
 {
 
 uint8_t hash = 0;
-char dst[32];
+//char dst[32];
 char *p;
 uint16_t i;
-int16_t free_size = sizeof(dst);
+int16_t free_size = sizeof(hash_buffer);
 
 	//	char range_name[PARAMNAME_LENGTH];
 
 	// Vacio el buffer temoral
-	memset(dst,'\0', sizeof(dst));
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
 	// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
 	i = 0;
-	i += snprintf_P(dst, free_size, PSTR("%s"), systemVars.range_name);
-	free_size = (  sizeof(dst) - i );
+	i += snprintf_P(hash_buffer, free_size, PSTR("%s"), systemVars.range_name);
+	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
 
-	//xprintf_P( PSTR("DEBUG: RCKS = [%s]\r\n\0"), dst );
+	//xprintf_P( PSTR("DEBUG: RCKS = [%s]\r\n\0"), hash_buffer );
 	// Apunto al comienzo para recorrer el buffer
-	p = dst;
+	p = hash_buffer;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
 		//checksum += *p++;

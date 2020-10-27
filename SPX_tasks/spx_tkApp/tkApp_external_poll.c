@@ -1,34 +1,36 @@
 /*
- * tkApp_off.c
+ * tkApp_external_poll.c
  *
- *  Created on: 12 mar. 2020
+ *  Created on: 26 oct. 2020
  *      Author: pablo
  */
-
-#include "spx.h"
 #include "tkApp.h"
 
+#define SLEEP_TIME_MS		1000
+#define DEBOUNCE_TIME_MA	10000
 //------------------------------------------------------------------------------------
-
-void tkApp_off(void)
+void tkApp_external_poll(void)
 {
-	// Cuando no hay una funcion especifica habilidada en el datalogger
-	// ( solo monitoreo ), debemos dormir para que pueda entrar en
-	// tickless
+	// Leo la entrada de control D1 c/1s.
+	// Si está activa mando una senal a tkInputs y duermo 10s.
 
-	xprintf_P(PSTR("APP: Off\r\n\0"));
+	xprintf_P(PSTR("APP: EXTERNAL POLL start\r\n\0"));
 
-	// Borro los SMS de alarmas pendientes
-	xSMS_init();
+	for (;;) {
 
-	for( ;; )
-	{
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
-		vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
+
+		vTaskDelay( ( TickType_t)( SLEEP_TIME_MS / portTICK_RATE_MS ) );
+
+		if ( IO_read_PA0() == 1 ) {
+			xprintf_PD(DF_APP,"DEBUG EXTPOLL\r\n\0");
+			SPX_SEND_SIGNAL( SGN_POLL_NOW );
+			vTaskDelay( ( TickType_t)( DEBOUNCE_TIME_MA / portTICK_RATE_MS ) );
+		}
 	}
 }
 //------------------------------------------------------------------------------------
-uint8_t xAPP_off_hash(void)
+uint8_t xAPP_external_poll_hash(void)
 {
 
 uint8_t hash = 0;
@@ -40,7 +42,7 @@ int16_t free_size = sizeof(hash_buffer);
 	// Vacio el buffer temoral
 	memset(hash_buffer,'\0', sizeof(hash_buffer));
 
-	i += snprintf_P( &hash_buffer[i], free_size, PSTR("OFF"));
+	i += snprintf_P( &hash_buffer[i], free_size, PSTR("EXTPOLL"));
 	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
 
@@ -59,5 +61,6 @@ exit_error:
 	return(0x00);
 }
 //------------------------------------------------------------------------------------
+
 
 

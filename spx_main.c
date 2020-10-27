@@ -41,6 +41,16 @@
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
+  * ------------------------------------------------------------------------
+ * Version 3.0.5.a( MASTER ) @2020-10-26
+ * - Agrego la aplicacion EXTERNAL_POLL.
+ *
+ * ------------------------------------------------------------------------
+ * Version 3.0.4.c( MASTER ) @2020-10-23
+ * - Otros buffers de hash resultan justos en ciertos casos particulares por
+ *   lo que defino una variable global de 64 bits y lo uso en general para
+ *   todos los calculos de hash.
+ *
  * ------------------------------------------------------------------------
  * Version 3.0.4.b( MASTER ) @2020-10-07
  * - Corregimos el tamaño del buffer de hash base ya que quedaba muy justo.

@@ -881,21 +881,21 @@ uint8_t xAPP_plantapot_hash( void )
 	// En app_A_cks ponemos el checksum de los SMS y en app_B_cks los niveles de alarma
 
 uint8_t hash = 0;
-char dst[48];
+//char dst[48];
 char *p;
 uint8_t i;
 uint8_t j;
-int16_t free_size = sizeof(dst);
+int16_t free_size = sizeof(hash_buffer);
 
-	memset(dst,'\0', sizeof(dst));
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
 
 	j = 0;
-	j += snprintf_P( dst, free_size, PSTR("PPOT;"));
-	free_size = (  sizeof(dst) - j );
+	j += snprintf_P( hash_buffer, free_size, PSTR("PPOT;"));
+	free_size = (  sizeof(hash_buffer) - j );
 	if ( free_size < 0 ) goto exit_error;
 
 	// Apunto al comienzo para recorrer el buffer
-	p = dst;
+	p = hash_buffer;
 	while (*p != '\0') {
 		hash = u_hash(hash, *p++);
 	}
@@ -903,15 +903,15 @@ int16_t free_size = sizeof(dst);
 	// Numeros de SMS
 	for (i=0; i < MAX_NRO_SMS;i++) {
 		// Vacio el buffer temoral
-		memset(dst,'\0', sizeof(dst));
-		free_size = sizeof(dst);
+		memset(hash_buffer,'\0', sizeof(hash_buffer));
+		free_size = sizeof(hash_buffer);
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-		j += snprintf_P( dst, free_size, PSTR("SMS%02d:%s,%d;"), i, sVarsApp.l_sms[i], sVarsApp.plantapot.alm_level[i]);
-		free_size = (  sizeof(dst) - j );
+		j += snprintf_P( hash_buffer, free_size, PSTR("SMS%02d:%s,%d;"), i, sVarsApp.l_sms[i], sVarsApp.plantapot.alm_level[i]);
+		free_size = (  sizeof(hash_buffer) - j );
 		if ( free_size < 0 ) goto exit_error;
 
 		// Apunto al comienzo para recorrer el buffer
-		p = dst;
+		p = hash_buffer;
 		while (*p != '\0') {
 			hash = u_hash(hash, *p++);
 		}
@@ -921,17 +921,17 @@ int16_t free_size = sizeof(dst);
 	for (i=0; i<NRO_CANALES_ALM;i++) {
 		// Vacio el buffer temoral
 
-		memset(dst,'\0', sizeof(dst));
-		free_size = sizeof(dst);
-		j += snprintf_P( dst, free_size, PSTR("LCH%d:%.02f,%.02f,%.02f,%.02f,%.02f,%.02f;"), i,
+		memset(hash_buffer,'\0', sizeof(hash_buffer));
+		free_size = sizeof(hash_buffer);
+		j += snprintf_P( hash_buffer, free_size, PSTR("LCH%d:%.02f,%.02f,%.02f,%.02f,%.02f,%.02f;"), i,
 			sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_inf,sVarsApp.plantapot.l_niveles_alarma[i].alarma1.lim_sup,
 			sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_inf,sVarsApp.plantapot.l_niveles_alarma[i].alarma2.lim_sup,
 			sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_inf,sVarsApp.plantapot.l_niveles_alarma[i].alarma3.lim_sup );
 
-		free_size = (  sizeof(dst) - j );
+		free_size = (  sizeof(hash_buffer) - j );
 		if ( free_size < 0 ) goto exit_error;
 
-		p = dst;
+		p = hash_buffer;
 		while (*p != '\0') {
 			hash = u_hash(hash, *p++);
 		}

@@ -488,70 +488,70 @@ uint8_t u_base_hash(void)
 	 *
 	 */
 uint8_t hash = 0;
-char dst[38];
+//char dst[38];
 char *p;
 uint8_t i = 0;
-int16_t free_size = sizeof(dst);
+int16_t free_size = sizeof(hash_buffer);
 
 	// calculate own checksum
 	// Vacio el buffer temoral
-	memset(dst,'\0', sizeof(dst));
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
 
 	// Timerdial
 	//xprintf_P( PSTR("DEBUG1: base_free_size[%d]\r\n\0"), free_size );
-	i = snprintf_P( &dst[i], free_size, PSTR("%d,"), sVarsComms.timerDial );
-	free_size = (  sizeof(dst) - i );
+	i = snprintf_P( &hash_buffer[i], free_size, PSTR("%d,"), sVarsComms.timerDial );
+	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
 
 	// TimerPoll
 	//xprintf_P( PSTR("DEBUG2: base_free_size[%d]\r\n\0"), free_size);
-	i += snprintf_P( &dst[i], free_size, PSTR("%d,"), systemVars.timerPoll );
-	free_size = (  sizeof(dst) - i );
+	i += snprintf_P( &hash_buffer[i], free_size, PSTR("%d,"), systemVars.timerPoll );
+	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
 
 	// TimepwrSensor
 	//xprintf_P( PSTR("DEBUG3: base_free_size[%d]\r\n\0"), free_size);
-	i += snprintf_P( &dst[i], free_size, PSTR("%d,"), systemVars.ainputs_conf.pwr_settle_time );
-	free_size = (  sizeof(dst) - i );
+	i += snprintf_P( &hash_buffer[i], free_size, PSTR("%d,"), systemVars.ainputs_conf.pwr_settle_time );
+	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
 
 	// PwrSave
 	//xprintf_P( PSTR("DEBUG4: base_free_size[%d]\r\n\0"), free_size);
 	if ( sVarsComms.pwrSave.pwrs_enabled ) {
-		i += snprintf_P( &dst[i], free_size, PSTR("ON,"));
+		i += snprintf_P( &hash_buffer[i], free_size, PSTR("ON,"));
 	} else {
-		i += snprintf_P( &dst[i], (  sizeof(dst) - i ) , PSTR("OFF,"));
+		i += snprintf_P( &hash_buffer[i], (  sizeof(hash_buffer) - i ) , PSTR("OFF,"));
 	}
-	i += snprintf_P(&dst[i], (  sizeof(dst) - i ) , PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_start.hour, sVarsComms.pwrSave.hora_start.min );
-	i += snprintf_P(&dst[i], (  sizeof(dst) - i ), PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_fin.hour, sVarsComms.pwrSave.hora_fin.min );
-	free_size = (  sizeof(dst) - i );
+	i += snprintf_P(&hash_buffer[i], (  sizeof(hash_buffer) - i ) , PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_start.hour, sVarsComms.pwrSave.hora_start.min );
+	i += snprintf_P(&hash_buffer[i], (  sizeof(hash_buffer) - i ), PSTR("%02d%02d,"), sVarsComms.pwrSave.hora_fin.hour, sVarsComms.pwrSave.hora_fin.min );
+	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
 
 
 	// Counters_hw ( 0: simple, 1 opto )
 	//xprintf_P( PSTR("DEBUG5: base_free_size[%d]\r\n\0"), free_size);
 	if ( systemVars.counters_conf.hw_type == COUNTERS_HW_SIMPLE ) {
-		i += snprintf_P(&dst[i], (  sizeof(dst) - i ) , PSTR("SIMPLE,"));
+		i += snprintf_P(&hash_buffer[i], (  sizeof(hash_buffer) - i ) , PSTR("SIMPLE,"));
 	} else {
-		i += snprintf_P(&dst[i],(  sizeof(dst) - i ), PSTR("OPTO,"));
+		i += snprintf_P(&hash_buffer[i],(  sizeof(hash_buffer) - i ), PSTR("OPTO,"));
 	}
-	free_size = (  sizeof(dst) - i );
+	free_size = (  sizeof(hash_buffer) - i );
 	if ( free_size < 0 ) goto exit_error;
-	//xprintf_P( PSTR("DEBUG: BASEHASH = [%s]\r\n\0"), dst );
+	//xprintf_P( PSTR("DEBUG: BASEHASH = [%s]\r\n\0"), hash_buffer );
 
 	//xprintf_P( PSTR("DEBUG6: base_free_size[%d]\r\n\0"), free_size);
 	// VERSION 3.0.4: mide_bateria
 	if ( systemVars.mide_bateria) {
-		i += snprintf_P( &dst[i], free_size, PSTR("ON,"));
+		i += snprintf_P( &hash_buffer[i], free_size, PSTR("ON,"));
 	} else {
-		i += snprintf_P( &dst[i], (  sizeof(dst) - i ) , PSTR("OFF,"));
+		i += snprintf_P( &hash_buffer[i], (  sizeof(hash_buffer) - i ) , PSTR("OFF,"));
 	}
-	free_size = (  sizeof(dst) - i );
+	free_size = (  sizeof(hash_buffer) - i );
 	//xprintf_P( PSTR("DEBUG7: base_free_size[%d]\r\n\0"), free_size);
 	if ( free_size < 0 ) goto exit_error;
 
 	// Apunto al comienzo para recorrer el buffer
-	p = dst;
+	p = hash_buffer;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
 		//checksum += *p++;
@@ -595,6 +595,11 @@ uint8_t hash = 0;
 	case APP_CAUDALIMETRO:
 		hash = xAPP_caudalimetro_hash();
 		break;
+
+	case APP_EXTERNAL_POLL:
+		hash = xAPP_external_poll_hash();
+		break;
+
 	}
 
 	return(hash);
@@ -621,6 +626,11 @@ bool u_config_aplicacion( char *modo )
 
 	if ( (strcmp_P( strupr(modo), PSTR("CAUDALIMETRO\0")) == 0) &&  ( spx_io_board == SPX_IO8CH ) ) {
 		sVarsApp.aplicacion = APP_CAUDALIMETRO;
+		return(true);
+	}
+
+	if ( strcmp_P( strupr(modo), PSTR("EXTPOLL\0")) == 0)  {
+		sVarsApp.aplicacion = APP_EXTERNAL_POLL;
 		return(true);
 	}
 
@@ -795,6 +805,9 @@ bool retS = false;
 	case SGN_SMS:
 		retS = system_signals.sgn_sms;
 		break;
+	case SGN_POLL_NOW:
+		retS = system_signals.sgn_poll_now;
+		break;
 	default:
 		break;
 	}
@@ -831,6 +844,10 @@ bool retS = false;
 		system_signals.sgn_sms = true;
 		retS = true;
 		break;
+	case SGN_POLL_NOW:
+		system_signals.sgn_poll_now = true;
+		retS = true;
+		break;
 	default:
 		retS = false;
 		break;
@@ -862,6 +879,10 @@ bool retS = false;
 		break;
 	case SGN_SMS:
 		system_signals.sgn_sms = false;
+		retS = true;
+		break;
+	case SGN_POLL_NOW:
+		system_signals.sgn_poll_now = false;
 		retS = true;
 		break;
 	default:
@@ -962,19 +983,19 @@ void u_hash_test(void)
 {
 
 uint8_t checksum = 0;
-char dst[64];
+//char dst[64];
 char *p;
 
 	// C0:C0,1.000,100,10,0;C1:C1,1.000,100,10,0;
 
-	strcpy(dst, "C0:C0,1.000,10,100,0;C1:C1,1.000,100,10,0;\0");
+	strcpy(hash_buffer, "C0:C0,1.000,10,100,0;C1:C1,1.000,100,10,0;\0");
 
-	p = dst;
+	p = hash_buffer;
 	// Mientras no sea NULL calculo el checksum deol buffer
 	while (*p != '\0') {
 		checksum = u_hash(checksum, *p++);
 	}
-	xprintf_P( PSTR("DEBUG: CCKS = [%s]\r\n\0"), dst );
+	xprintf_P( PSTR("DEBUG: CCKS = [%s]\r\n\0"), hash_buffer );
 	xprintf_P( PSTR("DEBUG: cks = [0x%02x]\r\n\0"), checksum );
 
 }

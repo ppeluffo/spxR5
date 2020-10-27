@@ -1143,6 +1143,9 @@ static bool init_reconfigure_params_app_A(void)
 	} else if ( xCOMMS_check_response("AP0:PLANTAPOT") ) {
 		sVarsApp.aplicacion = APP_PLANTAPOT;
 
+	} else if ( xCOMMS_check_response("AP0:EXTPOLL") ) {
+		sVarsApp.aplicacion = APP_EXTERNAL_POLL;
+
 	} else {
 		return(false);
 	}
