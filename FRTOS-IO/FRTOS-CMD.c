@@ -202,7 +202,8 @@ int i = 0;
 void pv_CMD_print_prompt(void)
 {
 	// Muestra el prompt
-	xnprint( "cmd>\0", sizeof("cmd>\0") );
+	//xnprint( "cmd>\0", sizeof("cmd>\0") );
+	xprintf( "cmd>" );
 }
 //----------------------------------------------------------------------------------------
 void pv_CMD_print_error(void)

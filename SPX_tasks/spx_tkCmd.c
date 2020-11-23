@@ -59,7 +59,7 @@ uint8_t ticks = 0;
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
-	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
+	vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
 	FRTOS_CMD_init();
 
@@ -81,7 +81,7 @@ uint8_t ticks = 0;
 
 	tipo_usuario = USER_TECNICO;
 
-	xprintf_P( PSTR("starting tkCmd..\r\n\0") );
+	xprintf_P( PSTR("starting tkCmd..\r\n") );
 
 	//FRTOS_CMD_regtest();
 	// loop

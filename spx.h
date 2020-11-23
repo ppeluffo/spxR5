@@ -64,8 +64,9 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.5a"
-#define SPX_FW_DATE "@ 20201027"
+#define SPX_FW_REV "3.0.5c"
+//#define SPX_FW_REV "3.0.5BETA"
+#define SPX_FW_DATE "@ 20201123"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -169,7 +170,7 @@ TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHand
 
 bool startTask;
 uint8_t spx_io_board;
-
+uint32_t sysTicks;
 xSemaphoreHandle sem_SYSVars;
 StaticSemaphore_t SYSVARS_xMutexBuffer;
 #define MSTOTAKESYSVARSSEMPH ((  TickType_t ) 10 )
@@ -397,6 +398,7 @@ void counters_clear(void);
 void counters_read(float cnt[]);
 void counters_print(file_descriptor_t fd, float cnt[] );
 uint8_t counters_hash(void);
+bool counters_running;
 
 // RANGE
 void range_init(void);
@@ -474,6 +476,7 @@ uint8_t wdg_resetCause;
 #define WDG_AUXRX		6
 
 #define NRO_WDGS		7
+//#define NRO_WDGS		2
 
 #define WDG_TO30		30
 #define WDG_TO60		60

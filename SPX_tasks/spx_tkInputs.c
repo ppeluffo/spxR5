@@ -106,7 +106,7 @@ void tkInputs_normal(void)
 TickType_t xLastWakeTime = 0;
 uint32_t waiting_ticks = 0;
 
-	xprintf_P( PSTR("starting tkInputs Normal..\r\n\0"));
+	xprintf_P( PSTR("starting tkInputs Normal..\r\n"));
 
 	// Initialise the xLastWakeTime variable with the current time.
  	 xLastWakeTime = xTaskGetTickCount();
@@ -124,13 +124,13 @@ uint32_t waiting_ticks = 0;
 
  		// Poleo si no estoy en autocal
  		if ( ! ainputs_autocal_running() ) {
- 			data_read_inputs(&dataRecd, false);
+			data_read_inputs(&dataRecd, false);
  			data_print_inputs(fdTERM, &dataRecd);
  			pv_data_guardar_en_BD();
 
  			// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
  			if ( ! MODO_DISCRETO ) {
- 				SPX_SEND_SIGNAL( SGN_FRAME_READY );
+				SPX_SEND_SIGNAL( SGN_FRAME_READY );
  			}
 
  			// Dejo el range en una variable de intercambio con la aplicacion de caudalimetro

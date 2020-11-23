@@ -36,15 +36,18 @@ static void pv_ctl_check_wdg(void);
 static void pv_ctl_ticks(void);
 static void pv_ctl_daily_reset(void);
 static void pv_ctl_check_terminal_present(void);
-static void pv_ctl_RI(void);
+static void pv_ctl_fire_counters(void);
+
+//static void pv_ctl_RI(void);
 
 #define MAX_TIMERS	2
 #define TIME_TO_NEXT_POLL	0
 #define TIME_TO_NEXT_DIAL	1
-#define TIME_TO_XBEE_LINK	2
-static uint32_t pv_timers[MAX_TIMERS] = { 0, 0 };
 
-static uint16_t watchdog_timers[NRO_WDGS] = { 0,0,0,0,0,0 };
+static uint32_t pv_timers[MAX_TIMERS];
+
+static uint16_t watchdog_timers[NRO_WDGS];
+
 static bool f_terminal_connected = false;;
 
 // Timpo que espera la tkControl entre round-a-robin
@@ -89,7 +92,9 @@ void tkCtl(void * pvParameters)
 		pv_ctl_check_terminal_present();
 		pv_ctl_wink_led();
 		pv_ctl_daily_reset();
-		pv_ctl_RI();
+		pv_ctl_fire_counters();
+
+		//pv_ctl_RI();
 
 		// Para entrar en tickless.
 		// Cada 5s hago un chequeo de todo. En particular esto determina el tiempo
@@ -113,6 +118,7 @@ static void pv_ctl_init_system(void)
 uint8_t wdg = 0;
 FAT_t l_fat;
 uint16_t recSize = 0;
+uint8_t i;
 
 	memset( &l_fat, '\0', sizeof(FAT_t));
 
@@ -141,6 +147,11 @@ uint16_t recSize = 0;
 	// Inicializo todos los watchdogs a 30s ( 3 * 5s de loop )
 	for ( wdg = 0; wdg < NRO_WDGS; wdg++ ) {
 		watchdog_timers[wdg] = (uint16_t)( TKCTL_DELAY_S * 6 );
+	}
+
+	// Inicializo los timers
+	for ( i = 0; i < MAX_TIMERS; i++ ) {
+		pv_timers[i] = 0;
 	}
 
 	// Determino la io_board attached
@@ -218,22 +229,23 @@ static void pv_ctl_check_terminal_present(void)
 	// Si bien en la IO8 no es necesario desconectar la terminal ya que opera
 	// con corriente, por simplicidad uso un solo codigo para ambas arquitecturas.
 
+	//xprintf_P( PSTR("DEBUG terminal start..\r\n\0"));
 	if ( IO_read_TERMCTL_PIN() == 1) {
 		f_terminal_connected = true;
 	} else {
 		f_terminal_connected = false;
 	}
+	//xprintf_P( PSTR("DEBUG terminal end..\r\n\0"));
 	return;
 }
 //------------------------------------------------------------------------------------
 static void pv_ctl_wink_led(void)
 {
 
+	//xprintf_P( PSTR("DEBUG Led..\r\n\0"));
 	// SI la terminal esta desconectada salgo.
 	if ( ! ctl_terminal_connected() )
 		return;
-
-
 
 	// Prendo los leds
 	IO_set_LED_KA();
@@ -261,6 +273,7 @@ char buffer[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' } ;
 
 		// Cada ciclo reseteo el wdg para que no expire.
 		WDT_Reset();
+		//xprintf_P( PSTR("\r\nDEBUG wdg %06lu.\r\n\0"), sysTicks);
 
 		//ctl_print_wdg_timers();
 		//return;
@@ -298,6 +311,8 @@ static void pv_ctl_ticks(void)
 {
 uint8_t i = 0;
 
+	//xprintf_P( PSTR("DEBUG ctlTicks..\r\n\0"));
+
 	// Ajusto los timers hasta llegar a 0.
 
 	for ( i = 0; i < MAX_TIMERS; i++ ) {
@@ -318,9 +333,11 @@ static void pv_ctl_daily_reset(void)
 
 static uint32_t ticks_to_reset = 86400 / TKCTL_DELAY_S ; // ticks en 1 dia.
 
+	//xprintf_P( PSTR("DEBUG dailyReset..\r\n\0"));
 	while ( --ticks_to_reset > 0 ) {
 		return;
 	}
+
 
 	xprintf_P( PSTR("Daily Reset !!\r\n\0") );
 	vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
@@ -330,6 +347,20 @@ static uint32_t ticks_to_reset = 86400 / TKCTL_DELAY_S ; // ticks en 1 dia.
 
 }
 //------------------------------------------------------------------------------------
+static void pv_ctl_fire_counters(void)
+{
+static int8_t fire_counters = 6;
+
+	if ( fire_counters >= 0 ) {
+		//xprintf_P( PSTR("DEBUG Fire Counters = %d\r\n"),fire_counters );
+		if (fire_counters-- <= 0) {
+			xprintf_P( PSTR("COUNTERS Enabled.\r\n\0") );
+			counters_running = true;
+		}
+	}
+}
+//------------------------------------------------------------------------------------
+/*
 static void pv_ctl_RI(void)
 {
 	// Esta funcion monitorea el estado del pin RI.
@@ -338,6 +369,7 @@ static void pv_ctl_RI(void)
 
 	}
 }
+*/
 //------------------------------------------------------------------------------------
 // FUNCIONES PUBLICAS
 //------------------------------------------------------------------------------------

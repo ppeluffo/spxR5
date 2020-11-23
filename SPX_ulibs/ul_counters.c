@@ -44,6 +44,8 @@ void counters_setup(void)
 	// y el periodo.
 	// Se deben crear antes que las tarea y que arranque el scheduler
 
+	counters_running = false;
+
 	// Counter de debounce de pulsos en linea A
 	// Mide el tiempo minimo que el pulso está arriba
 	// Mide el pulse_width
@@ -299,6 +301,12 @@ char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 		memcpy(l_data, systemVars.counters_conf.name[channel], sizeof(l_data));
 		strupr(l_data);
 
+		// Si el canal se deactiva ya salgo.
+		//if ( strcmp ( systemVars.counters_conf.name[channel], "X" ) == 0 ) {
+		//	retS = true;
+		//	return(retS);
+		//}
+
 		// MAGPP
 		if ( s_magpp != NULL ) { systemVars.counters_conf.magpp[channel] = atof(s_magpp); }
 
@@ -379,6 +387,9 @@ ISR ( PORTA_INT0_vect )
 	// Esta ISR se activa cuando el contador D2 (PA2) genera un flaco se subida.
 	// Si el contador es de HS solo cuenta
 
+	if ( ! counters_running )
+		return;
+
 	if ( !f_count0_running)
 		return;
 
@@ -399,6 +410,9 @@ ISR ( PORTA_INT0_vect )
 ISR( PORTB_INT0_vect )
 {
 	// Esta ISR se activa cuando el contador D1 (PB2) genera un flaco se subida.
+
+	if ( ! counters_running )
+		return;
 
 	if ( !f_count1_running)
 		return;

@@ -463,6 +463,7 @@ int main( void )
 	// Clock principal del sistema
 	u_configure_systemMainClock();
 	u_configure_RTC32();
+	sysTicks = 0;
 
 	// Configuramos y habilitamos el watchdog a 8s.
 	WDT_EnableAndSetTimeout(  WDT_PER_8KCLK_gc );
@@ -474,12 +475,12 @@ int main( void )
 	initMCU();
 
 	// Inicializacion de los devices del frtos-io
-	if ( BAUD_PIN_115200() ) {
-		frtos_open(fdTERM, 115200 );
+//	if ( BAUD_PIN_115200() ) {
+//		frtos_open(fdTERM, 115200 );
 //		frtos_open(fdTERM, 9600 );
-	} else {
+//	} else {
 		frtos_open(fdTERM, 9600 );
-	}
+//	}
 
 	frtos_open(fdGPRS, 115200);
 	frtos_open(fdAUX1, 9600);		// Usado por xbee o modbus o camara
@@ -520,6 +521,12 @@ void vApplicationIdleHook( void )
 //	if ( sleepFlag == true ) {
 //		sleep_mode();
 //	}
+}
+//------------------------------------------------------------------------------------
+void vApplicationTickHook( void )
+{
+	sysTicks++;
+
 }
 //------------------------------------------------------------------------------------
 // Define the function that is called by portSUPPRESS_TICKS_AND_SLEEP().

@@ -70,6 +70,7 @@ void ainputs_awake(void)
 //------------------------------------------------------------------------------------
 void ainputs_sleep(void)
 {
+
 	switch (spx_io_board) {
 	case SPX_IO5CH:
 		INA_config_sleep(INA_A );
