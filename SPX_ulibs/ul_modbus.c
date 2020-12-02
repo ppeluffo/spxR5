@@ -312,13 +312,6 @@ uint8_t i;
 	// Habilita el RTS para indicar que transmite
 	// Apaga la recepcion. ( El IC 485 copia la tx y rx )
 
-	/*
-	xprintf_P(PSTR("DEBUG2: slave_addr=0x%02x\r\n\0"), slave_address);
-	xprintf_P(PSTR("DEBUG2: rcode=0x%02x\r\n\0"), function_code);
-	xprintf_P(PSTR("DEBUG2: addr=0x%02x\r\n\0"), start_address);
-	xprintf_P(PSTR("DEBUG2: length=0x%02x\r\n\0"), nro_regs);
-	*/
-
 	// Preparo el mensaje
 	memset( mbus_msg,'\0', MBUS_TXMSG_LENGTH);
 	msg_size = 0;
@@ -336,51 +329,28 @@ uint8_t i;
 	msg_size++;
 
 	crc = pv_modbus_CRC16(mbus_msg, 6);
-
-	//xprintf_P(PSTR("DEBUG2: crc=0x%04x\r\n\0"), crc);
-
 	mbus_msg[6] = (uint8_t)( crc & 0x00FF );			// CRC Low
 	msg_size++;
 	mbus_msg[7] = (uint8_t)( (crc & 0xFF00) >> 8 );		// CRC High
 	msg_size++;
 
 	// Transmito
-	aux_rts_on();
-	// Apago la recepcion
-	frtos_ioctl (fdAUX1, ioctl_UART_DISABLE_RX, NULL );
 	// borro buffers y espero 3.5T (9600) = 3.5ms
 	aux_flush_TX_buffer();
-	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
-
-	// DEBUG
-	//strcpy(&mbus_msg, "123456");
-	//msg_size=6;
-
-	// Transmito y log
-	xprintf_FS(fdAUX1, (const char *)mbus_msg, msg_size );
-
-	if ( f_debug )
-		xprintf_P(PSTR("MBUS_TX:"));
-
-	for ( i = 0 ; i < msg_size; i++ ) {
-		//xfputChar(fdAUX1,  mbus_msg[i] );
-		if ( f_debug )
-			xprintf_P(PSTR("[0x%02X]"), mbus_msg[i]);
-
-	}
-
-	if ( f_debug ) {
-		xprintf_P(PSTR("\r\n\0"));
-	} else {
-		vTaskDelay( (portTickType)( 10 / portTICK_RATE_MS ) );
-	}
-
-	// Habilito la recepcion
 	aux_flush_RX_buffer();
-	frtos_ioctl (fdAUX1, ioctl_UART_ENABLE_RX, NULL );
-	aux_rts_off();
+	vTaskDelay( (portTickType)( 10 / portTICK_RATE_MS ) );
 
+	// Transmito
+	// Log
+	if ( f_debug ) {
+		xprintf_P(PSTR("MBUS_TX:"));
+		for ( i = 0 ; i < msg_size; i++ ) {
+			xprintf_P(PSTR("[0x%02X]"), mbus_msg[i]);
+		}
+		xprintf_P(PSTR("\r\n\0"));
+	}
 
+	xnprintf_MBUS( (const char *)mbus_msg, msg_size );
 
 }
 //------------------------------------------------------------------------------------
@@ -469,7 +439,6 @@ uint8_t i;
 		// De acuerdo al protocolo se ignora el frame recibido con errores CRC
 		return(false);
 	}
-
 
 	return(true);
 

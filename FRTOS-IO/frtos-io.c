@@ -308,11 +308,10 @@ int timeout;
 	while  ( rBufferGetCount( &xCom->uart->TXringBuffer ) > 0 )
 		vTaskDelay( ( TickType_t)( 1 ) );
 
-
 	// Cargo el buffer en la cola de trasmision.
 	p = (char *)pvBuffer;
 
-	while (*p && (bytes2tx-- > 0) ) {
+	while ( bytes2tx-- > 0 ) {
 		// Voy cargando la cola de a uno.
 		cChar = *p;
 		timeout = 10;	// Espero 10 ticks maximo
@@ -422,6 +421,66 @@ xTimeOutType xTimeOut;
 
 	return ( xBytesReceived );
 
+}
+//------------------------------------------------------------------------------------
+int frtos_write_modbus( char *pvBuffer, uint16_t xBytes )
+{
+	// Hago control de flujo
+	// Trasmite el buffer sin considerar si tiene NULL 0x00 en el medio.
+	// Transmite en forma transparente los xBytes por poleo de modo que controlo exactamente
+	// cuando termino de transmitir c/byte.
+	// Solo opera sobre xComAUX1
+
+char cChar = '\0';
+char *p = NULL;
+uint16_t bytes2tx = 0;
+int wBytes = 0;
+int timeout;
+
+	// Habilito Transmision
+	frtos_ioctl (fdAUX1, ioctl_UART_DISABLE_RX, NULL );
+	// RTS ON
+	IO_set_AUX_RTS();
+
+	// Controlo no hacer overflow en la cola de trasmision
+	bytes2tx = xBytes;
+
+	// Trasmito.
+	// Espero que los buffers esten vacios. ( La uart se va limpiando al trasmitir )
+	while  ( rBufferGetCount(  &xComAUX1.uart->TXringBuffer ) > 0 )
+		vTaskDelay( ( TickType_t)( 1 ) );
+
+	p = (char *)pvBuffer;
+
+	while ( bytes2tx-- > 0 ) {
+		// Voy cargando la cola de a uno.
+		cChar = *p;
+		timeout = 10;	// Espero 10 ticks maximo
+		while( --timeout > 0) {
+
+			if ( USART_IsTXDataRegisterEmpty(xComAUX1.uart->usart) ) {
+				USART_PutChar(xComAUX1.uart->usart, cChar);
+				p++;
+				wBytes++;	// Cuento los bytes que voy trasmitiendo
+				break;
+			} else {
+				// Espero
+				vTaskDelay( ( TickType_t)( 1 ) );
+			}
+
+			if ( timeout == 0 ) {
+				// Error de transmision: SALGO
+				return(-1);
+			}
+		}
+	}
+
+	// Habilito Recepcion
+	frtos_ioctl (fdAUX1, ioctl_UART_ENABLE_RX, NULL );
+	// RTS OFF
+	IO_clr_AUX_RTS();
+
+	return (wBytes);
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES ESPECIFICAS DEL BUS I2C/TWI

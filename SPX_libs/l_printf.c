@@ -108,7 +108,6 @@ int bytes2wr = 0;
 
 }
 //-----------------------------------------------------------------------------------
-
 void xputChar(unsigned char c)
 {
 	// Funcion intermedia necesaria por cmdline para escribir de a 1 caracter en consola
@@ -285,3 +284,25 @@ int i;
 
 }
 //------------------------------------------------------------------------------------
+int xnprintf_MBUS( const char *pvBuffer, const uint16_t xBytes )
+{
+	/* Imprime en fdAUX(Modbus, xbee) sin formatear
+	   No uso stdout_buff por lo tanto no requeriria semaforo pero igual
+	   lo uso para evitar colisiones. De este modo todo el acceso al uart queda
+	   siempre controlado por el semaforo
+	   La funcion frtos_write_modbus es la que activa el RTS
+	*/
+
+int bytes2wr = 0;
+
+	while ( xSemaphoreTake( sem_STDOUT, ( TickType_t ) 5 ) != pdTRUE )
+		vTaskDelay( ( TickType_t)( 5 ) );
+
+	bytes2wr = frtos_write_modbus( pvBuffer, xBytes );
+
+	xSemaphoreGive( sem_STDOUT );
+	return(bytes2wr);
+
+}
+//-----------------------------------------------------------------------------------
+

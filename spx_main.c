@@ -41,7 +41,18 @@
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  *
-  * ------------------------------------------------------------------------
+ * ------------------------------------------------------------------------
+ * Version 3.0.5.d( MASTER ) @2020-11-23
+ * Modbus: Cambio la forma de transmitir de modo que no use interrupcion
+ * sino byte a byte.
+ * defino xnprintf_MBUS() y frtos_write_modbus.
+ *
+ * ------------------------------------------------------------------------
+ * Version 3.0.5.b,c( MASTER ) @2020-11-23
+ * Arreglo el problema que cuando arranca con los contadores midiendo se resetea.
+ * Pongo una flag global que bloquea a contar (ISR) hasta que todo este
+ * inicializado.
+ * ------------------------------------------------------------------------
  * Version 3.0.5.a( MASTER ) @2020-10-26
  * - Agrego la aplicacion EXTERNAL_POLL.
  *
