@@ -218,6 +218,12 @@ uint8_t i;
 	}
 	xprintf_P( PSTR("------------------------------------------------\r\n\0"));
 
+	//xprintf_P(PSTR("size of int %d\r\n"), sizeof(int));
+	//xprintf_P(PSTR("size of int8 %d\r\n"), sizeof(int8_t));
+	//xprintf_P(PSTR("size of uint8 %d\r\n"), sizeof(uint8_t));
+	//xprintf_P(PSTR("size of int16 %d\r\n"), sizeof(int16_t));
+	//xprintf_P(PSTR("size of uint16 %d\r\n"), sizeof(uint16_t));
+
 	// Habilito a arrancar al resto de las tareas
 	startTask = true;
 

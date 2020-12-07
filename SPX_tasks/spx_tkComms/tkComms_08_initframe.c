@@ -8,9 +8,6 @@
 #include <tkComms.h>
 #include <../spx_tkApp/tkApp.h>
 
-// La tarea no puede demorar mas de 180s.
-#define WDG_COMMS_TO_INITFRAME	WDG_TO300
-
 static bool init_frame_app(void);
 
 static bool init_reconfigure_params_auth(void);
@@ -42,6 +39,9 @@ static bool f_send_init_frame_modbus = false;
 
 bool reset_datalogger = false;
 
+#define MAX_FRAMES_INIT	15
+bool tx_frame_init[MAX_FRAMES_INIT];
+
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_initframe(void)
 {
@@ -54,24 +54,16 @@ t_comms_states tkComms_st_initframe(void)
 
 t_comms_states next_state = ST_ENTRY;
 bool retS;
+uint8_t i;
 
-#ifdef BETA_TEST
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_initframe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
-#else
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_initframe.\r\n"));
-#endif
-
-
-#ifdef MONITOR_STACK
-	debug_print_stack_watermarks("9");
-#endif
-	xprintf_P( PSTR("COMMS: IN st_initframe.\r\n\0"));
-
-	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_INITFRAME );
 
 	xCOMMS_stateVars.gprs_inicializado = false;
 
 	reset_datalogger = false;
+
+	for ( i=0; i < MAX_FRAMES_INIT; i++)
+		tx_frame_init[i] = true;
 
 	retS = xCOMMS_process_frame(INIT_AUTH, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 	if ( ! retS ) {
@@ -201,7 +193,7 @@ EXIT:
 	return(next_state);
 }
 //------------------------------------------------------------------------------------
-void xINIT_FRAME_send(t_frame tipo_frame )
+t_send_status xINIT_FRAME_send(t_frame tipo_frame )
 {
 	/*
 	 * Intenta enviar un frame de init
@@ -213,43 +205,41 @@ void xINIT_FRAME_send(t_frame tipo_frame )
 uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks, mbus_cks;
 uint8_t ch;
 
-#ifdef MONITOR_STACK
-	debug_print_stack_watermarks("10");
-#endif
+	if( tx_frame_init[tipo_frame] == false ) {
+		xprintf_P(PSTR("xINIT_FRAME_SEND %d: no data. Exit.\r\n"), tipo_frame );
+		return(SEND_NODATA);
+	}
+	xprintf_P(PSTR("xINIT_FRAME_SEND type:%d.\r\n"), tipo_frame );
 
 	xCOMMS_flush_RX();
 	xCOMMS_flush_TX();
-	xCOMMS_send_header("INIT");
-	vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
+
+	xCOMMS_xbuffer_init();
+	xCOMMS_xbuffer_load_P(PSTR("GET %s?DLGID=%s&TYPE=INIT&VER=%s\0" ), sVarsComms.serverScript, sVarsComms.dlgId, SPX_FW_REV );
 
 	switch(tipo_frame) {
 	case INIT_AUTH:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
+		xCOMMS_xbuffer_load_P(PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
 		break;
 
 	case INIT_SRVUPDATE:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:UPDATE;" ));
+		xCOMMS_xbuffer_load_P(PSTR("&PLOAD=CLASS:UPDATE;" ));
 		for(ch=0;ch<MAX_ANALOG_CHANNELS;ch++) {
 			if ( ( systemVars.an_calibrados & ( 1<<ch)) == 0 ) {
 				continue;
 			}
-			// Transmito los datos del canal analogico ch.
-			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("A%d:%d,%d,%.02f,%.02f,%.02f;"),
-				ch,
-				systemVars.ainputs_conf.imin[ch],
-				systemVars.ainputs_conf.imax[ch],
-				systemVars.ainputs_conf.mmin[ch],
-				systemVars.ainputs_conf.mmax[ch],
-				systemVars.ainputs_conf.offset[ch]);
+			xCOMMS_xbuffer_load_P(PSTR("A%d:%d,%d,%.02f,%.02f,%.02f;"),
+					ch,
+					systemVars.ainputs_conf.imin[ch],
+					systemVars.ainputs_conf.imax[ch],
+					systemVars.ainputs_conf.mmin[ch],
+					systemVars.ainputs_conf.mmax[ch],
+					systemVars.ainputs_conf.offset[ch]);
 		}
 
 		break;
+
 	case INIT_GLOBAL:
-
-#ifdef MONITOR_STACK
-	debug_print_stack_watermarks("11");
-#endif
-
 		base_cks = u_base_hash();
 		an_cks = ainputs_hash();
 		dig_cks = dinputs_hash();
@@ -259,91 +249,80 @@ uint8_t ch;
 		app_cks = u_aplicacion_hash();
 		mbus_cks = modbus_hash();
 
-		//
-#ifdef MONITOR_STACK
-	debug_print_stack_watermarks("12");
-#endif
-
-
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
-		// Espero 100ms entre records para dejar vaciar el TXbuffer wireless del modem
-		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
-
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("IMEI:%s;\0" ), gprs_get_imei() );
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
-		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
-
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;\0" ), base_cks,an_cks,dig_cks );
-		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
-
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("CNT:0x%02X;RG:0x%02X;\0" ),cnt_cks,range_cks );
-		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
-
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("PSE:0x%02X;" ), psens_cks );
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("APP:0x%02X;" ), app_cks );
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("MBUS:0x%02X;" ), mbus_cks );
-
+		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
+		xCOMMS_xbuffer_load_P( PSTR("IMEI:%s;\0" ), gprs_get_imei() );
+		xCOMMS_xbuffer_load_P( PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
+		xCOMMS_xbuffer_load_P( PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;\0" ), base_cks,an_cks,dig_cks );
+		xCOMMS_xbuffer_load_P( PSTR("CNT:0x%02X;RG:0x%02X;\0" ),cnt_cks,range_cks );
+		xCOMMS_xbuffer_load_P( PSTR("PSE:0x%02X;" ), psens_cks );
+		xCOMMS_xbuffer_load_P( PSTR("APP:0x%02X;" ), app_cks );
+		xCOMMS_xbuffer_load_P( PSTR("MBUS:0x%02X;" ), mbus_cks );
 		break;
 
 	case INIT_BASE:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_BASE;"));
+		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_BASE;"));
 		break;
 
 	case INIT_ANALOG:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
+		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
 		break;
 
 	case INIT_DIGITAL:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
+		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
 		break;
 
 	case INIT_COUNTERS:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
+		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
 		break;
 
 	case INIT_RANGE:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_RANGE;"));
+		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_RANGE;"));
 		break;
 
 	case INIT_PSENSOR:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
+		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
 		break;
 
 	case INIT_APP_A:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_APP;"));
+		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_APP;"));
 		break;
 
 	case INIT_APP_B:
 		if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
 			// En aplicacion PPOT pido la configuracion de los SMS
-			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
+			xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
 
 		} else if ( sVarsApp.aplicacion == APP_CONSIGNA ) {
 			// En aplicacion CONSIGNA pido la configuracion de las consignas
-			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
+			xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
 
 		} else if ( sVarsApp.aplicacion == APP_CAUDALIMETRO ) {
-			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_CAUDALIMETRO;"));
+			xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_CAUDALIMETRO;"));
 		}
 		break;
 
 	case INIT_APP_C:
 		if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
 			// En aplicacion PPOT pido la configuracion de los NIVELES DE ALARMA
-			xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
+			xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
 		}
 		break;
 
 	case INIT_MODBUS:
-		xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:CONF_MODBUS;"));
+		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_MODBUS;"));
 		break;
 
 	default:
 		break;
 	}
 
-	xCOMMS_send_tail();
+	// Tail
+	xCOMMS_xbuffer_load_P( PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n") );
+	if ( xCOMMS_xbuffer_send(DF_COMMS) < 0 ) {
+		return(SEND_FAIL);
+	}
 
+	return(SEND_OK);
 }
 //------------------------------------------------------------------------------------
 t_responses xINIT_FRAME_process_response(void)
@@ -368,6 +347,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_auth() ) {
+				tx_frame_init[INIT_AUTH] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -379,6 +359,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_update() ) {
+				tx_frame_init[INIT_SRVUPDATE] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -391,6 +372,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_global() )  {
+				tx_frame_init[INIT_GLOBAL] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -402,6 +384,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_base() ) {
+				tx_frame_init[INIT_BASE] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -413,6 +396,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_analog() ) {
+				tx_frame_init[INIT_ANALOG] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -424,6 +408,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_digital() ) {
+				tx_frame_init[INIT_DIGITAL] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -435,6 +420,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_counters() ) {
+				tx_frame_init[INIT_COUNTERS] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -446,6 +432,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_psensor() ) {
+				tx_frame_init[INIT_PSENSOR] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -457,6 +444,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_range() ) {
+				tx_frame_init[INIT_RANGE] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -468,6 +456,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_app_A() ) {
+				tx_frame_init[INIT_APP_A] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -479,6 +468,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_app_B() )  {
+				tx_frame_init[INIT_APP_B] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -490,6 +480,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_app_C() ) {
+				tx_frame_init[INIT_APP_C] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -501,6 +492,7 @@ t_responses rsp = rsp_NONE;
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_modbus() ) {
+				tx_frame_init[INIT_MODBUS] = false;
 				rsp = rsp_OK;
 			} else {
 				rsp = rsp_ERROR;
@@ -612,10 +604,11 @@ char dlgId[DLGID_LENGTH];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_AUTH\r\n\0"));
 
-	p = xCOMM_get_buffer_ptr("AUTH");
+	p = xCOMM_get_buffer_ptr("<h1>");
 	if ( p == NULL ) {
 		return(false);
 	}
+	p = strstr( p, "AUTH");
 
 	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 	memset(localStr,'\0',sizeof(localStr));
@@ -656,6 +649,7 @@ static bool init_reconfigure_params_global(void)
 	// que otras flags de configuraciones debemos prender.
 	// GLOBAL;CLOCK:1910120345;BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;APP_A;APP_B;APP_C,MBUS;
 
+char *p0 = NULL;
 char *p = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
@@ -670,7 +664,11 @@ int8_t xBytes = 0;
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_GLOBAL\r\n\0"));
 
 	// CLOCK
-	p = xCOMM_get_buffer_ptr("CLOCK");
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return(false);
+	}
+	p = strstr( p0, "CLOCK");
 	if ( p != NULL ) {
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -711,42 +709,42 @@ int8_t xBytes = 0;
 
 	// Flags de configuraciones particulares: BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;OUTS
 
-	p = xCOMM_get_buffer_ptr("BASE");
+	p = strstr( p0, "BASE");
 	if ( p != NULL ) {
 		f_send_init_frame_base = true;
 	}
 
-	p = xCOMM_get_buffer_ptr("ANALOG");
+	p = strstr( p0, "ANALOG");
 	if ( p != NULL ) {
 		f_send_init_frame_analog = true;
 	}
 
-	p = xCOMM_get_buffer_ptr("DIGITAL");
+	p = strstr( p0, "DIGITAL");
 	if ( p != NULL ) {
 		f_send_init_frame_digital = true;
 	}
 
-	p = xCOMM_get_buffer_ptr("COUNTERS");
+	p = strstr( p0, "COUNTERS");
 	if ( p != NULL ) {
 		f_send_init_frame_counters = true;
 	}
 
-	p = xCOMM_get_buffer_ptr("RANGE");
+	p = strstr( p0, "RANGE");
 	if ( p != NULL ) {
 		f_send_init_frame_range = true;
 	}
 
-	p = xCOMM_get_buffer_ptr("PSENSOR");
+	p = strstr( p0, "PSENSOR");
 	if ( p != NULL ) {
 		f_send_init_frame_psensor = true;
 	}
 
-	p = xCOMM_get_buffer_ptr("APLICACION");
+	p = strstr( p0, "APLICACION");
 	if ( p != NULL ) {
 		f_send_init_frame_app = true;
 	}
 
-	p = xCOMM_get_buffer_ptr("MBUS");
+	p = strstr( p0, "MBUS");
 	if ( p != NULL ) {
 		f_send_init_frame_modbus = true;
 	}
@@ -758,6 +756,7 @@ static bool init_reconfigure_params_base(void)
 {
 	//	TYPE=INIT&PLOAD=CLASS:BASE;TPOLL:60;TDIAL:60;PWST:5;PWRS:ON,2330,630;CNT_HW:OPTO
 
+char *p0 = NULL;
 char *p = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
@@ -770,8 +769,13 @@ bool save_flag = false;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_BASE\r\n\0"));
 
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return(false);
+	}
+
 	// TDIAL
-	p = xCOMM_get_buffer_ptr("TDIAL");
+	p = strstr( p0, "TDIAL");
 	if ( p != NULL ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
@@ -790,7 +794,7 @@ bool save_flag = false;
 	}
 
 	// TPOLL
-	p = xCOMM_get_buffer_ptr("TPOLL");
+	p = strstr( p0, "TPOLL");
 	if ( p != NULL ) {
 
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -808,7 +812,7 @@ bool save_flag = false;
 	}
 
 	// PWST
-	p = xCOMM_get_buffer_ptr("PWST");
+	p = strstr( p0, "PWST");
 	if ( p != NULL ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
@@ -827,7 +831,7 @@ bool save_flag = false;
 	}
 
 	// PWRS
-	p = xCOMM_get_buffer_ptr("PWRS");
+	p = strstr( p0, "PWRS");
 	if ( p != NULL ) {
 		memset( &localStr, '\0', sizeof(localStr) );
 		memcpy(localStr,p,sizeof(localStr));
@@ -846,7 +850,7 @@ bool save_flag = false;
 	}
 
 	// CNT_HW
-	p = xCOMM_get_buffer_ptr("HW_CNT");
+	p = strstr( p0, "HW_CNT");
 	if ( p != NULL ) {
 
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -863,7 +867,7 @@ bool save_flag = false;
 	}
 
 	// BAT
-	p = xCOMM_get_buffer_ptr("BAT");
+	p = strstr( p0, "BAT");
 	if ( p != NULL ) {
 
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -893,6 +897,7 @@ static bool init_reconfigure_params_analog(void)
 	//  TYPE=INIT&PLOAD=CLASS:ANALOG;A0:PA,4,20,0.0,10.0;A1:X,4,20,0.0,10.0;A2:X,4,20,0.0,10.0;A3:X,4,20,0.0,10.0;A4:X,4,20,0.0,10.0;
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_name= NULL;
@@ -908,13 +913,18 @@ char str_base[8];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_ANALOG\r\n\0"));
 
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return(false);
+	}
+
 	// A?
 	for (ch=0; ch < NRO_ANINPUTS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("A%d\0"), ch );
 		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
 
-		p = xCOMM_get_buffer_ptr(str_base);
+		p = strstr( p0, str_base);
 		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
@@ -949,6 +959,7 @@ static bool init_reconfigure_params_digital(void)
 	//	PLOAD=CLASS:DIGITAL;D0:DIN0,NORMAL;D1:DIN1,TIMER;
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_name= NULL;
@@ -960,11 +971,16 @@ char str_base[8];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_DIGITAL\r\n\0"));
 
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return(false);
+	}
+
 	// D?
 	for (ch=0; ch < NRO_DINPUTS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("D%d\0"), ch );
-		p = xCOMM_get_buffer_ptr(str_base);
+		p = strstr( p0, str_base);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
 			memcpy(localStr,p,sizeof(localStr));
@@ -994,6 +1010,7 @@ static bool init_reconfigure_params_counters(void)
 	//  PLOAD=CLASS:COUNTER;C0:CNT0,1.0,15,1000,0;C1:X,1.0,10,100,1;
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_name = NULL;
@@ -1009,11 +1026,16 @@ char str_base[8];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_COUNTERS\r\n\0"));
 
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return(false);
+	}
+
 	// C?
 	for (ch=0; ch < NRO_COUNTERS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("C%d\0"), ch );
-		p = xCOMM_get_buffer_ptr(str_base);
+		p = strstr( p0, str_base);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
 			memcpy(localStr,p,sizeof(localStr));
@@ -1050,15 +1072,20 @@ static bool init_reconfigure_params_range(void)
 	// TYPE=INIT&PLOAD=CLASS:RANGE;R0:DIST;
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
 char *delim = ",;:=><";
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_RANGE\r\n\0"));
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return(false);
+	}
 
 	// RANGE
-	p = xCOMM_get_buffer_ptr("R0");
+	p = strstr( p0, "R0");
 	if ( p != NULL ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
@@ -1084,6 +1111,7 @@ static bool init_reconfigure_params_psensor(void)
 	//	La linea recibida trae: PLOAD=CLASS:COUNTER;PS0:PSENS,1480,6200,0.0,28.5,0.0:
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[48] = { 0 };
 char *stringp = NULL;
 char *tk_name = NULL;
@@ -1095,8 +1123,12 @@ char *tk_offset = NULL;
 char *delim = ",;:=><";
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_PSENSOR\r\n\0"));
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return(false);
+	}
 
-	p = xCOMM_get_buffer_ptr("PS0:");
+	p = strstr( p0, "PS0:");
 	if ( p != NULL ) {
 		memset( &localStr, '\0', sizeof(localStr) );
 		memcpy(localStr,p,sizeof(localStr));
@@ -1181,6 +1213,7 @@ static void init_reconfigure_params_app_B_plantapot(void)
 	// TYPE=INIT&PLOAD=CLASS:APP_B;SMS01:111111,1;SMS02:2222222,2;SMS03:3333333,3;SMS04:4444444,1;...SMS09:9999999,3
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_nro= NULL;
@@ -1190,11 +1223,16 @@ uint8_t i;
 char id[2];
 char str_base[8];
 
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return;
+	}
+
 	// SMS?
 	for (i=0; i < MAX_NRO_SMS; i++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
-		p = xCOMM_get_buffer_ptr(str_base);
+		p = strstr( p0, str_base);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
 			memcpy(localStr,p,sizeof(localStr));
@@ -1223,13 +1261,18 @@ static void init_reconfigure_params_app_B_consigna(void)
 	// TYPE=INIT&PLOAD=CLASS:APP_B;HHMM1:1230;HHMM2:0940
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_cons_dia = NULL;
 char *tk_cons_noche = NULL;
 char *delim = ",;:=><";
 
-	p = xCOMM_get_buffer_ptr("HHMM1");
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return;
+	}
+	p = strstr( p0, "HHMM1");
 	if ( p != NULL ) {
 		memset( &localStr, '\0', sizeof(localStr) );
 		memcpy(localStr,p,sizeof(localStr));
@@ -1255,13 +1298,18 @@ static void init_reconfigure_params_app_B_caudalimetro(void)
 	// TYPE=INIT&PLOAD=CLASS:APP_B;PWIDTH:50;FACTORQ:60
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_pwidth = NULL;
 char *tk_factorq = NULL;
 char *delim = ",;:=><";
 
-	p = xCOMM_get_buffer_ptr("PWIDTH");
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return;
+	}
+	p = strstr( p0, "PWIDTH");
 	if ( p != NULL ) {
 		memset( &localStr, '\0', sizeof(localStr) );
 		memcpy(localStr,p,sizeof(localStr));
@@ -1299,6 +1347,7 @@ static void init_reconfigure_params_app_C_plantapot(void)
 	// TYPE=INIT&PLOAD=CLASS:APP_C;CH00:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;CH01:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;..
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_V1_INF = NULL;
@@ -1312,11 +1361,15 @@ uint8_t i;
 char id[2];
 char str_base[8];
 
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return;
+	}
 	// LEVELS?
 	for (i=0; i < NRO_CANALES_ALM; i++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("CH%d\0"), i );
-		p = xCOMM_get_buffer_ptr(str_base);
+		p = strstr( p0, str_base);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
 			memcpy(localStr,p,sizeof(localStr));
@@ -1355,10 +1408,15 @@ static bool init_reconfigure_params_update(void)
 	// TYPE=INIT&PLOAD=CLASS:RANGE;R0:DIST;
 
 char *p = NULL;
+char *p0 = NULL;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_UPDATE\r\n\0"));
 
-	p = xCOMM_get_buffer_ptr("OK");
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return(false);
+	}
+	p = strstr( p0, "OK");
 	if ( p != NULL ) {
 
 		systemVars.an_calibrados=0x00;
@@ -1376,6 +1434,7 @@ static bool init_reconfigure_params_modbus(void)
 	//  TYPE=INIT&PLOAD=CLASS:MODBUS;SLA:0x00;M0:MB0,0x00a1,0x01,0x02;M1:MB1,0x00a2,0x01,0x02;
 
 char *p = NULL;
+char *p0 = NULL;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_sla = NULL;
@@ -1389,9 +1448,12 @@ uint8_t ch;
 char str_base[8];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_MODBUS\r\n\0"));
-
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return(false);
+	}
 	// SLA
-	p = xCOMM_get_buffer_ptr("SLA");
+	p = strstr( p0, "SLA");
 	if ( p != NULL ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
@@ -1414,7 +1476,7 @@ char str_base[8];
 	for (ch=0; ch < MODBUS_CHANNELS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("M%d\0"), ch );
-		p = xCOMM_get_buffer_ptr(str_base);
+		p = strstr( p0, str_base);
 		if ( p != NULL ) {
 			memset(localStr,'\0',sizeof(localStr));
 			memcpy(localStr,p,sizeof(localStr));

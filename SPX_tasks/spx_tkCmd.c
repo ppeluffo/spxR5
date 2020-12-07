@@ -146,9 +146,6 @@ st_dataRecord_t dr;
 	FAT_read(&l_fat);
 	xprintf_P( PSTR("memory: rcdSize=%d, wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), sizeof(st_dataRecord_t), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
 
-	// SERVER
-	//	xprintf_P( PSTR(">Server:\r\n\0"));
-
 	// COMMS Status
 	xCOMMS_status();
 
@@ -310,7 +307,7 @@ st_dataRecord_t dr;
 	// CONFIG
 	xprintf_P( PSTR(">Frame:\r\n\0"));
 	data_read_inputs(&dr, true );
-	data_print_inputs(fdTERM, &dr);
+	data_print_inputs(fdTERM, &dr, 0);
 }
 //-----------------------------------------------------------------------------------
 static void cmdResetFunction(void)
@@ -753,7 +750,7 @@ uint8_t cks;
 	// read frame
 	if (!strcmp_P( strupr(argv[1]), PSTR("FRAME\0")) ) {
 		data_read_inputs(&dr, false );
-		data_print_inputs(fdTERM, &dr);
+		data_print_inputs(fdTERM, &dr, 0);
 		return;
 	}
 
@@ -1390,8 +1387,7 @@ st_dataRecord_t dr;
 		}
 
 		// Imprimo el registro
-		xprintf_P( PSTR("CTL:%d;\0"), l_fat.rdPTR);
-		data_print_inputs(fdTERM, &dr);
+		data_print_inputs(fdTERM, &dr, l_fat.rdPTR );
 
 		xprintf_P(PSTR( "\r\n"));
 	}

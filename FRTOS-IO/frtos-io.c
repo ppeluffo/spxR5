@@ -69,7 +69,7 @@ int8_t xRet = -1;
 //------------------------------------------------------------------------------------
 int frtos_write( file_descriptor_t fd ,const char *pvBuffer, const uint16_t xBytes )
 {
-int8_t xRet = -1;
+int xRet = -1;
 
 	switch(fd) {
 	case fdGPRS:
@@ -85,6 +85,11 @@ int8_t xRet = -1;
 	case fdI2C:
 		xRet = frtos_i2c_write( &xBusI2C, pvBuffer, xBytes );
 		break;
+#ifdef FRTOS_WRITE_FILE
+	case fdFILE:
+		xRet = frtos_file_write( pvBuffer, xBytes );
+		break;
+#endif
 	default:
 		break;
 	}
@@ -97,7 +102,7 @@ int frtos_send( file_descriptor_t fd ,const char *pvBuffer, const uint16_t xByte
 	// Trasmite el buffer sin considerar si tiene NULL 0x00 en el medio.
 	// Transmite en forma transparente los xBytes.
 
-int8_t xRet = -1;
+int xRet = -1;
 
 	switch(fd) {
 	case fdGPRS:
@@ -148,7 +153,7 @@ void frtos_putchar( file_descriptor_t fd ,const char cChar )
 //------------------------------------------------------------------------------------
 int frtos_read( file_descriptor_t fd , char *pvBuffer, uint16_t xBytes )
 {
-int8_t xRet = -1;
+int xRet = -1;
 
 	switch(fd) {
 	case fdGPRS:

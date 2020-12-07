@@ -10,11 +10,6 @@
 
 // La tarea no puede demorar mas de 300s.
 
-#define WDG_COMMS_TO_DATAFRAME	WDG_TO300
-
-static st_dataRecord_t dataRecord;
-
-static void data_send_record( void );
 static void data_process_response_RESET(void);
 static void data_process_response_MEMFORMAT(void);
 static void data_process_response_DOUTS(void);
@@ -30,62 +25,63 @@ t_comms_states tkComms_st_dataframe(void)
 	 * Si no hay datos para transmitir sale
 	 */
 
-// ENTRY
-
-#ifdef BETA_TEST
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_dataframe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
-#else
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_dataframe.\r\n"));
-#endif
-
-#ifdef MONITOR_STACK
-	debug_monitor_stack_watermarks("13");
-#endif
-
 	xprintf_P( PSTR("COMMS: dataframe.\r\n\0"));
-	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_DATAFRAME );
 
-	while ( xCOMMS_datos_para_transmitir() > 0 ) {
-		xCOMMS_process_frame(DATA, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
-	}
+	xCOMMS_process_frame(DATA, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 
 	// Si llego la senal, la reseteo ya que transmiti todos los frames.
 	xCOMMS_SGN_FRAME_READY();
 
-#ifdef BETA_TEST
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_dataframe.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
-#else
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_dataframe.\r\n\0"));
-#endif
-
 	return(ST_ENTRY);
 
 }
 //------------------------------------------------------------------------------------
-void xDATA_FRAME_send(void)
+t_send_status xDATA_FRAME_send(void)
 {
 
 uint8_t registros_trasmitidos = 0;
+
+	if( xCOMMS_datos_para_transmitir() == 0 ) {
+		return(SEND_NODATA);
+	}
 
 	// Envio un window frame
 	registros_trasmitidos = 0;
 	FF_rewind();
 
+	// Header
 	xCOMMS_flush_RX();
 	xCOMMS_flush_TX();
-
-	xCOMMS_send_header("DATA");
-	xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=\0") );
+	xCOMMS_xbuffer_init();
+	xCOMMS_xbuffer_load_P(PSTR("GET %s?DLGID=%s&TYPE=DATA&VER=%s&PLOAD=" ), sVarsComms.serverScript, sVarsComms.dlgId, SPX_FW_REV );
+	if ( xCOMMS_xbuffer_send(DF_COMMS) < 0 ) {
+		return(SEND_FAIL);
+	}
 
 	while ( ( xCOMMS_datos_para_transmitir() > 0 ) && ( registros_trasmitidos < MAX_RCDS_WINDOW_SIZE ) ) {
-		data_send_record();
+
+		xCOMMS_xbuffer_load_dataRecord();
+		if ( xCOMMS_xbuffer_send(DF_COMMS) < 0 ) {
+			xprintf_P(PSTR("DEBUG ERROR TX2\r\n"));
+			return(SEND_FAIL);
+		}
 		registros_trasmitidos++;
 		// Espero 250ms entre records
 		vTaskDelay( (portTickType)( INTER_FRAMES_DELAY / portTICK_RATE_MS ) );
 	}
 
-	xCOMMS_send_tail();
+	// Tail();
+	xCOMMS_flush_RX();
+	xCOMMS_flush_TX();
+	xCOMMS_xbuffer_init();
+	xCOMMS_xbuffer_load_P(PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n") );
+	if ( xCOMMS_xbuffer_send(DF_COMMS) < 0 ) {
+		return(SEND_FAIL);
+	}
 
+	return(SEND_OK);
 }
 //------------------------------------------------------------------------------------
 t_responses xDATA_FRAME_process_response(void)
@@ -166,32 +162,6 @@ t_responses rsp = rsp_NONE;
 //------------------------------------------------------------------------------------
 // FUNCIONES AUXILIARES
 //------------------------------------------------------------------------------------
-static void data_send_record( void )
-{
-	/* Leo un registro de la memoria haciendo el proceso inverso de
-	 * cuando los grabe en spx_tkData::pv_data_guardar_en_BD y lo
-	 * mando por el canal de comunicaciones
-	 */
-
-size_t bRead;
-FAT_t fat;
-
-	memset ( &fat, '\0', sizeof(FAT_t));
-	memset ( &dataRecord, '\0', sizeof( st_dataRecord_t));
-
-	// Paso1: Leo un registro de memoria
-	bRead = FF_readRcd( &dataRecord, sizeof(st_dataRecord_t));
-	FAT_read(&fat);
-
-	if ( bRead == 0) {
-		return;
-	}
-
-	xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("CTL:%d;\0"),fat.rdPTR );
-	xCOMMS_send_dr(DF_COMMS, &dataRecord);
-
-}
-//------------------------------------------------------------------------------------
 static void data_process_response_RESET(void)
 {
 	// El server me pide que me resetee de modo de mandar un nuevo init y reconfigurarme
@@ -255,9 +225,15 @@ char *stringp = NULL;
 char *tk_douts = NULL;
 char *delim = ",;:=><";
 char *p = NULL;
+char *p0 = NULL;
 uint8_t douts;
 
-	p = xCOMM_get_buffer_ptr("DOUTS");
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return;
+	}
+
+	p = strstr( p0, "DOUTS");
 	if ( p != NULL ) {
 		memset( &localStr, '\0', sizeof(localStr) );
 		memcpy(localStr,p,sizeof(localStr));
@@ -313,6 +289,7 @@ char *stringp = NULL;
 char *token = NULL;
 char *delim = ",;:=><";
 char *p = NULL;
+char *p0 = NULL;
 char rtcStr[12];
 uint8_t i = 0;
 char c = '\0';
@@ -320,7 +297,11 @@ RtcTimeType_t rtc;
 int8_t xBytes = 0;
 
 	// CLOCK
-	p = xCOMM_get_buffer_ptr("CLOCK");
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return;
+	}
+	p = strstr( p0, "CLOCK");
 	if ( p != NULL ) {
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -378,8 +359,13 @@ char *tk_hr_address = NULL;
 char *tk_hr_value = NULL;
 char *delim = ",;:=><";
 char *p = NULL;
+char *p0 = NULL;
 
-	p = xCOMM_get_buffer_ptr("MBUS");
+	p0 = xCOMM_get_buffer_ptr("<h1>");
+	if ( p0 == NULL ) {
+		return;
+	}
+	p = strstr( p0, "MBUS");
 	if ( p != NULL ) {
 		memset( &localStr, '\0', sizeof(localStr) );
 		memcpy(localStr,p,sizeof(localStr));

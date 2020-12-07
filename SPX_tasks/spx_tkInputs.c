@@ -82,7 +82,7 @@ void tkInputs_external_poll(void)
 			// Poleo si no estoy en autocal
 	 		if ( ! ainputs_autocal_running() ) {
 	 			data_read_inputs(&dataRecd, false);
-	 			data_print_inputs(fdTERM, &dataRecd);
+	 			data_print_inputs(fdTERM, &dataRecd, 0);
 	 			pv_data_guardar_en_BD();
 
 	 			// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
@@ -125,7 +125,7 @@ uint32_t waiting_ticks = 0;
  		// Poleo si no estoy en autocal
  		if ( ! ainputs_autocal_running() ) {
 			data_read_inputs(&dataRecd, false);
- 			data_print_inputs(fdTERM, &dataRecd);
+ 			data_print_inputs(fdTERM, &dataRecd, 0);
  			pv_data_guardar_en_BD();
 
  			// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
@@ -220,11 +220,11 @@ int8_t xBytes = 0;
 
 }
 //------------------------------------------------------------------------------------
-void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr)
+void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl )
 {
 
 	// timeStamp.
-	xfprintf_P(fd, PSTR("DATE:%02d"),dr->rtc.year );
+	xfprintf_P(fd, PSTR("CTL:%d;DATE:%02d"),ctl, dr->rtc.year );
 	xfprintf_P(fd, PSTR("%02d%02d;"),dr->rtc.month, dr->rtc.day );
 
 	xfprintf_P(fd, PSTR("TIME:%02d"), dr->rtc.hour );

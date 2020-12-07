@@ -15,6 +15,7 @@ typedef enum { ST_ENTRY = 0, ST_ESPERA_APAGADO, ST_ESPERA_PRENDIDO, ST_PRENDER, 
 typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_CREG_FAIL, ERR_CPSI_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ERR_IPSERVER_FAIL, ERR_DLGID_FAIL } t_comms_error_code;
 typedef enum { LINK_OPEN = 0, LINK_CLOSE, LINK_UNKNOWN } t_link_status;
 typedef enum { NET_OPEN = 0, NET_CLOSE, NET_UNKNOWN } t_net_status;
+typedef enum { SEND_OK = 0, SEND_FAIL, SEND_NODATA } t_send_status;
 typedef enum { ATCMD_ENTRY = 0, ATCMD_TEST, ATCMD_CMD, ATCMD_WAIT, ATCMD_EXIT } atcmd_state_t;
 
 typedef enum { INIT_AUTH = 0, INIT_SRVUPDATE, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, INIT_MODBUS, DATA, SCAN } t_frame;
@@ -74,6 +75,8 @@ xComms_conf_t sVarsComms;
 #define SMS_MSG_LENGTH 			70
 #define SMS_MSG_QUEUE_LENGTH 	9
 
+#define WDG_COMMS_TO_PROCESSFRAME	WDG_TO300
+
 typedef struct {
 	char nro[SMS_NRO_LENGTH];
 	char msg[SMS_MSG_LENGTH];
@@ -101,14 +104,7 @@ bool xCOMMS_scan_try ( PGM_P *dlist );
 
 void xCOMMS_mon_sqe( bool modo_continuo, uint8_t *csq );
 
-t_net_status xCOMMS_netopen(void);
-t_net_status xCOMMS_netclose(void);
-t_net_status xCOMMS_netstatus(void);
 bool xCOMMS_ipaddr( char *ip_assigned );
-
-t_link_status xCOMMS_linkopen( char *ip, char *port);
-t_link_status xCOMMS_linkclose( void );
-t_link_status xCOMMS_linkstatus( bool dcd_mode);
 
 void xCOMMS_flush_RX(void);
 void xCOMMS_flush_TX(void);
@@ -117,22 +113,73 @@ void xCOMMS_send_tail(void);
 bool xCOMMS_check_response( const char *pattern );
 void xCOMMS_print_RX_buffer(void);
 char *xCOMM_get_buffer_ptr( char *pattern);
-void xCOMMS_send_dr(bool d_flag, st_dataRecord_t *dr);
 
 bool xCOMMS_SGN_FRAME_READY(void);
 bool xCOMMS_SGN_REDIAL(void);
 
+bool xCOMMS_netstatus(t_net_status *net_status);
+bool xCOMMS_netopen(void);
+bool xCOMMS_netclose(void);
+bool xCOMMS_linkopen(char *ip, char *port);
+bool xCOMMS_linkclose(void);
+bool xCOMMS_linkstatus(t_link_status *link_status);
+
 uint16_t xCOMMS_datos_para_transmitir(void);
 bool xCOMMS_process_frame (t_frame tipo_frame, char *dst_ip, char *dst_port );
+t_net_status fsm_NET(void);
+t_link_status fsm_LINK(char *dst_ip, char *dst_port);
+t_send_status fsm_SEND( t_frame tipo_frame );
+bool fsm_RECEIVE( t_frame tipo_frame );
 
-void xINIT_FRAME_send(t_frame tipo_frame );
+
+t_send_status xINIT_FRAME_send(t_frame tipo_frame );
 t_responses xINIT_FRAME_process_response(void);
 
-void xDATA_FRAME_send(void);
+t_send_status xDATA_FRAME_send(void);
 t_responses xDATA_FRAME_process_response(void);
 
 void xSCAN_FRAME_send(void);
 t_responses xSCAN_FRAME_process_response(void);
+
+#define XCOMMS_BUFFER_SIZE        300U
+
+struct xcomms_buff_st {
+	char txbuff[XCOMMS_BUFFER_SIZE];
+	uint16_t ptr;
+};
+
+struct xcomms_buff_st xcomms_buff;
+int xCOMMS_xbuffer_send( bool dflag );
+int xCOMMS_xbuffer_load_P( PGM_P fmt, ...);
+void xCOMMS_xbuffer_init(void);
+void xCOMMS_xbuffer_load_dataRecord(void);
+
+//------------------------------------------------------------------------------------
+struct circular_buf_t {
+	char buffer[10];
+	uint16_t head;
+	uint16_t tail;
+	uint16_t max; //of the buffer
+	bool full;
+} gprs_rxcbuffer;
+
+void gprs_rxcbuffer_reset(void);
+bool gprs_rxcbuffer_full(void);
+bool gprs_rxcbuffer_empty(void);
+uint16_t gprs_rxcbuffer_usedspace(void);
+void gprs_rxcbuffer_advance_pointer(void);
+void gprs_rxcbuffer_retreat_pointer(void);
+void gprs_rxcbuffer_put( char data);
+bool gprs_rxcbuffer_put2( char data );
+bool gprs_rxcbuffer_get( char * data );
+void gprs_flush_RX_buffer2(void);
+void gprs_rxcbuffer_align(void);
+void gprs_print_RX_buffer2( void );
+bool gprs_check_response2( const char *rsp );
+bool gprs_check_response_with_to2( const char *rsp, uint8_t timeout );
+char *gprs_get_buffer_ptr2( char *pattern);
+
+//------------------------------------------------------------------------------------
 
 void gprs_atcmd_preamble(void);
 void gprs_init(void);
@@ -152,18 +199,18 @@ bool gprs_configurar_dispositivo( char *pin, char *apn, uint8_t *err_code );
 
 void gprs_mon_sqe( bool forever, uint8_t *csq);
 
-t_net_status gprs_NETCLOSE( void );
-t_net_status  gprs_NETOPEN( void );
-t_net_status gprs_NET_status( void );
 bool gprs_IPADDR( char *ip_assigned );
-
-t_link_status gprs_LINK_status(  bool dcd_mode );
-t_link_status gprs_LINK_open( char *ip, char *port);
-t_link_status gprs_LINK_close( void );
 
 char *gprs_get_buffer_ptr( char *pattern);
 bool gprs_SAT_set(uint8_t modo);
-bool gprs_switch_to_command_mode( bool verbose );
+
+bool gprs_cmd_netstatus(t_net_status *net_status);
+bool gprs_cmd_netopen(void);
+bool gprs_cmd_netclose(void);
+bool gprs_cmd_linkopen(char *ip, char *port);
+bool gprs_cmd_linkclose(void);
+bool gprs_cmd_linkstatus(t_link_status *link_status);
+
 
 void xSMS_init(void);
 bool xSMS_enqueue(char *dst_nbr, char *msg );

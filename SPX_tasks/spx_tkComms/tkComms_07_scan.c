@@ -91,7 +91,7 @@ void xSCAN_FRAME_send(void)
 	xCOMMS_flush_RX();
 	xCOMMS_flush_TX();
 	xCOMMS_send_header("SCAN");
-	xprintf_PVD(  xCOMMS_get_fd(), DF_COMMS, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
+	//xCOMMS_fsend_PD( DF_COMMS, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
 	xCOMMS_send_tail();
 
 }

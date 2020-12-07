@@ -40,6 +40,16 @@
  *  Test: comms gprs mas fluida ( sin caidas del socket)
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
+ * ------------------------------------------------------------------------
+ * Version 3.0.6.a( MASTER ) @2020-12-02
+ * Modficamos la parte de transmision de datos de modo de no usar el modo
+ * transparente sino tener siempre el control de terminal del modem.
+ * 1- Cambiamos el comando CIPMODE a CIPMODE=0
+ * 2- Eliminamos pasar a modo comando
+ * 3- Modifico los comandos gprs netopen/netclose/netstatus/linkopen/linkclose
+ *    linkstatus.
+ * 4- Modifico los comando xCOMMS_netopen/netclose/netstatus/linkopen/
+ *    linkclose/linkstatus.
  *
  * ------------------------------------------------------------------------
  * Version 3.0.5.d( MASTER ) @2020-11-23
