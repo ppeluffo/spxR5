@@ -313,11 +313,24 @@ PGM_P const AT_IPADDR[]   PROGMEM = { IPADDR_NAME, IPADDR_TEST, IPADDR_CMD, IPAD
 
 //------------------------------------------------------------------------------------
 
+#define GPRS_RXBUFFER_LEN	512
+
+#define GPRS_RX_LINEAL_BUFFER
+
+#ifdef GPRS_RX_LINEAL_BUFFER
 struct {
 	char buffer[GPRS_RXBUFFER_LEN];
 	uint16_t ptr;
-} gprsRxBuffer;
-
+} gprs_rxbuffer;
+#else
+struct circular_buf_t {
+	char buffer[GPRS_RXBUFFER_LEN];
+	uint16_t head;
+	uint16_t tail;
+	uint16_t max; //of the buffer
+	bool full;
+} gprs_rxbuffer;
+#endif
 
 #define IMEIBUFFSIZE	24
 #define CCIDBUFFSIZE	24
@@ -333,163 +346,246 @@ char cmd_at[20];
 char cmd_rspok[16];
 
 //------------------------------------------------------------------------------------
-void gprs_rxcbuffer_reset(void)
+// MANEJO DEL BUFFER DE RECEPCION DE GPRS ( Circular o Lineal )
+// Lo alimenta la rx interrupt del puerto gprs.
+//------------------------------------------------------------------------------------
+void gprs_rxbuffer_reset(void)
 {
 	// Vacia el buffer y lo inicializa
-	memset( gprs_rxcbuffer.buffer, '\0', GPRS_RXBUFFER_LEN);
-	gprs_rxcbuffer.head = 0;
-	gprs_rxcbuffer.tail = 0;
-	gprs_rxcbuffer.max = GPRS_RXBUFFER_LEN;
-	gprs_rxcbuffer.full = false;
+
+#ifdef GPRS_RX_LINEAL_BUFFER
+	memset( gprs_rxbuffer.buffer, '\0', GPRS_RXBUFFER_LEN);
+	gprs_rxbuffer.ptr = 0;
+
+#else
+	memset( gprs_rxbuffer.buffer, '\0', GPRS_RXBUFFER_LEN);
+	gprs_rxbuffer.head = 0;
+	gprs_rxbuffer.tail = 0;
+	gprs_rxbuffer.max = GPRS_RXBUFFER_LEN;
+	gprs_rxbuffer.full = false;
+#endif
+
 }
 //------------------------------------------------------------------------------------
-bool gprs_rxcbuffer_full(void)
+bool gprs_rxbuffer_full(void)
 {
-	return( gprs_rxcbuffer.full);
+#ifdef GPRS_RX_LINEAL_BUFFER
+	return ( gprs_rxbuffer.ptr == GPRS_RXBUFFER_LEN );
+#else
+	return( gprs_rxbuffer.full);
+#endif
+
 }
 //------------------------------------------------------------------------------------
-bool gprs_rxcbuffer_empty(void)
+bool gprs_rxbuffer_empty(void)
 {
-	return (!gprs_rxcbuffer.full && (gprs_rxcbuffer.head == gprs_rxcbuffer.tail));
+#ifdef GPRS_RX_LINEAL_BUFFER
+	return (!gprs_rxbuffer_full());
+#else
+	return (!gprs_rxbuffer.full && (gprs_rxbuffer.head == gprs_rxbuffer.tail));
+#endif
+
 }
 //------------------------------------------------------------------------------------
-uint16_t gprs_rxcbuffer_usedspace(void)
+uint16_t gprs_rxbuffer_usedspace(void)
 {
 
-uint16_t freespace = gprs_rxcbuffer.max;
+uint16_t freespace;
 
-	if(!gprs_rxcbuffer.full) {
+#ifdef GPRS_RX_LINEAL_BUFFER
+	freespace = GPRS_RXBUFFER_LEN - gprs_rxbuffer.ptr;
 
-		if(gprs_rxcbuffer.head >= gprs_rxcbuffer.tail){
-			freespace = (gprs_rxcbuffer.head - gprs_rxcbuffer.tail);
+#else
+	freespace = gprs_rxbuffer.max;
+	if(!gprs_rxbuffer.full) {
+
+		if(gprs_rxbuffer.head >= gprs_rxbuffer.tail){
+			freespace = (gprs_rxbuffer.head - gprs_rxbuffer.tail);
 		} else	{
-			freespace = (gprs_rxcbuffer.max + gprs_rxcbuffer.head - gprs_rxcbuffer.tail);
+			freespace = (gprs_rxbuffer.max + gprs_rxbuffer.head - gprs_rxbuffer.tail);
 		}
 	}
+#endif
 
 	return (freespace);
 }
 //------------------------------------------------------------------------------------
-void gprs_rxcbuffer_advance_pointer(void)
+void gprs_rxbuffer_advance_pointer(void)
 {
 
-	if( gprs_rxcbuffer.full ) {
-		gprs_rxcbuffer.tail = (gprs_rxcbuffer.tail + 1) % gprs_rxcbuffer.max;
+#ifdef GPRS_RX_LINEAL_BUFFER
+	if ( gprs_rxbuffer.ptr < GPRS_RXBUFFER_LEN )
+		gprs_rxbuffer.ptr++;
+
+#else
+	if( gprs_rxbuffer.full ) {
+		gprs_rxbuffer.tail = (gprs_rxbuffer.tail + 1) % gprs_rxbuffer.max;
 	}
 
-	gprs_rxcbuffer.head = (gprs_rxcbuffer.head + 1) % gprs_rxcbuffer.max;
-	gprs_rxcbuffer.full = (gprs_rxcbuffer.head == gprs_rxcbuffer.tail);
+	gprs_rxbuffer.head = (gprs_rxbuffer.head + 1) % gprs_rxbuffer.max;
+	gprs_rxbuffer.full = (gprs_rxbuffer.head == gprs_rxbuffer.tail);
+#endif
 }
 //------------------------------------------------------------------------------------
-void gprs_rxcbuffer_retreat_pointer(void)
+void gprs_rxbuffer_retreat_pointer(void)
 {
-	gprs_rxcbuffer.full = false;
-	gprs_rxcbuffer.tail = (gprs_rxcbuffer.tail + 1) % gprs_rxcbuffer.max;
+#ifdef GPRS_RX_LINEAL_BUFFER
+	if ( gprs_rxbuffer.ptr > 0 )
+		gprs_rxbuffer.ptr--;
+
+#else
+	gprs_rxbuffer.full = false;
+	gprs_rxbuffer.tail = (gprs_rxbuffer.tail + 1) % gprs_rxbuffer.max;
+#endif
 }
 //------------------------------------------------------------------------------------
-void gprs_rxcbuffer_put( char data)
+void gprs_rxbuffer_put( char data)
 {
 	// Avanza sobreescribiendo el ultimo si esta lleno
+#ifdef GPRS_RX_LINEAL_BUFFER
+	gprs_rxbuffer.buffer[ gprs_rxbuffer.ptr ] = data;
+#else
+	gprs_rxbuffer.buffer[gprs_rxbuffer.head] = data;
+#endif
 
-	gprs_rxcbuffer.buffer[gprs_rxcbuffer.head] = data;
-	gprs_rxcbuffer_advance_pointer();
+	gprs_rxbuffer_advance_pointer();
+
+
 }
 //------------------------------------------------------------------------------------
-bool gprs_rxcbuffer_put2( char data )
+bool gprs_rxbuffer_put2( char data )
 {
 	// Solo inserta si hay lugar
 
-    if(!gprs_rxcbuffer_full()) {
-    	gprs_rxcbuffer.buffer[gprs_rxcbuffer.head] = data;
-    	gprs_rxcbuffer_advance_pointer();
+#ifdef GPRS_RX_LINEAL_BUFFER
+	if ( gprs_rxbuffer.ptr < GPRS_RXBUFFER_LEN ) {
+		gprs_rxbuffer.buffer[ gprs_rxbuffer.ptr++ ] = data;
+		return(true);
+	}
+
+#else
+    if(!gprs_rxbuffer_full()) {
+    	gprs_rxbuffer.buffer[gprs_rxbuffer.head] = data;
+    	gprs_rxbuffer_advance_pointer();
         return(true);
     }
+#endif
 
     return(false);
 }
 //------------------------------------------------------------------------------------
-bool gprs_rxcbuffer_get( char * data )
+bool gprs_rxbuffer_get( char * data )
 {
 	// Retorna el ultimo y true.
 	// Si esta vacio retorna false.
 
-    if( !gprs_rxcbuffer_empty() ){
-        *data = gprs_rxcbuffer.buffer[gprs_rxcbuffer.tail];
-        gprs_rxcbuffer_retreat_pointer();
+#ifdef GPRS_RX_LINEAL_BUFFER
+
+
+#else
+    if( !gprs_rxbuffer_empty() ){
+        *data = gprs_rxbuffer.buffer[gprs_rxbuffer.tail];
+        gprs_rxbuffer_retreat_pointer();
         return(true);
     }
+#endif
+
     return(false);
 }
 //------------------------------------------------------------------------------------
-void gprs_flush_RX_buffer2(void)
+void gprs_flush_RX_buffer(void)
 {
-
 	frtos_ioctl( fdGPRS,ioctl_UART_CLEAR_RX_BUFFER, NULL);
-	gprs_rxcbuffer_reset();
+	gprs_rxbuffer_reset();
 }
 //------------------------------------------------------------------------------------
-void gprs_rxcbuffer_align(void)
+void gprs_flush_TX_buffer(void)
 {
-	// Mueve todos los elementos para que el
+	frtos_ioctl( fdGPRS,ioctl_UART_CLEAR_TX_BUFFER, NULL);
 }
 //------------------------------------------------------------------------------------
-void gprs_print_RX_buffer2( void )
+void gprs_print_RX_buffer( void )
 {
+	// NO USO SEMAFORO PARA IMPRIMIR !!!!!
 
-	gprs_rxcbuffer_align();
+uint16_t ptr;
+char c;
 
-	if ( DF_COMMS ) {
-		// Imprimo todo el buffer local de RX. Sale por \0.
-		xprintf_P( PSTR ("GPRS: rxbuff>\r\n\0"));
+	if ( ! DF_COMMS )
+		return;
 
-		// Uso esta funcion para imprimir un buffer largo, mayor al que utiliza xprintf_P. !!!
-		xnprint( gprsRxBuffer.buffer, GPRS_RXBUFFER_LEN );
+	xprintf_P( PSTR ("\r\nGPRS: rxbuff>\r\n\0"));
+#ifdef GPRS_RX_LINEAL_BUFFER
+	// Imprimo todo el buffer local de RX. Sale por \0.
+	// Uso esta funcion para imprimir un buffer largo, mayor al que utiliza xprintf_P. !!!
+	xnprint( gprs_rxbuffer.buffer, GPRS_RXBUFFER_LEN );
+	xprintf_P( PSTR ("\r\n[%d]\r\n\0"), gprs_rxbuffer.ptr );
 
-		xprintf_P( PSTR ("\r\n[%d]\r\n\0"), gprs_rxcbuffer_usedspace() );
+#else
+	// for i in range(tail, head)
+	//	 print(buff[i]
+	//
+	//xprintf_P(PSTR("DEBUG: head:%d,tail:%d, used:%d\r\n"), gprs_rxbuffer.head, gprs_rxbuffer.tail, gprs_rxbuffer_usedspace() );
+	if ( gprs_rxbuffer_empty() )
+		return;
+
+	ptr = gprs_rxbuffer.tail;
+	while( 1 ) {
+		// imprimo
+		c = gprs_rxbuffer.buffer[ptr];
+		frtos_putchar(fdTERM , c );
+		// Avanzo ptr.
+		ptr = (ptr + 1) % gprs_rxbuffer.max;
+		// Controlo la salida
+		if ( ptr == gprs_rxbuffer.head )
+			break;
 	}
+
+#endif
+
 }
 //------------------------------------------------------------------------------------
-bool gprs_check_response2( const char *rsp )
+int gprs_check_response( uint16_t start, const char *rsp )
 {
 	// Modifico para solo compara en mayusculas
-bool retS = false;
 
-	gprs_rxcbuffer_align();
-	if ( strcasestr( gprsRxBuffer.buffer, rsp ) != NULL ) {
-		retS = true;
-	}
-	return(retS);
+int i;
+
+#ifdef GPRS_RX_LINEAL_BUFFER
+	i = gprs_findstr_lineal(start, rsp);
+#else
+	i = gprs_findstr_circular(start, rsp);
+#endif
+
+	return(i);
 }
 //------------------------------------------------------------------------------------
-bool gprs_check_response_with_to2( const char *rsp, uint8_t timeout )
+int gprs_check_response_with_to( uint16_t start, const char *rsp, uint8_t timeout )
 {
 	// Espera una respuesta durante un tiempo dado.
 	// Hay que tener cuidado que no expire el watchdog por eso lo kickeo aqui. !!!!
 
-bool retS = false;
-
-	gprs_rxcbuffer_align();
+int ret = -1;
 
 	while ( timeout > 0 ) {
 		timeout--;
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 		// Veo si tengo la respuesta correcta.
-		if ( strstr( gprsRxBuffer.buffer, rsp) != NULL ) {
-			retS = true;
-			break;
-		}
+		ret = gprs_check_response (start, rsp);
+		if ( ret > 0)
+			return(ret);
 	}
 
-	return(retS);
+	return(-1);
 }
 //------------------------------------------------------------------------------------
-char *gprs_get_buffer_ptr2( char *pattern)
+char *gprs_get_buffer_ptr( char *pattern)
 {
-
-	gprs_rxcbuffer_align();
-	return( strstr( gprsRxBuffer.buffer, pattern) );
+	return( strstr( gprs_rxbuffer.buffer, pattern) );
 }
+//------------------------------------------------------------------------------------
+// FUNCIONES DE USO GENERAL
 //------------------------------------------------------------------------------------
 void gprs_atcmd_preamble(void)
 {
@@ -505,7 +601,7 @@ bool gprs_test_cmd_P(PGM_P cmd)
 	xfprintf_P( fdGPRS , PSTR("%s\r"), cmd );
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer();
-	if ( gprs_check_response("OK") ) {
+	if ( gprs_check_response(0, "OK") > 0 ) {
 		return(true);
 	}
 	return(false);
@@ -519,7 +615,7 @@ bool gprs_test_cmd(char *cmd)
 	xfprintf( fdGPRS , "%s\r", cmd);
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	gprs_print_RX_buffer();
-	if ( gprs_check_response("OK") ) {
+	if ( gprs_check_response(0, "OK") > 0) {
 		return(true);
 	}
 	return(false);
@@ -570,82 +666,6 @@ void gprs_sw_pwr(void)
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	IO_clr_GPRS_SW();	// GPRS_SW = 0V, PWR_ON = pullup, 1.8V
 
-}
-//------------------------------------------------------------------------------------
-void gprs_rxBuffer_fill(char c)
-{
-	/*
-	 * Guarda el dato en el buffer LINEAL de operacion del GPRS
-	 * Si hay lugar meto el dato.
-	 */
-
-	if ( gprsRxBuffer.ptr < GPRS_RXBUFFER_LEN )
-		gprsRxBuffer.buffer[ gprsRxBuffer.ptr++ ] = c;
-}
-//------------------------------------------------------------------------------------
-void gprs_flush_RX_buffer(void)
-{
-
-	frtos_ioctl( fdGPRS,ioctl_UART_CLEAR_RX_BUFFER, NULL);
-	memset( gprsRxBuffer.buffer, '\0', GPRS_RXBUFFER_LEN);
-	gprsRxBuffer.ptr = 0;
-}
-//------------------------------------------------------------------------------------
-void gprs_flush_TX_buffer(void)
-{
-	frtos_ioctl( fdGPRS,ioctl_UART_CLEAR_TX_BUFFER, NULL);
-}
-//------------------------------------------------------------------------------------
-void gprs_print_RX_buffer( void )
-{
-
-	if ( DF_COMMS ) {
-		// Imprimo todo el buffer local de RX. Sale por \0.
-		xprintf_P( PSTR ("GPRS: rxbuff>\r\n\0"));
-
-		// Uso esta funcion para imprimir un buffer largo, mayor al que utiliza xprintf_P. !!!
-		xnprint( gprsRxBuffer.buffer, GPRS_RXBUFFER_LEN );
-
-		xprintf_P( PSTR ("\r\n[%d]\r\n\0"), gprsRxBuffer.ptr );
-	}
-}
-//------------------------------------------------------------------------------------
-bool gprs_check_response( const char *rsp )
-{
-	// Modifico para solo compara en mayusculas
-bool retS = false;
-
-	if ( strcasestr( gprsRxBuffer.buffer, rsp ) != NULL ) {
-		retS = true;
-	}
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-bool gprs_check_response_with_to( const char *rsp, uint8_t timeout )
-{
-	// Espera una respuesta durante un tiempo dado.
-	// Hay que tener cuidado que no expire el watchdog por eso lo kickeo aqui. !!!!
-
-bool retS = false;
-
-	while ( timeout > 0 ) {
-		timeout--;
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-
-		// Veo si tengo la respuesta correcta.
-		if ( strstr( gprsRxBuffer.buffer, rsp) != NULL ) {
-			retS = true;
-			break;
-		}
-	}
-
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-char *gprs_get_buffer_ptr( char *pattern)
-{
-
-	return( strstr( gprsRxBuffer.buffer, pattern) );
 }
 //------------------------------------------------------------------------------------
 void gprs_apagar(void)
@@ -904,7 +924,7 @@ atcmd_state_t state = ATCMD_ENTRY;
 			}
 
 			// RSP_ERROR
-			if ( gprs_check_response("ERROR") ) {
+			if ( gprs_check_response(0, "ERROR") > 0 ) {
 				// Salgo y reintento el comando.
 				gprs_print_RX_buffer();
 				vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
@@ -914,8 +934,8 @@ atcmd_state_t state = ATCMD_ENTRY;
 			}
 
 			// RSP_OK
-			if ( gprs_check_response(cmd_rspok) ) {
-			//if ( gprs_check_response("+CFUN: 1") ) {
+			if ( gprs_check_response(0, cmd_rspok) > 0 ) {
+			//if ( gprs_check_response(0, "+CFUN: 1") > 0 ) {
 				// Respuesta correcta. Salgo.
 				cmd_rsp = rsp_OK;
 				gprs_print_RX_buffer();
@@ -1015,7 +1035,7 @@ bool retS;
 
 	retS = gprs_ATCMD( false, MAX_TRYES_CSQ , TIMEOUT_CSQ, (PGM_P *)AT_CSQ );
 	if ( retS ) {
-		memcpy(csqBuffer, &gprsRxBuffer.buffer[0], sizeof(csqBuffer) );
+		memcpy(csqBuffer, &gprs_rxbuffer.buffer[0], sizeof(csqBuffer) );
 		if ( (ts = strchr(csqBuffer, ':')) ) {
 			ts++;
 			csq = atoi(ts);
@@ -1154,7 +1174,7 @@ char *p;
 	retS = gprs_ATCMD( false, MAX_TRYES_ATI , TIMEOUT_ATI, (PGM_P *)AT_ATI );
 
 	if ( retS ) {
-		p = strstr(gprsRxBuffer.buffer,"IMEI:");
+		p = strstr(gprs_rxbuffer.buffer,"IMEI:");
 		retS = pv_get_token(p, gprs_status.buff_gprs_imei, IMEIBUFFSIZE );
 		xprintf_PD( DF_COMMS,  PSTR("COMMS: IMEI [%s]\r\n\0"), gprs_status.buff_gprs_imei);
 	}
@@ -1265,7 +1285,7 @@ char *p;
 
 	retS = gprs_ATCMD( true, MAX_TRYES_CCID , TIMEOUT_CCID, (PGM_P *)AT_CCID );
 	if ( retS ) {
-		p = strstr(gprsRxBuffer.buffer,"CCID:");
+		p = strstr(gprs_rxbuffer.buffer,"CCID:");
 		retS = pv_get_token(p, gprs_status.buff_gprs_ccid, CCIDBUFFSIZE );
 		xprintf_PD( DF_COMMS,  PSTR("COMMS: CCID [%s]\r\n\0"), gprs_status.buff_gprs_ccid);
 	}
@@ -1312,7 +1332,7 @@ bool retS;
 
 	retS = gprs_ATCMD( true, MAX_TRYES_CPSI , TIMEOUT_CPSI, (PGM_P *)AT_CPSI );
 	if (retS ) {
-		if ( gprs_check_response("NO SERVICE") ) {
+		if ( gprs_check_response(0, "NO SERVICE") > 0 ) {
 			// Sin servicio.
 			retS = false;
 		}
@@ -1348,11 +1368,11 @@ t_responses cmd_rsp = rsp_NONE;
 		timeout = 0;
 		while ( timeout++ < TIMEOUT_CGDCONT ) {
 			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-			if ( gprs_check_response("OK") ) {
+			if ( gprs_check_response(0, "OK") > 0 ) {
 				cmd_rsp = rsp_OK;
 				goto EXIT;
 			}
-			if ( gprs_check_response("ERROR") ) {
+			if ( gprs_check_response(0, "ERROR") > 0 ) {
 				cmd_rsp = rsp_ERROR;
 				goto EXIT;
 			}
@@ -1518,7 +1538,7 @@ char *ptr = NULL;
 	retS = gprs_ATCMD( false, MAX_TRYES_IPADDR , TIMEOUT_IPADDR, (PGM_P *)AT_IPADDR );
 	if ( retS ) {
 		ptr = ip_assigned;
-		ts = strchr( gprsRxBuffer.buffer, ':');
+		ts = strchr( gprs_rxbuffer.buffer, ':');
 		ts++;
 		while ( (c= *ts) != '\r') {
 			*ptr++ = c;
@@ -1625,7 +1645,7 @@ int8_t timeout;
 	timeout=10;
 	while(timeout-->0) {
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( gprs_check_response("OK") || gprs_check_response("ERROR") )
+		if ( ( gprs_check_response(0, "OK") > 0) ||( gprs_check_response(0, "ERROR") > 0) )
 			return(true);
 	}
 	// Timeout de la respuesta
@@ -1646,7 +1666,7 @@ int8_t timeout;
 	timeout=10;
 	while(timeout-->0) {
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( gprs_check_response("OK") || gprs_check_response("ERROR") )
+		if ( (gprs_check_response(0, "OK") > 0) || (gprs_check_response(0, "ERROR") > 0) )
 			return(true);
 	}
 	// Timeout de la respuesta
@@ -1673,21 +1693,21 @@ bool retS = false;
 	while(timeout-->0) {
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-		if ( gprs_check_response("OK")) {
-			if ( gprs_check_response("+NETOPEN: 0")) {
+		if ( gprs_check_response(0, "OK") > 0 ) {
+			if ( gprs_check_response(0, "+NETOPEN: 0") > 0 ) {
 				*net_status = NET_CLOSE;
 				xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_netstatus->close.\r\n\0") );
 				retS = true;
 				goto EXIT;
 			}
-			if ( gprs_check_response("+NETOPEN: 1")) {
+			if ( gprs_check_response(0, "+NETOPEN: 1") > 0 ) {
 				*net_status = NET_OPEN;
 				xprintf_PD( DF_COMMS, PSTR("COMMS: gprs gprs_cmd_netstatus->open.\r\n\0"));
 				retS = true;
 				goto EXIT;
 			}
 
-		} else if ( gprs_check_response("ERROR")) {
+		} else if ( gprs_check_response(0, "ERROR") > 0 ) {
 			*net_status = NET_UNKNOWN;
 			xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_netstatus->unknown.\r\n\0") );
 			retS = true;
@@ -1723,7 +1743,7 @@ int8_t timeout;
 	timeout=10;
 	while(timeout-->0) {
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( gprs_check_response("OK") || gprs_check_response("ERROR") )
+		if ( (gprs_check_response(0, "OK") > 0) || (gprs_check_response(0, "ERROR") > 0) )
 			return(true);
 	}
 	// Timeout de la respuesta
@@ -1744,7 +1764,7 @@ int8_t timeout;
 	timeout=10;
 	while(timeout-->0) {
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( gprs_check_response("OK") || gprs_check_response("ERROR") )
+		if ( (gprs_check_response(0, "OK") > 0) || (gprs_check_response(0, "ERROR") > 0) )
 			return(true);
 	}
 	// Timeout de la respuesta
@@ -1772,9 +1792,9 @@ bool retS = false;
 	while(timeout-->0) {
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-		if ( gprs_check_response("OK")) {
+		if ( gprs_check_response(0, "OK") > 0 ) {
 
-			if ( gprs_check_response("CIPOPEN: 0,\"TCP\"")) {
+			if ( gprs_check_response(0, "CIPOPEN: 0,\"TCP\"") > 0 ) {
 				// link connected
 				*link_status = LINK_OPEN;
 				xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkstatus->open.\r\n"));
@@ -1782,7 +1802,7 @@ bool retS = false;
 				goto EXIT;
 			}
 
-			if ( gprs_check_response("CIPOPEN: 0")) {
+			if ( gprs_check_response(0, "CIPOPEN: 0") > 0 ) {
 				// link not connected
 				*link_status = LINK_CLOSE;
 				xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkstatus->close.\r\n"));
@@ -1790,7 +1810,7 @@ bool retS = false;
 				goto EXIT;
 			}
 
-		} else if ( gprs_check_response("ERROR")) {
+		} else if ( gprs_check_response(0, "ERROR") > 0 ) {
 			// +IP ERROR: Network not opened
 			// +IP ERROR: Operation not supported
 			*link_status = LINK_UNKNOWN;
@@ -1809,6 +1829,101 @@ EXIT:
 	if ( DF_COMMS)
 		gprs_print_RX_buffer();
 	return(retS);
+
+}
+//------------------------------------------------------------------------------------
+int gprs_findstr_circular( uint16_t start, const char *rsp )
+{
+	// Busca el string apundado por *rsp en gprs_rxbuffer.
+	// Si no lo encuentra devuelve -1
+	// Si lo encuentra devuelve la primer posicion dentro de gprs_rxbuffer.
+
+#ifndef GPRS_RX_LINEAL_BUFFER
+uint16_t i, j, k;
+char c1, c2;
+
+	if (start == 0) {
+		i = gprs_rxbuffer.tail;
+	} else {
+		i = start;
+	}
+
+	while( 1 ) {
+		if ( gprs_rxbuffer.buffer[i] == '\0')
+		return(-1);
+		//
+		j = i;
+		k = 0;
+		while (1) {
+			c1 = rsp[k];
+			if ( c1 == '\0')
+				return (i);
+
+			c2 =  gprs_rxbuffer.buffer[j];
+			if ( toupper(c2) != toupper(c1) )
+				break;
+
+			j = (j + 1) % gprs_rxbuffer.max;
+			k++;
+		}
+		// Avanzo ptr.
+		i = (i + 1) % gprs_rxbuffer.max;
+		// Controlo la salida
+		if ( i == gprs_rxbuffer.head )
+		break;
+	}
+#endif
+
+	return(-1);
+
+}
+//------------------------------------------------------------------------------------
+int gprs_findstr_lineal( uint16_t start, const char *rsp )
+{
+uint16_t i, j, k;
+char c1, c2;
+
+	i = start;
+	while( 1 ) {
+		if ( gprs_rxbuffer.buffer[i] == '\0')
+		return(-1);
+		//
+		j = i;
+		k = 0;
+		while (1) {
+			c1 = rsp[k];
+			if ( c1 == '\0')
+				return (i);
+
+			c2 =  gprs_rxbuffer.buffer[j];
+			if ( toupper(c2) != toupper(c1) )
+				break;
+
+			j++;
+			k++;
+		}
+		// Avanzo ptr.
+		i++;
+		// Controlo la salida
+		if ( i == GPRS_RXBUFFER_LEN )
+			break;
+	}
+
+		return(-1);
+}
+//------------------------------------------------------------------------------------
+void gprs_rxbuffer_copy_to( char *dst, uint16_t start, uint16_t size )
+{
+
+uint16_t i;
+
+#ifdef GPRS_RX_LINEAL_BUFFER
+	for (i = 0; i < size; i++)
+		dst[i] = gprs_rxbuffer.buffer[i+start];
+#else
+
+#endif
+
 
 }
 //------------------------------------------------------------------------------------

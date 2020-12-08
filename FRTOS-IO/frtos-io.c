@@ -85,11 +85,9 @@ int xRet = -1;
 	case fdI2C:
 		xRet = frtos_i2c_write( &xBusI2C, pvBuffer, xBytes );
 		break;
-#ifdef FRTOS_WRITE_FILE
 	case fdFILE:
 		xRet = frtos_file_write( pvBuffer, xBytes );
 		break;
-#endif
 	default:
 		break;
 	}
@@ -428,7 +426,7 @@ xTimeOutType xTimeOut;
 
 }
 //------------------------------------------------------------------------------------
-int frtos_write_modbus( char *pvBuffer, uint16_t xBytes )
+int frtos_write_modbus( const char *pvBuffer, uint16_t xBytes )
 {
 	// Hago control de flujo
 	// Trasmite el buffer sin considerar si tiene NULL 0x00 en el medio.

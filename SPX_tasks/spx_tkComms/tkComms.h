@@ -27,7 +27,6 @@ typedef enum { rsp_OK = 0, rsp_ERROR, rsp_NONE } t_responses;
 #define MAX_TRYES_OPEN_COMMLINK	3	// Intentos de abrir un socket
 #define MAX_RCDS_WINDOW_SIZE	10	// Maximos registros enviados en un bulk de datos
 
-#define GPRS_RXBUFFER_LEN	512
 #define AUX_RXBUFFER_LEN	 32
 
 #define MAX_XCOMM_TO_TIMER	180
@@ -93,7 +92,6 @@ t_comms_states tkComms_st_initframe(void);
 t_comms_states tkComms_st_dataframe(void);
 
 void xCOMMS_init(void);
-file_descriptor_t xCOMMS_get_fd(void);
 void xCOMMS_apagar_dispositivo(void);
 bool xCOMMS_prender_dispositivo(void);
 bool xCOMMS_configurar_dispositivo( char *pin, char *apn, uint8_t *err_code );
@@ -108,11 +106,10 @@ bool xCOMMS_ipaddr( char *ip_assigned );
 
 void xCOMMS_flush_RX(void);
 void xCOMMS_flush_TX(void);
-void xCOMMS_send_header(char *type);
-void xCOMMS_send_tail(void);
-bool xCOMMS_check_response( const char *pattern );
+int xCOMMS_check_response( uint16_t start, const char *pattern );
 void xCOMMS_print_RX_buffer(void);
-char *xCOMM_get_buffer_ptr( char *pattern);
+
+void xCOMMS_rxbuffer_copy_to(char *dst, uint16_t start, uint16_t size );
 
 bool xCOMMS_SGN_FRAME_READY(void);
 bool xCOMMS_SGN_REDIAL(void);
@@ -138,7 +135,7 @@ t_responses xINIT_FRAME_process_response(void);
 t_send_status xDATA_FRAME_send(void);
 t_responses xDATA_FRAME_process_response(void);
 
-void xSCAN_FRAME_send(void);
+t_send_status xSCAN_FRAME_send(void);
 t_responses xSCAN_FRAME_process_response(void);
 
 #define XCOMMS_BUFFER_SIZE        300U
@@ -150,45 +147,34 @@ struct xcomms_buff_st {
 
 struct xcomms_buff_st xcomms_buff;
 int xCOMMS_xbuffer_send( bool dflag );
-int xCOMMS_xbuffer_load_P( PGM_P fmt, ...);
+//int xCOMMS_xbuffer_load_P( PGM_P fmt, ...);
 void xCOMMS_xbuffer_init(void);
 void xCOMMS_xbuffer_load_dataRecord(void);
 
 //------------------------------------------------------------------------------------
-struct circular_buf_t {
-	char buffer[10];
-	uint16_t head;
-	uint16_t tail;
-	uint16_t max; //of the buffer
-	bool full;
-} gprs_rxcbuffer;
 
-void gprs_rxcbuffer_reset(void);
-bool gprs_rxcbuffer_full(void);
-bool gprs_rxcbuffer_empty(void);
-uint16_t gprs_rxcbuffer_usedspace(void);
-void gprs_rxcbuffer_advance_pointer(void);
-void gprs_rxcbuffer_retreat_pointer(void);
-void gprs_rxcbuffer_put( char data);
-bool gprs_rxcbuffer_put2( char data );
-bool gprs_rxcbuffer_get( char * data );
-void gprs_flush_RX_buffer2(void);
-void gprs_rxcbuffer_align(void);
-void gprs_print_RX_buffer2( void );
-bool gprs_check_response2( const char *rsp );
-bool gprs_check_response_with_to2( const char *rsp, uint8_t timeout );
-char *gprs_get_buffer_ptr2( char *pattern);
+void gprs_rxbuffer_reset(void);
+bool gprs_rxbuffer_full(void);
+bool gprs_rxbuffer_empty(void);
+uint16_t gprs_rxbuffer_usedspace(void);
+void gprs_rxbuffer_advance_pointer(void);
+void gprs_rxbuffer_retreat_pointer(void);
+void gprs_rxbuffer_put( char data);
+bool gprs_rxbuffer_put2( char data );
+bool gprs_rxbuffer_get( char * data );
+void gprs_flush_RX_buffer(void);
+void gprs_flush_TX_buffer(void);
+
+void gprs_print_RX_buffer(void);
+int gprs_check_response( uint16_t start, const char *rsp );
+int gprs_check_response_with_to( uint16_t start, const char *rsp, uint8_t timeout );
+char *gprs_get_buffer_ptr( char *pattern);
+void gprs_rxbuffer_copy_to( char *dst, uint16_t start, uint16_t size );
 
 //------------------------------------------------------------------------------------
 
 void gprs_atcmd_preamble(void);
 void gprs_init(void);
-void gprs_rxBuffer_fill(char c);
-void gprs_flush_RX_buffer(void);
-void gprs_flush_TX_buffer(void);
-void gprs_print_RX_buffer(void);
-bool gprs_check_response( const char *rsp );
-bool gprs_check_response_with_to( const char *rsp, uint8_t timeout );
 bool gprs_prender( void );
 void gprs_hw_pwr_on(uint8_t delay_factor);
 void gprs_sw_pwr(void);
@@ -196,21 +182,17 @@ void gprs_apagar(void);
 char *gprs_get_imei(void);
 char  *gprs_get_ccid(void);
 bool gprs_configurar_dispositivo( char *pin, char *apn, uint8_t *err_code );
-
 void gprs_mon_sqe( bool forever, uint8_t *csq);
-
 bool gprs_IPADDR( char *ip_assigned );
-
-char *gprs_get_buffer_ptr( char *pattern);
 bool gprs_SAT_set(uint8_t modo);
-
 bool gprs_cmd_netstatus(t_net_status *net_status);
 bool gprs_cmd_netopen(void);
 bool gprs_cmd_netclose(void);
 bool gprs_cmd_linkopen(char *ip, char *port);
 bool gprs_cmd_linkclose(void);
 bool gprs_cmd_linkstatus(t_link_status *link_status);
-
+int gprs_findstr_circular( uint16_t start, const char *rsp );
+int gprs_findstr_lineal( uint16_t start, const char *rsp );
 
 void xSMS_init(void);
 bool xSMS_enqueue(char *dst_nbr, char *msg );

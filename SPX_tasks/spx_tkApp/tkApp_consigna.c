@@ -384,7 +384,7 @@ void xAPP_reconfigure_consigna(void)
 	// CONSIGNAS:
 	// TYPE=INIT&PLOAD=CLASS:APP_B;HHMM1:1230;HHMM2:0940
 
-char *p = NULL;
+	int p;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_cons_dia = NULL;
@@ -393,20 +393,20 @@ char *delim = ",=:;><";
 
 
 	memset( &localStr, '\0', sizeof(localStr) );
-	p = xCOMM_get_buffer_ptr("HHMM1");
-	if ( p != NULL ) {
-		memcpy(localStr,p,sizeof(localStr));
-		stringp = localStr;
-		tk_cons_dia = strsep(&stringp,delim);	// HHMM1
-		tk_cons_dia = strsep(&stringp,delim);	// 1230
-		tk_cons_noche = strsep(&stringp,delim); // HHMM2
-		tk_cons_noche = strsep(&stringp,delim); // 0940
-		xAPP_consigna_config(tk_cons_dia, tk_cons_noche );
-
-		xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
-
-		u_save_params_in_NVMEE();
+	p = xCOMMS_check_response(0, "HHMM1");
+	if ( p == -1 ) {
+		return;
 	}
+	xCOMMS_rxbuffer_copy_to(localStr,p,sizeof(localStr));
+	stringp = localStr;
+	tk_cons_dia = strsep(&stringp,delim);	// HHMM1
+	tk_cons_dia = strsep(&stringp,delim);	// 1230
+	tk_cons_noche = strsep(&stringp,delim); // HHMM2
+	tk_cons_noche = strsep(&stringp,delim); // 0940
+	xAPP_consigna_config(tk_cons_dia, tk_cons_noche );
+
+	xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig CONSIGNA (%s,%s)\r\n\0"),tk_cons_dia, tk_cons_noche);
+	u_save_params_in_NVMEE();
 
 }
 //------------------------------------------------------------------------------------

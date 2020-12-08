@@ -55,7 +55,7 @@ uint8_t registros_trasmitidos = 0;
 	xCOMMS_flush_RX();
 	xCOMMS_flush_TX();
 	xCOMMS_xbuffer_init();
-	xCOMMS_xbuffer_load_P(PSTR("GET %s?DLGID=%s&TYPE=DATA&VER=%s&PLOAD=" ), sVarsComms.serverScript, sVarsComms.dlgId, SPX_FW_REV );
+	xfprintf_P(fdFILE, PSTR("GET %s?DLGID=%s&TYPE=DATA&VER=%s&PLOAD=" ), sVarsComms.serverScript, sVarsComms.dlgId, SPX_FW_REV );
 	if ( xCOMMS_xbuffer_send(DF_COMMS) < 0 ) {
 		return(SEND_FAIL);
 	}
@@ -64,7 +64,6 @@ uint8_t registros_trasmitidos = 0;
 
 		xCOMMS_xbuffer_load_dataRecord();
 		if ( xCOMMS_xbuffer_send(DF_COMMS) < 0 ) {
-			xprintf_P(PSTR("DEBUG ERROR TX2\r\n"));
 			return(SEND_FAIL);
 		}
 		registros_trasmitidos++;
@@ -76,7 +75,7 @@ uint8_t registros_trasmitidos = 0;
 	xCOMMS_flush_RX();
 	xCOMMS_flush_TX();
 	xCOMMS_xbuffer_init();
-	xCOMMS_xbuffer_load_P(PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n") );
+	xfprintf_P(fdFILE, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n") );
 	if ( xCOMMS_xbuffer_send(DF_COMMS) < 0 ) {
 		return(SEND_FAIL);
 	}
@@ -91,31 +90,31 @@ t_responses xDATA_FRAME_process_response(void)
 t_responses rsp = rsp_NONE;
 
 	// Recibi un ERROR de respuesta
-	if ( xCOMMS_check_response("ERROR") ) {
+	if ( xCOMMS_check_response(0, "ERROR") > 0 ) {
 		xCOMMS_print_RX_buffer();
 		rsp = rsp_ERROR;
 		return(rsp);
 	}
 
 	// Respuesta completa del server
-	if ( xCOMMS_check_response("</h1>") ) {
+	if ( xCOMMS_check_response(0, "</h1>") > 0 ) {
 
 		xCOMMS_print_RX_buffer();
 
-		if ( xCOMMS_check_response ("ERROR\0")) {
+		if ( xCOMMS_check_response (0, "ERROR\0") > 0) {
 			// ERROR del server: salgo inmediatamente
 			rsp = rsp_ERROR;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response ("RESET\0")) {
+		if ( xCOMMS_check_response (0, "RESET\0") > 0) {
 			// El sever mando la orden de resetearse inmediatamente
 			data_process_response_RESET();
 			rsp = rsp_OK;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response ("MFORMAT\0")) {
+		if ( xCOMMS_check_response (0, "MFORMAT\0") > 0) {
 			// El sever mando la orden de formatear la memoria y resetearse
 			data_process_response_MEMFORMAT();
 			rsp = rsp_OK;
@@ -124,21 +123,21 @@ t_responses rsp = rsp_NONE;
 
 		// El resto de las respuestas pueden venir enganchadas: hay que procesarlas todas.
 
-		if ( xCOMMS_check_response ("DOUTS\0")) {
+		if ( xCOMMS_check_response (0, "DOUTS\0") > 0) {
 			// El sever mando actualizacion de las salidas
 			data_process_response_DOUTS();
 			// rsp = rsp_OK;
 			// return(rsp);
 		}
 
-		if ( xCOMMS_check_response ("CLOCK\0")) {
+		if ( xCOMMS_check_response (0, "CLOCK\0") > 0) {
 			// El sever mando actualizacion del rtc
 			data_process_response_CLOCK();
 			// rsp = rsp_OK;
 			// return(rsp);
 		}
 
-		if ( xCOMMS_check_response ("MBUS\0")) {
+		if ( xCOMMS_check_response (0, "MBUS\0") > 0) {
 			data_process_response_MBUS();
 			// rsp = rsp_OK;
 			// return(rsp);
@@ -147,7 +146,7 @@ t_responses rsp = rsp_NONE;
 		/*
 		 * Lo ultimo que debo procesar es el OK !!!
 		 */
-		if ( xCOMMS_check_response ("RX_OK\0")) {
+		if ( xCOMMS_check_response (0, "RX_OK\0") > 0) {
 			// Datos procesados por el server.
 			data_process_response_OK();
 			rsp = rsp_OK;
@@ -219,24 +218,22 @@ static void data_process_response_DOUTS(void)
 	 * Extraigo el valor de las salidas y las seteo.
 	 */
 
-
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_douts = NULL;
 char *delim = ",;:=><";
-char *p = NULL;
-char *p0 = NULL;
 uint8_t douts;
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return;
 	}
+	p2 = xCOMMS_check_response( p1, "DOUTS");
 
-	p = strstr( p0, "DOUTS");
-	if ( p != NULL ) {
+	if ( p2 >= 0 ) {
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		tk_douts = strsep(&stringp,delim);	// DOUTS
@@ -283,13 +280,11 @@ static void data_process_response_CLOCK(void)
 	 * Si estoy mas de 60s, actualizo el RTC
 	 */
 
-
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
 char *delim = ",;:=><";
-char *p = NULL;
-char *p0 = NULL;
 char rtcStr[12];
 uint8_t i = 0;
 char c = '\0';
@@ -297,15 +292,16 @@ RtcTimeType_t rtc;
 int8_t xBytes = 0;
 
 	// CLOCK
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return;
 	}
-	p = strstr( p0, "CLOCK");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p1, "CLOCK");
+
+	if ( p2 >= 0 ) {
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 		// Estraigo el string con la hora del server y lo dejo en una estructura RtcTimeType
 		stringp = localStr;
 		token = strsep(&stringp,delim);			// CLOCK
@@ -352,23 +348,23 @@ static void data_process_response_MBUS(void)
 	 * 0x1234 es el valor
 	 */
 
-
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_hr_address = NULL;
 char *tk_hr_value = NULL;
 char *delim = ",;:=><";
-char *p = NULL;
-char *p0 = NULL;
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return;
 	}
-	p = strstr( p0, "MBUS");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p1, "MBUS");
+
+	if ( p2 >= 0 ) {
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		tk_hr_address = strsep(&stringp,delim);	// MBUS

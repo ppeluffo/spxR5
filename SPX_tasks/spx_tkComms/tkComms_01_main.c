@@ -81,19 +81,6 @@ uint32_t ulNotifiedValue;
 
 	xprintf_P( PSTR("starting tkCommsRX..\r\n\0"));
 
-	/*
-	// loop
-	for( ;; )
-	{
-		ctl_watchdog_kick(WDG_COMMSRX, WDG_GPRSRX_TIMEOUT );
-
-		// Leo el UART de GPRS
-		if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
-			gprs_rxBuffer_fill(c);
-		}
-
-	}
-	*/
 	for( ;; )	{
 
 		ctl_watchdog_kick(WDG_COMMSRX, WDG_GPRSRX_TIMEOUT );
@@ -101,7 +88,7 @@ uint32_t ulNotifiedValue;
 		if ( xCOMMS_stateVars.gprs_prendido == true ) {
 			// Leo el UART de GPRS
 			if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
-				gprs_rxBuffer_fill(c);
+				gprs_rxbuffer_put(c);
 			}
 
 		} else {

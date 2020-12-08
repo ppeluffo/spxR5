@@ -105,11 +105,9 @@ int frtos_write( file_descriptor_t fd ,const char *pvBuffer, const uint16_t xByt
 int frtos_uart_write( periferico_serial_port_t *xCom, const char *pvBuffer, const uint16_t xBytes );
 int frtos_uart_write_poll( periferico_serial_port_t *xCom, const char *pvBuffer, const uint16_t xBytes );
 int frtos_i2c_write( periferico_i2c_port_t *xI2c, const char *pvBuffer, const uint16_t xBytes );
-int frtos_write_modbus( char *pvBuffer, uint16_t xBytes );
+int frtos_write_modbus( const char *pvBuffer, uint16_t xBytes );
 
-#ifdef FRTOS_WRITE_FILE
 int frtos_file_write( const char *pvBuffer, const uint16_t xBytes );
-#endif
 
 int frtos_ioctl( file_descriptor_t fd, uint32_t ulRequest, void *pvValue );
 int frtos_uart_ioctl( periferico_serial_port_t *xCom, uint32_t ulRequest, void *pvValue );

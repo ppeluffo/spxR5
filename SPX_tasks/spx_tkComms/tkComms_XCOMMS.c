@@ -321,38 +321,9 @@ void xCOMMS_flush_TX(void)
 
 }
 //------------------------------------------------------------------------------------
-void xCOMMS_send_header(char *type)
+int xCOMMS_check_response( uint16_t start,const char *pattern )
 {
-	if ( strcmp(type,"SCAN") == 0 ) {
-	//	xCOMMS_fsend_PD( DF_COMMS, PSTR("GET %s?DLGID=DEFAULT&TYPE=CTL&VER=%s\0" ), sVarsComms.serverScript, SPX_FW_REV );
-	} else {
-		// INIT, DATA
-	//	xCOMMS_fsend_PD( DF_COMMS, PSTR("GET %s?DLGID=%s&TYPE=%s&VER=%s\0" ), sVarsComms.serverScript, sVarsComms.dlgId, type, SPX_FW_REV );
-	}
-}
-//------------------------------------------------------------------------------------
-void xCOMMS_send_tail(void)
-{
-
-	// ( No mando el close ya que espero la respuesta y no quiero que el socket se cierre )
-	//xCOMMS_flush_RX();
-	//xCOMMS_fsend_PD( DF_COMMS, PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n\0") );
-	//vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
-}
-//------------------------------------------------------------------------------------
-file_descriptor_t xCOMMS_get_fd(void)
-{
-
-file_descriptor_t fd = fdGPRS;
-
-	fd = fdGPRS;
-	return(fd);
-
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_check_response( const char *pattern )
-{
-	return( gprs_check_response(pattern));
+	return( gprs_check_response(start, pattern));
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_print_RX_buffer(void)
@@ -360,9 +331,9 @@ void xCOMMS_print_RX_buffer(void)
 	gprs_print_RX_buffer();
 }
 //------------------------------------------------------------------------------------
-char *xCOMM_get_buffer_ptr( char *pattern)
+void xCOMMS_rxbuffer_copy_to(char *dst, uint16_t start, uint16_t size )
 {
-	return( gprs_get_buffer_ptr(pattern));
+	gprs_rxbuffer_copy_to( dst, start, size );
 }
 //------------------------------------------------------------------------------------
 uint16_t xCOMMS_datos_para_transmitir(void)
@@ -772,7 +743,7 @@ t_send_status send_status = SEND_FAIL;
 		send_status = xDATA_FRAME_send();
 		break;
 	case SCAN:
-		//send_status = xSCAN_FRAME_send();
+		send_status = xSCAN_FRAME_send();
 		break;
 	default:
 		// Todos los tipos de init
@@ -855,6 +826,7 @@ void xCOMMS_xbuffer_init(void)
 	xcomms_buff.ptr = 0;
 }
 //------------------------------------------------------------------------------------
+/*
 int xCOMMS_xbuffer_load_P( PGM_P fmt, ...)
 {
 
@@ -866,6 +838,7 @@ uint16_t size;
 	size = vsnprintf_P( &xcomms_buff.txbuff[xcomms_buff.ptr], (sizeof(xcomms_buff.txbuff) - xcomms_buff.ptr), fmt, args);
 	return(size);
 }
+*/
 //------------------------------------------------------------------------------------
 void xCOMMS_xbuffer_load_dataRecord(void)
 {
@@ -903,32 +876,31 @@ int i = -1;
 uint16_t size;
 
 	// Doy el comando CIPSEND para enviar al modem.
-	gprs_flush_RX_buffer();
-	gprs_flush_TX_buffer();
+	xCOMMS_flush_RX();
+	xCOMMS_flush_TX();
 	size = strlen(xcomms_buff.txbuff);
 	//
 	xfprintf_P( fdGPRS, PSTR("AT+CIPSEND=0,%d\r"),size);
 	// Espero el prompt '>'
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
-	if ( !gprs_check_response(">")) {
+	if ( xCOMMS_check_response(0, ">")  == -1 ) {
 		xprintf_P(PSTR("SEND ERROR No prompt\r\n"));
 		return(-1);
 	}
 	// Transmito
 	if ( dflag ) {
 		frtos_write(fdTERM, (char *)xcomms_buff.txbuff, size );
-		xprintf_P(PSTR("DEBUG PRINT\r\n"));
 	}
 	i = frtos_write(fdGPRS, (char *)xcomms_buff.txbuff, size );
 	// Borro el buffer de rx.
-	gprs_flush_RX_buffer();
+	xCOMMS_flush_RX();
 	// Espero la confirmacion del modem
 	timeout = 10;
 	while(timeout-- > 0) {
 		vTaskDelay( (portTickType)( 10 / portTICK_RATE_MS ) );
-		if ( gprs_check_response("+CIPSEND: 0")) {
+		if ( xCOMMS_check_response(0, "+CIPSEND: 0") > 0) {
 			if ( DF_COMMS ) {
-				gprs_print_RX_buffer();
+				xCOMMS_print_RX_buffer();
 			}
 			return(i);
 		}
@@ -937,7 +909,8 @@ uint16_t size;
 	// Sali por timeout
 	xprintf_P(PSTR("SEND ERROR timeout\r\n"));
 	if ( DF_COMMS) {
-		gprs_print_RX_buffer();
+
+		xCOMMS_print_RX_buffer();
 	}
 	return(-1);
 
@@ -945,19 +918,18 @@ uint16_t size;
 //------------------------------------------------------------------------------------
 // FUNCIONES DE FRTOS-IO
 // Funcion write File.
+// La defino aqui porque es donde tengo el xbuffer.
 //------------------------------------------------------------------------------------
-#ifdef FRTOS_WRITE_FILE
 int frtos_file_write( const char *pvBuffer, const uint16_t xBytes )
 {
+	// Append de *pvBuffer en xcomms_buff.txbuff
 
-//uint16_t pos;
-
-	//pos = strlen( xcomms_buff.txbuff );
-	//memcpy( &xcomms_buff.txbuff[xcomms_buff.ptr],  pvBuffer, xBytes );
-	return(1);
+	xcomms_buff.ptr = strlen( xcomms_buff.txbuff );
+	memcpy( &xcomms_buff.txbuff[xcomms_buff.ptr],  pvBuffer, xBytes );
+	return(xBytes);
 }
 //------------------------------------------------------------------------------------
-#endif
+
 
 
 

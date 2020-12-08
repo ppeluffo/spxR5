@@ -178,34 +178,34 @@ uint8_t ctlz = 0x1A;
 bool retS = false;
 
 	// CMGF: Selecciono el modo de mandar sms: 1-> texto
-	gprs_flush_RX_buffer();
-	gprs_flush_TX_buffer();
+	xCOMMS_flush_RX();
+	xCOMMS_flush_TX();
 	xfprintf_P( fdGPRS, PSTR("AT+CMGF=1\r"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
 	// CMGS: Envio SMS.
-	gprs_flush_RX_buffer();
-	gprs_flush_TX_buffer();
+	xCOMMS_flush_RX();
+	xCOMMS_flush_TX();
 	xfprintf_P( fdGPRS, PSTR("AT+CMGS=\"%s\"\r"), dst_nbr);
 
 	// Espero el prompt > para enviar el mensaje.
-	if ( ! gprs_check_response_with_to( ">", 10 ) ) {
+	if ( gprs_check_response_with_to(0,  ">", 10 ) == -1 ) {
 		xprintf_P( PSTR("SMS: ERROR Sent Fail(Timeout 1) !!\r\n" ));
 		return(false);
 	}
 
 	// Recibi el prompt
 	//xprintf_P( PSTR("\r\n Prompt OK.\r\n0" ));
-	gprs_print_RX_buffer();
+	xCOMMS_print_RX_buffer();
 
 	// Envio el mensaje:
-	gprs_flush_RX_buffer();
-	gprs_flush_TX_buffer();
+	xCOMMS_flush_RX();
+	xCOMMS_flush_TX();
 	xfprintf_P( fdGPRS, PSTR("%s\r %c"), msg, ctlz  );
 	xprintf_PD( DF_COMMS, PSTR("SMS: msgtxt=[%s]\r\n"), msg);
 
 	// Espero el OK
-	if ( ! gprs_check_response_with_to( "OK", 10 ) ) {
+	if ( gprs_check_response_with_to( 0, "OK", 10 ) == -1 ) {
 		xprintf_P( PSTR("SMS: ERROR Sent Fail(Timeout 2) !!\r\n" ));
 		retS = false;
 	} else {
@@ -213,7 +213,7 @@ bool retS = false;
 		retS = true;
 	}
 
-	gprs_print_RX_buffer();
+	xCOMMS_print_RX_buffer();
 
 	return(retS);
 
@@ -272,26 +272,29 @@ char *xSMS_read_and_delete_by_index( uint8_t msg_index )
 	//
 	// OK
 
-char *p = NULL;
-//char localStr[32] = { 0 };
+int p;
+char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_msg= NULL;
 char *delim = "\r";
 
-	gprs_flush_RX_buffer();
+	xCOMMS_flush_RX();
 	xfprintf_P( fdGPRS, PSTR("AT+CMGRD=%d\r"), msg_index);
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-	gprs_print_RX_buffer();
+	xCOMMS_print_RX_buffer();
 
-	p = gprs_get_buffer_ptr("+CMGRD:");
-	if ( p != NULL ) {
-		stringp = p;
-		tk_msg = strsep(&stringp,delim);		// +CMGRD:...........\r
-		tk_msg = strsep(&stringp,delim);		// "mensaje"
-		tk_msg++;
-		//xprintf_P( PSTR("DEBUG: SMS_MSG: %s\r\n"), tk_msg );
+	p = xCOMMS_check_response(0, "+CMGRD:");
+	if ( p == -1 ) {
+		return(false);
 	}
+	memset(localStr,'\0',sizeof(localStr));
+	xCOMMS_rxbuffer_copy_to(localStr,p,sizeof(localStr));
+	stringp = localStr;
+	tk_msg = strsep(&stringp,delim);		// +CMGRD:...........\r
+	tk_msg = strsep(&stringp,delim);		// "mensaje"
+	tk_msg++;
+	//xprintf_P( PSTR("DEBUG: SMS_MSG: %s\r\n"), tk_msg );
 
 	return(tk_msg);
 
@@ -310,31 +313,32 @@ bool xSMS_received( uint8_t *first_msg_index )
 	// Otro
 
 bool retS = false;
-char *p = NULL;
+int p;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_idx= NULL;
 char *delim = ",:";
 
-	gprs_flush_RX_buffer();
+	xCOMMS_flush_RX();
 	xfprintf_P( fdGPRS, PSTR("AT+CMGL=\"ALL\"\r"));
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
-	retS = gprs_check_response_with_to( "+CMGL:", 5 );
+	retS = ( gprs_check_response_with_to(0, "+CMGL:", 5 )  > 0);
 
-	gprs_print_RX_buffer();
+	xCOMMS_print_RX_buffer();
 
 	if ( retS ) {
 		// Hay al menos un mensaje pendiente. Decodifico su indice
-		p = gprs_get_buffer_ptr("+CMGL:");
-		if ( p != NULL ) {
-			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
-			stringp = localStr;
-			tk_idx = strsep(&stringp,delim);		// +CMGL:
-			tk_idx = strsep(&stringp,delim);		//  0
-			*first_msg_index = atoi(tk_idx);
+		p = xCOMMS_check_response(0, "+CMGL:");
+		if ( p == -1 ) {
+			return(false);
 		}
+		memset(localStr,'\0',sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr,p,sizeof(localStr));
+		stringp = localStr;
+		tk_idx = strsep(&stringp,delim);		// +CMGL:
+		tk_idx = strsep(&stringp,delim);		//  0
+		*first_msg_index = atoi(tk_idx);
 	}
 
 	return(retS);

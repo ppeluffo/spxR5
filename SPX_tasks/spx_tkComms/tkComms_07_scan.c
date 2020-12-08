@@ -86,13 +86,21 @@ t_comms_states next_state = ST_ENTRY;
 
 }
 //------------------------------------------------------------------------------------
-void xSCAN_FRAME_send(void)
+t_send_status xSCAN_FRAME_send(void)
 {
 	xCOMMS_flush_RX();
 	xCOMMS_flush_TX();
-	xCOMMS_send_header("SCAN");
-	//xCOMMS_fsend_PD( DF_COMMS, PSTR("&PLOAD=CLASS:SCAN;UID:%s\0" ), NVMEE_readID() );
-	xCOMMS_send_tail();
+	xCOMMS_xbuffer_init();
+	// Header, payload
+	xfprintf_P(fdFILE, PSTR("GET %s?DLGID=DEFAULT&TYPE=CTL&VER=%s&PLOAD=CLASS:SCAN;UID:%s\0" ), sVarsComms.serverScript, SPX_FW_REV,  NVMEE_readID() );
+	// Tail
+	xfprintf_P(fdFILE,  PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n") );
+
+	if ( xCOMMS_xbuffer_send(DF_COMMS) < 0 ) {
+		return(SEND_FAIL);
+	}
+
+	return(SEND_OK);
 
 }
 //------------------------------------------------------------------------------------
@@ -102,36 +110,36 @@ t_responses xSCAN_FRAME_process_response(void)
 t_responses rsp = rsp_NONE;
 
 	// Recibi un ERROR de respuesta
-	if ( xCOMMS_check_response("ERROR") ) {
+	if ( xCOMMS_check_response(0, "ERROR") > 0 ) {
 		xCOMMS_print_RX_buffer();
 		rsp = rsp_ERROR;
 		return(rsp);
 	}
 
-	if ( xCOMMS_check_response("404 Not Found") ) {
+	if ( xCOMMS_check_response(0, "404 Not Found") > 0 ) {
 		xCOMMS_print_RX_buffer();
 		rsp = rsp_ERROR;
 		return(rsp);
 	}
 
-	if ( xCOMMS_check_response("Internal Server Error") ) {
+	if ( xCOMMS_check_response(0, "Internal Server Error") > 0 ) {
 		xCOMMS_print_RX_buffer();
 		rsp = rsp_ERROR;
 		return(rsp);
 	}
 
 	// Respuesta completa del server
-	if ( xCOMMS_check_response("</h1>") ) {
+	if ( xCOMMS_check_response(0, "</h1>") > 0 ) {
 
 		xCOMMS_print_RX_buffer();
 
-		if ( xCOMMS_check_response ("STATUS:OK")) {
+		if ( xCOMMS_check_response (0, "STATUS:OK") > 0) {
 			// Respuesta correcta. El dlgid esta definido en la BD
 			rsp = rsp_OK;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response ("STATUS:RECONF")) {
+		if ( xCOMMS_check_response (0, "STATUS:RECONF") > 0) {
 			// Respuesta correcta
 			// Configure el DLGID correcto y la SERVER_IP usada es la correcta.
 			scan_process_response_RECONF();
@@ -139,14 +147,14 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response ("STATUS:UNDEF")) {
+		if ( xCOMMS_check_response (0, "STATUS:UNDEF") > 0) {
 			// Datalogger esta usando un script incorrecto
 			xprintf_P( PSTR("COMMS: ERROR SCAN SCRIPT !!.\r\n\0" ));
 			rsp = rsp_ERROR;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response ("NOTDEFINED")) {
+		if ( xCOMMS_check_response (0, "NOTDEFINED") > 0) {
 			// Datalogger no definido en la base GDA
 			xprintf_P( PSTR("COMMS: ERROR SCAN dlg not defined in BD !!!\r\n\0" ));
 			rsp = rsp_ERROR;
@@ -168,20 +176,20 @@ static void scan_process_response_RECONF(void)
 	//                 - Me pasa el DLGID correcto.
 
 
-char *p = NULL;
+int p1;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
 char *delim = ",;:=><";
 
-	p = xCOMM_get_buffer_ptr("DLGID");
-	if ( p == NULL ) {
+	p1 = xCOMMS_check_response(0, "DLGID");
+	if ( p1 == -1 ) {
 		return;
 	}
 
 	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 	memset(localStr,'\0',32);
-	memcpy(localStr,p,sizeof(localStr));
+	xCOMMS_rxbuffer_copy_to(localStr, p1, sizeof(localStr));
 
 	stringp = localStr;
 	token = strsep(&stringp,delim);	// DLGID

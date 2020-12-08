@@ -215,20 +215,20 @@ uint8_t ch;
 	xCOMMS_flush_TX();
 
 	xCOMMS_xbuffer_init();
-	xCOMMS_xbuffer_load_P(PSTR("GET %s?DLGID=%s&TYPE=INIT&VER=%s\0" ), sVarsComms.serverScript, sVarsComms.dlgId, SPX_FW_REV );
+	xfprintf_P(fdFILE, PSTR("GET %s?DLGID=%s&TYPE=INIT&VER=%s\0" ), sVarsComms.serverScript, sVarsComms.dlgId, SPX_FW_REV );
 
 	switch(tipo_frame) {
 	case INIT_AUTH:
-		xCOMMS_xbuffer_load_P(PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
+		xfprintf_P(fdFILE, PSTR("&PLOAD=CLASS:AUTH;UID:%s;" ),NVMEE_readID() );
 		break;
 
 	case INIT_SRVUPDATE:
-		xCOMMS_xbuffer_load_P(PSTR("&PLOAD=CLASS:UPDATE;" ));
+		xfprintf_P(fdFILE, PSTR("&PLOAD=CLASS:UPDATE;" ));
 		for(ch=0;ch<MAX_ANALOG_CHANNELS;ch++) {
 			if ( ( systemVars.an_calibrados & ( 1<<ch)) == 0 ) {
 				continue;
 			}
-			xCOMMS_xbuffer_load_P(PSTR("A%d:%d,%d,%.02f,%.02f,%.02f;"),
+			xfprintf_P(fdFILE, PSTR("A%d:%d,%d,%.02f,%.02f,%.02f;"),
 					ch,
 					systemVars.ainputs_conf.imin[ch],
 					systemVars.ainputs_conf.imax[ch],
@@ -249,67 +249,67 @@ uint8_t ch;
 		app_cks = u_aplicacion_hash();
 		mbus_cks = modbus_hash();
 
-		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
-		xCOMMS_xbuffer_load_P( PSTR("IMEI:%s;\0" ), gprs_get_imei() );
-		xCOMMS_xbuffer_load_P( PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
-		xCOMMS_xbuffer_load_P( PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;\0" ), base_cks,an_cks,dig_cks );
-		xCOMMS_xbuffer_load_P( PSTR("CNT:0x%02X;RG:0x%02X;\0" ),cnt_cks,range_cks );
-		xCOMMS_xbuffer_load_P( PSTR("PSE:0x%02X;" ), psens_cks );
-		xCOMMS_xbuffer_load_P( PSTR("APP:0x%02X;" ), app_cks );
-		xCOMMS_xbuffer_load_P( PSTR("MBUS:0x%02X;" ), mbus_cks );
+		xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:GLOBAL;NACH:%d;NDCH:%d;NCNT:%d;\0" ),NRO_ANINPUTS,NRO_DINPUTS,NRO_COUNTERS );
+		xfprintf_P(fdFILE,  PSTR("IMEI:%s;\0" ), gprs_get_imei() );
+		xfprintf_P(fdFILE,  PSTR("SIMID:%s;CSQ:%d;WRST:%02X;" ), gprs_get_ccid(), xCOMMS_stateVars.csq, wdg_resetCause );
+		xfprintf_P(fdFILE,  PSTR("BASE:0x%02X;AN:0x%02X;DG:0x%02X;\0" ), base_cks,an_cks,dig_cks );
+		xfprintf_P(fdFILE,  PSTR("CNT:0x%02X;RG:0x%02X;\0" ),cnt_cks,range_cks );
+		xfprintf_P(fdFILE,  PSTR("PSE:0x%02X;" ), psens_cks );
+		xfprintf_P(fdFILE,  PSTR("APP:0x%02X;" ), app_cks );
+		xfprintf_P(fdFILE,  PSTR("MBUS:0x%02X;" ), mbus_cks );
 		break;
 
 	case INIT_BASE:
-		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_BASE;"));
+		xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_BASE;"));
 		break;
 
 	case INIT_ANALOG:
-		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
+		xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_ANALOG;"));
 		break;
 
 	case INIT_DIGITAL:
-		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
+		xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_DIGITAL;"));
 		break;
 
 	case INIT_COUNTERS:
-		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
+		xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_COUNTER;"));
 		break;
 
 	case INIT_RANGE:
-		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_RANGE;"));
+		xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_RANGE;"));
 		break;
 
 	case INIT_PSENSOR:
-		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
+		xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_PSENSOR;"));
 		break;
 
 	case INIT_APP_A:
-		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_APP;"));
+		xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_APP;"));
 		break;
 
 	case INIT_APP_B:
 		if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
 			// En aplicacion PPOT pido la configuracion de los SMS
-			xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
+			xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_PPOT_SMS;"));
 
 		} else if ( sVarsApp.aplicacion == APP_CONSIGNA ) {
 			// En aplicacion CONSIGNA pido la configuracion de las consignas
-			xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
+			xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_CONSIGNA;"));
 
 		} else if ( sVarsApp.aplicacion == APP_CAUDALIMETRO ) {
-			xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_CAUDALIMETRO;"));
+			xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_CAUDALIMETRO;"));
 		}
 		break;
 
 	case INIT_APP_C:
 		if ( sVarsApp.aplicacion == APP_PLANTAPOT ) {
 			// En aplicacion PPOT pido la configuracion de los NIVELES DE ALARMA
-			xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
+			xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_PPOT_LEVELS;"));
 		}
 		break;
 
 	case INIT_MODBUS:
-		xCOMMS_xbuffer_load_P( PSTR("&PLOAD=CLASS:CONF_MODBUS;"));
+		xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_MODBUS;"));
 		break;
 
 	default:
@@ -317,7 +317,7 @@ uint8_t ch;
 	}
 
 	// Tail
-	xCOMMS_xbuffer_load_P( PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n") );
+	xfprintf_P(fdFILE,  PSTR(" HTTP/1.1\r\nHost: www.spymovil.com\r\n\r\n\r\n") );
 	if ( xCOMMS_xbuffer_send(DF_COMMS) < 0 ) {
 		return(SEND_FAIL);
 	}
@@ -331,19 +331,19 @@ t_responses xINIT_FRAME_process_response(void)
 t_responses rsp = rsp_NONE;
 
 	// Recibi un ERROR de respuesta
-	if ( xCOMMS_check_response("ERROR") ) {
+	if ( xCOMMS_check_response(0, "ERROR") > 0 ) {
 		xCOMMS_print_RX_buffer();
 		rsp = rsp_ERROR;
 		return(rsp);
 	}
 
 	// Respuesta completa del server
-	if ( xCOMMS_check_response("</h1>") ) {
+	if ( xCOMMS_check_response(0, "</h1>") > 0 ) {
 
 		xCOMMS_print_RX_buffer();
 
 		// Analizo las respuestas.
-		if ( xCOMMS_check_response("CLASS:AUTH") ) {	// Respuesta correcta:
+		if ( xCOMMS_check_response(0, "CLASS:AUTH") > 0 ) {	// Respuesta correcta:
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_auth() ) {
@@ -355,7 +355,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("UPDATE") ) {
+		if ( xCOMMS_check_response(0, "UPDATE") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_update() ) {
@@ -368,7 +368,7 @@ t_responses rsp = rsp_NONE;
 		}
 
 		// Analizo las respuestas.
-		if ( xCOMMS_check_response("CLASS:GLOBAL") ) {
+		if ( xCOMMS_check_response(0, "CLASS:GLOBAL") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_global() )  {
@@ -380,7 +380,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("BASE") ) {
+		if ( xCOMMS_check_response(0, "BASE") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_base() ) {
@@ -392,7 +392,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("ANALOG") ) {
+		if ( xCOMMS_check_response(0, "ANALOG") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_analog() ) {
@@ -404,7 +404,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("DIGITAL") ) {
+		if ( xCOMMS_check_response(0, "DIGITAL") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_digital() ) {
@@ -416,7 +416,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("COUNTER") ) {
+		if ( xCOMMS_check_response(0, "COUNTER") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_counters() ) {
@@ -428,7 +428,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("PSENSOR") ) {
+		if ( xCOMMS_check_response(0, "PSENSOR") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_psensor() ) {
@@ -440,7 +440,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("RANGE") ) {
+		if ( xCOMMS_check_response(0, "RANGE") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_range() ) {
@@ -452,7 +452,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("APP_A") ) {
+		if ( xCOMMS_check_response(0, "APP_A") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_app_A() ) {
@@ -464,7 +464,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("APP_B") ) {
+		if ( xCOMMS_check_response(0, "APP_B") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_app_B() )  {
@@ -476,7 +476,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("APP_C") ) {
+		if ( xCOMMS_check_response(0, "APP_C") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_app_C() ) {
@@ -488,7 +488,7 @@ t_responses rsp = rsp_NONE;
 			return(rsp);
 		}
 
-		if ( xCOMMS_check_response("MODBUS") ) {
+		if ( xCOMMS_check_response(0, "MODBUS") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			if ( init_reconfigure_params_modbus() ) {
@@ -501,7 +501,7 @@ t_responses rsp = rsp_NONE;
 		}
 
 		// El servidor no pudo procesar el frame. Problema del server
-		if ( xCOMMS_check_response("SRV_ERR") ) {
+		if ( xCOMMS_check_response(0, "SRV_ERR") > 0 ) {
 			// Borro la causa del reset
 			wdg_resetCause = 0x00;
 			xprintf_P( PSTR("COMMS: SERVER ERROR !!.\r\n\0" ));
@@ -510,7 +510,7 @@ t_responses rsp = rsp_NONE;
 		}
 
 		// Datalogger esta usando un script incorrecto
-		if ( xCOMMS_check_response("NOT_ALLOWED") ) {
+		if ( xCOMMS_check_response(0, "NOT_ALLOWED") > 0 ) {
 			xprintf_P( PSTR("COMMS: SCRIPT ERROR !!.\r\n\0" ));
 			rsp = rsp_ERROR;
 			return(rsp);
@@ -594,7 +594,7 @@ static bool init_reconfigure_params_auth(void)
 	// TYPE=INIT&PLOAD=CLASS:AUTH;STATUS:RECONF;DLGID:TEST01
 	// TYPE=INIT&PLOAD=CLASS:AUTH;STATUS:ERROR_DS
 
-char *p = NULL;
+int p;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
@@ -604,15 +604,15 @@ char dlgId[DLGID_LENGTH];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_AUTH\r\n\0"));
 
-	p = xCOMM_get_buffer_ptr("<h1>");
-	if ( p == NULL ) {
+	p = xCOMMS_check_response(0, "<h1>");
+	if ( p == -1 ) {
 		return(false);
 	}
-	p = strstr( p, "AUTH");
+	p = xCOMMS_check_response( p, "AUTH");
 
 	// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 	memset(localStr,'\0',sizeof(localStr));
-	memcpy(localStr,p,sizeof(localStr));
+	xCOMMS_rxbuffer_copy_to(localStr,p,sizeof(localStr));
 
 	stringp = localStr;
 	token = strsep(&stringp,delim);	    // AUTH
@@ -649,8 +649,7 @@ static bool init_reconfigure_params_global(void)
 	// que otras flags de configuraciones debemos prender.
 	// GLOBAL;CLOCK:1910120345;BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;APP_A;APP_B;APP_C,MBUS;
 
-char *p0 = NULL;
-char *p = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
@@ -664,15 +663,16 @@ int8_t xBytes = 0;
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_GLOBAL\r\n\0"));
 
 	// CLOCK
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return(false);
 	}
-	p = strstr( p0, "CLOCK");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p1, "CLOCK");
+
+	if ( p2 >= 0 ) {
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		token = strsep(&stringp,delim);			// CLOCK
@@ -709,43 +709,43 @@ int8_t xBytes = 0;
 
 	// Flags de configuraciones particulares: BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;OUTS
 
-	p = strstr( p0, "BASE");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "BASE");
+	if ( p2 >= 0  ) {
 		f_send_init_frame_base = true;
 	}
 
-	p = strstr( p0, "ANALOG");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "ANALOG");
+	if ( p2 >= 0  ) {
 		f_send_init_frame_analog = true;
 	}
 
-	p = strstr( p0, "DIGITAL");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "DIGITAL");
+	if ( p2 >= 0  ) {
 		f_send_init_frame_digital = true;
 	}
 
-	p = strstr( p0, "COUNTERS");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "COUNTERS");
+	if ( p2 >= 0  ) {
 		f_send_init_frame_counters = true;
 	}
 
-	p = strstr( p0, "RANGE");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "RANGE");
+	if ( p2 >= 0  ) {
 		f_send_init_frame_range = true;
 	}
 
-	p = strstr( p0, "PSENSOR");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "PSENSOR");
+	if ( p2 >= 0  ) {
 		f_send_init_frame_psensor = true;
 	}
 
-	p = strstr( p0, "APLICACION");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "APLICACION");
+	if ( p2 >= 0  ) {
 		f_send_init_frame_app = true;
 	}
 
-	p = strstr( p0, "MBUS");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "MBUS");
+	if ( p2 >= 0  ) {
 		f_send_init_frame_modbus = true;
 	}
 
@@ -756,8 +756,7 @@ static bool init_reconfigure_params_base(void)
 {
 	//	TYPE=INIT&PLOAD=CLASS:BASE;TPOLL:60;TDIAL:60;PWST:5;PWRS:ON,2330,630;CNT_HW:OPTO
 
-char *p0 = NULL;
-char *p = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
@@ -769,18 +768,18 @@ bool save_flag = false;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_BASE\r\n\0"));
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return(false);
 	}
 
 	// TDIAL
-	p = strstr( p0, "TDIAL");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p1, "TDIAL");
+	if ( p2 >= 0 ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		token = strsep(&stringp,delim);		// TDIAL
@@ -794,11 +793,11 @@ bool save_flag = false;
 	}
 
 	// TPOLL
-	p = strstr( p0, "TPOLL");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "TPOLL");
+	if ( p2 >= 0 ) {
 
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		token = strsep(&stringp,delim);		// TPOLL
@@ -812,12 +811,12 @@ bool save_flag = false;
 	}
 
 	// PWST
-	p = strstr( p0, "PWST");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "PWST");
+	if ( p2 >= 0 ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		token = strsep(&stringp,delim);		// PWST
@@ -831,10 +830,10 @@ bool save_flag = false;
 	}
 
 	// PWRS
-	p = strstr( p0, "PWRS");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "PWRS");
+	if ( p2 >= 0 ) {
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		tk_pws_modo = strsep(&stringp,delim);		//PWRS
@@ -850,11 +849,11 @@ bool save_flag = false;
 	}
 
 	// CNT_HW
-	p = strstr( p0, "HW_CNT");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "HW_CNT");
+	if ( p2 >= 0 ) {
 
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		token = strsep(&stringp,delim);		// CNT_HW
@@ -867,11 +866,11 @@ bool save_flag = false;
 	}
 
 	// BAT
-	p = strstr( p0, "BAT");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p2, "BAT");
+	if ( p2 >= 0 ) {
 
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		token = strsep(&stringp,delim);		// BAT
@@ -896,8 +895,8 @@ static bool init_reconfigure_params_analog(void)
 	// 	PLOAD=CLASS:ANALOG;A0:PA,4,20,0.0,10.0;A1:X,4,20,0.0,10.0;A3:X,4,20,0.0,10.0;
 	//  TYPE=INIT&PLOAD=CLASS:ANALOG;A0:PA,4,20,0.0,10.0;A1:X,4,20,0.0,10.0;A2:X,4,20,0.0,10.0;A3:X,4,20,0.0,10.0;A4:X,4,20,0.0,10.0;
 
-char *p = NULL;
-char *p0 = NULL;
+
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_name= NULL;
@@ -913,8 +912,8 @@ char str_base[8];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_ANALOG\r\n\0"));
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return(false);
 	}
 
@@ -924,11 +923,11 @@ char str_base[8];
 		snprintf_P( str_base, sizeof(str_base), PSTR("A%d\0"), ch );
 		//xprintf_P( PSTR("DEBUG str_base: %s\r\n\0"), str_base);
 
-		p = strstr( p0, str_base);
+		p2 = xCOMMS_check_response( p1, str_base);
 		//xprintf_P( PSTR("DEBUG str_p: %s\r\n\0"), p);
-		if ( p != NULL ) {
+		if ( p2 >= 0 ) {
 			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
+			xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 			stringp = localStr;
 			//xprintf_P( PSTR("DEBUG local_str: %s\r\n\0"), localStr );
 			tk_name = strsep(&stringp,delim);		//A0
@@ -958,8 +957,7 @@ static bool init_reconfigure_params_digital(void)
 {
 	//	PLOAD=CLASS:DIGITAL;D0:DIN0,NORMAL;D1:DIN1,TIMER;
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_name= NULL;
@@ -971,8 +969,8 @@ char str_base[8];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_DIGITAL\r\n\0"));
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return(false);
 	}
 
@@ -980,10 +978,10 @@ char str_base[8];
 	for (ch=0; ch < NRO_DINPUTS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("D%d\0"), ch );
-		p = strstr( p0, str_base);
-		if ( p != NULL ) {
+		p2 = xCOMMS_check_response( p1, str_base);
+		if ( p2 >= 0 ) {
 			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
+			xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 			stringp = localStr;
 			tk_name = strsep(&stringp,delim);		//D0
 			tk_name = strsep(&stringp,delim);		//DIN0
@@ -1009,8 +1007,7 @@ static bool init_reconfigure_params_counters(void)
 	//	PLOAD=CLASS:COUNTER;C0:CNT0,1.0,15,1000,0;C1:X,1.0,10,100,1;
 	//  PLOAD=CLASS:COUNTER;C0:CNT0,1.0,15,1000,0;C1:X,1.0,10,100,1;
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_name = NULL;
@@ -1026,8 +1023,8 @@ char str_base[8];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_COUNTERS\r\n\0"));
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return(false);
 	}
 
@@ -1035,10 +1032,10 @@ char str_base[8];
 	for (ch=0; ch < NRO_COUNTERS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("C%d\0"), ch );
-		p = strstr( p0, str_base);
-		if ( p != NULL ) {
+		p2 = xCOMMS_check_response( p1, str_base);
+		if ( p2 >= 0 ) {
 			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
+			xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 			stringp = localStr;
 			tk_name = strsep(&stringp,delim);		//C0
 			tk_name = strsep(&stringp,delim);		//name
@@ -1071,26 +1068,26 @@ static bool init_reconfigure_params_range(void)
 {
 	// TYPE=INIT&PLOAD=CLASS:RANGE;R0:DIST;
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *token = NULL;
 char *delim = ",;:=><";
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_RANGE\r\n\0"));
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return(false);
 	}
 
 	// RANGE
-	p = strstr( p0, "R0");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p1, "R0");
+	if ( p2 >= 0 ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 		stringp = localStr;
 		token = strsep(&stringp,delim);		// R0
 		token = strsep(&stringp,delim);		// Range name
@@ -1110,8 +1107,7 @@ static bool init_reconfigure_params_psensor(void)
 
 	//	La linea recibida trae: PLOAD=CLASS:COUNTER;PS0:PSENS,1480,6200,0.0,28.5,0.0:
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 char localStr[48] = { 0 };
 char *stringp = NULL;
 char *tk_name = NULL;
@@ -1123,15 +1119,16 @@ char *tk_offset = NULL;
 char *delim = ",;:=><";
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_PSENSOR\r\n\0"));
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return(false);
 	}
 
-	p = strstr( p0, "PS0:");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p1, "PS0:");
+	if ( p2 >= 0 ) {
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		tk_name = strsep(&stringp,delim);		// PS0:
@@ -1161,21 +1158,21 @@ static bool init_reconfigure_params_app_A(void)
 	 * a usarse la APLICACION
 	 */
 
-	if ( xCOMMS_check_response("AP0:OFF") ) {
+	if ( xCOMMS_check_response(0, "AP0:OFF") > 0 ) {
 		sVarsApp.aplicacion = APP_OFF;
 		reset_datalogger = true;
 
-	} else if ( xCOMMS_check_response("AP0:CONSIGNA") ) {
+	} else if ( xCOMMS_check_response(0, "AP0:CONSIGNA") > 0 ) {
 		sVarsApp.aplicacion = APP_CONSIGNA;
 
-	} else if ( xCOMMS_check_response("AP0:PERFORACION") ) {
+	} else if ( xCOMMS_check_response(0, "AP0:PERFORACION") > 0 ) {
 		sVarsApp.aplicacion = APP_PERFORACION;
 		reset_datalogger = true;
 
-	} else if ( xCOMMS_check_response("AP0:PLANTAPOT") ) {
+	} else if ( xCOMMS_check_response(0, "AP0:PLANTAPOT") > 0 ) {
 		sVarsApp.aplicacion = APP_PLANTAPOT;
 
-	} else if ( xCOMMS_check_response("AP0:EXTPOLL") ) {
+	} else if ( xCOMMS_check_response(0, "AP0:EXTPOLL") > 0 ) {
 		sVarsApp.aplicacion = APP_EXTERNAL_POLL;
 
 	} else {
@@ -1212,8 +1209,7 @@ static void init_reconfigure_params_app_B_plantapot(void)
 	// PLANTAPOT SMS
 	// TYPE=INIT&PLOAD=CLASS:APP_B;SMS01:111111,1;SMS02:2222222,2;SMS03:3333333,3;SMS04:4444444,1;...SMS09:9999999,3
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_nro= NULL;
@@ -1223,8 +1219,8 @@ uint8_t i;
 char id[2];
 char str_base[8];
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return;
 	}
 
@@ -1232,10 +1228,10 @@ char str_base[8];
 	for (i=0; i < MAX_NRO_SMS; i++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("SMS0%d\0"), i );
-		p = strstr( p0, str_base);
-		if ( p != NULL ) {
+		p2 = xCOMMS_check_response( p1, str_base);
+		if ( p2 >= 0 ) {
 			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
+			xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 			stringp = localStr;
 			tk_nro = strsep(&stringp,delim);		//SMS0x
 			tk_nro = strsep(&stringp,delim);		//09111111
@@ -1260,22 +1256,21 @@ static void init_reconfigure_params_app_B_consigna(void)
 	// CONSIGNAS:
 	// TYPE=INIT&PLOAD=CLASS:APP_B;HHMM1:1230;HHMM2:0940
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_cons_dia = NULL;
 char *tk_cons_noche = NULL;
 char *delim = ",;:=><";
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return;
 	}
-	p = strstr( p0, "HHMM1");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p1, "HHMM1");
+	if ( p2 >= 0 ) {
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		tk_cons_dia = strsep(&stringp,delim);	// HHMM1
@@ -1297,22 +1292,22 @@ static void init_reconfigure_params_app_B_caudalimetro(void)
 	// CONSIGNAS:
 	// TYPE=INIT&PLOAD=CLASS:APP_B;PWIDTH:50;FACTORQ:60
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_pwidth = NULL;
 char *tk_factorq = NULL;
 char *delim = ",;:=><";
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return;
 	}
-	p = strstr( p0, "PWIDTH");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p1, "PWIDTH");
+
+	if ( p2 >= 0 ) {
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		tk_pwidth = strsep(&stringp,delim);		// PWIDTH
@@ -1346,8 +1341,7 @@ static void init_reconfigure_params_app_C_plantapot(void)
 {
 	// TYPE=INIT&PLOAD=CLASS:APP_C;CH00:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;CH01:V1_INF,V1_SUP,V1_INF,V2_SUP,V3_INF,V3_SUP;..
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_V1_INF = NULL;
@@ -1361,18 +1355,19 @@ uint8_t i;
 char id[2];
 char str_base[8];
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return;
 	}
+
 	// LEVELS?
 	for (i=0; i < NRO_CANALES_ALM; i++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("CH%d\0"), i );
-		p = strstr( p0, str_base);
-		if ( p != NULL ) {
+		p2 = xCOMMS_check_response( p1, str_base);
+		if ( p2 >= 0 ) {
 			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
+			xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 			stringp = localStr;
 			tk_V1_INF = strsep(&stringp,delim);		//CH0x
 
@@ -1407,17 +1402,17 @@ static bool init_reconfigure_params_update(void)
 {
 	// TYPE=INIT&PLOAD=CLASS:RANGE;R0:DIST;
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_UPDATE\r\n\0"));
 
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return(false);
 	}
-	p = strstr( p0, "OK");
-	if ( p != NULL ) {
+
+	p2 = xCOMMS_check_response( p1, "OK");
+	if ( p2 >= 0 ) {
 
 		systemVars.an_calibrados=0x00;
 		xprintf_PD( DF_COMMS, PSTR("COMMS: Server Updated OK\r\n\0"));
@@ -1433,8 +1428,7 @@ static bool init_reconfigure_params_modbus(void)
 
 	//  TYPE=INIT&PLOAD=CLASS:MODBUS;SLA:0x00;M0:MB0,0x00a1,0x01,0x02;M1:MB1,0x00a2,0x01,0x02;
 
-char *p = NULL;
-char *p0 = NULL;
+int p1,p2;
 char localStr[32] = { 0 };
 char *stringp = NULL;
 char *tk_sla = NULL;
@@ -1448,17 +1442,17 @@ uint8_t ch;
 char str_base[8];
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS_INIT_MODBUS\r\n\0"));
-	p0 = xCOMM_get_buffer_ptr("<h1>");
-	if ( p0 == NULL ) {
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
 		return(false);
 	}
 	// SLA
-	p = strstr( p0, "SLA");
-	if ( p != NULL ) {
+	p2 = xCOMMS_check_response( p1, "SLA");
+	if ( p2 >= 0 ) {
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
-		memcpy(localStr,p,sizeof(localStr));
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
 		stringp = localStr;
 		tk_sla = strsep(&stringp,delim);		// TDIAL
@@ -1476,10 +1470,10 @@ char str_base[8];
 	for (ch=0; ch < MODBUS_CHANNELS; ch++ ) {
 		memset( &str_base, '\0', sizeof(str_base) );
 		snprintf_P( str_base, sizeof(str_base), PSTR("M%d\0"), ch );
-		p = strstr( p0, str_base);
-		if ( p != NULL ) {
+		p2 = xCOMMS_check_response( p1, str_base);
+		if ( p2 >= 0 ) {
 			memset(localStr,'\0',sizeof(localStr));
-			memcpy(localStr,p,sizeof(localStr));
+			xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 			stringp = localStr;
 			tk_name = strsep(&stringp,delim);		//M0
 			tk_name = strsep(&stringp,delim);		//name
