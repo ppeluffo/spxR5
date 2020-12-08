@@ -313,24 +313,17 @@ PGM_P const AT_IPADDR[]   PROGMEM = { IPADDR_NAME, IPADDR_TEST, IPADDR_CMD, IPAD
 
 //------------------------------------------------------------------------------------
 
-#define GPRS_RXBUFFER_LEN	512
-
 #define GPRS_RX_LINEAL_BUFFER
 
-#ifdef GPRS_RX_LINEAL_BUFFER
+#define GPRS_RXBUFFER_LEN	512
 struct {
 	char buffer[GPRS_RXBUFFER_LEN];
 	uint16_t ptr;
-} gprs_rxbuffer;
-#else
-struct circular_buf_t {
-	char buffer[GPRS_RXBUFFER_LEN];
 	uint16_t head;
 	uint16_t tail;
 	uint16_t max; //of the buffer
 	bool full;
 } gprs_rxbuffer;
-#endif
 
 #define IMEIBUFFSIZE	24
 #define CCIDBUFFSIZE	24
@@ -508,9 +501,6 @@ void gprs_print_RX_buffer( void )
 {
 	// NO USO SEMAFORO PARA IMPRIMIR !!!!!
 
-uint16_t ptr;
-char c;
-
 	if ( ! DF_COMMS )
 		return;
 
@@ -522,6 +512,10 @@ char c;
 	xprintf_P( PSTR ("\r\n[%d]\r\n\0"), gprs_rxbuffer.ptr );
 
 #else
+
+	uint16_t ptr;
+	char c;
+
 	// for i in range(tail, head)
 	//	 print(buff[i]
 	//
@@ -580,10 +574,6 @@ int ret = -1;
 	return(-1);
 }
 //------------------------------------------------------------------------------------
-char *gprs_get_buffer_ptr( char *pattern)
-{
-	return( strstr( gprs_rxbuffer.buffer, pattern) );
-}
 //------------------------------------------------------------------------------------
 // FUNCIONES DE USO GENERAL
 //------------------------------------------------------------------------------------
@@ -1832,13 +1822,14 @@ EXIT:
 
 }
 //------------------------------------------------------------------------------------
+// FUNCIONES AUXILIARES SOBRE EL rxbuffer
+//------------------------------------------------------------------------------------
 int gprs_findstr_circular( uint16_t start, const char *rsp )
 {
 	// Busca el string apundado por *rsp en gprs_rxbuffer.
 	// Si no lo encuentra devuelve -1
 	// Si lo encuentra devuelve la primer posicion dentro de gprs_rxbuffer.
 
-#ifndef GPRS_RX_LINEAL_BUFFER
 uint16_t i, j, k;
 char c1, c2;
 
@@ -1872,7 +1863,6 @@ char c1, c2;
 		if ( i == gprs_rxbuffer.head )
 		break;
 	}
-#endif
 
 	return(-1);
 

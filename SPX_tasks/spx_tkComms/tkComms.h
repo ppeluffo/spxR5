@@ -108,7 +108,6 @@ void xCOMMS_flush_RX(void);
 void xCOMMS_flush_TX(void);
 int xCOMMS_check_response( uint16_t start, const char *pattern );
 void xCOMMS_print_RX_buffer(void);
-
 void xCOMMS_rxbuffer_copy_to(char *dst, uint16_t start, uint16_t size );
 
 bool xCOMMS_SGN_FRAME_READY(void);
@@ -147,7 +146,6 @@ struct xcomms_buff_st {
 
 struct xcomms_buff_st xcomms_buff;
 int xCOMMS_xbuffer_send( bool dflag );
-//int xCOMMS_xbuffer_load_P( PGM_P fmt, ...);
 void xCOMMS_xbuffer_init(void);
 void xCOMMS_xbuffer_load_dataRecord(void);
 
@@ -168,7 +166,6 @@ void gprs_flush_TX_buffer(void);
 void gprs_print_RX_buffer(void);
 int gprs_check_response( uint16_t start, const char *rsp );
 int gprs_check_response_with_to( uint16_t start, const char *rsp, uint8_t timeout );
-char *gprs_get_buffer_ptr( char *pattern);
 void gprs_rxbuffer_copy_to( char *dst, uint16_t start, uint16_t size );
 
 //------------------------------------------------------------------------------------
@@ -180,7 +177,7 @@ void gprs_hw_pwr_on(uint8_t delay_factor);
 void gprs_sw_pwr(void);
 void gprs_apagar(void);
 char *gprs_get_imei(void);
-char  *gprs_get_ccid(void);
+char *gprs_get_ccid(void);
 bool gprs_configurar_dispositivo( char *pin, char *apn, uint8_t *err_code );
 void gprs_mon_sqe( bool forever, uint8_t *csq);
 bool gprs_IPADDR( char *ip_assigned );

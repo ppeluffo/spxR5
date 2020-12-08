@@ -826,20 +826,6 @@ void xCOMMS_xbuffer_init(void)
 	xcomms_buff.ptr = 0;
 }
 //------------------------------------------------------------------------------------
-/*
-int xCOMMS_xbuffer_load_P( PGM_P fmt, ...)
-{
-
-va_list args;
-uint16_t size;
-
-	va_start(args, fmt);
-	xcomms_buff.ptr = strlen(xcomms_buff.txbuff);
-	size = vsnprintf_P( &xcomms_buff.txbuff[xcomms_buff.ptr], (sizeof(xcomms_buff.txbuff) - xcomms_buff.ptr), fmt, args);
-	return(size);
-}
-*/
-//------------------------------------------------------------------------------------
 void xCOMMS_xbuffer_load_dataRecord(void)
 {
 
