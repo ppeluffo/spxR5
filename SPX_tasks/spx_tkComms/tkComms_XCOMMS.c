@@ -33,7 +33,150 @@ PGM_P const scan_list2[] PROGMEM = { apn_ose, ip_server_ose };
 PGM_P const scan_list1[] PROGMEM = { apn_claro, ip_server_spy2 };
 */
 
+/*
+ * -----------------------------------------------------------------------------------
+ WRAPPERS
+ Los comandos de xCOMMS son solo wrappers de los comandos de gprs de modo que al
+ implementar las maquinas de estado es este nivel podamos abstraernos de la
+ tecnologia de comunicaciones que implementemos ( gprs, xbee, lora, etc )
+ *------------------------------------------------------------------------------------
+*/
+void xCOMMS_apagar_dispositivo(void)
+{
+	gprs_apagar();
+	xCOMMS_stateVars.gprs_prendido = false;
+	xCOMMS_stateVars.gprs_inicializado = false;
+}
 //------------------------------------------------------------------------------------
+bool xCOMMS_prender_dispositivo(void)
+{
+	/*
+	 * El modem necesita que se le mande un AT y que responda un OK para
+	 * confirmar que esta listo.
+	 */
+
+bool retS = false;
+
+	xCOMMS_stateVars.gprs_prendido = true;
+	retS = gprs_prender();
+	if ( retS == false ) {
+		// No prendio
+		xCOMMS_stateVars.gprs_prendido = false;
+	}
+
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_configurar_dispositivo(char *pin, char *apn, uint8_t *err_code )
+{
+	/*
+	 * El modem necesita que se le mande un AT y que responda un OK para
+	 * confirmar que esta listo.
+	 * El Xbee no necesita nada.
+	 */
+
+bool retS = false;
+
+	retS = gprs_configurar_dispositivo( pin, apn, err_code );
+	return(retS);
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_mon_sqe( bool forever, uint8_t *csq )
+{
+	/*
+	 * Solo en GPRS monitoreo la calidad de señal.
+	 */
+
+	gprs_mon_sqe( forever, csq);
+
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_ipaddr( char *ip_assigned )
+{
+	//Leo la ip asignada
+	return( gprs_IPADDR( ip_assigned ) == false );
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_flush_RX(void)
+{
+	/*
+	 * Inicializa todos los buffers de recepcion para el canal activo.
+	 * Reinicia el buffer que recibe de la uart del dispositivo
+	 * de comunicaciones, y el buffer comun commsRxBuffer
+	 */
+
+	gprs_flush_RX_buffer();
+	vTaskDelay( (portTickType)( 10 / portTICK_RATE_MS ) );
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_flush_TX(void)
+{
+	/*
+	 * Inicializa todos los buffers de trasmision para el canal activo.
+	 * Reinicia el buffer que transmite en la uart del dispositivo
+	 * de comunicaciones
+	 */
+
+	gprs_flush_TX_buffer();
+	vTaskDelay( (portTickType)( 10 / portTICK_RATE_MS ) );
+
+}
+//------------------------------------------------------------------------------------
+int xCOMMS_check_response( uint16_t start,const char *pattern )
+{
+	return( gprs_check_response(start, pattern));
+}
+//------------------------------------------------------------------------------------
+int xCOMMS_check_response_with_to( uint16_t start, const char *rsp, uint8_t timeout )
+{
+	return ( gprs_check_response_with_to( start, rsp, timeout ) );
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_print_RX_buffer(void)
+{
+	gprs_print_RX_buffer();
+}
+//------------------------------------------------------------------------------------
+void xCOMMS_rxbuffer_copy_to(char *dst, uint16_t start, uint16_t size )
+{
+	gprs_rxbuffer_copy_to( dst, start, size );
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_netopen(void)
+{
+	return( gprs_cmd_netopen() );
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_netclose(void)
+{
+	return( gprs_cmd_netclose() );
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_netstatus( t_net_status *net_status )
+{
+	return( gprs_cmd_netstatus(net_status) );
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_linkopen( char *ip, char *port)
+{
+	return( gprs_cmd_linkopen(ip, port));
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_linkclose( void )
+{
+	return( gprs_cmd_linkclose());
+}
+//------------------------------------------------------------------------------------
+bool xCOMMS_linkstatus( t_link_status *link_status )
+{
+	return( gprs_cmd_linkstatus( link_status));
+}
+//------------------------------------------------------------------------------------
+/*
+ * -----------------------------------------------------------------------------------
+ FUNCIONES GENERALES
+ *------------------------------------------------------------------------------------
+*/
 void xCOMMS_config_defaults( char *opt )
 {
 
@@ -70,7 +213,6 @@ char l_data[10] = { 0 };
 	}
 
 	snprintf_P( sVarsComms.dlgId, DLGID_LENGTH, PSTR("DEFAULT\0") );
-	//strncpy_P(systemVars.gprs_conf.serverScript, PSTR("/cgi-bin/PY/spy.py\0"),SCRIPT_LENGTH);
 	strncpy_P(sVarsComms.serverScript, PSTR("/cgi-bin/SPY/spy.py\0"),SCRIPT_LENGTH);
 	strncpy_P(sVarsComms.server_tcp_port, PSTR("80\0"),PORT_LENGTH	);
     snprintf_P(sVarsComms.simpwd, sizeof(sVarsComms.simpwd), PSTR("%s\0"), SIMPIN_DEFAULT );
@@ -146,56 +288,6 @@ void xCOMMS_init(void)
 	xCOMMS_stateVars.errores_comms = 0;
 }
 //------------------------------------------------------------------------------------
-void xCOMMS_apagar_dispositivo(void)
-{
-	gprs_apagar();
-	xCOMMS_stateVars.gprs_prendido = false;
-	xCOMMS_stateVars.gprs_inicializado = false;
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_prender_dispositivo(void)
-{
-	/*
-	 * El modem necesita que se le mande un AT y que responda un OK para
-	 * confirmar que esta listo.
-	 */
-
-bool retS = false;
-
-	xCOMMS_stateVars.gprs_prendido = true;
-	retS = gprs_prender();
-	if ( retS == false ) {
-		// No prendio
-		xCOMMS_stateVars.gprs_prendido = false;
-	}
-
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_configurar_dispositivo(char *pin, char *apn, uint8_t *err_code )
-{
-	/*
-	 * El modem necesita que se le mande un AT y que responda un OK para
-	 * confirmar que esta listo.
-	 * El Xbee no necesita nada.
-	 */
-
-bool retS = false;
-
-	retS = gprs_configurar_dispositivo( pin, apn, err_code );
-	return(retS);
-}
-//------------------------------------------------------------------------------------
-void xCOMMS_mon_sqe( bool forever, uint8_t *csq )
-{
-	/*
-	 * Solo en GPRS monitoreo la calidad de señal.
-	 */
-
-	gprs_mon_sqe( forever, csq);
-
-}
-//------------------------------------------------------------------------------------
 bool xCOMMS_need_scan( void )
 {
 
@@ -262,16 +354,16 @@ char ip_tmp[IP_LENGTH];
 	ctl_watchdog_kick( WDG_COMMS, WDG_TO600 );
 
 	// Apago
-	gprs_apagar();
+	xCOMMS_apagar_dispositivo();
 	vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
 
 	// Prendo
-	if ( ! gprs_prender() )
+	if ( ! xCOMMS_prender_dispositivo() )
 		return(false);
 
 	// Configuro
 	// EL pin es el de default ya que si estoy aqui es porque no tengo configuracion valida.
-	if (  ! gprs_configurar_dispositivo( sVarsComms.simpwd , apn_tmp, NULL ) ) {
+	if (  ! xCOMMS_configurar_dispositivo( sVarsComms.simpwd , apn_tmp, NULL ) ) {
 		return(false);
 	}
 
@@ -288,52 +380,6 @@ char ip_tmp[IP_LENGTH];
 	} else {
 		return (false);
 	}
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_ipaddr( char *ip_assigned )
-{
-	//Leo la ip asignada
-	return( gprs_IPADDR( ip_assigned ) == false );
-}
-//------------------------------------------------------------------------------------
-void xCOMMS_flush_RX(void)
-{
-	/*
-	 * Inicializa todos los buffers de recepcion para el canal activo.
-	 * Reinicia el buffer que recibe de la uart del dispositivo
-	 * de comunicaciones, y el buffer comun commsRxBuffer
-	 */
-
-	gprs_flush_RX_buffer();
-	vTaskDelay( (portTickType)( 10 / portTICK_RATE_MS ) );
-}
-//------------------------------------------------------------------------------------
-void xCOMMS_flush_TX(void)
-{
-	/*
-	 * Inicializa todos los buffers de trasmision para el canal activo.
-	 * Reinicia el buffer que transmite en la uart del dispositivo
-	 * de comunicaciones
-	 */
-
-	gprs_flush_TX_buffer();
-	vTaskDelay( (portTickType)( 10 / portTICK_RATE_MS ) );
-
-}
-//------------------------------------------------------------------------------------
-int xCOMMS_check_response( uint16_t start,const char *pattern )
-{
-	return( gprs_check_response(start, pattern));
-}
-//------------------------------------------------------------------------------------
-void xCOMMS_print_RX_buffer(void)
-{
-	gprs_print_RX_buffer();
-}
-//------------------------------------------------------------------------------------
-void xCOMMS_rxbuffer_copy_to(char *dst, uint16_t start, uint16_t size )
-{
-	gprs_rxbuffer_copy_to( dst, start, size );
 }
 //------------------------------------------------------------------------------------
 uint16_t xCOMMS_datos_para_transmitir(void)
@@ -381,46 +427,12 @@ bool xCOMMS_SGN_REDIAL(void)
 }
 //------------------------------------------------------------------------------------
 /*
- * Los comandos de xCOMMS son solo wrappers de los comandos de gprs de modo que al
- * implementar las maquinas de estado es este nivel podamos abstraernos de la
- * tecnologia de comunicaciones que implementemos ( gprs, xbee, lora, etc )
- */
-// NET COMMANDS R2
-//------------------------------------------------------------------------------------
-bool xCOMMS_netopen(void)
-{
-	return( gprs_cmd_netopen() );
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_netclose(void)
-{
-	return( gprs_cmd_netclose() );
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_netstatus( t_net_status *net_status )
-{
-	return( gprs_cmd_netstatus(net_status) );
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_linkopen( char *ip, char *port)
-{
-	return( gprs_cmd_linkopen(ip, port));
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_linkclose( void )
-{
-	return( gprs_cmd_linkclose());
-}
-//------------------------------------------------------------------------------------
-bool xCOMMS_linkstatus( t_link_status *link_status )
-{
-	return( gprs_cmd_linkstatus( link_status));
-}
-//------------------------------------------------------------------------------------
-/*
- * Implemento las maquinas de estado de NET, LINK, DATA que van en el process_frame
- *
- */
+ * -----------------------------------------------------------------------------------
+ FUNCION PRINCIPAL DE COMUNICACIONES
+ FSM que mantiene el enlace, lo establece, transmite datos y procesa respuestas
+ Utiliza como sub-estados las fsm de NET,LINK,SEND,RECEIVE
+ *------------------------------------------------------------------------------------
+*/
 //------------------------------------------------------------------------------------
 bool xCOMMS_process_frame (t_frame tipo_frame, char *dst_ip, char *dst_port )
 {
@@ -451,7 +463,7 @@ int8_t tryes;
 	while ( tryes-- > 0) {
 
 		vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
-		xprintf_P(PSTR("DEBUG: xCOMMS_process_frame (%d)\r\n"), tryes);
+		xprintf_PD( DF_COMMS, PSTR("DEBUG: xCOMMS_process_frame (%d)\r\n"), tryes);
 		ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_PROCESSFRAME );
 
 		switch(state) {
@@ -691,7 +703,6 @@ int8_t timeout;
 			// Entro con NET_CLOSE !!
 			while ( timeout-- > 0) {
 				xCOMMS_flush_RX();
-
 				if ( xCOMMS_linkstatus( &link_status) == false ) {
 					// El comando NO respondio. Espero y reintento
 					vTaskDelay( (portTickType)( 2000 / portTICK_RATE_MS ) );
@@ -736,7 +747,7 @@ t_send_status fsm_SEND( t_frame tipo_frame )
 t_send_status send_status = SEND_FAIL;
 
 	// Envio el frame
-	xprintf_P( PSTR("fsm_SEND.\r\n\0" ));
+	xprintf_PD( DF_COMMS, PSTR("fsm_SEND.\r\n\0" ));
 
 	switch(tipo_frame) {
 	case DATA:
@@ -772,28 +783,30 @@ bool fsm_RECEIVE( t_frame tipo_frame )
 {
 	/*
 	 * Se encarga de procesar resultados
+	 *
 	 */
 
 t_responses response;
 int8_t timeout;
+//t_link_status link_status;
 
-	xprintf_P( PSTR("\r\nfsm_RECEIVE.\r\n\0" ));
-	// Espero la respuesta
-	timeout = 10;
+	xprintf_PD( DF_COMMS, PSTR("\r\nfsm_RECEIVE.\r\n\0" ));
+
+	// Espero la respuesta 40*250 = 10s.
+	timeout = 20;
+
 	while(timeout-- > 0) {
 
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 
+/*
 		// Veo que no se halla cerrado el link
-//		if ( xCOMMS_linkstatus( &link_status) == false ) {
+		if ( xCOMMS_linkstatus( &link_status) == false ) {
 			// El comando NO respondio. Espero y reintento
-//			vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
-//			return(false);
-//		}
-
-//		if ( link_status != LINK_OPEN ) {
-//			return(false);
-//		}
+			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+			return(false);
+		}
+*/
 
 		// Analizo posibles respuestas
 		if (tipo_frame == DATA ) {
@@ -804,7 +817,7 @@ int8_t timeout;
 			response =  xINIT_FRAME_process_response();
 		}
 
-		// Evaluo las respuestas
+		// Evaluo las respuestas y estado
 		if ( response == rsp_OK ) {
 			// OK. Salgo
 			return(true);
@@ -812,6 +825,12 @@ int8_t timeout;
 			// Error a nivel del servidor.
 			return(false);
 		}
+/*
+		else if ( link_status != LINK_OPEN ) {
+			return(false);
+		}
+*/
+
 		// Espero porque la respuesta fue rsp_NONE
 
 	}
@@ -820,8 +839,14 @@ int8_t timeout;
 	return(false);
 }
 //------------------------------------------------------------------------------------
+/*
+ * -----------------------------------------------------------------------------------
+ FUNCIONES DE MANEJO DEL BUFFER INTERNO DE TRASMISION DE DATOS
+ *------------------------------------------------------------------------------------
+*/
 void xCOMMS_xbuffer_init(void)
 {
+	// Inicializa el buffer de trasmision !!!
 	memset(xcomms_buff.txbuff,'\0',XCOMMS_BUFFER_SIZE);
 	xcomms_buff.ptr = 0;
 }
@@ -884,7 +909,7 @@ uint16_t size;
 	timeout = 10;
 	while(timeout-- > 0) {
 		vTaskDelay( (portTickType)( 10 / portTICK_RATE_MS ) );
-		if ( xCOMMS_check_response(0, "+CIPSEND: 0") > 0) {
+		if ( xCOMMS_check_response(0, "+CIPSEND: 0,") > 0) {
 			if ( DF_COMMS ) {
 				xCOMMS_print_RX_buffer();
 			}
@@ -895,16 +920,19 @@ uint16_t size;
 	// Sali por timeout
 	xprintf_P(PSTR("SEND ERROR timeout\r\n"));
 	if ( DF_COMMS) {
-
 		xCOMMS_print_RX_buffer();
 	}
 	return(-1);
 
 }
 //------------------------------------------------------------------------------------
-// FUNCIONES DE FRTOS-IO
-// Funcion write File.
-// La defino aqui porque es donde tengo el xbuffer.
+/*
+ * -----------------------------------------------------------------------------------
+ FUNCIONES DE FRTOS-IO
+ Funcion write File.
+ La defino aqui porque es donde tengo el xbuffer.
+ *------------------------------------------------------------------------------------
+*/
 //------------------------------------------------------------------------------------
 int frtos_file_write( const char *pvBuffer, const uint16_t xBytes )
 {
@@ -915,7 +943,9 @@ int frtos_file_write( const char *pvBuffer, const uint16_t xBytes )
 	return(xBytes);
 }
 //------------------------------------------------------------------------------------
-
+/*
+ *
+ */
 
 
 

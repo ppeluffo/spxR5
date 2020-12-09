@@ -313,8 +313,6 @@ PGM_P const AT_IPADDR[]   PROGMEM = { IPADDR_NAME, IPADDR_TEST, IPADDR_CMD, IPAD
 
 //------------------------------------------------------------------------------------
 
-#define GPRS_RX_LINEAL_BUFFER
-
 #define GPRS_RXBUFFER_LEN	512
 struct {
 	char buffer[GPRS_RXBUFFER_LEN];
@@ -716,9 +714,6 @@ bool retS = false;
 		switch (state ) {
 		case prender_RXRDY:
 			// Avisa a la tarea de rx que se despierte.
-#ifdef BETA_TEST
-			xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_prender pwr_on RXDDY.\r\n\0"));
-#endif
 			// Aviso a la tarea de RX que se despierte ( para leer las respuestas del AT ) !!!
 			while ( xTaskNotify( xHandle_tkCommsRX, SGN_WAKEUP , eSetBits ) != pdPASS ) {
 				vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
@@ -728,9 +723,6 @@ bool retS = false;
 			break;
 
 		case prender_HW:
-#ifdef BETA_TEST
-			xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_prender pwr_on HW(%d).\r\n\0"),hw_tryes);
-#endif
 			if ( hw_tryes >= MAX_HW_TRYES_PRENDER ) {
 				state = prender_EXIT;
 				retS = false;
@@ -744,9 +736,6 @@ bool retS = false;
 			break;
 
 		case prender_SW:
-#ifdef BETA_TEST
-			xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_prender pwr_on SW(%d).\r\n\0"),sw_tryes);
-#endif
 			if ( sw_tryes >= MAX_SW_TRYES_PRENDER ) {
 				// Apago el HW y espero
 				gprs_apagar();
@@ -756,10 +745,6 @@ bool retS = false;
 				// Genero un pulso en el pin SW para prenderlo logicamente
 				sw_tryes++;
 				gprs_sw_pwr();
-
-#ifdef BETA_TEST
-				gprs_START_SIMULATOR();
-#endif
 
 				if ( gprs_PBDONE()) {
 					// Paso a CFUN solo si respondio con PB DONE
@@ -772,9 +757,6 @@ bool retS = false;
 			break;
 
 		case prender_CPAS:
-#ifdef BETA_TEST
-			xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_prender CPAS.\r\n\0"));
-#endif
 			if ( gprs_CPAS() ) {
 				state = prender_CFUN;
 				retS = true;
@@ -787,9 +769,6 @@ bool retS = false;
 			break;
 
 		case prender_CFUN:
-#ifdef BETA_TEST
-			xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_prender CFUN.\r\n\0"));
-#endif
 			if ( gprs_CFUN() ) {
 				state = prender_EXIT;
 			} else {
@@ -1565,7 +1544,7 @@ bool gprs_SAT_set(uint8_t modo)
  */
 
 
-	xprintf_P(PSTR("GPRS: gprs SAT.(modo=%d)\r\n\0"),modo);
+	xprintf_PD( DF_COMMS,  PSTR("GPRS: gprs SAT.(modo=%d)\r\n\0"),modo);
 
 	switch(modo) {
 	case 0:
@@ -1777,11 +1756,11 @@ bool retS = false;
 	gprs_atcmd_preamble();
 	xfprintf_P( fdGPRS, PSTR("AT+CIPOPEN?\r"));
 	*link_status = LINK_UNKNOWN;
-	// Espero respuesta
-	timeout = 10;
+	// Espero respuesta s
+	timeout = 40;
 	while(timeout-->0) {
-		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 
+		vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 		if ( gprs_check_response(0, "OK") > 0 ) {
 
 			if ( gprs_check_response(0, "CIPOPEN: 0,\"TCP\"") > 0 ) {
@@ -1912,9 +1891,36 @@ uint16_t i;
 		dst[i] = gprs_rxbuffer.buffer[i+start];
 #else
 
+uint16_t j;
+
+		if (start == 0) {
+			i = gprs_rxbuffer.tail;
+		} else {
+			i = start;
+		}
+		j = 0;
+		while(j < size) {
+			dst[j] = gprs_rxbuffer.buffer[i];
+			j++;
+			i = (i + 1) % gprs_rxbuffer.max;
+		}
+
 #endif
 
 
 }
 //------------------------------------------------------------------------------------
-
+/*
+ * En fsmRECEIVE estoy esperando la respuesta del server ( asincronica )
+ * Cuando doy el comando de linkstatus (1 vez) y espero 1000ms antes de leer la respuesta,
+ * puede ocurrir que la respuesta del comando sea instantánea y llegue la respuesta del server
+ * con lo cual por el buffer circular se pierda la respuesta del linkstatus y lo detecto
+ * como caido.
+ * A 115200 bps, recibo 11 bytes/msec.
+ * Lo que hago es mandar el comando 1 vez y quedarme en loops cortos analizando la respuesta.
+ * No deberia demorar mas de 2 s.
+ *
+ * Al esperar la respuesta no controlo si se cayo el enlace. El timeout que pongo es de 10s.
+ * Cuando do abrir el socket, puede demorar varios segundos. No conviene entonces interrogar muy rapido.
+ *
+ */

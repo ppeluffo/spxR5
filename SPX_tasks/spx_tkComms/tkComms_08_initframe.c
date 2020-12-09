@@ -184,11 +184,7 @@ uint8_t i;
 
 EXIT:
 
-#ifdef BETA_TEST
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
-#else
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_initframe.\r\n"));
-#endif
 
 	return(next_state);
 }
@@ -206,10 +202,11 @@ uint8_t base_cks, an_cks, dig_cks, cnt_cks, range_cks, psens_cks, app_cks, mbus_
 uint8_t ch;
 
 	if( tx_frame_init[tipo_frame] == false ) {
-		xprintf_P(PSTR("xINIT_FRAME_SEND %d: no data. Exit.\r\n"), tipo_frame );
+		xprintf_PD( DF_COMMS, PSTR("xINIT_FRAME_SEND %d: no data. Exit.\r\n"), tipo_frame );
 		return(SEND_NODATA);
 	}
-	xprintf_P(PSTR("xINIT_FRAME_SEND type:%d.\r\n"), tipo_frame );
+
+	xprintf_PD( DF_COMMS, PSTR("xINIT_FRAME_SEND type:%d.\r\n"), tipo_frame );
 
 	xCOMMS_flush_RX();
 	xCOMMS_flush_TX();
@@ -667,9 +664,10 @@ int8_t xBytes = 0;
 	if ( p1 == -1 ) {
 		return(false);
 	}
-	p2 = xCOMMS_check_response( p1, "CLOCK");
 
+	p2 = xCOMMS_check_response( p1, "CLOCK");
 	if ( p2 >= 0 ) {
+		p1 = p2;
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
 		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
@@ -709,43 +707,50 @@ int8_t xBytes = 0;
 
 	// Flags de configuraciones particulares: BASE;ANALOG;DIGITAL;COUNTERS;RANGE;PSENSOR;OUTS
 
-	p2 = xCOMMS_check_response( p2, "BASE");
+	p2 = xCOMMS_check_response( p1, "BASE");
 	if ( p2 >= 0  ) {
+		p1 = p2;
 		f_send_init_frame_base = true;
 	}
 
-	p2 = xCOMMS_check_response( p2, "ANALOG");
+	p2 = xCOMMS_check_response( p1, "ANALOG");
 	if ( p2 >= 0  ) {
+		p1 = p2;
 		f_send_init_frame_analog = true;
 	}
 
-	p2 = xCOMMS_check_response( p2, "DIGITAL");
+	p2 = xCOMMS_check_response( p1, "DIGITAL");
 	if ( p2 >= 0  ) {
+		p1 = p2;
 		f_send_init_frame_digital = true;
 	}
 
-	p2 = xCOMMS_check_response( p2, "COUNTERS");
+	p2 = xCOMMS_check_response( p1, "COUNTERS");
 	if ( p2 >= 0  ) {
+		p1 = p2;
 		f_send_init_frame_counters = true;
 	}
 
-	p2 = xCOMMS_check_response( p2, "RANGE");
+	p2 = xCOMMS_check_response( p1, "RANGE");
 	if ( p2 >= 0  ) {
+		p1 = p2;
 		f_send_init_frame_range = true;
 	}
 
-	p2 = xCOMMS_check_response( p2, "PSENSOR");
+	p2 = xCOMMS_check_response( p1, "PSENSOR");
 	if ( p2 >= 0  ) {
 		f_send_init_frame_psensor = true;
 	}
 
-	p2 = xCOMMS_check_response( p2, "APLICACION");
+	p2 = xCOMMS_check_response( p1, "APLICACION");
 	if ( p2 >= 0  ) {
+		p1 = p2;
 		f_send_init_frame_app = true;
 	}
 
-	p2 = xCOMMS_check_response( p2, "MBUS");
+	p2 = xCOMMS_check_response( p1, "MBUS");
 	if ( p2 >= 0  ) {
+		p1 = p2;
 		f_send_init_frame_modbus = true;
 	}
 
@@ -776,6 +781,7 @@ bool save_flag = false;
 	// TDIAL
 	p2 = xCOMMS_check_response( p1, "TDIAL");
 	if ( p2 >= 0 ) {
+		p1 = p2;
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -793,8 +799,9 @@ bool save_flag = false;
 	}
 
 	// TPOLL
-	p2 = xCOMMS_check_response( p2, "TPOLL");
+	p2 = xCOMMS_check_response( p1, "TPOLL");
 	if ( p2 >= 0 ) {
+		p1 = p2;
 
 		memset( &localStr, '\0', sizeof(localStr) );
 		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
@@ -811,8 +818,9 @@ bool save_flag = false;
 	}
 
 	// PWST
-	p2 = xCOMMS_check_response( p2, "PWST");
+	p2 = xCOMMS_check_response( p1, "PWST");
 	if ( p2 >= 0 ) {
+		p1 = p2;
 
 		// Copio el mensaje enviado a un buffer local porque la funcion strsep lo modifica.
 		memset( &localStr, '\0', sizeof(localStr) );
@@ -830,8 +838,9 @@ bool save_flag = false;
 	}
 
 	// PWRS
-	p2 = xCOMMS_check_response( p2, "PWRS");
+	p2 = xCOMMS_check_response( p1, "PWRS");
 	if ( p2 >= 0 ) {
+		p1 = p2;
 		memset( &localStr, '\0', sizeof(localStr) );
 		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
@@ -849,8 +858,9 @@ bool save_flag = false;
 	}
 
 	// CNT_HW
-	p2 = xCOMMS_check_response( p2, "HW_CNT");
+	p2 = xCOMMS_check_response( p1, "HW_CNT");
 	if ( p2 >= 0 ) {
+		p1 = p2;
 
 		memset( &localStr, '\0', sizeof(localStr) );
 		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
@@ -866,8 +876,9 @@ bool save_flag = false;
 	}
 
 	// BAT
-	p2 = xCOMMS_check_response( p2, "BAT");
+	p2 = xCOMMS_check_response( p1, "BAT");
 	if ( p2 >= 0 ) {
+		p1 = p2;
 
 		memset( &localStr, '\0', sizeof(localStr) );
 		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));

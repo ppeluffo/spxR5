@@ -26,7 +26,6 @@ t_comms_states tkComms_st_dataframe(void)
 	 */
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_dataframe.\r\n"));
-	xprintf_P( PSTR("COMMS: dataframe.\r\n\0"));
 
 	xCOMMS_process_frame(DATA, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 

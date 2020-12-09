@@ -189,7 +189,7 @@ bool retS = false;
 	xfprintf_P( fdGPRS, PSTR("AT+CMGS=\"%s\"\r"), dst_nbr);
 
 	// Espero el prompt > para enviar el mensaje.
-	if ( gprs_check_response_with_to(0,  ">", 10 ) == -1 ) {
+	if ( xCOMMS_check_response_with_to(0,  ">", 10 ) == -1 ) {
 		xprintf_P( PSTR("SMS: ERROR Sent Fail(Timeout 1) !!\r\n" ));
 		return(false);
 	}
@@ -205,7 +205,7 @@ bool retS = false;
 	xprintf_PD( DF_COMMS, PSTR("SMS: msgtxt=[%s]\r\n"), msg);
 
 	// Espero el OK
-	if ( gprs_check_response_with_to( 0, "OK", 10 ) == -1 ) {
+	if ( xCOMMS_check_response_with_to( 0, "OK", 10 ) == -1 ) {
 		xprintf_P( PSTR("SMS: ERROR Sent Fail(Timeout 2) !!\r\n" ));
 		retS = false;
 	} else {

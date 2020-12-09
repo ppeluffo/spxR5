@@ -76,6 +76,8 @@ xComms_conf_t sVarsComms;
 
 #define WDG_COMMS_TO_PROCESSFRAME	WDG_TO300
 
+//#define GPRS_RX_LINEAL_BUFFER
+
 typedef struct {
 	char nro[SMS_NRO_LENGTH];
 	char msg[SMS_MSG_LENGTH];
@@ -107,6 +109,7 @@ bool xCOMMS_ipaddr( char *ip_assigned );
 void xCOMMS_flush_RX(void);
 void xCOMMS_flush_TX(void);
 int xCOMMS_check_response( uint16_t start, const char *pattern );
+int xCOMMS_check_response_with_to( uint16_t start, const char *rsp, uint8_t timeout );
 void xCOMMS_print_RX_buffer(void);
 void xCOMMS_rxbuffer_copy_to(char *dst, uint16_t start, uint16_t size );
 

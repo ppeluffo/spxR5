@@ -146,6 +146,12 @@ st_dataRecord_t dr;
 	FAT_read(&l_fat);
 	xprintf_P( PSTR("memory: rcdSize=%d, wrPtr=%d,rdPtr=%d,delPtr=%d,r4wr=%d,r4rd=%d,r4del=%d \r\n\0"), sizeof(st_dataRecord_t), l_fat.wrPTR,l_fat.rdPTR, l_fat.delPTR,l_fat.rcds4wr,l_fat.rcds4rd,l_fat.rcds4del );
 
+#ifdef GPRS_RX_LINEAL_BUFFER
+	xprintf_P(PSTR("xComms Lineal buffers\r\n"));
+#else
+	xprintf_P(PSTR("xComms Circular buffers\r\n"));
+#endif
+
 	// COMMS Status
 	xCOMMS_status();
 
