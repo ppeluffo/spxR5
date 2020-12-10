@@ -572,7 +572,6 @@ int ret = -1;
 	return(-1);
 }
 //------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------
 // FUNCIONES DE USO GENERAL
 //------------------------------------------------------------------------------------
 void gprs_atcmd_preamble(void)
@@ -1723,6 +1722,8 @@ bool gprs_cmd_linkclose( void )
 {
 
 int8_t timeout;
+bool retS = false;
+uint8_t dcd;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkclose.\r\n\0"));
 	gprs_flush_RX_buffer();
@@ -1733,11 +1734,30 @@ int8_t timeout;
 	timeout=10;
 	while(timeout-->0) {
 		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
-		if ( (gprs_check_response(0, "OK") > 0) || (gprs_check_response(0, "ERROR") > 0) )
-			return(true);
+		if ( (gprs_check_response(0, "OK") > 0) || (gprs_check_response(0, "ERROR") > 0) ) {
+			retS = true;
+			xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkclose OK. dcd=%d\r\n"), IO_read_DCD() );
+			goto EXIT;
+		}
 	}
+	retS = false;
+	xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkclose FAIL. dcd=%d\r\n"), IO_read_DCD() );
+
+EXIT:
+/*
+	timeout = 30;
+	while(timeout-->0) {
+		vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		dcd = IO_read_DCD();
+		xprintf_PD( DF_COMMS, PSTR("COMMS: (%d) gprs_cmd_linkclose DCD=%d\r\n"), timeout, dcd );
+		if (dcd == 0)
+			break;
+	}
+	xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkclose EXIT dcd=%d\r\n"), IO_read_DCD() );
 	// Timeout de la respuesta
-	return(false);
+
+*/
+	return(retS);
 }
 //------------------------------------------------------------------------------------
 bool gprs_cmd_linkstatus( t_link_status *link_status )
@@ -1766,7 +1786,7 @@ bool retS = false;
 			if ( gprs_check_response(0, "CIPOPEN: 0,\"TCP\"") > 0 ) {
 				// link connected
 				*link_status = LINK_OPEN;
-				xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkstatus->open.\r\n"));
+				xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkstatus->open. dcd=%d\r\n"), IO_read_DCD() );
 				retS = true;
 				goto EXIT;
 			}
@@ -1774,7 +1794,7 @@ bool retS = false;
 			if ( gprs_check_response(0, "CIPOPEN: 0") > 0 ) {
 				// link not connected
 				*link_status = LINK_CLOSE;
-				xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkstatus->close.\r\n"));
+				xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkstatus->close. dcd=%d\r\n"), IO_read_DCD() );
 				retS = true;
 				goto EXIT;
 			}
@@ -1923,4 +1943,5 @@ uint16_t j;
  * Al esperar la respuesta no controlo si se cayo el enlace. El timeout que pongo es de 10s.
  * Cuando do abrir el socket, puede demorar varios segundos. No conviene entonces interrogar muy rapido.
  *
+ * Como alternativa veo de controlar el DCD pero veo que aunque cierre el socket, el DCD no pasa a 0.!!!
  */

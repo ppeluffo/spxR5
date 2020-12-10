@@ -652,11 +652,12 @@ t_link_states link_state = stLINK_ENTRY;
 int8_t timeout;
 
 	link_tryes = 4;
+
 	while ( link_tryes-- > 0 ) {
 
 		switch(link_state) {
 		case stLINK_ENTRY:
-			xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_LINK-> ENTRY\r\n\0") );
+			xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_LINK-> ENTRY. dcd=%d\r\n"), IO_read_DCD() );
 			// Trigger
 			xCOMMS_flush_RX();
 			if ( xCOMMS_linkstatus( &link_status) == false ) {
@@ -667,7 +668,7 @@ int8_t timeout;
 			// Actions
 			if ( link_status == LINK_OPEN ) {
 				// El servicio de sockets esta abierto
-				xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_LINK->is OPEN.\r\n\0") );
+				xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_LINK->is OPEN. dcd=%d\r\n"), IO_read_DCD() );
 				return( LINK_OPEN );
 			}
 
@@ -711,7 +712,7 @@ int8_t timeout;
 
 				if ( link_status == LINK_OPEN ) {
 					// El servicio de sockets esta abierto
-					xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_LINK-> is OPEN.\r\n\0") );
+					xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_LINK-> is OPEN. dcd=%d\r\n"), IO_read_DCD() );
 					return(LINK_OPEN);
 
 				} else if ( link_status == LINK_UNKNOWN ) {
@@ -736,7 +737,7 @@ int8_t timeout;
 	} // End while.
 
 	// Reintente muchas veces.
-	xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_LINK Timeout.!!!\r\n\0") );
+	xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_LINK Timeout.!!!. dcd=%d\r\n"), IO_read_DCD() );
 	return(LINK_UNKNOWN);
 
 }
@@ -788,7 +789,7 @@ bool fsm_RECEIVE( t_frame tipo_frame )
 
 t_responses response;
 int8_t timeout;
-//t_link_status link_status;
+//uint8_t dcd = 0;
 
 	xprintf_PD( DF_COMMS, PSTR("\r\nfsm_RECEIVE.\r\n\0" ));
 
@@ -799,13 +800,15 @@ int8_t timeout;
 
 		vTaskDelay( (portTickType)( 250 / portTICK_RATE_MS ) );
 
-/*
+
 		// Veo que no se halla cerrado el link
-		if ( xCOMMS_linkstatus( &link_status) == false ) {
-			// El comando NO respondio. Espero y reintento
+/*
+		dcd = IO_read_DCD();
+		if ( dcd == 0 ) {
 			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 			return(false);
 		}
+
 */
 
 		// Analizo posibles respuestas
@@ -825,11 +828,6 @@ int8_t timeout;
 			// Error a nivel del servidor.
 			return(false);
 		}
-/*
-		else if ( link_status != LINK_OPEN ) {
-			return(false);
-		}
-*/
 
 		// Espero porque la respuesta fue rsp_NONE
 

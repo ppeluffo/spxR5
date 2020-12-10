@@ -12,6 +12,7 @@
 #define WDG_COMMS_TO_SCAN	WDG_TO600
 
 static void scan_process_response_RECONF(void);
+static bool scan_sent = false;
 
 //------------------------------------------------------------------------------------
 t_comms_states tkComms_st_scan(void)
@@ -26,15 +27,7 @@ t_comms_states tkComms_st_scan(void)
 
 t_comms_states next_state = ST_ENTRY;
 
-#ifdef BETA_TEST
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.[%d,%d,%d]\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
-#else
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_scan.\r\n\0"));
-#endif
-
-#ifdef MONITOR_STACK
-	debug_print_stack_watermarks("7");
-#endif
 
 	ctl_watchdog_kick( WDG_COMMS, WDG_COMMS_TO_SCAN );
 
@@ -76,18 +69,19 @@ t_comms_states next_state = ST_ENTRY;
 	// Checkpoint de SMS's
 	xAPP_sms_checkpoint();
 
-#ifdef BETA_TEST
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.[%d,%d,%d](%d)\r\n\0"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms, next_state);
-#else
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_scan.\r\n"));
-#endif
-
 	return(next_state);
 
 }
 //------------------------------------------------------------------------------------
 t_send_status xSCAN_FRAME_send(void)
 {
+	if ( scan_sent ) {
+		scan_sent = false;	// Para el proximo scan
+		xprintf_PD( DF_COMMS, PSTR("xSCAN_FRAME_send: no data. Exit.\r\n") );
+		return(SEND_NODATA);
+	}
+
 	xCOMMS_flush_RX();
 	xCOMMS_flush_TX();
 	xCOMMS_xbuffer_init();
@@ -130,6 +124,8 @@ t_responses rsp = rsp_NONE;
 
 	// Respuesta completa del server
 	if ( xCOMMS_check_response(0, "</h1>") > 0 ) {
+
+		scan_sent = true;
 
 		xCOMMS_print_RX_buffer();
 
