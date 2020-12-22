@@ -275,8 +275,14 @@ static void data_process_response_CLOCK(void)
 {
 	/*
 	 * Recibi algo del estilo CLOCK:1910120345
+	 * <h1>TYPE=DATA&PLOAD=RX_OK:848;CLOCK:2012210626;DOUTS=5:</h1>
+	 * <h1>TYPE=DATA&PLOAD=RX_OK:845;CLOCK:2012210625;</h1>
 	 * Extraigo el valor, veo que tan desfasado estoy del RTC
 	 * Si estoy mas de 60s, actualizo el RTC
+	 *
+	 * Alerta:
+	 * Por error puede venir algo como <h1>TYPE=DATA&PLOAD=RX_OK:844;CLOCK:201221DOUTS=13:</h1>.
+	 * En este caso debo descartar el ajuste de hora !!!
 	 */
 
 int p1,p2;
@@ -307,18 +313,25 @@ int8_t xBytes = 0;
 		token = strsep(&stringp,delim);			// 1910120345
 
 		memset(rtcStr, '\0', sizeof(rtcStr));
-		memcpy(rtcStr,token, sizeof(rtcStr));	// token apunta al comienzo del string con la hora
-		for ( i = 0; i<12; i++) {
+		//memcpy(rtcStr,token, sizeof(rtcStr));	// token apunta al comienzo del string con la hora
+		// Controlo que todos los caracteres sean numericos. Sino indica un error de parseo y salgo.
+		for ( i = 0; i<10; i++) {
 			c = *token;
+			if ( ! isdigit(c)) {
+				// Catch:
+				xprintf_P(PSTR("COMMS: ERROR01 rspCLOCK RTCstring [%s]. Exit !!.\r\n\0"), rtcStr );
+				return;
+			}
 			rtcStr[i] = c;
 			c = *(++token);
 			if ( c == '\0' )
 				break;
 		}
+
 		if ( strlen(rtcStr) < 10 ) {
 			// Hay un error en el string que tiene la fecha.
 			// No lo reconfiguro
-			xprintf_P(PSTR("COMMS: ERROR rspCLOCK RTCstring [%s]\r\n\0"), rtcStr );
+			xprintf_P(PSTR("COMMS: ERROR02 rspCLOCK RTCstring [%s]\r\n\0"), rtcStr );
 			return;
 		}
 

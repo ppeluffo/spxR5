@@ -470,7 +470,7 @@ static void pv_FAT_check_integrity(void)
 
 RESET_FAT:
 	xprintf_P(PSTR("MEMORY ERROR: Reset to default\r\n\0"));
-	FF_format(false );
+	FF_format(false);
 	return;
 
 }
