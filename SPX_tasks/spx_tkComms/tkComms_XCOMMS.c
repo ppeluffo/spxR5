@@ -474,6 +474,11 @@ int8_t tryes;
 			// Actions
 			if ( link_status == LINK_OPEN ) {
 				state = st_SEND;
+			} else if ( link_status == LINK_TO ) {
+				// No contesto. Apago el modem !!
+				xprintf_P( PSTR("COMMS: st_LINK ERROR TO. Apago Modem !!\r\n") );
+				xCOMMS_apagar_dispositivo();
+				return(false);
 			} else {
 				state = st_NET;	// LINK UNKNOWN
 			}
@@ -485,6 +490,11 @@ int8_t tryes;
 			// Actions
 			if ( net_status == NET_OPEN ) {
 				state = st_LINK;
+			} else if ( net_status == NET_TO ) {
+				// No contesto. Apago el modem !!
+				xprintf_P( PSTR("COMMS: st_NET ERROR TO. Apago Modem !!\r\n") );
+				xCOMMS_apagar_dispositivo();
+				return(false);
 			} else {
 				retS = false;
 				xCOMMS_netclose();

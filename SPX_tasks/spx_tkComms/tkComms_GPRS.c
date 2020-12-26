@@ -1685,7 +1685,9 @@ bool retS = false;
 	}
 
 	// Sali por timeout:
+	// No contesto nada !!
 	xprintf_PD( DF_COMMS,  PSTR("COMMS: gprs_cmd_netstatus->ERROR(TO) !!.\r\n\0"));
+	*net_status = NET_TO;
 
 EXIT:
 
@@ -1723,7 +1725,6 @@ bool gprs_cmd_linkclose( void )
 
 int8_t timeout;
 bool retS = false;
-uint8_t dcd;
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_cmd_linkclose.\r\n\0"));
 	gprs_flush_RX_buffer();
@@ -1776,7 +1777,7 @@ bool retS = false;
 	gprs_atcmd_preamble();
 	xfprintf_P( fdGPRS, PSTR("AT+CIPOPEN?\r"));
 	*link_status = LINK_UNKNOWN;
-	// Espero respuesta s
+	// Espero respuesta 10 ( 40* 0.250) s
 	timeout = 40;
 	while(timeout-->0) {
 
@@ -1811,7 +1812,9 @@ bool retS = false;
 	}
 
 	// Sali por timeout:
+	// No contesto nada !!.
 	xprintf_PD( DF_COMMS,  PSTR("COMMS: gprs_cmd_linkstatus->ERROR(TO) !!.\r\n\0"));
+	*link_status = LINK_TO;
 
 EXIT:
 

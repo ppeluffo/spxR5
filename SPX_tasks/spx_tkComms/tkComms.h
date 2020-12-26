@@ -13,8 +13,8 @@
 
 typedef enum { ST_ENTRY = 0, ST_ESPERA_APAGADO, ST_ESPERA_PRENDIDO, ST_PRENDER, ST_CONFIGURAR, ST_MON_SQE, ST_SCAN, ST_INITFRAME, ST_DATAFRAME } t_comms_states;
 typedef enum { ERR_NONE = 0, ERR_CPIN_FAIL, ERR_CREG_FAIL, ERR_CPSI_FAIL, ERR_NETATTACH_FAIL, ERR_APN_FAIL, ERR_IPSERVER_FAIL, ERR_DLGID_FAIL } t_comms_error_code;
-typedef enum { LINK_OPEN = 0, LINK_CLOSE, LINK_UNKNOWN } t_link_status;
-typedef enum { NET_OPEN = 0, NET_CLOSE, NET_UNKNOWN } t_net_status;
+typedef enum { LINK_OPEN = 0, LINK_CLOSE, LINK_UNKNOWN, LINK_TO } t_link_status;
+typedef enum { NET_OPEN = 0, NET_CLOSE, NET_UNKNOWN, NET_TO } t_net_status;
 typedef enum { SEND_OK = 0, SEND_FAIL, SEND_NODATA } t_send_status;
 typedef enum { ATCMD_ENTRY = 0, ATCMD_TEST, ATCMD_CMD, ATCMD_WAIT, ATCMD_EXIT } atcmd_state_t;
 

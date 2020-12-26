@@ -26,16 +26,7 @@ t_comms_states tkComms_st_entry(void)
 
 t_comms_states next_state = ST_ESPERA_APAGADO;
 
-#ifdef BETA_TEST
-	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_entry.[%d,%d,%d]\r\n"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado, xCOMMS_stateVars.errores_comms);
-#else
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_entry.\r\n"));
-#endif
-
-#ifdef MONITOR_STACK
-	debug_print_stack_watermarks("1");
-#endif
-
 	ctl_watchdog_kick(WDG_COMMS, WDG_COMMS_TO_ENTRY);
 
 	if ( ! MODO_DISCRETO )									// Solo en modo continuo
@@ -52,12 +43,7 @@ t_comms_states next_state = ST_ESPERA_APAGADO;
 		CCPWrite( &RST.CTRL, RST_SWRST_bm );   /* Issue a Software Reset to initilize the CPU */
 	}
 
-#ifdef BETA_TEST
-	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_entry. [%d,%d,%d](%d)\r\n"), xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado, xCOMMS_stateVars.errores_comms, next_state );
-#else
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_entry.\r\n"));
-#endif
-
 	return(next_state);
 
 }

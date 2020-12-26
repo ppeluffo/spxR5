@@ -41,6 +41,12 @@
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  * ------------------------------------------------------------------------
+ * Version 3.0.6c @ 20201226
+ * En los DLG-8, por un tema de ruido eléctrico, hay veces que el modem no
+ * responde.
+ * En estos casos, NET o LINK se van por TO y entonces lo que hago es apagar
+ * el modem el xCOMMS_process_frame() de modo que rápido pueda reiniciarlos.
+ * ------------------------------------------------------------------------
  * Version 3.0.6.a( MASTER ) @2020-12-02
  * Modficamos la parte de transmision de datos de modo de no usar el modo
  * transparente sino tener siempre el control de terminal del modem.
