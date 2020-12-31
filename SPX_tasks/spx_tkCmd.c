@@ -1560,6 +1560,25 @@ uint8_t pin = 0;
 			return;
 		}
 
+		if ( strcmp_P( strupr(argv[2]), PSTR("STATUS\0")) == 0 ) {
+			pin = IO_read_CTS();
+			xprintf_P( PSTR("CTS=%d\r\n\0"),pin);
+			pin = IO_read_DCD();
+			xprintf_P( PSTR("DCD=%d\r\n\0"),pin);
+			pin = IO_read_RI();
+			xprintf_P( PSTR("RI=%d\r\n\0"),pin);
+
+			xprintf_P( PSTR("CTRLA=0X%02x\r\n\0"),USARTE0.CTRLA);
+			xprintf_P( PSTR("CTRLB=0X%02x\r\n\0"),USARTE0.CTRLB);
+			xprintf_P( PSTR("BAUDCTRLA=0X%02x\r\n\0"),USARTE0.BAUDCTRLA);
+			xprintf_P( PSTR("BAUDCTRLB=0X%02x\r\n\0"),USARTE0.BAUDCTRLB);
+			xprintf_P( PSTR("DIRSET=0X%02x\r\n\0"),PORTE.DIRSET);
+			xprintf_P( PSTR("DIRCLR=0X%02x\r\n\0"),PORTE.DIRCLR);
+
+			pv_snprintfP_OK();
+			return;
+		}
+
 		pv_snprintfP_ERR();
 		return;
 	}

@@ -171,7 +171,7 @@ const char IFC_CMD[]   PROGMEM = "AT+IFC?";
 const char IFC_RSPOK[] PROGMEM = "IFC: 0,0";
 PGM_P const AT_IFC[]   PROGMEM = { IFC_NAME, IFC_TEST, IFC_CMD, IFC_RSPOK };
 
-// CIPMODE: Selecciono modo transparente en TCP/IP.
+// CIPMODE: Selecciono modo normal/transparente en TCP/IP.
 #define MAX_TRYES_CIPMODE		2
 #define TIMEOUT_CIPMODE			30
 const char CIPMODE_NAME[]  PROGMEM = "CIPMODE";
@@ -185,11 +185,11 @@ PGM_P const AT_CIPMODE[]  PROGMEM = { CIPMODE_NAME, CIPMODE_TEST, CIPMODE_CMD, C
 #define TIMEOUT_D2			30
 const char D2_NAME[]  PROGMEM = "&D2";
 const char D2_TEST[]  PROGMEM = "";
-const char D2_CMD[]   PROGMEM = "AT&D2";
+const char D2_CMD[]   PROGMEM = "AT&D0";	// Ignoro DTR status
 const char D2_RSPOK[] PROGMEM = "OK";
 PGM_P const AT_D2[]   PROGMEM = { D2_NAME, D2_TEST, D2_CMD, D2_RSPOK };
 
-// CSUART: serial port de 7 lineas
+// CSUART: serial port de 3/7 lineas
 #define MAX_TRYES_CSUART	1
 #define TIMEOUT_CSUART		30
 const char CSUART_NAME[]  PROGMEM = "CSUART";

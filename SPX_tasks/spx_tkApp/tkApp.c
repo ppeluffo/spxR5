@@ -115,6 +115,56 @@ int8_t xBytes = 0;
 	xprintf_P( PSTR("APP: SET OUTPUTS to 0x%02x\r\n\0"),dout);
 }
 //------------------------------------------------------------------------------------
+void xAPP_set_douts_lazy( uint8_t dout, uint8_t mask )
+{
+	// Funcion para setear el valor de las salidas desde el resto del programa.
+	// La usamos desde tkGprs cuando en un frame nos indican cambiar las salidas.
+	// Como el cambio depende de quien tiene el control y del timer, aqui vemos si
+	// se cambia o se ignora.
+	// La mascara se aplica luego del twidle.
+
+uint8_t data = 0;
+int8_t xBytes = 0;
+uint8_t i;
+uint8_t odata, msk;
+
+	// Solo es para IO8CH
+	if ( spx_io_board != SPX_IO8CH ) {
+		return;
+	}
+
+	// Vemos que no se halla desconfigurado
+	MCP_check();
+
+	// Guardo el valor recibido
+	data = dout;
+	sVarsApp.perforacion.outs = dout;
+	MCP_update_olatb( dout );
+
+	// Invierto el byte antes de escribirlo !!!
+	data = twiddle_bits(data);
+
+	data = data & mask;
+
+	// Escribo los bytes de a 1 bit
+	msk = 0x01;
+	for (i=0; i<8; i++) {
+		msk = msk | (0x1 << i );
+		if ( (i > 0) && ( odata == (data & msk) ) )
+			continue;
+		odata = data & msk;
+		xBytes = MCP_write(MCP_OLATB, (char *)&odata, 1 );
+		xprintf_PD( DF_COMMS, PSTR("APP: Set douts lazy: data=0x%02x, i=%02d, msk=0x%02x, odata=0x%02x\r\n"), data, i, msk, odata);
+		if ( xBytes == -1 ) {
+			xprintf_P(PSTR("APP: ERROR: set_douts MCP write(%d)[%d]\r\n\0"), i, odata);
+			return;
+		}
+		vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+	}
+
+	xprintf_P( PSTR("APP: SET OUTPUTS to 0x%02x\r\n\0"),dout);
+}
+//------------------------------------------------------------------------------------
 void xAPP_set_douts_remote( uint8_t dout )
 {
 	// El GPRS recibio datos de setear la salida.
@@ -125,5 +175,17 @@ void xAPP_set_douts_remote( uint8_t dout )
 	}
 
 	xAPP_set_douts( dout, MASK_NORMAL );
+}
+//------------------------------------------------------------------------------------
+void xAPP_set_douts_remote_lazy( uint8_t dout )
+{
+	// El GPRS recibio datos de setear la salida.
+	// El control debe ser de SISTEMA y reiniciar el timer_SISTEMA
+
+	if ( sVarsApp.aplicacion == APP_PERFORACION ) {
+		xAPP_perforacion_adjust_x_douts(dout);
+	}
+
+	xAPP_set_douts_lazy( dout, MASK_NORMAL );
 }
 //------------------------------------------------------------------------------------

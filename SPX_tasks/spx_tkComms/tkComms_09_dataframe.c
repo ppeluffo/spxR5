@@ -13,6 +13,7 @@
 static void data_process_response_RESET(void);
 static void data_process_response_MEMFORMAT(void);
 static void data_process_response_DOUTS(void);
+static void lazy_data_process_response_DOUTS(void);
 static void data_process_response_CLOCK(void);
 static uint8_t data_process_response_OK(void);
 static void data_process_response_MBUS(void);
@@ -27,10 +28,20 @@ t_comms_states tkComms_st_dataframe(void)
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: IN st_dataframe.\r\n"));
 
+	xCOMMS_stateVars.set_douts = false;
 	xCOMMS_process_frame(DATA, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 
 	// Si llego la senal, la reseteo ya que transmiti todos los frames.
 	xCOMMS_SGN_FRAME_READY();
+
+	// Lazy process de DOUTS
+	if ( xCOMMS_stateVars.set_douts ==  true ) {
+		xCOMMS_stateVars.set_douts = false;
+		vTaskDelay( (portTickType)( 5000 / portTICK_RATE_MS ) );
+		//xAPP_set_douts_remote( xCOMMS_stateVars.douts);
+		xAPP_set_douts_remote_lazy( xCOMMS_stateVars.douts);
+		xprintf_PD( DF_COMMS, PSTR("COMMS: LAZZY DOUTS PROCESS [0x%0X]\r\n\0"), xCOMMS_stateVars.douts );
+	}
 
 	xprintf_PD( DF_COMMS, PSTR("COMMS: OUT st_dataframe.\r\n\0"));
 	return(ST_ENTRY);
@@ -124,7 +135,8 @@ t_responses rsp = rsp_NONE;
 
 		if ( xCOMMS_check_response (0, "DOUTS\0") > 0) {
 			// El sever mando actualizacion de las salidas
-			data_process_response_DOUTS();
+			//data_process_response_DOUTS();
+			lazy_data_process_response_DOUTS();
 			// rsp = rsp_OK;
 			// return(rsp);
 		}
@@ -243,6 +255,47 @@ uint8_t douts;
 		xAPP_set_douts_remote( douts);
 
 		xprintf_PD( DF_COMMS, PSTR("COMMS: DOUTS [0x%0X]\r\n\0"), douts);
+
+	}
+}
+//------------------------------------------------------------------------------------
+static void lazy_data_process_response_DOUTS(void)
+{
+	/*
+	 * Recibo una respuesta que me dice que valores poner en las salidas
+	 * de modo de controlar las bombas de una perforacion u otra aplicacion
+	 * Recibi algo del estilo DOUTS:245
+	 * Extraigo el valor de las salidas y lo dejo para mas tarde setearlo !!!
+	 */
+
+int p1,p2;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_douts = NULL;
+char *delim = ",;:=><";
+uint8_t douts;
+
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
+		return;
+	}
+	p2 = xCOMMS_check_response( p1, "DOUTS");
+
+	if ( p2 >= 0 ) {
+		memset( &localStr, '\0', sizeof(localStr) );
+		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
+
+		stringp = localStr;
+		tk_douts = strsep(&stringp,delim);	// DOUTS
+		tk_douts = strsep(&stringp,delim);	// Str. con el valor de las salidas. 0..128
+		douts = atoi( tk_douts );
+		xCOMMS_stateVars.douts = douts;
+		xCOMMS_stateVars.set_douts = true;
+
+		// Actualizo el status a travez de una funcion propia del modulo de outputs
+		//xAPP_set_douts_remote( douts);
+
+		xprintf_PD( DF_COMMS, PSTR("COMMS: LAZY DOUTS [0x%0X]\r\n\0"), douts);
 
 	}
 }

@@ -478,7 +478,9 @@ int8_t tryes;
 				// No contesto. Apago el modem !!
 				xprintf_P( PSTR("COMMS: st_LINK ERROR TO. Apago Modem !!\r\n") );
 				xCOMMS_apagar_dispositivo();
-				return(false);
+				//return(false);
+				retS = false;
+				state = st_EXIT;
 			} else {
 				state = st_NET;	// LINK UNKNOWN
 			}
@@ -494,7 +496,9 @@ int8_t tryes;
 				// No contesto. Apago el modem !!
 				xprintf_P( PSTR("COMMS: st_NET ERROR TO. Apago Modem !!\r\n") );
 				xCOMMS_apagar_dispositivo();
-				return(false);
+				retS = false;
+				state = st_EXIT;
+				//return(false);
 			} else {
 				retS = false;
 				xCOMMS_netclose();
@@ -528,6 +532,7 @@ int8_t tryes;
 			break;
 
 		case st_EXIT:
+			xCOMMS_linkclose();
 			return(retS);
 		}
 	}
@@ -641,7 +646,7 @@ int8_t timeout;
 
 	// Reintente muchas veces.
 	xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_NET Timeout.!!!\r\n\0") );
-	return(NET_UNKNOWN);
+	return(NET_TO);
 
 }
 //------------------------------------------------------------------------------------
@@ -748,7 +753,7 @@ int8_t timeout;
 
 	// Reintente muchas veces.
 	xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_LINK Timeout.!!!. dcd=%d\r\n"), IO_read_DCD() );
-	return(LINK_UNKNOWN);
+	return(LINK_TO);
 
 }
 //------------------------------------------------------------------------------------

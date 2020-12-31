@@ -143,5 +143,7 @@ uint8_t xAPP_external_poll_hash(void);
 // GENERAL
 void xAPP_set_douts_remote( uint8_t dout );
 void xAPP_set_douts( uint8_t dout, uint8_t mask );
+void xAPP_set_douts_lazy( uint8_t dout, uint8_t mask );
+void xAPP_set_douts_remote_lazy( uint8_t dout );
 
 #endif /* SRC_SPX_TASKS_SPX_TKAPP_TKAPP_H_ */

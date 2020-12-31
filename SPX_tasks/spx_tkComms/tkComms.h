@@ -51,6 +51,8 @@ typedef struct {
 	bool gprs_prendido;
 	bool gprs_inicializado;
 	uint8_t errores_comms;
+	uint8_t douts;
+	bool set_douts;
 } t_xCOMMS_stateVars;
 
 t_xCOMMS_stateVars xCOMMS_stateVars;
@@ -76,7 +78,7 @@ xComms_conf_t sVarsComms;
 
 #define WDG_COMMS_TO_PROCESSFRAME	WDG_TO300
 
-//#define GPRS_RX_LINEAL_BUFFER
+#define GPRS_RX_LINEAL_BUFFER
 
 typedef struct {
 	char nro[SMS_NRO_LENGTH];
