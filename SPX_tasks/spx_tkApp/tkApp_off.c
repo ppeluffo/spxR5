@@ -7,6 +7,7 @@
 
 #include "spx.h"
 #include "tkApp.h"
+#include "l_steppers.h"
 
 //------------------------------------------------------------------------------------
 
@@ -18,8 +19,11 @@ void tkApp_off(void)
 
 	xprintf_P(PSTR("APP: Off\r\n\0"));
 
+	stepper_init();
+
 	// Borro los SMS de alarmas pendientes
 	xSMS_init();
+
 
 	for( ;; )
 	{

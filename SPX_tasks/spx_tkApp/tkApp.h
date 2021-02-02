@@ -13,7 +13,7 @@
 
 #define DF_APP ( systemVars.debug == DEBUG_APLICACION )
 
-typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT, APP_CAUDALIMETRO, APP_EXTERNAL_POLL } aplicacion_t;
+typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT, APP_CAUDALIMETRO, APP_EXTERNAL_POLL, APP_PILOTO } aplicacion_t;
 typedef enum { APP_PERF_NORMAL = 0, APP_PERF_CTLFREQ } t_modo_perforacion;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { PERF_CTL_EMERGENCIA, PERF_CTL_SISTEMA } perforacion_control_t;
@@ -86,14 +86,27 @@ typedef struct {
 	uint16_t periodo_actual;
 } st_caudalimetros_t;
 
+
+// Configuracion de piloto
+#define MAX_PILOTO_PSLOTS	5
+
+typedef struct {		// Elemento de piloto: presion, hora.
+	st_time_t hhmm;
+	float presion;
+} st_piloto_data_t;
+
+
 typedef struct {
 	aplicacion_t aplicacion;				// Modo de operacion del datalogger
 	st_consigna_t consigna;
 	st_perforacion_t perforacion;
 	st_alarmas_t plantapot;
 	st_caudalimetros_t caudalimetro;
+	st_piloto_data_t pSlots [MAX_PILOTO_PSLOTS];
+
 	// Estructura usada en común con la aplicacion de TANQUES y ALARMAS
 	char l_sms[MAX_NRO_SMS][SMS_NRO_LENGTH];
+
 } aplicacion_conf_t;
 
 aplicacion_conf_t sVarsApp;
@@ -145,5 +158,15 @@ void xAPP_set_douts_remote( uint8_t dout );
 void xAPP_set_douts( uint8_t dout, uint8_t mask );
 void xAPP_set_douts_lazy( uint8_t dout, uint8_t mask );
 void xAPP_set_douts_remote_lazy( uint8_t dout );
+
+// PILOTO
+void tkApp_piloto(void);
+
+void xAPP_piloto_config_defaults(void);
+void xAPP_piloto_print_status( void );
+bool xAPP_piloto_config( char *param1, char *param2, char *param3, char *param4 );
+void xAPP_piloto_stepper_test( char *s_dir, char *s_npulses, char *s_dtime, char *s_ptime );
+void xAPP_piloto_presion_test( char *s_out_pres, char *s_out_error );
+
 
 #endif /* SRC_SPX_TASKS_SPX_TKAPP_TKAPP_H_ */

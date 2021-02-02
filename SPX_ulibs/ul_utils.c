@@ -289,6 +289,8 @@ void u_load_defaults( char *opt )
 
 	xAPP_consigna_config_defaults();
 	xAPP_plantapot_config_defaults();
+	xAPP_piloto_config_defaults();
+
 
 }
 //------------------------------------------------------------------------------------
@@ -611,6 +613,11 @@ bool u_config_aplicacion( char *modo )
 
 	if ( strcmp_P( strupr(modo), PSTR("OFF\0")) == 0) {
 		sVarsApp.aplicacion = APP_OFF;
+		return(true);
+	}
+
+	if ( ( strcmp_P( strupr(modo), PSTR("PILOTO\0"))  == 0) &&  ( spx_io_board == SPX_IO5CH ) ) {
+		sVarsApp.aplicacion = APP_PILOTO;
 		return(true);
 	}
 

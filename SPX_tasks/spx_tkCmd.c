@@ -180,6 +180,9 @@ st_dataRecord_t dr;
 	case APP_EXTERNAL_POLL:
 		xprintf_P( PSTR("  modo: External Poll\r\n"));
 		break;
+	case APP_PILOTO:
+		xAPP_piloto_print_status();
+		break;
 	}
 
 	// CONFIG
@@ -396,6 +399,21 @@ char l_data[10] = { '\0' };
 	}
 */
 
+	// PILOTO
+	// piloto {out_pres} {err_range}
+	if ( ( strcmp_P( strupr(argv[1]), PSTR("PILOTO")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		xAPP_piloto_presion_test( argv[2], argv[3]);
+		pv_snprintfP_OK();
+		return;
+	}
+
+	// PILOTO STEPPER
+	// write stepper {fw|rev} {npulses} {dpulses}
+	if ( ( strcmp_P( strupr(argv[1]), PSTR("STEPPER\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		xAPP_piloto_stepper_test( argv[2], argv[3], argv[4], argv[5]);
+		pv_snprintfP_OK();
+		return;
+	}
 
 	// MODBUS
 	// write modbus get {slave} {fcode} {start_addr} {nro_regs}
@@ -871,6 +889,14 @@ bool retS = false;
 		return;
 	}
 
+	// PILOTO SLOTS
+	// config piloto slot {idx} {hhmm} {pout}
+	if (!strcmp_P( strupr(argv[1]), PSTR("PILOTO\0")) ) {
+		retS = xAPP_piloto_config( argv[2], argv[3], argv[4], argv[5]);
+		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
+		return;
+	}
+
 	// COUNTERS
 	// config counter {0..1} cname magPP pulseWidth period speed sensing
 	// counter hw {SIMPLE/OPTO)
@@ -1150,6 +1176,8 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("           power {on|off}\r\n\0"));
 				xprintf_P( PSTR("  modbus get {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
 				xprintf_P( PSTR("         set {slave} {fcode} {addr} {value}\r\n\0"));
+				xprintf_P( PSTR("  stepper {fw|rev} {npulses} {dpulses_ms} {ptime_s}\r\n\0"));
+				xprintf_P( PSTR("  piloto {out_pres} {err_range}\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|rts|dtr) {on|off}\r\n\0"));
@@ -1222,13 +1250,10 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
 		xprintf_P( PSTR("  mcal {ch} {p1|p2} {mag}\r\n\0"));
 
-		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque, extpoll}\r\n\0"));
+		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque,extpoll,piloto}\r\n\0"));
 		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
 		xprintf_P( PSTR("            nivel {chid} {alerta} {inf|sup} val\r\n\0"));
-		xprintf_P( PSTR("  piloto reg {CHICA|MEDIA|GRANDE}\r\n\0"));
-		xprintf_P( PSTR("         pband {pband}\r\n\0"));
-		xprintf_P( PSTR("         steps {steps}\r\n\0"));
-		xprintf_P( PSTR("         slot {idx} {hhmm} {pout}\r\n\0"));
+		xprintf_P( PSTR("  piloto slot {idx} {hhmm} {pout}\r\n\0"));
 		xprintf_P( PSTR("  tanque sms {id} nro\r\n\0"));
 		xprintf_P( PSTR("         {nivelB,nivelA} valor\r\n\0"));
 		xprintf_P( PSTR("  consigna {hhmm1} {hhmm2}\r\n\0"));

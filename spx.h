@@ -60,13 +60,14 @@
 #include "l_bytes.h"
 #include "l_bps120.h"
 #include "l_adt7410.h"
+#include "l_steppers.h"
 
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.6c"
+#define SPX_FW_REV "3.0.6e"
 //#define SPX_FW_REV "3.0.5BETA"
-#define SPX_FW_DATE "@ 20201231"
+#define SPX_FW_DATE "@ 20210201"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -303,7 +304,6 @@ typedef struct {
 	uint8_t var_function_code[MODBUS_CHANNELS];			// Funcion de lectura (3-Holding reg, 4-Normal reg)
 } modbus_conf_t;
 
-
 typedef struct {
 
 	// Variables de trabajo.
@@ -319,9 +319,7 @@ typedef struct {
 	psensor_conf_t psensor_conf;
 
 	uint8_t an_calibrados;
-
 	bool mide_bateria;
-
 	modbus_conf_t modbus_conf;
 
 	// El checksum DEBE ser el ultimo byte del systemVars !!!!
@@ -440,6 +438,7 @@ void ainputs_battery_print( file_descriptor_t fd, float battery );
 bool ainputs_autocal_running(void);
 uint8_t ainputs_hash(void);
 void ainputs_test_channel( uint8_t io_channel);
+float ainputs_read_channel( uint8_t io_channel );
 
 // TKDATA
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );

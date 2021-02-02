@@ -19,6 +19,7 @@ void tkAplicacion(void * pvParameters)
 	while ( !startTask )
 		vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
+	vTaskDelay( ( TickType_t)( 5000 / portTICK_RATE_MS ) );
 	xprintf_P( PSTR("starting tkAplicacion..\r\n\0"));
 
 	ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
@@ -56,6 +57,9 @@ void tkAplicacion(void * pvParameters)
 		break;
 	case APP_EXTERNAL_POLL:
 		tkApp_external_poll();
+		break;
+	case APP_PILOTO:
+		tkApp_piloto();
 		break;
 	default:
 		break;

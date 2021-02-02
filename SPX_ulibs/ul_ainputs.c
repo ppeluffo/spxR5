@@ -637,6 +637,26 @@ uint16_t raw;
 
 }
 //------------------------------------------------------------------------------------
+float ainputs_read_channel( uint8_t io_channel )
+{
+	// Lee un canal analogico.
+
+float mag;
+uint16_t raw;
+
+	pv_ainputs_prender_sensores();
+	pv_ainputs_read_channel ( io_channel, &mag, &raw );
+	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
+	pv_ainputs_read_channel ( io_channel, &mag, &raw );
+	pv_ainputs_apagar_sensores();
+
+	if ( io_channel == 99) {
+		// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
+		mag =  0.008 * raw;
+	}
+	return(mag);
+}
+//------------------------------------------------------------------------------------
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
 static void pv_ainputs_prender_sensores(void)
