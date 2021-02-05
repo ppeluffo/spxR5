@@ -144,14 +144,14 @@ int8_t stepper_sequence( int8_t sequence, t_stepper_dir dir)
 {
 int8_t lseq = sequence;
 
-	if ( dir == STEPPER_REV ) {
+	if ( dir == STEPPER_FWD ) {
 		lseq++;
 		if ( lseq == 4) {
 			lseq = 0;
 		}
 	}
 
-	if ( dir == STEPPER_FWD ) {
+	if ( dir == STEPPER_REV ) {
 		lseq--;
 		if ( lseq == -1 ) {
 			lseq = 3;

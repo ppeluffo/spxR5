@@ -649,11 +649,6 @@ uint16_t raw;
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 	pv_ainputs_read_channel ( io_channel, &mag, &raw );
 	pv_ainputs_apagar_sensores();
-
-	if ( io_channel == 99) {
-		// Convierto el raw_value a la magnitud ( 8mV por count del A/D)
-		mag =  0.008 * raw;
-	}
 	return(mag);
 }
 //------------------------------------------------------------------------------------

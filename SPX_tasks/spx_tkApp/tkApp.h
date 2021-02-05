@@ -161,7 +161,7 @@ void xAPP_set_douts_remote_lazy( uint8_t dout );
 
 // PILOTO
 void tkApp_piloto(void);
-
+uint8_t xAPP_piloto_hash( void );
 void xAPP_piloto_config_defaults(void);
 void xAPP_piloto_print_status( void );
 bool xAPP_piloto_config( char *param1, char *param2, char *param3, char *param4 );

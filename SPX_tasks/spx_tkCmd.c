@@ -371,9 +371,13 @@ char l_data[10] = { '\0' };
 
 	FRTOS_CMD_makeArgv();
 
-
 	// TEST
 	/*
+	if ( strcmp_P( strupr(argv[1]), PSTR("TEST\0")) == 0)  {
+		testPresion();
+	}
+
+
 	if ( strcmp_P( strupr(argv[1]), PSTR("TEST\0")) == 0)  {
 		if ( strcmp_P( strupr(argv[2]), PSTR("ENQUEUE\0")) == 0)  {
 			xSMS_enqueue( argv[3], argv[4] );
@@ -1177,7 +1181,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  modbus get {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
 				xprintf_P( PSTR("         set {slave} {fcode} {addr} {value}\r\n\0"));
 				xprintf_P( PSTR("  stepper {fw|rev} {npulses} {dpulses_ms} {ptime_s}\r\n\0"));
-				xprintf_P( PSTR("  piloto {out_pres} {err_range}\r\n\0"));
+				xprintf_P( PSTR("  piloto {out_pres_gr} {err_range_gr}\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|rts|dtr) {on|off}\r\n\0"));

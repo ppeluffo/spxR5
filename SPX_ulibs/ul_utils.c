@@ -602,6 +602,10 @@ uint8_t hash = 0;
 		hash = xAPP_external_poll_hash();
 		break;
 
+	case APP_PILOTO:
+		hash = xAPP_piloto_hash();
+		break;
+
 	}
 
 	return(hash);

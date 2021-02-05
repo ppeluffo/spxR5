@@ -11,7 +11,7 @@
 #include "l_iopines.h"
 #include "l_drv8814.h"
 
-typedef enum { STEPPER_FWD=0, STEPPER_REV=1 } t_stepper_dir;
+typedef enum { STEPPER_REV = 0, STEPPER_FWD = 1 } t_stepper_dir;
 
 #define stepper_pwr_on() 	DRV8814_power_on()
 #define stepper_pwr_off() 	DRV8814_power_off()

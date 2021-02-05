@@ -18,7 +18,7 @@ typedef enum { NET_OPEN = 0, NET_CLOSE, NET_UNKNOWN, NET_TO } t_net_status;
 typedef enum { SEND_OK = 0, SEND_FAIL, SEND_NODATA } t_send_status;
 typedef enum { ATCMD_ENTRY = 0, ATCMD_TEST, ATCMD_CMD, ATCMD_WAIT, ATCMD_EXIT } atcmd_state_t;
 
-typedef enum { INIT_AUTH = 0, INIT_SRVUPDATE, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, INIT_MODBUS, DATA, SCAN } t_frame;
+typedef enum { INIT_AUTH = 0, INIT_SRVUPDATE, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, INIT_APP_D, INIT_MODBUS, DATA, SCAN } t_frame;
 typedef enum { frame_ENTRY = 0, frame_RESPONSE, frame_NET } t_frame_states;
 typedef enum { rsp_OK = 0, rsp_ERROR, rsp_NONE } t_responses;
 

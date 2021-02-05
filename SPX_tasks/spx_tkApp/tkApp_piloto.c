@@ -3,12 +3,24 @@
  *
  *  Created on: 12 ene. 2021
  *      Author: pablo
+ *
+ *  Aproximarme siempre por abajo. Apuntar al 75% ( modificarlo x loop nbr)
+ *  Los pilotos demoran en ajustar la presion mucho tiempo !!!
+ *  Resultado al finalizar el ajuste.
+ *  Numca mas de 1 vuelta
+ *  Al bajar la presion el pilot demora mas en ajustar. !!!
+ *  Controlar c/15 mins que este en el intervalo de p+-error
+ *
+ *
+ *
  */
 
 #include "tkApp.h"
 #include "l_steppers.h"
 
 // LAS PRESIONES SE MIDEN EN GRS. !!!
+
+typedef enum { AJUSTE70x100 = 0, AJUSTE_BASICO = 1 } t_ajuste_npulses;
 
 struct {
 	bool start_presion_test;
@@ -24,10 +36,6 @@ struct {
 	int8_t pB_channel;
 } spiloto;
 
-void pvstk_piloto_presion_test( void );
-void pvstk_piloto_stepper_test( void );
-void pvstk_piloto(void);
-
 
 #define MAX_INTENTOS	5
 #define P_CONSIGNA_MIN	1000
@@ -35,15 +43,20 @@ void pvstk_piloto(void);
 #define MAX_P_SAMPLES	10
 #define P_SAMPLES		5
 #define PULSOS_X_REV	3000		// 3000 pulsos para girar 1 rev
-#define DPRES_X_REV		350			// 350 gr c/rev del piloto
+#define DPRES_X_REV		500			// 500 gr c/rev del piloto
 
-void pv_calcular_pulsos(void);
+void pv_calcular_parametros_ajuste(void);
 void pv_aplicar_pulsos(void);
 bool pv_determinar_canal_pB(void);
 void pv_leer_presion_baja( int8_t samples, uint16_t intervalo_secs );
 bool pv_select_slot_a_aplicar(void);
-void pvstk_ajustar_presion(void);
+void pv_ajustar_presion(void);
 void pv_print_parametros(void);
+void pv_calcular_npulses( t_ajuste_npulses metodo_ajuste );
+
+void pvstk_piloto_presion_test( void );
+void pvstk_piloto_stepper_test( void );
+void pvstk_piloto(void);
 
 //------------------------------------------------------------------------------------
 void tkApp_piloto(void)
@@ -60,7 +73,7 @@ void tkApp_piloto(void)
 
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 
-		vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
+		vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
 
 		// Test de presion
 		if ( spiloto.start_presion_test ) {
@@ -119,7 +132,8 @@ uint8_t slot;
 
 	if (!strcmp_P( strupr(param1), PSTR("SLOT\0"))) {
 
-		// Intervalos tiempo:presion.
+		// Intervalos tiempo:presion:
+
 		slot = atoi(param2);
 		if ( slot < MAX_PILOTO_PSLOTS ) {
 			if ( param3 != NULL ) {
@@ -154,20 +168,75 @@ void xAPP_piloto_stepper_test( char *s_dir, char *s_npulses, char *s_dtime, char
 	spiloto.start_steppers_test = true;
 }
 //------------------------------------------------------------------------------------
-// Chequear
 void xAPP_piloto_presion_test( char *s_out_pres, char *s_out_error )
 {
 	// Genera la señal de arranque del test de presion del piloto.
 	// Fija una presion de referencia y hace que el piloto se mueva para regular en
 	// este punto
+	// Los valores de pRef y pError son en gramos !!!
 
 	spiloto.pRef = atoi(s_out_pres);
 	spiloto.pError = atoi(s_out_error);
 	spiloto.start_presion_test = true;
+}
+//------------------------------------------------------------------------------------
+uint8_t xAPP_piloto_hash( void )
+{
+
+	// En app_A_cks ponemos el checksum de los SLOTS
+
+uint8_t hash = 0;
+//char dst[48];
+char *p;
+uint8_t i;
+uint8_t j;
+int16_t free_size = sizeof(hash_buffer);
+
+	memset(hash_buffer,'\0', sizeof(hash_buffer));
+
+	j = 0;
+	j += snprintf_P( hash_buffer, free_size, PSTR("PLT;"));
+	free_size = (  sizeof(hash_buffer) - j );
+	if ( free_size < 0 ) goto exit_error;
+
+	// Apunto al comienzo para recorrer el buffer
+	p = hash_buffer;
+	while (*p != '\0') {
+		hash = u_hash(hash, *p++);
+	}
+
+	// SLOTS
+	for (i=0; i < MAX_PILOTO_PSLOTS;i++) {
+		// Vacio el buffer temoral
+		memset(hash_buffer,'\0', sizeof(hash_buffer));
+		free_size = sizeof(hash_buffer);
+		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
+		j += snprintf_P( hash_buffer, free_size, PSTR("SLOT%d:%02d,%02d,%0.2f;"), i, sVarsApp.pSlots[i].hhmm.hour, sVarsApp.pSlots[i].hhmm.min, sVarsApp.pSlots[i].presion );
+		free_size = (  sizeof(hash_buffer) - j );
+		if ( free_size < 0 ) goto exit_error;
+
+		// Apunto al comienzo para recorrer el buffer
+		p = hash_buffer;
+		while (*p != '\0') {
+			hash = u_hash(hash, *p++);
+		}
+	}
+
+	return(hash);
+
+exit_error:
+	xprintf_P( PSTR("COMMS: app_hash ERROR !!!\r\n\0"));
+	return(0x00);
 
 }
 //------------------------------------------------------------------------------------
+
 // FUNCIONES PRIVADAS
+//------------------------------------------------------------------------------------
+void pv_app_init(void)
+{
+
+}
 //------------------------------------------------------------------------------------
 void pv_aplicar_pulsos(void)
 {
@@ -175,6 +244,8 @@ void pv_aplicar_pulsos(void)
 
 uint16_t steps;
 int8_t sequence = 2;
+char cChar[] = {'|', '/','-','\\', '|','/','-', '\\' };
+uint8_t cChar_pos = 0;
 
 	// Activo el driver
 	xprintf_P(PSTR("STEPPER driver pwr on\r\n"));
@@ -186,12 +257,16 @@ int8_t sequence = 2;
 
 	for (steps=0; steps < spiloto.npulses; steps++) {
 		sequence = stepper_sequence(sequence, spiloto.dir );
+		//xprintf_P(PSTR("pulse %03d, sec=%d\r\n"), steps, sequence);
 		if ( (steps % 100) == 0 ) {
-			xprintf_P(PSTR("pulse %03d, sec=%d\r\n"), steps, sequence);
+			xprintf_P(PSTR("%c\r"),cChar[cChar_pos]);
+			if ( cChar_pos++ == 8)
+				cChar_pos=0;
 		}
 		stepper_pulse(sequence, spiloto.dtime);
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 	}
+	xprintf_P(PSTR("\r\n"));
 
 	// Desactivo el driver
 	xprintf_P(PSTR("STEPPER driver pwr off\r\n"));
@@ -199,69 +274,84 @@ int8_t sequence = 2;
 	stepper_pwr_off();
 }
 //------------------------------------------------------------------------------------
-void pvstk_piloto_stepper_test( void )
-{
-	/*
-	 * Funcion privada, subtask que mueve el stepper en una direccion dada, una
-	 * cantidad de pulsos dados, con un tiempo entre pulsos dados.
-	 * Genera en el stepper una cantidad de pulsos npulses, separados
-	 * un tiempo dtime entre c/u, de modo de girar el motor en la
-	 * direccion dir.
-	 *
-	 */
-
-	pv_print_parametros();
-	pv_aplicar_pulsos();
-
-}
-//------------------------------------------------------------------------------------
 void pv_print_parametros(void)
 {
-	xprintf_P(PSTR("	pB_channel=%d\r\n"),spiloto.pB_channel );
-	xprintf_P(PSTR("	pB=%d\r\n"),spiloto.pB );
-	xprintf_P(PSTR("	pRef=%d\r\n"),spiloto.pRef );
-	xprintf_P(PSTR("	pulses=%d\r\n"),spiloto.npulses );
-	xprintf_P(PSTR("	ptime=%d\r\n"),spiloto.ptime );
-	xprintf_P(PSTR("	dtime=%d\r\n"),spiloto.dtime );
+	xprintf_P(PSTR("    pB_channel=%d\r\n"),spiloto.pB_channel );
+	xprintf_P(PSTR("    pB=%d\r\n"),spiloto.pB );
+	xprintf_P(PSTR("    pRef=%d\r\n"),spiloto.pRef );
+	xprintf_P(PSTR("    dP_grs=%d\r\n"), (spiloto.pB - spiloto.pRef));
+	xprintf_P(PSTR("    pulses=%d\r\n"),spiloto.npulses );
+	xprintf_P(PSTR("    ptime=%d\r\n"),spiloto.ptime );
+	xprintf_P(PSTR("    dtime=%d\r\n"),spiloto.dtime );
 	if ( spiloto.dir == STEPPER_FWD ) {
-		xprintf_P(PSTR("	dir=Forward\r\n"));
+		xprintf_P(PSTR("    dir=Forward\r\n"));
 	} else {
-		xprintf_P(PSTR("	dir=Reverse\r\n"));
+		xprintf_P(PSTR("    dir=Reverse\r\n"));
 	}
 }
 //------------------------------------------------------------------------------------
-// Chequear
-void pv_app_init(void)
+void pv_calcular_parametros_ajuste(void)
 {
 
-}
-//------------------------------------------------------------------------------------
-void pv_calcular_pulsos(void)
-{
-	/*
-	 * El motor es de 200 pasos /rev
-	 * El servo reduce 15:1
-	 * Esto hace que para girar el vastago 1 rev necesite 3000 pulsos
-	 * El piloto es de 4rev->1500gr.
-	 */
-
-uint16_t dPres;
-
-	// Calculo los pulsos aproximadamente
-	spiloto.pRef = sVarsApp.pSlots[spiloto.slot].presion;
-	dPres = abs(spiloto.pB - spiloto.pRef);
-	spiloto.npulses = ( dPres * PULSOS_X_REV ) / DPRES_X_REV;
-
-	// Calculo el sentido del giro
+	// Paso 1: Calculo el sentido del giro
 	if ( spiloto.pB < spiloto.pRef ) {
+		// Debo aumentar pB o sxprintf_P(PSTR("PILOTO: npulses=%d\r\n"), spiloto.npulses);ea apretar el tornillo (FWD)
 		spiloto.dir = STEPPER_FWD; // Giro forward, aprieto el tornillo, aumento la presion de salida
 	} else {
 		spiloto.dir = STEPPER_REV;
 	}
 
-	// Intervalo de tiempo entre pulsos en ms.
-	spiloto.dtime = 10;
-	spiloto.ptime = 10;
+	// Paso 2: Intervalo de tiempo entre pulsos en ms.
+	spiloto.dtime = 20;
+	spiloto.ptime = 20;
+
+	// Paso 3: Calculo los pulsos a aplicar.
+	pv_calcular_npulses(AJUSTE70x100);
+
+}
+//------------------------------------------------------------------------------------
+void pv_calcular_npulses(t_ajuste_npulses metodo_ajuste )
+{
+	/*
+	 * El motor es de 200 pasos /rev
+	 * El servo reduce 15:1
+	 * Esto hace que para girar el vastago 1 rev necesite 3000 pulsos
+	 * El piloto es de 4->1500gr.
+	 */
+
+float delta_pres = 0.0;
+
+	// Calculo los pulsos aproximadamente
+	delta_pres = abs(spiloto.pB - spiloto.pRef);
+	spiloto.npulses = (uint16_t) ( delta_pres * PULSOS_X_REV  / DPRES_X_REV );
+	xprintf_P(PSTR("PILOTO: npulses_calc=%d\r\n"), spiloto.npulses);
+
+	switch (metodo_ajuste) {
+	case  AJUSTE70x100:
+		/*
+		 * METODO 1: Cuando estoy en reverse( bajando la presion ) aplico los pulsos calculados
+		 *           Si estoy en forward (subiendo la presion), aplico solo el 70% de los pulsos
+		 *           calculados si estos son altos.
+		 *           Si son menos de 500 no lo corrijo.
+		 */
+		if ( spiloto.dir == STEPPER_FWD) {
+			if (spiloto.npulses > 500 )
+				spiloto.npulses = (uint16_t) (0.7 * spiloto.npulses);
+
+			xprintf_P(PSTR("PILOTO: npulses_M1=%d\r\n"), spiloto.npulses);
+		}
+		break;
+	case AJUSTE_BASICO:
+		// METODO 2: Los pulsos son los que me da el calculo.
+		xprintf_P(PSTR("PILOTO: npulses_M2=%d\r\n"), spiloto.npulses);
+		break;
+	}
+
+	// Controlo no avanzar mas de 500gr aprox x loop !!!
+	if ( spiloto.npulses > 3000 ) {
+		spiloto.npulses = 3000;
+		xprintf_P(PSTR("PILOTO: npulses_corr=%d\r\n"), spiloto.npulses);
+	}
 
 }
 //------------------------------------------------------------------------------------
@@ -339,7 +429,8 @@ bool sRet = false;
 
 	spiloto.pB_channel = -1;
 	for ( i = 0; i < NRO_ANINPUTS; i++) {
-		if ( strcmp_P( strupr(systemVars.ainputs_conf.name[i]), "PB") ) {
+		// xprintf_P(PSTR("DEBUG: ch=%d, name=%s\r\n"), i, strupr(systemVars.ainputs_conf.name[i]) );
+		if ( ! strcmp_P( strupr(systemVars.ainputs_conf.name[i]), PSTR("PB") ) ) {
 			spiloto.pB_channel = i;
 			xprintf_P(PSTR("PILOTO: pBchannel=%d\r\n"), spiloto.pB_channel);
 			sRet = true;
@@ -349,47 +440,44 @@ bool sRet = false;
 
 	return(sRet);
 
-
 }
 //------------------------------------------------------------------------------------
 void pv_leer_presion_baja( int8_t samples, uint16_t intervalo_secs )
 {
 	// Medir la presión de baja N veces a intervalos de 10 s y promediar
+	// Deja el valor EN GRAMOS en spiloto.pB
 
 uint8_t i;
 float pB;
 
 	// Mido pB
-	spiloto.pB_channel = 0;
+	spiloto.pB = 0;
 	for ( i = 0; i < samples; i++) {
+		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		pB = ainputs_read_channel(spiloto.pB_channel);
-		xprintf_P(PSTR("PILOTO pB:[%d]->%0.3f"), i, pB );
-		spiloto.pB_channel += (uint16_t)pB;
+		xprintf_P(PSTR("PILOTO pB:[%d]->%0.3f\r\n"), i, pB );
+		// La presion la expreso en gramos !!!
+		spiloto.pB += (uint16_t)(pB * 1000);
 		vTaskDelay( ( TickType_t)( intervalo_secs * 1000 / portTICK_RATE_MS ) );
 	}
-	spiloto.pB_channel /= samples;
-
+	spiloto.pB /= samples;
+	xprintf_P(PSTR("PILOTO pB=%d\r\n"), spiloto.pB );
 }
 //------------------------------------------------------------------------------------
-void pvstk_piloto_presion_test( void )
-{
-	// Funcion privada, subtask que dada una presion de referencia, mueve el piloto
-	// hasta lograrla
-	pvstk_ajustar_presion();
-}
-//------------------------------------------------------------------------------------
-void pvstk_piloto(void)
-{
-	// Tarea propia de ajustar el piloto a la presion de la consigna del slot
-}
-//------------------------------------------------------------------------------------
-void pvstk_ajustar_presion(void)
+void pv_ajustar_presion(void)
 {
 
 uint8_t loops;
 
 	// Realiza la tarea de mover el piloto hasta ajustar la presion
-	xprintf_P(PSTR("PILOTO: determino canal de pB...r\n"));
+
+	// El ajuste se realiza cuando la presion a setear esta entre 1K y 3K
+	if ( (spiloto.pRef < 1000) || (spiloto.pRef > 3000)) {
+		xprintf_P(PSTR("PILOTO: pRef fuera de rango. Exit\r\n"));
+		return;
+	}
+
+	xprintf_P(PSTR("PILOTO: determino canal de pB...\r\n"));
 	if ( !pv_determinar_canal_pB() ) {
 		xprintf_P(PSTR("PILOTO: No se puede determinar el canal de pB.!!\r\n"));
 		return;
@@ -398,23 +486,59 @@ uint8_t loops;
 	for ( loops = 0; loops < MAX_INTENTOS; loops++ ) {
 
 		xprintf_P(PSTR("PILOTO: loop[%d]\r\n"), loops);
-		xprintf_P(PSTR("	-leo pB...\r\n"));
+		xprintf_P(PSTR("PILOTO: leo pB...\r\n"));
 		pv_leer_presion_baja(5,10);
 
-		xprintf_P(PSTR("	-calculo npulsos...\r\n"));
-		pv_calcular_pulsos();
+		xprintf_P(PSTR("PILOTO: calculo npulsos...\r\n"));
+		pv_calcular_parametros_ajuste();
 
 		// Muestro el resumen de datos
-
+		pv_print_parametros();
 
 		// Si la diferencia de presiones es superior al error tolerable muevo el piloto
 		if ( abs(spiloto.pB - spiloto.pRef) > spiloto.pError ) {
 			pv_aplicar_pulsos();
-			//Espero que se estabilize la presión
-			vTaskDelay( ( TickType_t)( 15000 / portTICK_RATE_MS ) );
 		} else {
 			xprintf_P(PSTR("Presion alcanzada\r\n"));
 			break;
 		}
+
+		//Espero que se estabilize la presión 30 segundos antes de repetir.
+		vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
+
 	}
+	// Muestro la presión que quedo.
+	pv_leer_presion_baja(2,10);
+	xprintf_P(PSTR("PILOTO: Fin de ajuste\r\n"));
+
 }
+//------------------------------------------------------------------------------------
+void pvstk_piloto_presion_test( void )
+{
+	// Funcion privada, subtask que dada una presion de referencia, mueve el piloto
+	// hasta lograrla
+	pv_ajustar_presion();
+}
+//------------------------------------------------------------------------------------
+void pvstk_piloto_stepper_test( void )
+{
+	/*
+	 * Funcion privada, subtask que mueve el stepper en una direccion dada, una
+	 * cantidad de pulsos dados, con un tiempo entre pulsos dados.
+	 * Genera en el stepper una cantidad de pulsos npulses, separados
+	 * un tiempo dtime entre c/u, de modo de girar el motor en la
+	 * direccion dir.
+	 *
+	 */
+
+	pv_print_parametros();
+	pv_aplicar_pulsos();
+
+}
+//------------------------------------------------------------------------------------
+void pvstk_piloto(void)
+{
+	// Tarea propia de ajustar el piloto a la presion de la consigna del slot
+}
+//------------------------------------------------------------------------------------
+

@@ -65,9 +65,9 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.6e"
+#define SPX_FW_REV "3.0.6f"
 //#define SPX_FW_REV "3.0.5BETA"
-#define SPX_FW_DATE "@ 20210201"
+#define SPX_FW_DATE "@ 20210205"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -439,6 +439,8 @@ bool ainputs_autocal_running(void);
 uint8_t ainputs_hash(void);
 void ainputs_test_channel( uint8_t io_channel);
 float ainputs_read_channel( uint8_t io_channel );
+//void testPresion(void);
+
 
 // TKDATA
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );

@@ -20,6 +20,7 @@ static bool init_reconfigure_params_psensor(void);
 static bool init_reconfigure_params_range(void);
 static bool init_reconfigure_params_app_A(void);
 static bool init_reconfigure_params_app_B(void);
+static void init_reconfigure_params_app_B_piloto(void);
 static void init_reconfigure_params_app_B_consigna(void);
 static void init_reconfigure_params_app_B_plantapot(void);
 static void init_reconfigure_params_app_B_caudalimetro(void);
@@ -295,7 +296,12 @@ uint8_t ch;
 
 		} else if ( sVarsApp.aplicacion == APP_CAUDALIMETRO ) {
 			xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_CAUDALIMETRO;"));
+
+			// En aplicacion PILOTO pido la configuracion de los slots
+		} else if (sVarsApp.aplicacion == APP_PILOTO ) {
+			xfprintf_P(fdFILE,  PSTR("&PLOAD=CLASS:CONF_PILOTO_SLOTS;"));
 		}
+
 		break;
 
 	case INIT_APP_C:
@@ -575,6 +581,15 @@ bool retS = true;
 		// Requiere 1 frames mas (B):
 		retS = xCOMMS_process_frame(INIT_APP_B, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		f_send_init_frame_app = false;
+		break;
+
+	case APP_PILOTO:
+		// Requiere 1 frames mas (B):
+		retS = xCOMMS_process_frame(INIT_APP_B, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
+		f_send_init_frame_app = false;
+		break;
+
+	case APP_EXTERNAL_POLL:
 		break;
 	}
 
@@ -1186,6 +1201,9 @@ static bool init_reconfigure_params_app_A(void)
 	} else if ( xCOMMS_check_response(0, "AP0:EXTPOLL") > 0 ) {
 		sVarsApp.aplicacion = APP_EXTERNAL_POLL;
 
+	} else if ( xCOMMS_check_response(0, "AP0:PILOTO") > 0 ) {
+		sVarsApp.aplicacion = APP_PILOTO;
+
 	} else {
 		return(false);
 	}
@@ -1210,8 +1228,60 @@ static bool init_reconfigure_params_app_B(void)
 	} else if (sVarsApp.aplicacion == APP_CAUDALIMETRO ) {
 		init_reconfigure_params_app_B_caudalimetro();
 		//reset_datalogger = true;
+
+	} else if (sVarsApp.aplicacion == APP_PILOTO ) {
+		init_reconfigure_params_app_B_piloto();
+		reset_datalogger = true;
 	}
+
 	return(true);
+
+}
+//------------------------------------------------------------------------------------
+static void init_reconfigure_params_app_B_piloto(void)
+{
+	// PILOTO SLOTS
+	// TYPE=INIT&PLOAD=CLASS:APP_B;SLOT0:1030,1.21;SLOT1:1145,2.5;SLOT2:1250,3.5;SLOT3:1420,2.65;SLOT4:1730,3.67
+
+int p1,p2;
+char localStr[32] = { 0 };
+char *stringp = NULL;
+char *tk_hhmm= NULL;
+char *tk_pres= NULL;
+char *delim = ",;:=><";
+uint8_t i;
+char id[2];
+char str_base[8];
+
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
+		return;
+	}
+
+	// SMS?
+	for (i=0; i < MAX_PILOTO_PSLOTS; i++ ) {
+		memset( &str_base, '\0', sizeof(str_base) );
+		snprintf_P( str_base, sizeof(str_base), PSTR("SLOT%d\0"), i );
+		p2 = xCOMMS_check_response( p1, str_base);
+		if ( p2 >= 0 ) {
+			memset(localStr,'\0',sizeof(localStr));
+			xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
+			stringp = localStr;
+			tk_hhmm = strsep(&stringp,delim);		//SLOTx
+			tk_hhmm = strsep(&stringp,delim);		//1230
+			tk_pres = strsep(&stringp,delim);		//1.34
+
+			id[0] = '0' + i;
+			id[1] = '\0';
+
+			xprintf_P( PSTR("DEBUG SLOT: ID:%s, HHMM=%s, PRES=%s\r\n\0"), id, tk_hhmm,tk_pres);
+			xAPP_piloto_config("SLOT", id, tk_hhmm, tk_pres );
+
+			xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig SLOT0%d\r\n\0"), i);
+		}
+	}
+
+	u_save_params_in_NVMEE();
 
 }
 //------------------------------------------------------------------------------------
