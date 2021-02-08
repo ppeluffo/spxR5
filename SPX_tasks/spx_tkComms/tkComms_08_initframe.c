@@ -1274,7 +1274,7 @@ char str_base[8];
 			id[0] = '0' + i;
 			id[1] = '\0';
 
-			xprintf_P( PSTR("DEBUG SLOT: ID:%s, HHMM=%s, PRES=%s\r\n\0"), id, tk_hhmm,tk_pres);
+			//xprintf_P( PSTR("DEBUG SLOT: ID:%s, HHMM=%s, PRES=%s\r\n\0"), id, tk_hhmm,tk_pres);
 			xAPP_piloto_config("SLOT", id, tk_hhmm, tk_pres );
 
 			xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig SLOT0%d\r\n\0"), i);

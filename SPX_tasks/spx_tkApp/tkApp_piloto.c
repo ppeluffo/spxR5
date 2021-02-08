@@ -21,6 +21,7 @@
 // LAS PRESIONES SE MIDEN EN GRS. !!!
 
 typedef enum { AJUSTE70x100 = 0, AJUSTE_BASICO = 1 } t_ajuste_npulses;
+typedef enum { AFUERA_SLOT = 0, INICIO_SLOT, DENTRO_SLOT } t_ubicacion_en_slot;
 
 struct {
 	bool start_presion_test;
@@ -49,10 +50,11 @@ void pv_calcular_parametros_ajuste(void);
 void pv_aplicar_pulsos(void);
 bool pv_determinar_canal_pB(void);
 void pv_leer_presion_baja( int8_t samples, uint16_t intervalo_secs );
-bool pv_select_slot_a_aplicar(void);
+bool pv_check_x_slot(t_ubicacion_en_slot *posicion_en_slot, int8_t *slot);
 void pv_ajustar_presion(void);
 void pv_print_parametros(void);
 void pv_calcular_npulses( t_ajuste_npulses metodo_ajuste );
+void pv_xapp_init(void);
 
 void pvstk_piloto_presion_test( void );
 void pvstk_piloto_stepper_test( void );
@@ -65,9 +67,7 @@ void tkApp_piloto(void)
 	// c/30s reviso si debo aplicar una o la otra y aplico
 	// Espero con lo que puedo entrar en tickless
 
-	xprintf_P( PSTR("APP: PILOTO start\r\n\0"));
-	spiloto.start_presion_test = false;
-	spiloto.start_steppers_test = false;
+	pv_xapp_init();
 
 	for (;;) {
 
@@ -211,7 +211,7 @@ int16_t free_size = sizeof(hash_buffer);
 		memset(hash_buffer,'\0', sizeof(hash_buffer));
 		free_size = sizeof(hash_buffer);
 		// Copio sobe el buffer una vista ascii ( imprimible ) de c/registro.
-		j += snprintf_P( hash_buffer, free_size, PSTR("SLOT%d:%02d,%02d,%0.2f;"), i, sVarsApp.pSlots[i].hhmm.hour, sVarsApp.pSlots[i].hhmm.min, sVarsApp.pSlots[i].presion );
+		j = snprintf_P( hash_buffer, free_size, PSTR("SLOT%d:%02d%02d,%0.2f;"), i, sVarsApp.pSlots[i].hhmm.hour, sVarsApp.pSlots[i].hhmm.min, sVarsApp.pSlots[i].presion );
 		free_size = (  sizeof(hash_buffer) - j );
 		if ( free_size < 0 ) goto exit_error;
 
@@ -225,16 +225,18 @@ int16_t free_size = sizeof(hash_buffer);
 	return(hash);
 
 exit_error:
-	xprintf_P( PSTR("COMMS: app_hash ERROR !!!\r\n\0"));
+	xprintf_P( PSTR("COMMS: piloto_hash ERROR !!!\r\n\0"));
 	return(0x00);
 
 }
 //------------------------------------------------------------------------------------
-
 // FUNCIONES PRIVADAS
 //------------------------------------------------------------------------------------
-void pv_app_init(void)
+void pv_xapp_init(void)
 {
+	xprintf_P( PSTR("APP: PILOTO start\r\n\0"));
+	spiloto.start_presion_test = false;
+	spiloto.start_steppers_test = false;
 
 }
 //------------------------------------------------------------------------------------
@@ -355,7 +357,7 @@ float delta_pres = 0.0;
 
 }
 //------------------------------------------------------------------------------------
-bool pv_select_slot_a_aplicar(void)
+bool pv_check_x_slot(t_ubicacion_en_slot *posicion_en_slot, int8_t *slot)
 {
 	// Dada la hora actual, determina que presion de slot corresponde aplicar
 	// Determina en base a la hhmm actuales, en cual pslot estoy.
@@ -366,15 +368,15 @@ bool pv_select_slot_a_aplicar(void)
 RtcTimeType_t rtcDateTime;
 uint16_t time_now_s, time_slot_s;
 uint8_t i;
-int8_t slot;
 int8_t last_slot = -1;
 
 	// Paso 1.
 	// Vemos si hay slots configuradas.
 	// Solo chequeo el primero. DEBEN ESTAR ORDENADOS !!
 	if ( sVarsApp.pSlots[0].presion < 0.1 ) {
-		spiloto.slot = -1;
-		return(false);
+		*slot = -1;
+		*posicion_en_slot = AFUERA_SLOT;
+		return(true);
 	}
 
 	// Paso 2.
@@ -388,36 +390,62 @@ int8_t last_slot = -1;
 		}
 	}
 
-	// Paso 3.
+	// Paso 3:
 	// Determino en que hora estoy: NOW
 	memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
 	if ( ! RTC_read_dtime(&rtcDateTime) ) {
 		xprintf_P(PSTR("PILOTO ERROR: I2C:RTC:pv_dout_chequear_consignas\r\n\0"));
-		spiloto.slot = -1;
+		*slot = -1;
+		*posicion_en_slot = AFUERA_SLOT;
 		return(false);
 	}
-	time_now_s = rtcDateTime.hour * 60 + rtcDateTime.min;
 
-	// Paso 4.
-	// Vemos a que slot de tiempo corresponde NOW
+	time_now_s = rtcDateTime.hour * 100 + rtcDateTime.min;
+	xprintf_P(PSTR("PILOTO Check now=%d\r\n"), time_now_s );
+
+	// Paso 4: Vemos si estoy al comienzo de un slot
 	for ( i = 0; i <= last_slot; i++ ) {
-		time_slot_s = sVarsApp.pSlots[i].hhmm.hour * 60 + sVarsApp.pSlots[i].hhmm.min;
-		if ( time_now_s < time_slot_s ) {
-			if ( i == 0 ) {
-				slot = last_slot;
-			} else {
-				slot = i - 1;
-			}
-			spiloto.slot = slot;
-			xprintf_P(PSTR("PILOTO: slot a aplicar %d\r\n"), slot);
+		time_slot_s = sVarsApp.pSlots[i].hhmm.hour * 100 + sVarsApp.pSlots[i].hhmm.min;
+		// Chequeo inicio
+		if ( time_now_s == time_slot_s ) {
+			*slot = i;
+			*posicion_en_slot = INICIO_SLOT;
+			xprintf_P(PSTR("PILOTO: Inicio de slot %d\r\n"), *slot);
 			return(true);
 		}
 	}
 
-	slot= last_slot;
-	spiloto.slot = slot;
-	xprintf_P(PSTR("PILOTO: slot a aplicar %d\r\n"), slot);
+	// Paso 5: Vemos si estoy dentro de un slot. Solo lo chequeo c/15 minutos
+	// Vemos a que slot de tiempo corresponde NOW
+	if ( ( (rtcDateTime.hour * 60 + rtcDateTime.min) % 15) == 0 ) {
+
+		for ( i = 0; i <= last_slot; i++ ) {
+			time_slot_s = sVarsApp.pSlots[i].hhmm.hour * 100 + sVarsApp.pSlots[i].hhmm.min;
+	    	// Chequeo inside
+			if ( time_now_s < time_slot_s ) {
+				if ( i == 0 ) {
+					*slot = last_slot;
+				} else {
+					*slot = i - 1;
+				}
+
+				*posicion_en_slot = DENTRO_SLOT;
+				xprintf_P(PSTR("PILOTO: Dentro de slot %d\r\n"), *slot);
+				return(true);
+			}
+		}
+
+		*slot = last_slot;
+		*posicion_en_slot = DENTRO_SLOT;
+		xprintf_P(PSTR("PILOTO: Dentro de slot %d\r\n"), *slot);
+		return(true);
+	}
+
+	// FIN:
+	*slot = -1;
+	*posicion_en_slot = AFUERA_SLOT;
 	return(true);
+
 }
 //------------------------------------------------------------------------------------
 bool pv_determinar_canal_pB(void)
@@ -538,7 +566,35 @@ void pvstk_piloto_stepper_test( void )
 //------------------------------------------------------------------------------------
 void pvstk_piloto(void)
 {
-	// Tarea propia de ajustar el piloto a la presion de la consigna del slot
+	/*
+	 * Tarea propia de ajustar el piloto a la presion de la consigna del slot
+	 * Si la hhmm coincide con la de inicio de slot, invoca a pv_ajustar_presion
+	 * para fijar la nueva presion del slot.
+	 * Cada 15 minutos chequea la presion para confirmar si hay que hacer algun ajuste
+	 * fino.
+	 */
+
+t_ubicacion_en_slot posicion_en_slot;
+int8_t slot;
+
+	if ( pv_check_x_slot( &posicion_en_slot, &slot) ) {
+		switch(posicion_en_slot) {
+		case AFUERA_SLOT:
+			xprintf_P(PSTR("PILOTO: Fuera de slot,\r\n"));
+			return;
+
+		case INICIO_SLOT:
+			xprintf_P(PSTR("PILOTO: Ajuste slot x inicio %d\r\n"), slot);
+			break;
+		case DENTRO_SLOT:
+			xprintf_P(PSTR("PILOTO: Ajuste slot x dentro %d\r\n"), slot);
+			break;
+		}
+
+		spiloto.pRef = (uint16_t)( sVarsApp.pSlots[slot].presion );
+		spiloto.pError = 50;
+		pv_ajustar_presion();
+	}
 }
 //------------------------------------------------------------------------------------
 

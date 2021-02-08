@@ -161,7 +161,7 @@ int16_t free_size = sizeof(hash_buffer);
 	return(hash);
 
 exit_error:
-	xprintf_P( PSTR("COMMS: app_hash ERROR !!!\r\n\0"));
+	xprintf_P( PSTR("COMMS: perf_hash ERROR !!!\r\n\0"));
 	return(0x00);
 
 }
