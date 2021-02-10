@@ -67,7 +67,7 @@
 //------------------------------------------------------------------------------------
 #define SPX_FW_REV "3.0.6f"
 //#define SPX_FW_REV "3.0.5BETA"
-#define SPX_FW_DATE "@ 20210208"
+#define SPX_FW_DATE "@ 20210209"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -172,6 +172,7 @@ TaskHandle_t xHandle_idle, xHandle_tkCtl, xHandle_tkCmd, xHandle_tkInputs, xHand
 bool startTask;
 uint8_t spx_io_board;
 uint32_t sysTicks;
+
 xSemaphoreHandle sem_SYSVars;
 StaticSemaphore_t SYSVARS_xMutexBuffer;
 #define MSTOTAKESYSVARSSEMPH ((  TickType_t ) 10 )
@@ -179,6 +180,11 @@ StaticSemaphore_t SYSVARS_xMutexBuffer;
 xSemaphoreHandle sem_WDGS;
 StaticSemaphore_t WDGS_xMutexBuffer;
 #define MSTOTAKEWDGSSEMPH ((  TickType_t ) 10 )
+
+xSemaphoreHandle sem_AINPUTS;
+StaticSemaphore_t AINPUTS_xMutexBuffer;
+#define MSTOTAKEAINPUTSSEMPH ((  TickType_t ) 10 )
+
 
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);

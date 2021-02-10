@@ -1181,7 +1181,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("  modbus get {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
 				xprintf_P( PSTR("         set {slave} {fcode} {addr} {value}\r\n\0"));
 				xprintf_P( PSTR("  stepper {fw|rev} {npulses} {dpulses_ms} {ptime_s}\r\n\0"));
-				xprintf_P( PSTR("  piloto {out_pres_gr} {err_range_gr}\r\n\0"));
+				xprintf_P( PSTR("  piloto {out_pres-kg} {err_range-kg}\r\n\0"));
 			}
 
 			xprintf_P( PSTR("  gprs (pwr|sw|rts|dtr) {on|off}\r\n\0"));

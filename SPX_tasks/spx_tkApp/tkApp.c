@@ -102,6 +102,13 @@ int8_t xBytes = 0;
 
 	// Guardo el valor recibido
 	data = dout;
+
+	// Si el valor no cambia, no lo seteo para que no suenen los relé.
+	if ( sVarsApp.perforacion.outs == dout ) {
+		xprintf_P( PSTR("APP: SET OUTPUTS(0x%02x): No cambio valor. Exit \r\n\0"),dout);
+		return;
+	}
+
 	sVarsApp.perforacion.outs = dout;
 	MCP_update_olatb( dout );
 
@@ -142,6 +149,13 @@ uint8_t odata, msk;
 
 	// Guardo el valor recibido
 	data = dout;
+
+	// Si el valor no cambia, no lo seteo para que no suenen los relé.
+	if ( sVarsApp.perforacion.outs == dout ) {
+		xprintf_P( PSTR("APP: SET OUTPUTS(0x%02x): No cambio valor. Exit \r\n\0"),dout);
+		return;
+	}
+
 	sVarsApp.perforacion.outs = dout;
 	MCP_update_olatb( dout );
 

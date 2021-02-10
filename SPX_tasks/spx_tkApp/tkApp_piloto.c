@@ -21,7 +21,7 @@
 // LAS PRESIONES SE MIDEN EN GRS. !!!
 
 typedef enum { AJUSTE70x100 = 0, AJUSTE_BASICO = 1 } t_ajuste_npulses;
-typedef enum { AFUERA_SLOT = 0, INICIO_SLOT, DENTRO_SLOT } t_ubicacion_en_slot;
+typedef enum { TICK_NORMAL = 0, TICK_INICIO, TICK_CONTROL } t_slot_time_ticks;
 
 struct {
 	bool start_presion_test;
@@ -31,26 +31,32 @@ struct {
 	uint16_t ptime;
 	t_stepper_dir dir;
 	int8_t slot;
-	uint16_t pRef;
-	uint16_t pB;
-	uint16_t pError;
+	float pRef;
+	float pB;
+	float pError;
 	int8_t pB_channel;
 } spiloto;
 
 
-#define MAX_INTENTOS	5
-#define P_CONSIGNA_MIN	1000
-#define P_CONSIGNA_MAX	3000
-#define MAX_P_SAMPLES	10
-#define P_SAMPLES		5
-#define PULSOS_X_REV	3000		// 3000 pulsos para girar 1 rev
-#define DPRES_X_REV		500			// 500 gr c/rev del piloto
+#define MAX_INTENTOS			5
+#define P_CONSIGNA_MIN			1000
+#define P_CONSIGNA_MAX			3000
+#define MAX_P_SAMPLES			10
+#define P_SAMPLES				5
+#define PULSOS_X_REV			3000		// 3000 pulsos para girar 1 rev
+#define DPRES_X_REV				0.500		// 500 gr c/rev del piloto
+#define PERROR					0.065
+#define INTERVALO_PB_SECS		5
+#define INTERVALO_TRYES_SECS	15
 
 void pv_calcular_parametros_ajuste(void);
 void pv_aplicar_pulsos(void);
 bool pv_determinar_canal_pB(void);
 void pv_leer_presion_baja( int8_t samples, uint16_t intervalo_secs );
-bool pv_check_x_slot(t_ubicacion_en_slot *posicion_en_slot, int8_t *slot);
+int8_t pv_get_slot_actual(uint16_t hhmm );
+t_slot_time_ticks pv_check_tipo_tick( uint16_t hhmm, int8_t slot );
+bool pv_get_hhhmm_now( uint16_t *hhmm);
+
 void pv_ajustar_presion(void);
 void pv_print_parametros(void);
 void pv_calcular_npulses( t_ajuste_npulses metodo_ajuste );
@@ -173,10 +179,9 @@ void xAPP_piloto_presion_test( char *s_out_pres, char *s_out_error )
 	// Genera la señal de arranque del test de presion del piloto.
 	// Fija una presion de referencia y hace que el piloto se mueva para regular en
 	// este punto
-	// Los valores de pRef y pError son en gramos !!!
 
-	spiloto.pRef = atoi(s_out_pres);
-	spiloto.pError = atoi(s_out_error);
+	spiloto.pRef = atof(s_out_pres);
+	spiloto.pError = atof(s_out_error);
 	spiloto.start_presion_test = true;
 }
 //------------------------------------------------------------------------------------
@@ -234,10 +239,22 @@ exit_error:
 //------------------------------------------------------------------------------------
 void pv_xapp_init(void)
 {
+
+uint16_t hhmm_now;
+int8_t slot;
+
 	xprintf_P( PSTR("APP: PILOTO start\r\n\0"));
 	spiloto.start_presion_test = false;
 	spiloto.start_steppers_test = false;
 
+	vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
+
+	if ( pv_get_hhhmm_now( &hhmm_now)) {
+		slot = pv_get_slot_actual(hhmm_now);
+		spiloto.pRef = sVarsApp.pSlots[slot].presion;
+		spiloto.pError = 0.05;
+		pv_ajustar_presion();
+	}
 }
 //------------------------------------------------------------------------------------
 void pv_aplicar_pulsos(void)
@@ -279,9 +296,9 @@ uint8_t cChar_pos = 0;
 void pv_print_parametros(void)
 {
 	xprintf_P(PSTR("    pB_channel=%d\r\n"),spiloto.pB_channel );
-	xprintf_P(PSTR("    pB=%d\r\n"),spiloto.pB );
-	xprintf_P(PSTR("    pRef=%d\r\n"),spiloto.pRef );
-	xprintf_P(PSTR("    dP_grs=%d\r\n"), (spiloto.pB - spiloto.pRef));
+	xprintf_P(PSTR("    pB=%.02f\r\n"),spiloto.pB );
+	xprintf_P(PSTR("    pRef=%.02f\r\n"),spiloto.pRef );
+	xprintf_P(PSTR("    dP=%.03f\r\n"), (spiloto.pB - spiloto.pRef));
 	xprintf_P(PSTR("    pulses=%d\r\n"),spiloto.npulses );
 	xprintf_P(PSTR("    ptime=%d\r\n"),spiloto.ptime );
 	xprintf_P(PSTR("    dtime=%d\r\n"),spiloto.dtime );
@@ -324,8 +341,12 @@ void pv_calcular_npulses(t_ajuste_npulses metodo_ajuste )
 float delta_pres = 0.0;
 
 	// Calculo los pulsos aproximadamente
-	delta_pres = abs(spiloto.pB - spiloto.pRef);
+	delta_pres = fabs(spiloto.pB - spiloto.pRef);
 	spiloto.npulses = (uint16_t) ( delta_pres * PULSOS_X_REV  / DPRES_X_REV );
+	if ( spiloto.npulses < 0) {
+		xprintf_P(PSTR("PILOTO: ERROR npulses < 0\r\n"));
+		spiloto.npulses = 0;
+	}
 	xprintf_P(PSTR("PILOTO: npulses_calc=%d\r\n"), spiloto.npulses);
 
 	switch (metodo_ajuste) {
@@ -357,29 +378,40 @@ float delta_pres = 0.0;
 
 }
 //------------------------------------------------------------------------------------
-bool pv_check_x_slot(t_ubicacion_en_slot *posicion_en_slot, int8_t *slot)
+bool pv_get_hhhmm_now( uint16_t *hhmm)
 {
-	// Dada la hora actual, determina que presion de slot corresponde aplicar
-	// Determina en base a la hhmm actuales, en cual pslot estoy.
-	// LOS PSLOTS DEBEN ESTAR ORDENADOS POR FECHA.
-	// La presion=0.0  se usa como un tag para indicar vacio !!!!
-	// Si no tengo ningun slot configurado salgo.
 
 RtcTimeType_t rtcDateTime;
-uint16_t time_now_s, time_slot_s;
-uint8_t i;
+
+	memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
+	if ( ! RTC_read_dtime(&rtcDateTime) ) {
+		xprintf_P(PSTR("PILOTO ERROR: I2C:RTC:pv_get_hhhmm_now\r\n\0"));
+		return(false);
+	}
+
+	*hhmm = rtcDateTime.hour * 100 + rtcDateTime.min;
+	xprintf_PD( DF_APP, PSTR("PILOTO Now=%d\r\n"), *hhmm );
+	return(true);
+
+}
+//------------------------------------------------------------------------------------
+int8_t pv_get_slot_actual(uint16_t hhmm )
+{
+	// Devuelve en que slot estoy parado. El calculo de hhmm es hh * 100 + mm !!!
+
+uint16_t time_slot_s;
 int8_t last_slot = -1;
+int8_t slot = -1;
+int8_t i;
 
 	// Paso 1.
 	// Vemos si hay slots configuradas.
 	// Solo chequeo el primero. DEBEN ESTAR ORDENADOS !!
 	if ( sVarsApp.pSlots[0].presion < 0.1 ) {
-		*slot = -1;
-		*posicion_en_slot = AFUERA_SLOT;
-		return(true);
+		return(-1);
 	}
 
-	// Paso 2.
+	// Paso 3.
 	// Hay slots configurados: Veo cual es el ultimo. Parto del 2 porque
 	// el 1 se que existe del paso anterior.
 	last_slot = MAX_PILOTO_PSLOTS - 1;
@@ -390,61 +422,45 @@ int8_t last_slot = -1;
 		}
 	}
 
-	// Paso 3:
-	// Determino en que hora estoy: NOW
-	memset( &rtcDateTime, '\0', sizeof(RtcTimeType_t));
-	if ( ! RTC_read_dtime(&rtcDateTime) ) {
-		xprintf_P(PSTR("PILOTO ERROR: I2C:RTC:pv_dout_chequear_consignas\r\n\0"));
-		*slot = -1;
-		*posicion_en_slot = AFUERA_SLOT;
-		return(false);
-	}
-
-	time_now_s = rtcDateTime.hour * 100 + rtcDateTime.min;
-	xprintf_P(PSTR("PILOTO Check now=%d\r\n"), time_now_s );
-
-	// Paso 4: Vemos si estoy al comienzo de un slot
 	for ( i = 0; i <= last_slot; i++ ) {
 		time_slot_s = sVarsApp.pSlots[i].hhmm.hour * 100 + sVarsApp.pSlots[i].hhmm.min;
-		// Chequeo inicio
-		if ( time_now_s == time_slot_s ) {
-			*slot = i;
-			*posicion_en_slot = INICIO_SLOT;
-			xprintf_P(PSTR("PILOTO: Inicio de slot %d\r\n"), *slot);
-			return(true);
-		}
-	}
-
-	// Paso 5: Vemos si estoy dentro de un slot. Solo lo chequeo c/15 minutos
-	// Vemos a que slot de tiempo corresponde NOW
-	if ( ( (rtcDateTime.hour * 60 + rtcDateTime.min) % 15) == 0 ) {
-
-		for ( i = 0; i <= last_slot; i++ ) {
-			time_slot_s = sVarsApp.pSlots[i].hhmm.hour * 100 + sVarsApp.pSlots[i].hhmm.min;
-	    	// Chequeo inside
-			if ( time_now_s < time_slot_s ) {
-				if ( i == 0 ) {
-					*slot = last_slot;
-				} else {
-					*slot = i - 1;
-				}
-
-				*posicion_en_slot = DENTRO_SLOT;
-				xprintf_P(PSTR("PILOTO: Dentro de slot %d\r\n"), *slot);
-				return(true);
+    	// Chequeo inside
+		if ( hhmm < time_slot_s ) {
+			if ( i == 0 ) {
+				slot = last_slot;
+			} else {
+				slot = i - 1;
 			}
-		}
 
-		*slot = last_slot;
-		*posicion_en_slot = DENTRO_SLOT;
-		xprintf_P(PSTR("PILOTO: Dentro de slot %d\r\n"), *slot);
-		return(true);
+			xprintf_PD( DF_APP, PSTR("PILOTO: Slot=%d\r\n"), slot);
+			return(slot);
+		}
 	}
 
-	// FIN:
-	*slot = -1;
-	*posicion_en_slot = AFUERA_SLOT;
-	return(true);
+	slot = last_slot;
+	return(slot);
+
+}
+//------------------------------------------------------------------------------------
+t_slot_time_ticks pv_check_tipo_tick( uint16_t hhmm, int8_t slot )
+{
+
+uint16_t time_slot_s;
+
+	time_slot_s = sVarsApp.pSlots[slot].hhmm.hour * 100 + sVarsApp.pSlots[slot].hhmm.min;
+
+	if ( hhmm == time_slot_s ) {
+		xprintf_P(PSTR("PILOTO: init_tick\r\n"));
+		return(TICK_INICIO);
+	}
+
+	if  ( (hhmm % 15) == 0 ) {
+		xprintf_P(PSTR("PILOTO: control_tick\r\n"));
+		return(TICK_CONTROL);
+	}
+
+	xprintf_PD( DF_APP, PSTR("PILOTO: normal_tick\r\n"));
+	return(TICK_NORMAL);
 
 }
 //------------------------------------------------------------------------------------
@@ -454,11 +470,14 @@ bool pv_determinar_canal_pB(void)
 
 uint8_t i;
 bool sRet = false;
+char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
 	spiloto.pB_channel = -1;
 	for ( i = 0; i < NRO_ANINPUTS; i++) {
 		// xprintf_P(PSTR("DEBUG: ch=%d, name=%s\r\n"), i, strupr(systemVars.ainputs_conf.name[i]) );
-		if ( ! strcmp_P( strupr(systemVars.ainputs_conf.name[i]), PSTR("PB") ) ) {
+		memcpy(l_data, systemVars.ainputs_conf.name[i], sizeof(l_data));
+		strupr(l_data);
+		if ( ! strcmp_P( l_data, PSTR("PB") ) ) {
 			spiloto.pB_channel = i;
 			xprintf_P(PSTR("PILOTO: pBchannel=%d\r\n"), spiloto.pB_channel);
 			sRet = true;
@@ -485,37 +504,56 @@ float pB;
 		pB = ainputs_read_channel(spiloto.pB_channel);
 		xprintf_P(PSTR("PILOTO pB:[%d]->%0.3f\r\n"), i, pB );
 		// La presion la expreso en gramos !!!
-		spiloto.pB += (uint16_t)(pB * 1000);
+		spiloto.pB += pB;
 		vTaskDelay( ( TickType_t)( intervalo_secs * 1000 / portTICK_RATE_MS ) );
 	}
+
 	spiloto.pB /= samples;
-	xprintf_P(PSTR("PILOTO pB=%d\r\n"), spiloto.pB );
+	xprintf_P(PSTR("PILOTO pB=%.02f\r\n"), spiloto.pB );
 }
 //------------------------------------------------------------------------------------
 void pv_ajustar_presion(void)
 {
 
 uint8_t loops;
+uint16_t hhmm_now;
+int8_t slot;
 
 	// Realiza la tarea de mover el piloto hasta ajustar la presion
 
-	// El ajuste se realiza cuando la presion a setear esta entre 1K y 3K
-	if ( (spiloto.pRef < 1000) || (spiloto.pRef > 3000)) {
-		xprintf_P(PSTR("PILOTO: pRef fuera de rango. Exit\r\n"));
-		return;
-	}
-
 	xprintf_P(PSTR("PILOTO: determino canal de pB...\r\n"));
 	if ( !pv_determinar_canal_pB() ) {
-		xprintf_P(PSTR("PILOTO: No se puede determinar el canal de pB.!!\r\n"));
+		xprintf_P(PSTR("PILOTO: Ajuste ERROR: No se puede determinar el canal de pB.!!\r\n"));
 		return;
 	}
 
 	for ( loops = 0; loops < MAX_INTENTOS; loops++ ) {
 
+		if ( ! pv_get_hhhmm_now( &hhmm_now)) {
+			xprintf_P(PSTR("PILOTO: ERROR pv_get_hhmm.!!\r\n"));
+			return;
+		}
+
+		slot = pv_get_slot_actual(hhmm_now);
+		spiloto.pRef = sVarsApp.pSlots[slot].presion;
+		spiloto.pError = PERROR;
+
+		xprintf_P(PSTR("PILOTO: Ajuste: pREf=%.02f\r\n"),spiloto.pRef);
+
+		// El ajuste se realiza cuando la presion a setear esta entre 1K y 3K
+		if ( (spiloto.pRef < 1.0) || (spiloto.pRef > 3.0)) {
+			xprintf_P(PSTR("PILOTO: Ajuste ERROR: pRef fuera de rango.\r\n"));
+			return;
+		}
+
 		xprintf_P(PSTR("PILOTO: loop[%d]\r\n"), loops);
 		xprintf_P(PSTR("PILOTO: leo pB...\r\n"));
-		pv_leer_presion_baja(5,10);
+		pv_leer_presion_baja(5, INTERVALO_PB_SECS );
+
+		if ( spiloto.pB < 0) {
+			xprintf_P(PSTR("PILOTO: Ajuste ERROR: pB < 0.!!\r\n"));
+			return;
+		}
 
 		xprintf_P(PSTR("PILOTO: calculo npulsos...\r\n"));
 		pv_calcular_parametros_ajuste();
@@ -524,7 +562,7 @@ uint8_t loops;
 		pv_print_parametros();
 
 		// Si la diferencia de presiones es superior al error tolerable muevo el piloto
-		if ( abs(spiloto.pB - spiloto.pRef) > spiloto.pError ) {
+		if ( fabs(spiloto.pB - spiloto.pRef) > spiloto.pError ) {
 			pv_aplicar_pulsos();
 		} else {
 			xprintf_P(PSTR("Presion alcanzada\r\n"));
@@ -532,11 +570,11 @@ uint8_t loops;
 		}
 
 		//Espero que se estabilize la presión 30 segundos antes de repetir.
-		vTaskDelay( ( TickType_t)( 30000 / portTICK_RATE_MS ) );
+		vTaskDelay( ( TickType_t)( INTERVALO_TRYES_SECS * 1000 / portTICK_RATE_MS ) );
 
 	}
 	// Muestro la presión que quedo.
-	pv_leer_presion_baja(2,10);
+	pv_leer_presion_baja(2, INTERVALO_PB_SECS );
 	xprintf_P(PSTR("PILOTO: Fin de ajuste\r\n"));
 
 }
@@ -574,26 +612,23 @@ void pvstk_piloto(void)
 	 * fino.
 	 */
 
-t_ubicacion_en_slot posicion_en_slot;
+uint16_t hhmm_now;
 int8_t slot;
+t_slot_time_ticks tipo_slot_tick;
 
-	if ( pv_check_x_slot( &posicion_en_slot, &slot) ) {
-		switch(posicion_en_slot) {
-		case AFUERA_SLOT:
-			xprintf_P(PSTR("PILOTO: Fuera de slot,\r\n"));
+	if ( pv_get_hhhmm_now( &hhmm_now)) {
+		slot = pv_get_slot_actual(hhmm_now);
+		tipo_slot_tick = pv_check_tipo_tick( hhmm_now, slot);
+
+		if ( tipo_slot_tick == TICK_INICIO ) {
+			xprintf_P(PSTR("PILOTO: Ajuste slot;inicio #%d\r\n"), slot);
+			pv_ajustar_presion();
 			return;
-
-		case INICIO_SLOT:
-			xprintf_P(PSTR("PILOTO: Ajuste slot x inicio %d\r\n"), slot);
-			break;
-		case DENTRO_SLOT:
-			xprintf_P(PSTR("PILOTO: Ajuste slot x dentro %d\r\n"), slot);
-			break;
+		} else if ( tipo_slot_tick == TICK_CONTROL ) {
+			xprintf_P(PSTR("PILOTO: Ajuste slot;inside #%d\r\n"), slot);
+			pv_ajustar_presion();
+			return;
 		}
-
-		spiloto.pRef = (uint16_t)( sVarsApp.pSlots[slot].presion );
-		spiloto.pError = 50;
-		pv_ajustar_presion();
 	}
 }
 //------------------------------------------------------------------------------------

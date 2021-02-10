@@ -194,6 +194,10 @@ float D;
 	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
 	autocal_running = true;
 	// Leo la corriente en este momento en el canal
+
+	while ( xSemaphoreTake( sem_AINPUTS, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
 	pv_ainputs_prender_sensores();
 	// Leo el canal del ina.
 	//ainputs_awake();
@@ -204,6 +208,9 @@ float D;
 	I = (float)( an_raw_val ) / INA_FACTOR;
 	//ainputs_sleep();
 	pv_ainputs_apagar_sensores();
+
+	xSemaphoreGive( sem_AINPUTS );
+
 	// Habilito a la tkData a volver a polear
 	autocal_running = false;
 	//
@@ -299,6 +306,10 @@ bool retS = false;
 
 	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
 //	signal_tkData_poll_off();
+
+	while ( xSemaphoreTake( sem_AINPUTS, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
 	pv_ainputs_prender_sensores();
 	/*
 	pv_ainputs_prender_12V_sensors();
@@ -313,6 +324,8 @@ bool retS = false;
 
 	//ainputs_sleep();
 	pv_ainputs_apagar_sensores();
+
+	xSemaphoreGive( sem_AINPUTS );
 
 	// Habilito a la tkData a volver a polear
 	autocal_running = false;
@@ -364,6 +377,9 @@ float offset = 0.0;
 	// Indico a la tarea analogica de no polear ni tocar los canales ni el pwr.
 	autocal_running = true;
 
+	while ( xSemaphoreTake( sem_AINPUTS, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
 	pv_ainputs_prender_sensores();
 	/*
 	pv_ainputs_prender_12V_sensors();
@@ -375,6 +391,8 @@ float offset = 0.0;
 	an_raw_val = pv_ainputs_read_channel_raw( channel );
 	//ainputs_sleep();
 	pv_ainputs_apagar_sensores();
+
+	xSemaphoreGive( sem_AINPUTS );
 
 //	xprintf_P( PSTR("ANRAW=%d\r\n\0"), an_raw_val );
 
@@ -446,6 +464,9 @@ bool ainputs_read( float ain[], float *battery )
 
 bool retS = false;
 
+	while ( xSemaphoreTake( sem_AINPUTS, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
 	pv_ainputs_prender_sensores();
 	/*
 	ainputs_awake();
@@ -499,6 +520,8 @@ bool retS = false;
 	ainputs_sleep();
 	*/
 	pv_ainputs_apagar_sensores();
+
+	xSemaphoreGive( sem_AINPUTS );
 
 	return(retS);
 
@@ -610,11 +633,16 @@ void ainputs_test_channel( uint8_t io_channel )
 float mag;
 uint16_t raw;
 
+	while ( xSemaphoreTake( sem_AINPUTS, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
 	pv_ainputs_prender_sensores();
 	pv_ainputs_read_channel ( io_channel, &mag, &raw );
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 	pv_ainputs_read_channel ( io_channel, &mag, &raw );
 	pv_ainputs_apagar_sensores();
+
+	xSemaphoreGive( sem_AINPUTS );
 
 	if ( io_channel != 99) {
 		xprintf_P( PSTR("Analog Channel Test: CH[%02d] raw=%d,mag=%.02f\r\n\0"),io_channel,raw, mag);
@@ -644,11 +672,18 @@ float ainputs_read_channel( uint8_t io_channel )
 float mag;
 uint16_t raw;
 
+	while ( xSemaphoreTake( sem_AINPUTS, ( TickType_t ) 5 ) != pdTRUE )
+		taskYIELD();
+
 	pv_ainputs_prender_sensores();
 	pv_ainputs_read_channel ( io_channel, &mag, &raw );
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 	pv_ainputs_read_channel ( io_channel, &mag, &raw );
 	pv_ainputs_apagar_sensores();
+
+	xSemaphoreGive( sem_AINPUTS );
+
+
 	return(mag);
 }
 //------------------------------------------------------------------------------------
@@ -723,7 +758,7 @@ uint8_t MSB = 0;
 uint8_t LSB = 0;
 char res[3] = { '\0','\0', '\0' };
 int8_t xBytes = 0;
-//float vshunt;
+float vshunt;
 
 	//xprintf_P( PSTR("in->ACH: ch=%d, ina=%d, reg=%d, MSB=0x%x, LSB=0x%x, ANV=(0x%x)%d, VSHUNT = %.02f(mV)\r\n\0") ,channel_id, ina_id, ina_reg, MSB, LSB, an_raw_val, an_raw_val, vshunt );
 
@@ -811,8 +846,8 @@ int8_t xBytes = 0;
 	an_raw_val = ( MSB << 8 ) + LSB;
 	an_raw_val = an_raw_val >> 3;
 
-	//vshunt = (float) an_raw_val * 40 / 1000;
-	//xprintf_P( PSTR("out->ACH: ch=%d, ina=%d, reg=%d, MSB=0x%x, LSB=0x%x, ANV=(0x%x)%d, VSHUNT = %.02f(mV)\r\n\0") ,channel_id, ina_id, ina_reg, MSB, LSB, an_raw_val, an_raw_val, vshunt );
+	vshunt = (float) an_raw_val * 40 / 1000;
+//	xprintf_P( PSTR("out->ACH: ch=%d, ina=%d, reg=%d, MSB=0x%x, LSB=0x%x, ANV=(0x%x)%d, VSHUNT = %.02f(mV)\r\n\0") ,channel_id, ina_id, ina_reg, MSB, LSB, an_raw_val, an_raw_val, vshunt );
 
 	return( an_raw_val );
 }
@@ -881,6 +916,12 @@ float Icorr = 0.0;	// Corriente corregida por span y offset
 	} else {
 		// Error: denominador = 0.
 		an_mag_val = -999.0;
+	}
+
+	// Corrijo por limites
+	if ( an_mag_val > systemVars.ainputs_conf.mmax[io_channel] ) {
+		xprintf_P( PSTR("ANALOG READ CHANNEL: ERROR A%d (%0.3f) corregida a -1.\r\n\0"), io_channel, an_mag_val );
+		an_mag_val = -1;
 	}
 
 	*raw = an_raw_val;
