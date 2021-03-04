@@ -295,6 +295,8 @@ int xnprintf_MBUS( const char *pvBuffer, const uint16_t xBytes )
 
 int bytes2wr = 0;
 
+	//xprintf_P(PSTR("DEBUG MBUS: [%s][%d]\r\n"), pvBuffer, xBytes);
+
 	while ( xSemaphoreTake( sem_STDOUT, ( TickType_t ) 5 ) != pdTRUE )
 		vTaskDelay( ( TickType_t)( 5 ) );
 

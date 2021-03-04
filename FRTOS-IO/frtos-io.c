@@ -10,6 +10,8 @@
 //#define GPRS_IsTXDataRegisterEmpty() ((USARTE0.STATUS & USART_DREIF_bm) != 0)
 
 #define USART_IsTXDataRegisterEmpty(_usart) (((_usart)->STATUS & USART_DREIF_bm) != 0)
+#define USART_IsTXShiftRegisterEmpty(_usart) (((_usart)->STATUS & USART_TXCIF_bm) != 0)
+
 #define USART_PutChar(_usart, _data) ((_usart)->DATA = _data)
 
 #define GPRS_USART	USARTE0
@@ -442,6 +444,7 @@ int timeout;
 
 	// Habilito Transmision
 	frtos_ioctl (fdAUX1, ioctl_UART_DISABLE_RX, NULL );
+
 	// RTS ON
 	IO_set_AUX_RTS();
 
@@ -455,12 +458,14 @@ int timeout;
 
 	p = (char *)pvBuffer;
 
+
 	while ( bytes2tx-- > 0 ) {
 		// Voy cargando la cola de a uno.
 		cChar = *p;
 		timeout = 10;	// Espero 10 ticks maximo
 		while( --timeout > 0) {
 
+			// Los datos se escriben solo cuando el DREIF es 1.
 			if ( USART_IsTXDataRegisterEmpty(xComAUX1.uart->usart) ) {
 				USART_PutChar(xComAUX1.uart->usart, cChar);
 				p++;
@@ -477,6 +482,14 @@ int timeout;
 			}
 		}
 	}
+
+	// Espero que se halla vaciado la UART. STATUS.TXCIF = 1
+	// El ultimo byte debe haberse shift out para habilitar el RTS
+
+	while ( ! USART_IsTXShiftRegisterEmpty(xComAUX1.uart->usart) )
+		vTaskDelay( ( TickType_t)( 1 ) );
+
+	vTaskDelay( ( TickType_t)( 3 ) );
 
 	// Habilito Recepcion
 	frtos_ioctl (fdAUX1, ioctl_UART_ENABLE_RX, NULL );

@@ -422,6 +422,7 @@ char l_data[10] = { '\0' };
 	// MODBUS
 	// write modbus get {slave} {fcode} {start_addr} {nro_regs}
 	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+		/*
 		if ( ( strcmp_P( strupr(argv[2]), PSTR("GET")) == 0)) {
 			modbus_wr_test( 0, argv[3], argv[4], argv[5], argv[6] );
 			pv_snprintfP_OK();
@@ -433,6 +434,18 @@ char l_data[10] = { '\0' };
 			pv_snprintfP_OK();
 			return;
 		}
+		*/
+		if ( ( strcmp_P( strupr(argv[2]), PSTR("POLL")) == 0)) {
+			modbus_poll_test( argv );
+			pv_snprintfP_OK();
+			return;
+		}
+		if ( ( strcmp_P( strupr(argv[2]), PSTR("LINK")) == 0)) {
+			modbus_link_test();
+			pv_snprintfP_OK();
+			return;
+		}
+
 	}
 
 	// AUX
@@ -603,10 +616,10 @@ uint8_t cks;
 
 	// MODBUS
 	// read modbus
-	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
-		modbus_rd_test();
-		return;
-	}
+	//if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
+	//	modbus_rd_test();
+	//	return;
+	//}
 
 	// AUX
 	// read aux rsp
@@ -1178,8 +1191,10 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("           (open|close) (A|B)\r\n\0"));
 				xprintf_P( PSTR("           pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("           power {on|off}\r\n\0"));
-				xprintf_P( PSTR("  modbus get {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
-				xprintf_P( PSTR("         set {slave} {fcode} {addr} {value}\r\n\0"));
+				//xprintf_P( PSTR("  modbus get {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
+				//xprintf_P( PSTR("         set {slave} {fcode} {addr} {value}\r\n\0"));
+				xprintf_P( PSTR("  modbus poll bytes_counts {bytes in hex}\r\n\0"));
+				xprintf_P( PSTR("         link\r\n\0"));
 				xprintf_P( PSTR("  stepper {fw|rev} {npulses} {dpulses_ms} {ptime_s}\r\n\0"));
 				xprintf_P( PSTR("  piloto {out_pres-kg} {err_range-kg}\r\n\0"));
 			}
@@ -1188,7 +1203,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("       cmd {atcmd}, redial, monsqe\r\n\0"));
 			xprintf_P( PSTR("       sms,qsms,fsms {nbr,msg}\r\n\0"));
 
-			xprintf_P( PSTR("  aux rts {on|off}\r\n\0"));
+			xprintf_P( PSTR("  aux {pwr,rts} {on|off}\r\n\0"));
 			xprintf_P( PSTR("      cmd {acmd}\r\n\0"));
 
 		}
@@ -1214,7 +1229,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  gprs (rsp,cts,dcd,ri,sms)\r\n\0"));
 			xprintf_P( PSTR("  aux rsp\r\n\0"));
 			if ( spx_io_board == SPX_IO5CH ) {
-				xprintf_P( PSTR("  modbus rsp\r\n\0"));
+			//	xprintf_P( PSTR("  modbus rsp\r\n\0"));
 			}
 		}
 		return;

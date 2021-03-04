@@ -65,9 +65,9 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.6f"
+#define SPX_FW_REV "3.0.6j"
 //#define SPX_FW_REV "3.0.5BETA"
-#define SPX_FW_DATE "@ 20210209"
+#define SPX_FW_DATE "@ 20210304"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -458,7 +458,14 @@ bool modbus_config_slave_address( char *address);
 bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_length,char *s_rcode);
 void modbus_config_defaults(void);
 uint8_t modbus_hash(void);
-bool modbus_poll( uint16_t mbus_in[] );
+void modbus_txFrame(bool f_debug, uint8_t *data, uint8_t data_size );
+bool modbus_rxFrame( bool f_debug, uint8_t *data, uint8_t max_data_size );
+void modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size );
+void modbus_poll_test( char *arg_ptr[16] );
+void modbus_link_test( void );
+
+
+bool modbus_poll_PLC( uint16_t mbus_in[] );
 void modbus_print(file_descriptor_t fd, uint16_t mbus[] );
 void modbus_status(void);
 void modbus_wr_test( uint8_t modo, char* c_slave_address, char *c_function_code, char * c_start_address, char * c_nro_regs);

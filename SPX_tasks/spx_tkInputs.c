@@ -184,9 +184,9 @@ int8_t xBytes = 0;
 
 		range_read( &dst->df.io5.range );
 
-	    if ( systemVars.modbus_conf.modbus_slave_address != 0x00 ) {
-	    	modbus_poll( dst->df.io5.mbus_inputs );
-	    }
+//	    if ( systemVars.modbus_conf.modbus_slave_address != 0x00 ) {
+//	    	modbus_poll( dst->df.io5.mbus_inputs );
+//	    }
 
 		break;
 	case SPX_IO8CH:

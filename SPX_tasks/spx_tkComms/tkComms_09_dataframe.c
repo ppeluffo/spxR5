@@ -436,7 +436,7 @@ char *delim = ",;:=><";
 		tk_hr_address = strsep(&stringp,delim);	// Str. con la direccion del holding register
 		tk_hr_value = strsep(&stringp,delim);	// Str. con el valor del holding register
 
-		modbus_set_hr( DF_COMMS , systemVars.modbus_conf.modbus_slave_address ,"0x06", tk_hr_address, tk_hr_value);
+		//modbus_set_hr( DF_COMMS , systemVars.modbus_conf.modbus_slave_address ,"0x06", tk_hr_address, tk_hr_value);
 
 		xprintf_PD( DF_COMMS, PSTR("COMMS: MBUS set HR[%s]=%s\r\n\0"), tk_hr_address, tk_hr_value );
 

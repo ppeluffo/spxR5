@@ -13,6 +13,7 @@
  */
 
 #include "spx.h"
+#include "tkApp.h"
 
 // Factor por el que hay que multitplicar el valor raw de los INA para tener
 // una corriente con una resistencia de 7.32 ohms.
@@ -918,10 +919,12 @@ float Icorr = 0.0;	// Corriente corregida por span y offset
 		an_mag_val = -999.0;
 	}
 
-	// Corrijo por limites
-	if ( an_mag_val > systemVars.ainputs_conf.mmax[io_channel] ) {
-		xprintf_P( PSTR("ANALOG READ CHANNEL: ERROR A%d (%0.3f) corregida a -1.\r\n\0"), io_channel, an_mag_val );
-		an_mag_val = -1;
+	if ( sVarsApp.aplicacion == APP_PILOTO ) {
+		// Corrijo por limites
+		if ( an_mag_val > systemVars.ainputs_conf.mmax[io_channel] ) {
+			xprintf_P( PSTR("ANALOG READ CHANNEL: ERROR A%d (%0.3f) corregida a -1.\r\n\0"), io_channel, an_mag_val );
+			an_mag_val = -1;
+		}
 	}
 
 	*raw = an_raw_val;

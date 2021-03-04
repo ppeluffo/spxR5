@@ -136,8 +136,8 @@ void xAPP_set_douts_lazy( uint8_t dout, uint8_t mask )
 
 uint8_t data = 0;
 int8_t xBytes = 0;
-uint8_t i;
-uint8_t odata, msk;
+//uint8_t i;
+//uint8_t odata, msk;
 
 	// Solo es para IO8CH
 	if ( spx_io_board != SPX_IO8CH ) {
@@ -150,11 +150,14 @@ uint8_t odata, msk;
 	// Guardo el valor recibido
 	data = dout;
 
+	/*
+	 * R3.0.6g @ 2021-02-10.
 	// Si el valor no cambia, no lo seteo para que no suenen los relé.
 	if ( sVarsApp.perforacion.outs == dout ) {
 		xprintf_P( PSTR("APP: SET OUTPUTS(0x%02x): No cambio valor. Exit \r\n\0"),dout);
 		return;
 	}
+	*/
 
 	sVarsApp.perforacion.outs = dout;
 	MCP_update_olatb( dout );
@@ -164,6 +167,8 @@ uint8_t odata, msk;
 
 	data = data & mask;
 
+	/*
+	 * R3.0.6g @ 2021-02-10
 	// Escribo los bytes de a 1 bit
 	msk = 0x01;
 	for (i=0; i<8; i++) {
@@ -178,6 +183,14 @@ uint8_t odata, msk;
 			return;
 		}
 		vTaskDelay( ( TickType_t)( 2000 / portTICK_RATE_MS ) );
+	}
+
+	*/
+
+	xBytes = MCP_write(MCP_OLATB, (char *)&data, 1 );
+	if ( xBytes == -1 ) {
+		xprintf_P(PSTR("APP: ERROR: set_douts MCP write\r\n\0"));
+		return;
 	}
 
 	xprintf_P( PSTR("APP: SET OUTPUTS to 0x%02x\r\n\0"),dout);

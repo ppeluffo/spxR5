@@ -21,6 +21,9 @@ uint16_t o_timer_sistema = 0;
 
 static bool xAPP_perforacion_init(void);
 
+#define EMERGENCIA_DOUT 0x00
+#define EMERGENCIA_MASK 0xFF
+
 //------------------------------------------------------------------------------------
 void tkApp_perforacion(void)
 {
@@ -49,7 +52,8 @@ void tkApp_perforacion(void)
 				o_timer_emergencia--;
 				if ( o_timer_emergencia == 0 ) {
 					RELOAD_TIMER_EMERGENCIA();
-					xAPP_set_douts ( sVarsApp.perforacion.outs, MASK_NORMAL );
+					//xAPP_set_douts ( sVarsApp.perforacion.outs, MASK_NORMAL );
+					xAPP_set_douts( EMERGENCIA_DOUT, EMERGENCIA_MASK );
 					xprintf_P( PSTR("APP: PERFORACION MODO EMERGENCIA: reload timer emergencia. DOUTS=0x%0X\r\n\0"), sVarsApp.perforacion.outs );
 				}
 			}
@@ -61,7 +65,8 @@ void tkApp_perforacion(void)
 				o_timer_sistema--;
 				if ( o_timer_sistema == 0 ) {
 					// Expiro: Paso el control a modo EMERGENCIA(BOYA o TIMER) y las salidas a 0x00
-					xAPP_set_douts ( sVarsApp.perforacion.outs, MASK_EMERGENCIA );
+					//xAPP_set_douts ( sVarsApp.perforacion.outs, MASK_EMERGENCIA );
+					xAPP_set_douts( EMERGENCIA_DOUT, EMERGENCIA_MASK );
 					o_control = PERF_CTL_EMERGENCIA;			// Paso el control a emergencia( boya o timer).
 					RELOAD_TIMER_EMERGENCIA();					// Arranco el timer de emergencia
 					sVarsApp.perforacion.control = PERF_CTL_EMERGENCIA;
