@@ -6,6 +6,7 @@
  */
 
 #include "tkComms.h"
+#include "SPX_tasks/spx_tkApp/tkApp.h"
 
 #define WDG_AUXRX_TIMEOUT WDG_TO60
 
@@ -38,7 +39,7 @@ uint32_t ulNotifiedValue;
 
 		ctl_watchdog_kick(WDG_AUXRX, WDG_AUXRX_TIMEOUT );
 
-		if ( systemVars.modbus_conf.modbus_slave_address != 0x00 ) {
+		if ( sVarsApp.aplicacion == APP_MODBUS ) {
 			// Leo el UART de AUX1
 			if ( frtos_read( fdAUX1, &c, 1 ) == 1 ) {
 				aux_rxBuffer_fill(c);

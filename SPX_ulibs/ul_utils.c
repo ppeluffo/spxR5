@@ -645,6 +645,11 @@ bool u_config_aplicacion( char *modo )
 		return(true);
 	}
 
+	if ( strcmp_P( strupr(modo), PSTR("MODBUS\0")) == 0)  {
+		sVarsApp.aplicacion = APP_MODBUS;
+		return(true);
+	}
+
 	return(false);
 
 }

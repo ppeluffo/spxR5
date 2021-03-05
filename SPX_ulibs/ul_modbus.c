@@ -97,7 +97,7 @@ void modbus_init(void)
 	aux_prender();
 }
 //------------------------------------------------------------------------------------
-// FUNCIONES DE CONFIGURACION Y STATUS
+// FUNCIONES DE CONFIGURACION
 //------------------------------------------------------------------------------------
 bool modbus_config_slave_address( char *address)
 {
@@ -132,10 +132,10 @@ char *ptr;
 
 	if ( ( channel >=  0) && ( channel < MODBUS_CHANNELS ) ) {
 
-		snprintf_P( systemVars.modbus_conf.var_name[channel], PARAMNAME_LENGTH, PSTR("%s\0"), s_name );
-		systemVars.modbus_conf.var_address[channel] = strtol(s_addr, &ptr, 16);
-		systemVars.modbus_conf.var_length[channel] = strtol(s_length, &ptr, 16);
-		systemVars.modbus_conf.var_function_code[channel] = strtol(s_rcode, &ptr, 16);
+		snprintf_P( systemVars.modbus_conf.mbchannel[channel].name, PARAMNAME_LENGTH, PSTR("%s\0"), s_name );
+		systemVars.modbus_conf.mbchannel[channel].address = strtol(s_addr, &ptr, 16);
+		systemVars.modbus_conf.mbchannel[channel].length = strtol(s_length, &ptr, 16);
+		systemVars.modbus_conf.mbchannel[channel].function_code = strtol(s_rcode, &ptr, 16);
 		return(true);
 	}
 
@@ -150,20 +150,11 @@ uint8_t channel = 0;
 	systemVars.modbus_conf.modbus_slave_address = 0x00;
 
 	for ( channel = 0; channel < MODBUS_CHANNELS; channel++) {
-		snprintf_P( systemVars.modbus_conf.var_name[channel], PARAMNAME_LENGTH, PSTR("X\0") );
-		systemVars.modbus_conf.var_address[channel] = 0x00;
-		systemVars.modbus_conf.var_length[channel] = 0;
-		systemVars.modbus_conf.var_function_code[channel] = 0;
+		snprintf_P( systemVars.modbus_conf.mbchannel[channel].name, PARAMNAME_LENGTH, PSTR("X\0") );
+		systemVars.modbus_conf.mbchannel[channel].address = 0x00;
+		systemVars.modbus_conf.mbchannel[channel].length = 0;
+		systemVars.modbus_conf.mbchannel[channel].function_code = 0;
 	}
-}
-//------------------------------------------------------------------------------------
-void modbus_status(void)
-{
-	xprintf_P( PSTR(">Modbus:\r\n\0"));
-	xprintf_P( PSTR("  mbus sladdr: 0x%02x\r\n\0"), systemVars.modbus_conf.modbus_slave_address );
-	xprintf_P( PSTR("  m0 [ addr:0x%04x, size:0x%02x, fc:0x%02x, %s]\r\n\0"), systemVars.modbus_conf.var_address[0], systemVars.modbus_conf.var_length[0], systemVars.modbus_conf.var_function_code[0], systemVars.modbus_conf.var_name[0] );
-	xprintf_P( PSTR("  m1 [ addr:0x%04x, size:0x%02x, fc:0x%02x, %s]\r\n\0"), systemVars.modbus_conf.var_address[1], systemVars.modbus_conf.var_length[1], systemVars.modbus_conf.var_function_code[1], systemVars.modbus_conf.var_name[1] );
-
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES AUXILIARES
@@ -199,8 +190,8 @@ int16_t free_size = sizeof(hash_buffer);
 	}
 	i=0;
 	memset(hash_buffer,'\0', sizeof(hash_buffer));
-	i += snprintf_P( &hash_buffer[i], sizeof(hash_buffer), PSTR("M0:%s,"), systemVars.modbus_conf.var_name[0] );
-	i += snprintf_P(&hash_buffer[i], sizeof(hash_buffer), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[0],systemVars.modbus_conf.var_length[0],systemVars.modbus_conf.var_function_code[0] );
+//	i += snprintf_P( &hash_buffer[i], sizeof(hash_buffer), PSTR("M0:%s,"), systemVars.modbus_conf.var_name[0] );
+//	i += snprintf_P(&hash_buffer[i], sizeof(hash_buffer), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[0],systemVars.modbus_conf.var_length[0],systemVars.modbus_conf.var_function_code[0] );
 	free_size = (  sizeof(hash_buffer) - i );
 		if ( free_size < 0 ) goto exit_error;
 	p = hash_buffer;
@@ -209,8 +200,8 @@ int16_t free_size = sizeof(hash_buffer);
 	}
 	i = 0;
 	memset(hash_buffer,'\0', sizeof(hash_buffer));
-	i += snprintf_P( &hash_buffer[i], sizeof(hash_buffer), PSTR("M1:%s,"), systemVars.modbus_conf.var_name[1] );
-	i += snprintf_P(&hash_buffer[i], sizeof(hash_buffer), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[1],systemVars.modbus_conf.var_length[1],systemVars.modbus_conf.var_function_code[1] );
+//	i += snprintf_P( &hash_buffer[i], sizeof(hash_buffer), PSTR("M1:%s,"), systemVars.modbus_conf.var_name[1] );
+//	i += snprintf_P(&hash_buffer[i], sizeof(hash_buffer), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[1],systemVars.modbus_conf.var_length[1],systemVars.modbus_conf.var_function_code[1] );
 	free_size = (  sizeof(hash_buffer) - i );
 		if ( free_size < 0 ) goto exit_error;
 	p = hash_buffer;
@@ -235,9 +226,9 @@ void modbus_print(file_descriptor_t fd,  uint16_t mbus[] )
 uint8_t channel = 0;
 
 	for ( channel = 0; channel < MODBUS_CHANNELS; channel++) {
-		if ( ! strcmp ( systemVars.modbus_conf.var_name[channel], "X" ) )
+		if ( ! strcmp ( systemVars.modbus_conf.mbchannel[channel].name, "X" ) )
 			continue;
-		xfprintf_P(fd, PSTR("%s:%u;"), systemVars.modbus_conf.var_name[channel], mbus[channel] );
+		xfprintf_P(fd, PSTR("%s:%u;"), systemVars.modbus_conf.mbchannel[channel].name, mbus[channel] );
 	}
 
 }
@@ -280,15 +271,15 @@ uint8_t i;
 	// Habilita el RTS para indicar que transmite
 	// Apaga la recepcion. ( El IC 485 copia la tx y rx )
 
-	xprintf_P(PSTR("MODBUS TX:\r\n"));
+	xprintf_PD( f_debug, PSTR("MODBUS TX:\r\n"));
 
 	// Calculamos el CRC del buffer y lo agrego al final
 	crc = pv_modbus_CRC16( data, data_size );
 	crc_lo = (uint8_t)( crc & 0x00FF );			// CRC Low
 	crc_hi = (uint8_t)( (crc & 0xFF00) >> 8 );	// CRC High
 
-	xprintf_P(PSTR("MODBUS TX: crc_lo=%02x\r\n"), crc_lo);
-	xprintf_P(PSTR("MODBUS TX: crc_hi=%02x\r\n"), crc_hi);
+	xprintf_PD( f_debug, PSTR("MODBUS TX: crc_lo=%02x\r\n"), crc_lo);
+	xprintf_PD( f_debug, PSTR("MODBUS TX: crc_hi=%02x\r\n"), crc_hi);
 
 	data[data_size++] = crc_lo;
 	data[data_size++] = crc_hi;
@@ -301,22 +292,22 @@ uint8_t i;
 
 	// Log
 	if ( f_debug ) {
-		xprintf_P(PSTR("MODBUS TX(%d):"), data_size);
+		xprintf_PD( f_debug, PSTR("MODBUS TX(%d):"), data_size);
 		//for ( i = 0 ; i < ( data_size + 2) ; i++ ) {
 		for ( i = 0 ; i < data_size ; i++ ) {
-			xprintf_P(PSTR("[0x%02X]"), data[i]);
+			xprintf_PD( f_debug, PSTR("[0x%02X]"), data[i]);
 		}
-		xprintf_P(PSTR("\r\n\0"));
+		xprintf_PD( f_debug, PSTR("\r\n\0"));
 	}
 
 	// Transmito
 	//i = xnprintf_MBUS( (const char *)data, (data_size + 2) );
 	i = xnprintf_MBUS( (const char *)data, data_size );
 
-	xprintf_P(PSTR("MODBUS TX END(%d):\r\n"),i);
+	xprintf_PD( f_debug, PSTR("MODBUS TX END(%d):\r\n"),i);
 }
 //------------------------------------------------------------------------------------
-bool modbus_rxFrame( bool f_debug, uint8_t *data, uint8_t max_data_size )
+bool modbus_rxFrame( bool f_debug, uint8_t *data, uint8_t max_data_size  )
 {
 	// https://stackoverflow.com/questions/13254432/modbus-is-there-a-maximum-time-a-device-can-take-to-respond
 	// Esperamos la respuesta 1s y si no llego damos timeout
@@ -333,6 +324,7 @@ uint8_t i;
 
 	// Leo el rx. No uso strcpy por el tema de los NULL.
 	memset( data, '\0', max_data_size );
+	// Cantidad de bytes en el buffer aux. ( aux.ptr)
 	length = (uint8_t)aux_get_buffer_ptr();
 	if ( length > max_data_size )
 		length = max_data_size;
@@ -344,21 +336,20 @@ uint8_t i;
 		data[i] = *p++;
 	}
 
-
 	// Paso 1: Log
 	if (f_debug) {
-		xprintf_P(PSTR("MBUS RX SIZE:[%d]\r\n"), length);
-		xprintf_P(PSTR("MBUS RX BUFF: "), length);
+		xprintf_PD( f_debug, PSTR("MBUS RX SIZE:[%d]\r\n"), length);
+		xprintf_PD( f_debug, PSTR("MBUS RX BUFF: "), length);
 		for ( i = 0 ; i < length; i++ ) {
-			xprintf_P(PSTR("[0x%02X]"), data[i]);
+			xprintf_PD( f_debug, PSTR("[0x%02X]"), data[i]);
 		}
-		xprintf_P(PSTR("\r\n"));
+		xprintf_PD( f_debug, PSTR("\r\n"));
 	}
 
 	// Paso 2: Largo.
 	if ( length < 3) {
 		// Timeout error:
-		xprintf_P(PSTR("MBUS_RX: TIMEOUT ERROR\r\n\0"));
+		xprintf_PD( f_debug, PSTR("MBUS_RX: TIMEOUT ERROR\r\n\0"));
 		return(false);
 	}
 
@@ -367,11 +358,11 @@ uint8_t i;
 	crc_msg = data[length-2] + ( data[length-1] << 8 );
 
 	if (f_debug) {
-		xprintf_P(PSTR("MBUS_RX CRC: rx[0x%02x], calc[0x%02x]\r\n\0"), crc_msg, crc_calc);
+		xprintf_PD( f_debug, PSTR("MBUS_RX CRC: rx[0x%02x], calc[0x%02x]\r\n\0"), crc_msg, crc_calc);
 	}
 
 	if ( crc_calc != crc_msg) {
-		xprintf_P(PSTR("MBUS_RX: CRC ERROR: rx[0x%02x], calc[0x%02x]\r\n\0"), crc_msg, crc_calc);
+		xprintf_PD( f_debug, PSTR("MBUS_RX: CRC ERROR: rx[0x%02x], calc[0x%02x]\r\n\0"), crc_msg, crc_calc);
 		// De acuerdo al protocolo se ignora el frame recibido con errores CRC
 		return(false);
 	}
@@ -380,7 +371,7 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-void modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size )
+float modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size )
 {
 	// Decodifica el frame recibido ( pasado en *data )
 	// Lo que hacemos es escribir y leer registros del PLC.
@@ -393,33 +384,66 @@ void modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size )
 uint8_t function_code;
 uint8_t byte_count;
 uint8_t i;
+uint8_t frame_size = 0;
+
+union {
+	float fvalue;
+	uint8_t fbytes[4];
+} hold_reg;
 
 	function_code = data[1];
 	switch(function_code) {
 	case 0x3:
-		xprintf_P(PSTR("MODBUS: FC=0x03: Read Holding Register\r\n"));
+		// Los holding register pueden tener 2 o 4 bytes.
+		// Solo leo 1 registro.
+		// El resultado lo convierto a float ( 4 bytes )
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: FC=0x03: Read Holding Register\r\n"));
 		byte_count = data[2];
-		xprintf_P(PSTR("MODBUS: byte_count=%d\r\n"), byte_count);
+		frame_size = 2 + byte_count + 2;	// ADDR + FC + byte_counts + CRCH + CRCL
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: byte_count=%d\r\n"), byte_count);
+		// Convierto el resultado a float.
+		if ( byte_count == 2 ) {
+			// Leo 2 bytes.
+			hold_reg.fbytes[0] = 0x00;
+			hold_reg.fbytes[1] = 0x00;
+			hold_reg.fbytes[2] = data[3];
+			hold_reg.fbytes[3] = data[4];
+		} else if ( byte_count == 4 ) {
+			// Leo 4 bytes.
+			hold_reg.fbytes[0] = data[3];
+			hold_reg.fbytes[1] = data[4];
+			hold_reg.fbytes[2] = data[5];
+			hold_reg.fbytes[3] = data[6];
+			//hold_reg.fbytes = ( data[3] << 24) + (data[4] << 16 ) + ( data[5] << 8 ) + data [6];
+		}
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: Value=%.3f\r\n"), hold_reg.fvalue );
 		break;
+
 	case 0x4:
-		xprintf_P(PSTR("MODBUS: FC=0x04: Read Input Register\r\n"));
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: FC=0x04: Read Input Register\r\n"));
 		byte_count = data[2];
-		xprintf_P(PSTR("MODBUS: byte_count=%d\r\n"), byte_count);
+		frame_size = 2 + byte_count + 2;
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: byte_count=%d\r\n"), byte_count);
 		break;
+
 	case 0x6:
-		xprintf_P(PSTR("MODBUS: FC=0x06: Write Single Register\r\n"));
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: FC=0x06: Write Single Register\r\n"));
 		break;
+
 	default:
-		xprintf_P(PSTR("MODBUS: Codigo de funcion no soportado.\r\n"));
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: Codigo de funcion no soportado.\r\n"));
+		hold_reg.fvalue = -9999;
 		break;
 	}
 
 	// Imprimo el payload de la respuesta
-	xprintf_P(PSTR("MODBUS: data:"));
-	for (i=0; i < data_size; i++) {
-		xprintf_P(PSTR("[0x%02x]"), data[i]);
+	xprintf_PD(f_debug, PSTR("MODBUS_DC: data:"));
+	for (i=0; i < frame_size; i++) {
+		xprintf_PD(f_debug, PSTR("[0x%02x]"), data[i]);
 	}
-	xprintf_P(PSTR("\r\n"));
+	xprintf_PD(f_debug, PSTR("\r\n"));
+
+	return(hold_reg.fvalue);
 
 }
 //------------------------------------------------------------------------------------
@@ -453,7 +477,7 @@ uint8_t i;
 	// Espero la respuesta
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	modbus_rxFrame(true, data, MBUS_TXMSG_LENGTH );
-//	modbus_decodeRxFrame(true, data, MBUS_TXMSG_LENGTH );
+	modbus_decodeRxFrame(true, data, MBUS_TXMSG_LENGTH );
 
 	xprintf_P(PSTR("MODBUS TEST END:\r\n"));
 
@@ -470,11 +494,28 @@ uint8_t data[MBUS_TXMSG_LENGTH];
 	xprintf_P(PSTR("MODBUS LINK TEST:\r\n"));
 
 	byte_count = sizeof("LINK TEST MODBUS\r\n");
-	strncpy(data, "LINK TEST MODBUS\r\n", byte_count );
+	strncpy( (char *)data, "LINK TEST MODBUS\r\n", byte_count );
 
-	xnprintf_MBUS( &data, byte_count );
+	xnprintf_MBUS( (char *)data, byte_count );
 
 	xprintf_P(PSTR("MODBUS LINK TEST END (%d):\r\n"), byte_count);
+
+}
+//------------------------------------------------------------------------------------
+void modbus_float_test( char *s_nbr )
+{
+	// Funcion de testing que lee un string representando a un float
+	// y lo imprime como float y como los 4 bytes
+
+union {
+	float fvalue;
+	uint8_t fbytes[4];
+} rec;
+
+	rec.fvalue = atof(s_nbr);
+	xprintf_P(PSTR("Str: %d\r\n"), s_nbr);
+	xprintf_P(PSTR("Float=%f\r\n"), rec.fvalue);
+	xprintf_P(PSTR("Bytes=[0x%02x][0x%02x][0x%02x][0x%02x]\r\n"), rec.fbytes[0], rec.fbytes[1], rec.fbytes[2], rec.fbytes[3]);
 
 }
 //------------------------------------------------------------------------------------

@@ -13,7 +13,7 @@
 
 #define DF_APP ( systemVars.debug == DEBUG_APLICACION )
 
-typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT, APP_CAUDALIMETRO, APP_EXTERNAL_POLL, APP_PILOTO } aplicacion_t;
+typedef enum { APP_OFF = 0, APP_CONSIGNA, APP_PERFORACION, APP_PLANTAPOT, APP_CAUDALIMETRO, APP_EXTERNAL_POLL, APP_PILOTO, APP_MODBUS } aplicacion_t;
 typedef enum { APP_PERF_NORMAL = 0, APP_PERF_CTLFREQ } t_modo_perforacion;
 typedef enum { CONSIGNA_OFF = 0, CONSIGNA_DIURNA, CONSIGNA_NOCTURNA } consigna_t;
 typedef enum { PERF_CTL_EMERGENCIA, PERF_CTL_SISTEMA } perforacion_control_t;
@@ -168,5 +168,8 @@ bool xAPP_piloto_config( char *param1, char *param2, char *param3, char *param4 
 void xAPP_piloto_stepper_test( char *s_dir, char *s_npulses, char *s_dtime, char *s_ptime );
 void xAPP_piloto_presion_test( char *s_out_pres, char *s_out_error );
 
+// APP_MODBUS
+void tkApp_modbus(void);
+uint8_t xAPP_modbus_hash(void);
 
 #endif /* SRC_SPX_TASKS_SPX_TKAPP_TKAPP_H_ */

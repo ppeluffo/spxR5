@@ -357,6 +357,10 @@ static void pv_ctl_fire_counters(void)
 {
 static int8_t fire_counters = 6;
 
+	if ( sVarsApp.aplicacion == APP_MODBUS )
+		return;
+
+
 	if ( fire_counters >= 0 ) {
 		//xprintf_P( PSTR("DEBUG Fire Counters = %d\r\n"),fire_counters );
 		if (fire_counters-- <= 0) {

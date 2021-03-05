@@ -65,7 +65,7 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.6j"
+#define SPX_FW_REV "3.0.7a"
 //#define SPX_FW_REV "3.0.5BETA"
 #define SPX_FW_DATE "@ 20210304"
 
@@ -97,7 +97,7 @@
 #define IO8_COUNTER_CHANNELS	2
 #define IO8_DOUTPUTS_CHANNELS	8
 
-#define MODBUS_CHANNELS			2
+#define MODBUS_CHANNELS			12
 
 #define CHAR32	32
 #define CHAR64	64
@@ -208,6 +208,7 @@ uint8_t NRO_COUNTERS;
 uint8_t NRO_ANINPUTS;
 uint8_t NRO_DINPUTS;
 
+
 typedef struct {
 	uint16_t idle;
 	uint16_t cmd;
@@ -227,7 +228,6 @@ typedef struct {
 	float psensor;								// 4 * 1 =  4
 	float temp;									// 4 * 1 =  4
 	float battery;								// 4 * 1 =  4
-	uint16_t mbus_inputs[MODBUS_CHANNELS];		// 2 * 2 =  4
 } st_io5_t;										// ----- = 50
 
 // Estructura de un registro de IO8CH
@@ -237,10 +237,18 @@ typedef struct {
 	float counters[IO8_COUNTER_CHANNELS];		// 4 * 2 =  8
 } st_io8_t; 									// ----- = 56
 
+// Estructura de un registro de IO5CH_MODBUS
+typedef struct {
+	float mbinputs[MODBUS_CHANNELS];			// 4 * 12 = 48
+	float battery;								// 4 * 1 =   4
+} st_mbus_t;									// ----- =  52
+
+
 // Estructura de datos comun independiente de la arquitectura de IO
 typedef union u_dataframe {
 	st_io5_t io5;	// 50
 	st_io8_t io8;	// 56
+	st_mbus_t mbus; // 52
 } u_dataframe_t;	// 56
 
 typedef struct {
@@ -301,14 +309,22 @@ typedef struct {
 	float offset;
 } psensor_conf_t;
 
+
+// MODBUS
+// Canales ( solo lectura( se trasmiten / almacenan en BD ) )
+typedef struct {
+	char name[PARAMNAME_LENGTH];
+	uint16_t address;			// Direccion del canal
+	uint8_t length;				// Largo en bytes
+	uint8_t function_code;		// Funcion usada para acceder
+} modbus_channel_config_t;
+
 // Configuracion de modbus
 typedef struct {
 	uint8_t modbus_slave_address;
-	char var_name[MODBUS_CHANNELS][PARAMNAME_LENGTH];
-	uint16_t var_address[MODBUS_CHANNELS];				// Direccion en el slave de la variable a leer
-	uint8_t var_length[MODBUS_CHANNELS];				// Cantidad de bytes a leer
-	uint8_t var_function_code[MODBUS_CHANNELS];			// Funcion de lectura (3-Holding reg, 4-Normal reg)
+	modbus_channel_config_t mbchannel[MODBUS_CHANNELS];
 } modbus_conf_t;
+
 
 typedef struct {
 
@@ -450,7 +466,12 @@ float ainputs_read_channel( uint8_t io_channel );
 
 // TKDATA
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy );
+void data_read_inputs_normal(st_dataRecord_t *dst, bool f_copy );
+void data_read_inputs_modbus(st_dataRecord_t *dst, bool f_copy );
+
 void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl);
+void data_print_inputs_normal(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl);
+void data_print_inputs_modbus(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl);
 
 // MODBUS
 void modbus_init(void);
@@ -460,17 +481,11 @@ void modbus_config_defaults(void);
 uint8_t modbus_hash(void);
 void modbus_txFrame(bool f_debug, uint8_t *data, uint8_t data_size );
 bool modbus_rxFrame( bool f_debug, uint8_t *data, uint8_t max_data_size );
-void modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size );
+float  modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size );
 void modbus_poll_test( char *arg_ptr[16] );
 void modbus_link_test( void );
+void modbus_float_test( char *s_nbr );
 
-
-bool modbus_poll_PLC( uint16_t mbus_in[] );
-void modbus_print(file_descriptor_t fd, uint16_t mbus[] );
-void modbus_status(void);
-void modbus_wr_test( uint8_t modo, char* c_slave_address, char *c_function_code, char * c_start_address, char * c_nro_regs);
-void modbus_rd_test(void);
-void modbus_set_hr( bool f_debug, char* c_slave_address, char *c_function_code, char * c_start_address, char * c_values);
 
 bool SPX_SIGNAL( uint8_t signal );
 bool SPX_SEND_SIGNAL( uint8_t signal );

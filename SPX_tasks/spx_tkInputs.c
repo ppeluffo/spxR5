@@ -31,6 +31,7 @@ static void pv_data_guardar_en_BD(void);
 
 void tkInputs_normal(void);
 void tkInputs_external_poll(void);
+void tkInputs_modbus(void);
 
 //------------------------------------------------------------------------------------
 void tkInputs(void * pvParameters)
@@ -44,20 +45,12 @@ void tkInputs(void * pvParameters)
 
 	xprintf_P( PSTR("starting tkInputs..\r\n\0"));
 
-    // Creo y arranco el timer que va a contar las entradas digitales.
-    ainputs_init();
-    dinputs_init();
-    counters_init();
-    psensor_init();
-    tempsensor_init();
-    range_init();
-
-    if ( systemVars.modbus_conf.modbus_slave_address != 0x00 ) {
-    	modbus_init();
-    }
-
-	if ( sVarsApp.aplicacion == APP_EXTERNAL_POLL ) {
+  	if ( sVarsApp.aplicacion == APP_EXTERNAL_POLL ) {
 		tkInputs_external_poll();
+
+	} else if ( sVarsApp.aplicacion == APP_MODBUS ) {
+		tkInputs_modbus();
+
 	} else {
 		tkInputs_normal();
 	}
@@ -66,6 +59,14 @@ void tkInputs(void * pvParameters)
 void tkInputs_external_poll(void)
 {
 	// Espero la señal de poleo.
+
+    // Creo y arranco el timer que va a contar las entradas digitales.
+    ainputs_init();
+    dinputs_init();
+    counters_init();
+    psensor_init();
+    tempsensor_init();
+    range_init();
 
 	xprintf_P( PSTR("starting tkInputs External Poll..\r\n\0"));
 	// loop
@@ -105,6 +106,14 @@ void tkInputs_normal(void)
 
 TickType_t xLastWakeTime = 0;
 uint32_t waiting_ticks = 0;
+
+	// Creo y arranco el timer que va a contar las entradas digitales.
+	ainputs_init();
+	dinputs_init();
+	counters_init();
+	psensor_init();
+	tempsensor_init();
+	range_init();
 
 	xprintf_P( PSTR("starting tkInputs Normal..\r\n"));
 
@@ -151,7 +160,54 @@ uint32_t waiting_ticks = 0;
  	}
 }
 //------------------------------------------------------------------------------------
+void tkInputs_modbus(void)
+{
+
+TickType_t xLastWakeTime = 0;
+uint32_t waiting_ticks = 0;
+
+	modbus_init();
+
+	xprintf_P( PSTR("starting tkInputs Modbus..\r\n"));
+
+	// Initialise the xLastWakeTime variable with the current time.
+ 	 xLastWakeTime = xTaskGetTickCount();
+
+ 	 // Al arrancar poleo a los 10s
+ 	 waiting_ticks = (uint32_t)(10) * 1000 / portTICK_RATE_MS;
+
+ 	// loop
+ 	for( ;; ) {
+
+ 		ctl_watchdog_kick(WDG_DINPUTS , WDG_DIN_TIMEOUT);
+
+ 		// Espero. Da el tiempo necesario para entrar en tickless.
+ 		vTaskDelayUntil( &xLastWakeTime, waiting_ticks );
+
+  		// Calculo el tiempo para una nueva espera
+ 		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
+ 			taskYIELD();
+
+		// timpo real que voy a dormir esta tarea
+		waiting_ticks = (uint32_t)(systemVars.timerPoll) * 1000 / portTICK_RATE_MS;
+		// tiempo similar que voy a decrementar y mostrar en consola.
+		ctl_reload_timerPoll(systemVars.timerPoll);
+
+		xSemaphoreGive( sem_SYSVars );
+
+ 	}
+}
+//------------------------------------------------------------------------------------
 void data_read_inputs(st_dataRecord_t *dst, bool f_copy )
+{
+	if ( sVarsApp.aplicacion == APP_MODBUS ) {
+		data_read_inputs_modbus( dst, f_copy );
+	} else {
+		data_read_inputs_normal( dst, f_copy );
+	}
+}
+//------------------------------------------------------------------------------------
+void data_read_inputs_normal(st_dataRecord_t *dst, bool f_copy )
 {
 	// Leo las entradas digitales sobre la estructura local din.
 	// En los IO5 el sensor de temperatura y presion actuan juntos !!!!.
@@ -183,12 +239,8 @@ int8_t xBytes = 0;
 		}
 
 		range_read( &dst->df.io5.range );
-
-//	    if ( systemVars.modbus_conf.modbus_slave_address != 0x00 ) {
-//	    	modbus_poll( dst->df.io5.mbus_inputs );
-//	    }
-
 		break;
+
 	case SPX_IO8CH:
 		dinputs_read( dst->df.io8.dinputs );
 		dinputs_clear();
@@ -220,7 +272,40 @@ int8_t xBytes = 0;
 
 }
 //------------------------------------------------------------------------------------
+void data_read_inputs_modbus(st_dataRecord_t *dst, bool f_copy )
+{
+	// Leo las entradas digitales sobre la estructura local din.
+	// En los IO5 el sensor de temperatura y presion actuan juntos !!!!.
+
+int8_t xBytes = 0;
+
+	// Solo copio el buffer. No poleo.
+	if ( f_copy ) {
+		memcpy(dst, &dataRecd, sizeof(dataRecd));
+		return;
+	}
+
+	// Poleo.
+
+	// Agrego el timestamp
+	xBytes = RTC_read_dtime( &dst->rtc );
+	if ( xBytes == -1 )
+		xprintf_P(PSTR("ERROR: I2C:RTC:data_read_inputs\r\n\0"));
+
+
+}
+//------------------------------------------------------------------------------------
 void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl )
+{
+
+	if ( sVarsApp.aplicacion == APP_MODBUS ) {
+		data_print_inputs_modbus( fd, dr, ctl );
+	} else {
+		data_print_inputs_normal( fd, dr, ctl );
+	}
+}
+//------------------------------------------------------------------------------------
+void data_print_inputs_normal(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl )
 {
 
 	// timeStamp.
@@ -243,10 +328,6 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl )
 
 		range_print( fd, dr->df.io5.range );
 
-	    if ( systemVars.modbus_conf.modbus_slave_address != 0x00 ) {
-	    	modbus_print( fd, dr->df.io5.mbus_inputs );
-	    }
-
 		ainputs_battery_print( fd, dr->df.io5.battery );
 		break;
 	case SPX_IO8CH:
@@ -255,6 +336,22 @@ void data_print_inputs(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl )
 		counters_print( fd, dr->df.io8.counters );
 		break;
 	}
+
+	// TAIL
+	// Esto es porque en gprs si mando un cr corto el socket !!!
+	if ( fd == fdTERM ) {
+		xfprintf_P(fd, PSTR("\r\n\0") );
+	}
+}
+//------------------------------------------------------------------------------------
+void data_print_inputs_modbus(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl )
+{
+	// timeStamp.
+	xfprintf_P(fd, PSTR("CTL:%d;DATE:%02d"),ctl, dr->rtc.year );
+	xfprintf_P(fd, PSTR("%02d%02d;"),dr->rtc.month, dr->rtc.day );
+
+	xfprintf_P(fd, PSTR("TIME:%02d"), dr->rtc.hour );
+	xfprintf_P(fd, PSTR("%02d%02d;"), dr->rtc.min, dr->rtc.sec );
 
 	// TAIL
 	// Esto es porque en gprs si mando un cr corto el socket !!!

@@ -38,6 +38,9 @@ static void cmdKillFunction(void);
 static void cmdPeekFunction(void);
 static void cmdPokeFunction(void);
 
+static void status_canales_estandard(void);
+static void status_canales_modbus(void);
+
 #define WR_CMD 0
 #define RD_CMD 1
 
@@ -113,7 +116,6 @@ static void cmdStatusFunction(void)
 {
 
 FAT_t l_fat;
-uint8_t channel = 0;
 st_dataRecord_t dr;
 
 	FRTOS_CMD_makeArgv();
@@ -183,6 +185,9 @@ st_dataRecord_t dr;
 	case APP_PILOTO:
 		xAPP_piloto_print_status();
 		break;
+	case APP_MODBUS:
+		xprintf_P( PSTR("  modo: Modbus\r\n"));
+		break;
 	}
 
 	// CONFIG
@@ -219,6 +224,25 @@ st_dataRecord_t dr;
 	// Timerdial
 	xprintf_P( PSTR("  timerDial: [%ld s]/\0"), sVarsComms.timerDial );
 	xprintf_P( PSTR(" %d \r\n\0"), xcomms_time_to_next_dial() );
+
+	// Canales:
+	if ( sVarsApp.aplicacion == APP_MODBUS ) {
+		status_canales_modbus();
+	} else {
+		status_canales_estandard();
+	}
+
+	// Muestro los datos
+	// CONFIG
+	xprintf_P( PSTR(">Frame:\r\n\0"));
+	data_read_inputs(&dr, true );
+	data_print_inputs(fdTERM, &dr, 0);
+}
+//-----------------------------------------------------------------------------------
+static void status_canales_estandard(void)
+{
+
+uint8_t channel = 0;
 
 	// Sensor Pwr Time
 	xprintf_P( PSTR("  timerPwrSensor: [%d s]\r\n\0"), systemVars.ainputs_conf.pwr_settle_time );
@@ -260,10 +284,6 @@ st_dataRecord_t dr;
 	case COUNTERS_HW_OPTO:
 		xprintf_P( PSTR("  counters hw: opto\r\n\0"));
 		break;
-	}
-
-	if ( spx_io_board == SPX_IO5CH ) {
-		modbus_status();
 	}
 
 	xprintf_P( PSTR(">Channels:\r\n\0"));
@@ -312,11 +332,22 @@ st_dataRecord_t dr;
 		}
 	}
 
-	// Muestro los datos
-	// CONFIG
-	xprintf_P( PSTR(">Frame:\r\n\0"));
-	data_read_inputs(&dr, true );
-	data_print_inputs(fdTERM, &dr, 0);
+}
+//-----------------------------------------------------------------------------------
+static void status_canales_modbus(void)
+{
+uint8_t channel;
+
+	xprintf_P( PSTR(">Modbus:\r\n\0"));
+	xprintf_P( PSTR("  mbus sladdr: 0x%02x\r\n\0"), systemVars.modbus_conf.modbus_slave_address );
+	for (channel=0; channel<MODBUS_CHANNELS; channel++) {
+		xprintf_P( PSTR("  mb%02d: add:0x%04x, lg:0x%02x, fc:0x%02x, %s]\r\n\0"),
+				channel, systemVars.modbus_conf.mbchannel[channel].address,
+				systemVars.modbus_conf.mbchannel[channel].length,
+				systemVars.modbus_conf.mbchannel[channel].function_code,
+				systemVars.modbus_conf.mbchannel[channel].name );
+	}
+
 }
 //-----------------------------------------------------------------------------------
 static void cmdResetFunction(void)
@@ -420,7 +451,7 @@ char l_data[10] = { '\0' };
 	}
 
 	// MODBUS
-	// write modbus get {slave} {fcode} {start_addr} {nro_regs}
+	// write modbus {poll,link,float} .....
 	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
 		/*
 		if ( ( strcmp_P( strupr(argv[2]), PSTR("GET")) == 0)) {
@@ -446,6 +477,11 @@ char l_data[10] = { '\0' };
 			return;
 		}
 
+		if ( ( strcmp_P( strupr(argv[2]), PSTR("FLOAT")) == 0)) {
+			modbus_float_test(argv[3]);
+			pv_snprintfP_OK();
+			return;
+		}
 	}
 
 	// AUX
@@ -1269,7 +1305,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  ical {ch} {imin | imax}\r\n\0"));
 		xprintf_P( PSTR("  mcal {ch} {p1|p2} {mag}\r\n\0"));
 
-		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque,extpoll,piloto}\r\n\0"));
+		xprintf_P( PSTR("  aplicacion {off,consigna,perforacion,tanque,extpoll,piloto, modbus}\r\n\0"));
 		xprintf_P( PSTR("  appalarma sms {id} {nro} {almlevel}\r\n\0"));
 		xprintf_P( PSTR("            nivel {chid} {alerta} {inf|sup} val\r\n\0"));
 		xprintf_P( PSTR("  piloto slot {idx} {hhmm} {pout}\r\n\0"));

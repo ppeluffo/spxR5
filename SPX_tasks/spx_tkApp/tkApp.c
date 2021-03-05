@@ -61,6 +61,9 @@ void tkAplicacion(void * pvParameters)
 	case APP_PILOTO:
 		tkApp_piloto();
 		break;
+	case APP_MODBUS:
+		tkApp_modbus();
+		break;
 	default:
 		break;
 	}
