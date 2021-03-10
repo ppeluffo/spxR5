@@ -65,9 +65,9 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.7a"
+#define SPX_FW_REV "3.0.7c"
 //#define SPX_FW_REV "3.0.5BETA"
-#define SPX_FW_DATE "@ 20210304"
+#define SPX_FW_DATE "@ 20210310"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -237,9 +237,16 @@ typedef struct {
 	float counters[IO8_COUNTER_CHANNELS];		// 4 * 2 =  8
 } st_io8_t; 									// ----- = 56
 
+
+typedef union {
+	uint32_t ivalue;
+	float fvalue;
+	uint8_t fbytes[4];
+} hold_reg_t;
+
 // Estructura de un registro de IO5CH_MODBUS
 typedef struct {
-	float mbinputs[MODBUS_CHANNELS];			// 4 * 12 = 48
+	hold_reg_t mbinputs[MODBUS_CHANNELS];		// 4 * 12 = 48
 	float battery;								// 4 * 1 =   4
 } st_mbus_t;									// ----- =  52
 
@@ -298,7 +305,6 @@ typedef struct {
 	float ieq_max[MAX_ANALOG_CHANNELS];
 } ainputs_conf_t;
 
-
 // Configuracion del sensor i2c de presion
 typedef struct {
 	char name[PARAMNAME_LENGTH];
@@ -309,7 +315,6 @@ typedef struct {
 	float offset;
 } psensor_conf_t;
 
-
 // MODBUS
 // Canales ( solo lectura( se trasmiten / almacenan en BD ) )
 typedef struct {
@@ -317,6 +322,7 @@ typedef struct {
 	uint16_t address;			// Direccion del canal
 	uint8_t length;				// Largo en bytes
 	uint8_t function_code;		// Funcion usada para acceder
+	char type;					// f (float) / i (int)
 } modbus_channel_config_t;
 
 // Configuracion de modbus
@@ -324,7 +330,6 @@ typedef struct {
 	uint8_t modbus_slave_address;
 	modbus_channel_config_t mbchannel[MODBUS_CHANNELS];
 } modbus_conf_t;
-
 
 typedef struct {
 
@@ -476,15 +481,19 @@ void data_print_inputs_modbus(file_descriptor_t fd, st_dataRecord_t *dr, uint16_
 // MODBUS
 void modbus_init(void);
 bool modbus_config_slave_address( char *address);
-bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_length,char *s_rcode);
+bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_length,char *s_rcode, char *s_type );
 void modbus_config_defaults(void);
 uint8_t modbus_hash(void);
 void modbus_txFrame(bool f_debug, uint8_t *data, uint8_t data_size );
 bool modbus_rxFrame( bool f_debug, uint8_t *data, uint8_t max_data_size );
-float  modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size );
-void modbus_poll_test( char *arg_ptr[16] );
-void modbus_link_test( void );
-void modbus_float_test( char *s_nbr );
+void modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size, hold_reg_t *hreg );
+void modbus_poll_channel( bool f_debug, uint8_t channel , hold_reg_t *hreg );
+void modbus_write_output_register ( bool f_debug, uint8_t f_code, uint16_t address, char type, hold_reg_t *hreg );
+void modbus_test_generic_poll( char *arg_ptr[16] );
+void modbus_test_link( void );
+void modbus_test_float( char *s_nbr );
+void modbus_test_channel_poll ( char *s_channel);
+void modbus_test_write_output (char *s_f_code, char *s_address, char *s_type, char *s_value );
 
 
 bool SPX_SIGNAL( uint8_t signal );

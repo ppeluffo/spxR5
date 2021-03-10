@@ -110,7 +110,7 @@ char *ptr;
 	return(true);
 }
 //------------------------------------------------------------------------------------
-bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_length,char *s_rcode)
+bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_length,char *s_rcode, char *s_type )
 {
 
 //	xprintf_P(PSTR("DEBUG: channel=%d\r\n\0"), channel);
@@ -120,13 +120,21 @@ bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_len
 //	xprintf_P(PSTR("DEBUG: rcode=%s\r\n\0"), s_rcode);
 
 char *ptr;
+char type;
 
 	if ( u_control_string(s_name) == 0 ) {
-		xprintf_P( PSTR("DEBUG MODBUS ERROR: A%d[%s]\r\n\0"), channel, s_name );
+		xprintf_P( PSTR("MODBUS CONFIG ERROR: ch:%d, [%s]\r\n\0"), channel, s_name );
 		return( false );
 	}
 
 	if (( s_name == NULL ) || ( s_addr == NULL) || (s_length == NULL) || ( s_rcode == NULL)) {
+		return(false);
+	}
+
+	type = toupper(s_type[0]);
+
+	if ( ( type != 'F' ) && ( type != 'I') ) {
+		xprintf_P(PSTR("MODBUS CONFIG ERROR: El tipo de canal modbus debe ser 'F' o 'I'\r\n"));
 		return(false);
 	}
 
@@ -136,6 +144,7 @@ char *ptr;
 		systemVars.modbus_conf.mbchannel[channel].address = strtol(s_addr, &ptr, 16);
 		systemVars.modbus_conf.mbchannel[channel].length = strtol(s_length, &ptr, 16);
 		systemVars.modbus_conf.mbchannel[channel].function_code = strtol(s_rcode, &ptr, 16);
+		systemVars.modbus_conf.mbchannel[channel].type = type;
 		return(true);
 	}
 
@@ -154,6 +163,7 @@ uint8_t channel = 0;
 		systemVars.modbus_conf.mbchannel[channel].address = 0x00;
 		systemVars.modbus_conf.mbchannel[channel].length = 0;
 		systemVars.modbus_conf.mbchannel[channel].function_code = 0;
+		systemVars.modbus_conf.mbchannel[channel].type = 'F';
 	}
 }
 //------------------------------------------------------------------------------------
@@ -371,7 +381,7 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-float modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size )
+void modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size, hold_reg_t *hreg )
 {
 	// Decodifica el frame recibido ( pasado en *data )
 	// Lo que hacemos es escribir y leer registros del PLC.
@@ -386,53 +396,46 @@ uint8_t byte_count;
 uint8_t i;
 uint8_t frame_size = 0;
 
-union {
-	float fvalue;
-	uint8_t fbytes[4];
-} hold_reg;
-
 	function_code = data[1];
 	switch(function_code) {
-	case 0x3:
+	case 0x3:	// WRITE HOLDING REGISTER
 		// Los holding register pueden tener 2 o 4 bytes.
 		// Solo leo 1 registro.
 		// El resultado lo convierto a float ( 4 bytes )
 		xprintf_PD(f_debug, PSTR("MODBUS_DC: FC=0x03: Read Holding Register\r\n"));
 		byte_count = data[2];
-		frame_size = 2 + byte_count + 2;	// ADDR + FC + byte_counts + CRCH + CRCL
+		frame_size = 3 + byte_count + 2;	// ADDR + FC + BC + bytes(byte_counts) + CRCH + CRCL
 		xprintf_PD(f_debug, PSTR("MODBUS_DC: byte_count=%d\r\n"), byte_count);
-		// Convierto el resultado a float.
 		if ( byte_count == 2 ) {
-			// Leo 2 bytes.
-			hold_reg.fbytes[0] = 0x00;
-			hold_reg.fbytes[1] = 0x00;
-			hold_reg.fbytes[2] = data[3];
-			hold_reg.fbytes[3] = data[4];
+			// Leo 2 bytes. Los interpreto como entero
+			hreg->fbytes[0] = data[4];
+			hreg->fbytes[1] = data[3];
+			hreg->fbytes[2] = 0x00;
+			hreg->fbytes[3] = 0x00;
+			//xprintf_PD(f_debug, PSTR("MODBUS_DC: f0[%x] f1[%x]\r\n"), hreg->fbytes[0], hreg->fbytes[1] );
 		} else if ( byte_count == 4 ) {
-			// Leo 4 bytes.
-			hold_reg.fbytes[0] = data[3];
-			hold_reg.fbytes[1] = data[4];
-			hold_reg.fbytes[2] = data[5];
-			hold_reg.fbytes[3] = data[6];
+			// Leo 4 bytes. Los interpreto como float.
+			hreg->fbytes[0] = data[4];
+			hreg->fbytes[1] = data[3];
+			hreg->fbytes[2] = data[6];
+			hreg->fbytes[3] = data[5];
 			//hold_reg.fbytes = ( data[3] << 24) + (data[4] << 16 ) + ( data[5] << 8 ) + data [6];
 		}
-		xprintf_PD(f_debug, PSTR("MODBUS_DC: Value=%.3f\r\n"), hold_reg.fvalue );
 		break;
 
-	case 0x4:
-		xprintf_PD(f_debug, PSTR("MODBUS_DC: FC=0x04: Read Input Register\r\n"));
-		byte_count = data[2];
-		frame_size = 2 + byte_count + 2;
-		xprintf_PD(f_debug, PSTR("MODBUS_DC: byte_count=%d\r\n"), byte_count);
-		break;
-
-	case 0x6:
-		xprintf_PD(f_debug, PSTR("MODBUS_DC: FC=0x06: Write Single Register\r\n"));
+	case 0x6:	// READ SINGLE REGISTER
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: FC=0x06: Write Holding Register\r\n"));
+		frame_size = 8;	//  ADDR + FC + RA_H + RA_L + RV_H + RV_L + CRCH + CRCL
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: byte_count=6\r\n"));
+		hreg->fbytes[0] = data[5];
+		hreg->fbytes[1] = data[4];
+		hreg->fbytes[2] = 0x00;
+		hreg->fbytes[3] = 0x00;
 		break;
 
 	default:
 		xprintf_PD(f_debug, PSTR("MODBUS_DC: Codigo de funcion no soportado.\r\n"));
-		hold_reg.fvalue = -9999;
+		hreg->fvalue = -9999;
 		break;
 	}
 
@@ -441,15 +444,89 @@ union {
 	for (i=0; i < frame_size; i++) {
 		xprintf_PD(f_debug, PSTR("[0x%02x]"), data[i]);
 	}
+
 	xprintf_PD(f_debug, PSTR("\r\n"));
 
-	return(hold_reg.fvalue);
+}
+//------------------------------------------------------------------------------------
+void modbus_poll_channel( bool f_debug, uint8_t channel, hold_reg_t *hreg )
+{
+	// Polea (tx, rx, decode ) un canal modbus.
+
+uint8_t byte_count = 0;
+uint8_t data[MBUS_TXMSG_LENGTH];
+uint8_t i;
+
+	// Armo el frame.
+	memset( data,'\0', MBUS_TXMSG_LENGTH);
+	data[0] = systemVars.modbus_conf.modbus_slave_address;					// Slave PLC address
+	data[1] = systemVars.modbus_conf.mbchannel[channel].function_code; 		// Function Code
+
+	switch ( data[1] ) {
+	case 0x03:	// Holding register
+		data[2] = ( systemVars.modbus_conf.mbchannel[channel].address & 0xFF00 ) >> 8;		// ADDR_HI
+		data[3] = ( systemVars.modbus_conf.mbchannel[channel].address & 0x00FF );			// ADDR_LO
+		data[4] = ( systemVars.modbus_conf.mbchannel[channel].length & 0xFF00 ) >> 8;		// NRO_REG_HI
+		data[5] = ( systemVars.modbus_conf.mbchannel[channel].length & 0x00FF );			// NRO_REG_LO
+		byte_count = 6;
+		break;
+	}
+
+	// Log & print
+	if ( f_debug ) {
+		for (i=0; i < byte_count; i++ ) {
+			xprintf_P(PSTR("%02d:[%02x]\r\n"),i,data[i]);
+		}
+	}
+
+	// Transmito
+	modbus_txFrame( f_debug, data, byte_count );
+	// Espero la respuesta
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	modbus_rxFrame( f_debug, data, MBUS_TXMSG_LENGTH );
+	// Proceso respuesta
+	modbus_decodeRxFrame( f_debug, data, MBUS_TXMSG_LENGTH, hreg );
+
+}
+//------------------------------------------------------------------------------------
+void modbus_write_output_register ( bool f_debug, uint8_t f_code, uint16_t address, char type, hold_reg_t *hreg )
+{
+
+uint8_t data[MBUS_TXMSG_LENGTH];
+uint8_t byte_count = 0;
+uint8_t i;
+
+	data[0] = systemVars.modbus_conf.modbus_slave_address;
+	data[1] = f_code;
+	data[2] = ( address & 0xFF00 ) >> 8;
+	data[3] = ( address & 0x00FF);
+	if ( toupper(type) == 'I') {
+		data[4] = ( hreg->ivalue & 0xFF00 ) >> 8;
+		data[5] = hreg->ivalue & 0x00FF;
+		byte_count = 6;
+	}
+
+	// Log & print
+	if ( f_debug ) {
+		for (i=0; i < byte_count; i++ ) {
+			xprintf_P(PSTR("%02d:[%02x]\r\n"),i,data[i]);
+		}
+	}
+
+	// Transmito
+	modbus_txFrame( f_debug, data, byte_count );
+	// Espero la respuesta
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	modbus_rxFrame( f_debug, data, MBUS_TXMSG_LENGTH );
+	// Proceso respuesta
+	modbus_decodeRxFrame( f_debug, data, MBUS_TXMSG_LENGTH, hreg );
+
 
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES DE TESTING
 //------------------------------------------------------------------------------------
-void modbus_poll_test( char *arg_ptr[16] )
+void modbus_test_generic_poll( char *arg_ptr[16] )
 {
 	// Recibe el argv con los datos en char hex para trasmitir el frame.
 	// El formato es: bytes_counts {bytes in hex}
@@ -458,18 +535,23 @@ char *ptr;
 uint8_t byte_count;
 uint8_t data[MBUS_TXMSG_LENGTH];
 uint8_t i;
+char type;
+hold_reg_t hreg;
 
-	xprintf_P(PSTR("MODBUS TEST:\r\n"));
+	xprintf_P(PSTR("MODBUS GENPOLL START:\r\n"));
+
+	type = toupper(arg_ptr[3][0]);
+	xprintf_P(PSTR("DEBUG TYPE=%c\r\n"), type);
 
 	// Vemos cuantos bytes vienen
-	byte_count = strtol(arg_ptr[3], &ptr,  16);
-	xprintf_P(PSTR("MODBUS TEST: byte count = %d\r\n"), byte_count);
+	byte_count = strtol(arg_ptr[4], &ptr,  16);
+	xprintf_P(PSTR("MODBUS GENPOLL: byte count = %d\r\n"), byte_count);
 
 	// Armo el frame.
 	memset( data,'\0', MBUS_TXMSG_LENGTH);
 	for (i=0; i < byte_count; i++ ) {
-		data[i] = strtol(arg_ptr[4+i], &ptr,  16);
-		xprintf_P(PSTR("MODBUS TEST: byte_count=[%d], data=[%02x]\r\n"),i,data[i]);
+		data[i] = strtol(arg_ptr[5+i], &ptr,  16);
+		xprintf_P(PSTR("MODBUS GENPOLL: byte_count=[%d], data=[%02x]\r\n"),i,data[i]);
 	}
 
 	// Proceso el frame
@@ -477,13 +559,18 @@ uint8_t i;
 	// Espero la respuesta
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	modbus_rxFrame(true, data, MBUS_TXMSG_LENGTH );
-	modbus_decodeRxFrame(true, data, MBUS_TXMSG_LENGTH );
+	modbus_decodeRxFrame(true, data, MBUS_TXMSG_LENGTH, &hreg );
+	if ( type == 'F') {
+		xprintf_P(PSTR("MODBUS GENPOLL: fvalue=%.3f\r\n"), hreg.fvalue);
+	} else if ( type == 'I') {
+		xprintf_P(PSTR("MODBUS GENPOLL: ivalue=%d\r\n"), hreg.ivalue);
+	}
 
-	xprintf_P(PSTR("MODBUS TEST END:\r\n"));
+	xprintf_P(PSTR("MODBUS GENPOLL END:\r\n"));
 
 }
 //------------------------------------------------------------------------------------
-void modbus_link_test( void )
+void modbus_test_link( void )
 {
 	// Transmite un string ASCII por el bus.
 
@@ -502,7 +589,7 @@ uint8_t data[MBUS_TXMSG_LENGTH];
 
 }
 //------------------------------------------------------------------------------------
-void modbus_float_test( char *s_nbr )
+void modbus_test_float( char *s_nbr )
 {
 	// Funcion de testing que lee un string representando a un float
 	// y lo imprime como float y como los 4 bytes
@@ -512,10 +599,64 @@ union {
 	uint8_t fbytes[4];
 } rec;
 
+	xprintf_P(PSTR("MODBUS FLOAT:\r\n"));
+
 	rec.fvalue = atof(s_nbr);
 	xprintf_P(PSTR("Str: %d\r\n"), s_nbr);
 	xprintf_P(PSTR("Float=%f\r\n"), rec.fvalue);
 	xprintf_P(PSTR("Bytes=[0x%02x][0x%02x][0x%02x][0x%02x]\r\n"), rec.fbytes[0], rec.fbytes[1], rec.fbytes[2], rec.fbytes[3]);
 
+}
+//------------------------------------------------------------------------------------
+void modbus_test_channel_poll ( char *s_channel)
+{
+
+uint8_t channel;
+hold_reg_t hreg;
+char type;
+
+	xprintf_P(PSTR("MODBUS CHPOLL START:\r\n"));
+
+	channel = atoi(s_channel);
+
+	if ( channel >= MODBUS_CHANNELS ) {
+		xprintf_P(PSTR("ERROR: Nro.canal < %d\r\n"), MODBUS_CHANNELS);
+		return;
+	}
+
+	if ( ! strcmp ( systemVars.modbus_conf.mbchannel[channel].name, "X" ) ) {
+		xprintf_P(PSTR("ERROR: Canal no definido (X)\r\n"));
+		return;
+	}
+
+	modbus_poll_channel(true, channel, &hreg );
+	type = systemVars.modbus_conf.mbchannel[channel].type;
+
+	if ( type == 'F') {
+		xprintf_P(PSTR("MODBUS CHPOLL: fvalue=%.3f\r\n"), hreg.fvalue);
+	} else if ( type == 'I') {
+		xprintf_P(PSTR("MODBUS CHPOLL: ivalue=%d\r\n"), hreg.ivalue );
+	}
+}
+//------------------------------------------------------------------------------------
+void modbus_test_write_output (char *s_f_code, char *s_address, char *s_type, char *s_value )
+{
+	// fcode address type value
+
+uint8_t f_code;
+uint16_t address;
+char type;
+hold_reg_t hreg;
+
+	f_code = atoi(s_f_code);
+	address = atoi(s_address);
+	type = toupper(s_type[0]);
+	if  ( type == 'F') {
+		hreg.fvalue = atof(s_value);
+	} else {
+		hreg.ivalue = atoi(s_value);
+	}
+
+	modbus_write_output_register ( true , f_code, address, type, &hreg );
 }
 //------------------------------------------------------------------------------------

@@ -341,10 +341,11 @@ uint8_t channel;
 	xprintf_P( PSTR(">Modbus:\r\n\0"));
 	xprintf_P( PSTR("  mbus sladdr: 0x%02x\r\n\0"), systemVars.modbus_conf.modbus_slave_address );
 	for (channel=0; channel<MODBUS_CHANNELS; channel++) {
-		xprintf_P( PSTR("  mb%02d: add:0x%04x, lg:0x%02x, fc:0x%02x, %s]\r\n\0"),
+		xprintf_P( PSTR("  mb%02d: add:0x%04x, lg:0x%02x, fc:0x%02x, ty=%c, %s]\r\n\0"),
 				channel, systemVars.modbus_conf.mbchannel[channel].address,
 				systemVars.modbus_conf.mbchannel[channel].length,
 				systemVars.modbus_conf.mbchannel[channel].function_code,
+				systemVars.modbus_conf.mbchannel[channel].type,
 				systemVars.modbus_conf.mbchannel[channel].name );
 	}
 
@@ -453,32 +454,32 @@ char l_data[10] = { '\0' };
 	// MODBUS
 	// write modbus {poll,link,float} .....
 	if ( ( strcmp_P( strupr(argv[1]), PSTR("MODBUS\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
-		/*
-		if ( ( strcmp_P( strupr(argv[2]), PSTR("GET")) == 0)) {
-			modbus_wr_test( 0, argv[3], argv[4], argv[5], argv[6] );
+		if ( ( strcmp_P( strupr(argv[2]), PSTR("GENPOLL")) == 0)) {
+			modbus_test_generic_poll( argv );
 			pv_snprintfP_OK();
 			return;
 		}
-		if ( ( strcmp_P( strupr(argv[2]), PSTR("SET")) == 0)) {
-			modbus_set_hr( true, argv[3], argv[4], argv[5], argv[6]);
-			//modbus_wr_test( 1, argv[3], argv[4], argv[5], argv[6] );
+
+		if ( ( strcmp_P( strupr(argv[2]), PSTR("CHPOLL")) == 0)) {
+			modbus_test_channel_poll(argv[3]);
 			pv_snprintfP_OK();
 			return;
 		}
-		*/
-		if ( ( strcmp_P( strupr(argv[2]), PSTR("POLL")) == 0)) {
-			modbus_poll_test( argv );
-			pv_snprintfP_OK();
-			return;
-		}
+
 		if ( ( strcmp_P( strupr(argv[2]), PSTR("LINK")) == 0)) {
-			modbus_link_test();
+			modbus_test_link();
 			pv_snprintfP_OK();
 			return;
 		}
 
 		if ( ( strcmp_P( strupr(argv[2]), PSTR("FLOAT")) == 0)) {
-			modbus_float_test(argv[3]);
+			modbus_test_float(argv[3]);
+			pv_snprintfP_OK();
+			return;
+		}
+
+		if ( ( strcmp_P( strupr(argv[2]), PSTR("OUTPUT")) == 0)) {
+			modbus_test_write_output(argv[3], argv[4], argv[5], argv[6]);
 			pv_snprintfP_OK();
 			return;
 		}
@@ -1227,10 +1228,10 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("           (open|close) (A|B)\r\n\0"));
 				xprintf_P( PSTR("           pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("           power {on|off}\r\n\0"));
-				//xprintf_P( PSTR("  modbus get {slave} {fcode} {start_addr} {nro_regs}\r\n\0"));
-				//xprintf_P( PSTR("         set {slave} {fcode} {addr} {value}\r\n\0"));
-				xprintf_P( PSTR("  modbus poll bytes_counts {bytes in hex}\r\n\0"));
-				xprintf_P( PSTR("         link\r\n\0"));
+				xprintf_P( PSTR("  modbus genpoll type(f|i) bytes_counts [bytes in hex]\r\n\0"));
+				xprintf_P( PSTR("         chpoll\r\n\0"));
+				xprintf_P( PSTR("         link, float {fltstr}\r\n\0"));
+				xprintf_P( PSTR("         output fcode address type value\r\n\0"));
 				xprintf_P( PSTR("  stepper {fw|rev} {npulses} {dpulses_ms} {ptime_s}\r\n\0"));
 				xprintf_P( PSTR("  piloto {out_pres-kg} {err_range-kg}\r\n\0"));
 			}
@@ -1316,7 +1317,7 @@ static void cmdHelpFunction(void)
 
 		if ( spx_io_board == SPX_IO5CH ) {
 			xprintf_P( PSTR("  modbus slave {hex_addr}\r\n\0"));
-			xprintf_P( PSTR("         channel {0..%d} name addr length rcode(3,4)\r\n\0"), ( MODBUS_CHANNELS - 1));
+			xprintf_P( PSTR("         channel {0..%d} name addr length rcode(3,4) type(f,i)\r\n\0"), ( MODBUS_CHANNELS - 1));
 		}
 
 		xprintf_P( PSTR("  default {SPY|OSE|UTE|CLARO}\r\n\0"));
@@ -2012,7 +2013,7 @@ static bool pv_cmd_configMODBUS(void)
 
 	// config modbus channel {0..%d} name addr length rcode(3,4)
 	if ( strcmp_P( strupr(argv[2]), PSTR("CHANNEL\0")) == 0 ) {
-		return (modbus_config_channel(atoi(argv[3]),argv[4],argv[5],argv[6],argv[7]) );
+		return (modbus_config_channel(atoi(argv[3]),argv[4],argv[5],argv[6],argv[7], argv[8]) );
 	}
 
 	return(false);

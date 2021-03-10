@@ -184,6 +184,16 @@ uint32_t waiting_ticks = 0;
  		// Espero. Da el tiempo necesario para entrar en tickless.
  		vTaskDelayUntil( &xLastWakeTime, waiting_ticks );
 
+		// Poleo
+		data_read_inputs(&dataRecd, false);
+		data_print_inputs(fdTERM, &dataRecd, 0);
+		pv_data_guardar_en_BD();
+
+		// Aviso a tkGprs que hay un frame listo. En modo continuo lo va a trasmitir enseguida.
+		if ( ! MODO_DISCRETO ) {
+			SPX_SEND_SIGNAL( SGN_FRAME_READY );
+		}
+
   		// Calculo el tiempo para una nueva espera
  		while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
  			taskYIELD();
@@ -278,6 +288,8 @@ void data_read_inputs_modbus(st_dataRecord_t *dst, bool f_copy )
 	// En los IO5 el sensor de temperatura y presion actuan juntos !!!!.
 
 int8_t xBytes = 0;
+uint8_t channel;
+hold_reg_t hreg;
 
 	// Solo copio el buffer. No poleo.
 	if ( f_copy ) {
@@ -286,6 +298,19 @@ int8_t xBytes = 0;
 	}
 
 	// Poleo.
+	for (channel = 0; channel < MODBUS_CHANNELS; channel++) {
+		// No poleo los canales no configurados
+		if ( ! strcmp ( systemVars.modbus_conf.mbchannel[channel].name, "X" ) )
+			continue;
+
+		modbus_poll_channel( false, channel, &hreg );
+
+		if ( systemVars.modbus_conf.mbchannel[channel].type == 'F') {
+			dst->df.mbus.mbinputs[channel].fvalue = hreg.fvalue;
+		} else {
+			dst->df.mbus.mbinputs[channel].ivalue = hreg.ivalue;
+		}
+	}
 
 	// Agrego el timestamp
 	xBytes = RTC_read_dtime( &dst->rtc );
@@ -346,12 +371,28 @@ void data_print_inputs_normal(file_descriptor_t fd, st_dataRecord_t *dr, uint16_
 //------------------------------------------------------------------------------------
 void data_print_inputs_modbus(file_descriptor_t fd, st_dataRecord_t *dr, uint16_t ctl )
 {
+
+uint8_t i = 0;
+
 	// timeStamp.
 	xfprintf_P(fd, PSTR("CTL:%d;DATE:%02d"),ctl, dr->rtc.year );
 	xfprintf_P(fd, PSTR("%02d%02d;"),dr->rtc.month, dr->rtc.day );
 
 	xfprintf_P(fd, PSTR("TIME:%02d"), dr->rtc.hour );
 	xfprintf_P(fd, PSTR("%02d%02d;"), dr->rtc.min, dr->rtc.sec );
+
+	for ( i = 0; i < MODBUS_CHANNELS; i++) {
+
+		if ( strcmp ( systemVars.modbus_conf.mbchannel[i].name, "X" ) != 0 ) {
+
+			if ( systemVars.modbus_conf.mbchannel[i].type == 'F') {
+				xfprintf_P(fd, PSTR("%s:%.02f;"), systemVars.modbus_conf.mbchannel[i].name, dr->df.mbus.mbinputs[i].fvalue );
+			} else {
+				xfprintf_P(fd, PSTR("%s:%d;"), systemVars.modbus_conf.mbchannel[i].name, dr->df.mbus.mbinputs[i].ivalue );
+			}
+		}
+
+	}
 
 	// TAIL
 	// Esto es porque en gprs si mando un cr corto el socket !!!

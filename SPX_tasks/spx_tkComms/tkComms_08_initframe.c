@@ -1517,6 +1517,7 @@ char *tk_name = NULL;
 char *tk_addr = NULL;
 char *tk_length = NULL;
 char *tk_rcode = NULL;
+char *tk_type = NULL;
 char *delim = ",;:=><";
 bool save_flag = false;
 uint8_t ch;
@@ -1561,8 +1562,8 @@ char str_base[8];
 			tk_addr = strsep(&stringp,delim);		//addr
 			tk_length = strsep(&stringp,delim);
 			tk_rcode = strsep(&stringp,delim);
-
-			if ( modbus_config_channel( ch,tk_name,tk_addr,tk_length, tk_rcode) ) {
+			tk_type = strsep(&stringp,delim);
+			if ( modbus_config_channel( ch,tk_name,tk_addr,tk_length, tk_rcode, tk_type) ) {
 				xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig M%d\r\n\0"), ch);
 				save_flag = true;
 			} else {
