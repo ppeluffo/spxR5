@@ -408,39 +408,58 @@ static void data_process_response_MBUS(void)
 	/*
 	 * Recibo una respuesta que me dice que valores enviar por modbus
 	 * para escribir un holding register
-	 * Recibi algo del estilo MBUS:0xABCD,0x1234
-	 * 0xABCD es la direccion del holding register
-	 * 0x1234 es el valor
+	 * <html><body><h1>TYPE=DATA&PLOAD=RX_OK:22;CLOCK:2103151132;MBUS=[2091,I,435][2093,F,12.45]</h1></body></html>
+	 *
+	 * hset PTEST01 MODBUS "[2091,I,435][2093,F,12.45]"
+	 * hgetall PTEST01
+	 * hset PTEST01 MODBUS "NUL"
+	 *
 	 */
 
 int p1,p2;
-char localStr[32] = { 0 };
+char *start, *end;
+char localStr[48] = { 0 };
 char *stringp = NULL;
-char *tk_hr_address = NULL;
-char *tk_hr_value = NULL;
-char *delim = ",;:=><";
+char *tk_address = NULL;
+char *tk_type = NULL;
+char *tk_value = NULL;
+char *delim = ",;:=><[]";
+hold_reg_t hreg;
 
 
 	p1 = xCOMMS_check_response(0, "<h1>");
 	if ( p1 == -1 ) {
 		return;
 	}
-	p2 = xCOMMS_check_response( p1, "MBUS");
 
-	if ( p2 >= 0 ) {
-		memset( &localStr, '\0', sizeof(localStr) );
-		xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
-
-		stringp = localStr;
-		tk_hr_address = strsep(&stringp,delim);	// MBUS
-		tk_hr_address = strsep(&stringp,delim);	// Str. con la direccion del holding register
-		tk_hr_value = strsep(&stringp,delim);	// Str. con el valor del holding register
-
-		//modbus_set_hr( DF_COMMS , systemVars.modbus_conf.modbus_slave_address ,"0x06", tk_hr_address, tk_hr_value);
-
-		xprintf_PD( DF_COMMS, PSTR("COMMS: MBUS set HR[%s]=%s\r\n\0"), tk_hr_address, tk_hr_value );
-
+	p2 = xCOMMS_check_response( p1, "MBUS=[");
+	if ( p2 == -1 ) {
+		return;
 	}
+	p2 += 5;
+
+	memset( &localStr, '\0', sizeof(localStr) );
+	xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
+
+	xprintf_P(PSTR("DEBUG: (%s)\r\n"),localStr);
+
+	start = strchr(localStr,'[');
+	end = strchr(localStr,']');
+
+	while ( ( start != NULL) && ( end != NULL ) ) {
+		stringp = start;
+		tk_address = strsep(&stringp,delim);
+		tk_address = strsep(&stringp,delim);
+		tk_type = strsep(&stringp,delim);
+		tk_value = strsep(&stringp,delim);
+		xprintf_P(PSTR("MBUS output[%s][%s][%s]\r\n"), tk_address, tk_value, tk_type);
+
+		modbus_test_write_output (tk_address, tk_type, tk_value );
+		xprintf_PD( DF_COMMS, PSTR("MBUS [%s][%s][%s]\r\n"), tk_address, tk_value, tk_type);
+		start = strchr(stringp,'[');
+		end = strchr(stringp,']');
+	}
+
 }
 //------------------------------------------------------------------------------------
 

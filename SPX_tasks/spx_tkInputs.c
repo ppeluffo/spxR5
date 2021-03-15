@@ -33,6 +33,8 @@ void tkInputs_normal(void);
 void tkInputs_external_poll(void);
 void tkInputs_modbus(void);
 
+#define DF_MODBUS ( systemVars.debug == DEBUG_MODBUS )
+
 //------------------------------------------------------------------------------------
 void tkInputs(void * pvParameters)
 {
@@ -303,7 +305,7 @@ hold_reg_t hreg;
 		if ( ! strcmp ( systemVars.modbus_conf.mbchannel[channel].name, "X" ) )
 			continue;
 
-		modbus_poll_channel( false, channel, &hreg );
+		modbus_poll_channel( DF_MODBUS, channel, &hreg );
 
 		if ( systemVars.modbus_conf.mbchannel[channel].type == 'F') {
 			dst->df.mbus.mbinputs[channel].fvalue = hreg.fvalue;

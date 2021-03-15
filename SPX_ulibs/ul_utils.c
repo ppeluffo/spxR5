@@ -552,6 +552,8 @@ int16_t free_size = sizeof(hash_buffer);
 	//xprintf_P( PSTR("DEBUG7: base_free_size[%d]\r\n\0"), free_size);
 	if ( free_size < 0 ) goto exit_error;
 
+	//xprintf_P( PSTR("DEBUG: BASEHASH = [%s]\r\n\0"), hash_buffer );
+
 	// Apunto al comienzo para recorrer el buffer
 	p = hash_buffer;
 	// Mientras no sea NULL calculo el checksum deol buffer
@@ -604,6 +606,10 @@ uint8_t hash = 0;
 
 	case APP_PILOTO:
 		hash = xAPP_piloto_hash();
+		break;
+
+	case APP_MODBUS:
+		hash = xAPP_modbus_hash();
 		break;
 
 	}
@@ -1024,7 +1030,7 @@ bool retS = false;
 	while ( xSemaphoreTake( sem_SYSVars, ( TickType_t ) 5 ) != pdTRUE )
 		taskYIELD();
 
-	//xprintf_P( PSTR("DEBUG_A: PWRS modo=%s, startitme=%s, endtime=%s\r\n\0"), s_modo, s_startTime, s_endTime );
+	//xprintf_P( PSTR("DEBUG: BAT=%s\r\n\0"), s_mide_bateria );
 
 	if (spx_io_board == SPX_IO5CH ) {
 		systemVars.mide_bateria = true;

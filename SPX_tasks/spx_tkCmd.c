@@ -24,6 +24,8 @@ static void pv_RTC_drift_test(void);
 static void pv_cmd_rwAUX(uint8_t cmd_mode );
 static bool pv_cmd_configMODBUS(void);
 
+void test(void);
+
 //----------------------------------------------------------------------------------------
 // FUNCIONES DE CMDMODE
 //----------------------------------------------------------------------------------------
@@ -339,9 +341,9 @@ static void status_canales_modbus(void)
 uint8_t channel;
 
 	xprintf_P( PSTR(">Modbus:\r\n\0"));
-	xprintf_P( PSTR("  mbus sladdr: 0x%02x\r\n\0"), systemVars.modbus_conf.modbus_slave_address );
+	xprintf_P( PSTR("  mbus sladdr: %02d\r\n\0"), systemVars.modbus_conf.modbus_slave_address );
 	for (channel=0; channel<MODBUS_CHANNELS; channel++) {
-		xprintf_P( PSTR("  mb%02d: add:0x%04x, lg:0x%02x, fc:0x%02x, ty=%c, %s]\r\n\0"),
+		xprintf_P( PSTR("  mb%02d: add:%04d, lg:%02d, fc:%02d, ty=%c, %s]\r\n\0"),
 				channel, systemVars.modbus_conf.mbchannel[channel].address,
 				systemVars.modbus_conf.mbchannel[channel].length,
 				systemVars.modbus_conf.mbchannel[channel].function_code,
@@ -404,11 +406,12 @@ char l_data[10] = { '\0' };
 	FRTOS_CMD_makeArgv();
 
 	// TEST
-	/*
-	if ( strcmp_P( strupr(argv[1]), PSTR("TEST\0")) == 0)  {
-		testPresion();
-	}
 
+	if ( strcmp_P( strupr(argv[1]), PSTR("TEST\0")) == 0)  {
+		test();
+		return;
+	}
+	/*
 
 	if ( strcmp_P( strupr(argv[1]), PSTR("TEST\0")) == 0)  {
 		if ( strcmp_P( strupr(argv[2]), PSTR("ENQUEUE\0")) == 0)  {
@@ -479,7 +482,7 @@ char l_data[10] = { '\0' };
 		}
 
 		if ( ( strcmp_P( strupr(argv[2]), PSTR("OUTPUT")) == 0)) {
-			modbus_test_write_output(argv[3], argv[4], argv[5], argv[6]);
+			modbus_test_write_output(argv[3], argv[4], argv[5] );
 			pv_snprintfP_OK();
 			return;
 		}
@@ -701,8 +704,6 @@ uint8_t cks;
 		xprintf_P( PSTR("Range hash = [0x%02x]\r\n\0"), cks );
 		cks = u_aplicacion_hash();
 		xprintf_P( PSTR("App hash = [0x%02x]\r\n\0"), cks );
-		cks = modbus_hash();
-		xprintf_P( PSTR("Mbus hash = [0x%02x]\r\n\0"), cks );
 		return;
 	}
 
@@ -1114,7 +1115,7 @@ bool retS = false;
 		} else if (!strcmp_P( strupr(argv[2]), PSTR("APLICACION\0"))) {
 			systemVars.debug = DEBUG_APLICACION;
 			retS = true;
-		} else if (!strcmp_P( strupr(argv[2]), PSTR("MBUS\0"))) {
+		} else if (!strcmp_P( strupr(argv[2]), PSTR("MODBUS\0"))) {
 			systemVars.debug = DEBUG_MODBUS;
 			retS = true;
 		} else {
@@ -1228,10 +1229,10 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("           (open|close) (A|B)\r\n\0"));
 				xprintf_P( PSTR("           pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("           power {on|off}\r\n\0"));
-				xprintf_P( PSTR("  modbus genpoll type(f|i) bytes_counts [bytes in hex]\r\n\0"));
+				xprintf_P( PSTR("  modbus genpoll type(f|i) bytes_counts [bytes]\r\n\0"));
 				xprintf_P( PSTR("         chpoll\r\n\0"));
 				xprintf_P( PSTR("         link, float {fltstr}\r\n\0"));
-				xprintf_P( PSTR("         output fcode address type value\r\n\0"));
+				xprintf_P( PSTR("         output address type value\r\n\0"));
 				xprintf_P( PSTR("  stepper {fw|rev} {npulses} {dpulses_ms} {ptime_s}\r\n\0"));
 				xprintf_P( PSTR("  piloto {out_pres-kg} {err_range-kg}\r\n\0"));
 			}
@@ -1294,7 +1295,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  bateria {on|off}\r\n\0"));
 		xprintf_P( PSTR("  psensor name countMin countMax pmin pmax offset\r\n\0"));
 
-		xprintf_P( PSTR("  debug {none,counter,data,comms,aplicacion,mbus}\r\n\0"));
+		xprintf_P( PSTR("  debug {none,counter,data,comms,aplicacion,modbus}\r\n\0"));
 
 		xprintf_P( PSTR("  digital {0..%d} dname {normal,timer}\r\n\0"), ( NRO_DINPUTS - 1 ) );
 
@@ -1316,7 +1317,7 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  caudal {pwidth} {factorQ}\r\n\0"));
 
 		if ( spx_io_board == SPX_IO5CH ) {
-			xprintf_P( PSTR("  modbus slave {hex_addr}\r\n\0"));
+			xprintf_P( PSTR("  modbus slave {addr}\r\n\0"));
 			xprintf_P( PSTR("         channel {0..%d} name addr length rcode(3,4) type(f,i)\r\n\0"), ( MODBUS_CHANNELS - 1));
 		}
 
@@ -2004,9 +2005,6 @@ static bool pv_cmd_configMODBUS(void)
 
 
 	// config modbus slave {hex_addr}
-	//        channel {0..%d} name addr length rcode(3,4)
-
-	// config modbus slave {hex_addr}
 	if ( strcmp_P( strupr(argv[2]), PSTR("SLAVE\0")) == 0 ) {
 		return ( modbus_config_slave_address(argv[3]) );
 	}
@@ -2020,3 +2018,59 @@ static bool pv_cmd_configMODBUS(void)
 
 }
 //------------------------------------------------------------------------------------
+void test(void)
+{
+	/*
+	 * Recibo una respuesta que me dice que valores enviar por modbus
+	 * para escribir un holding register
+	 * <html><body><h1>TYPE=DATA&PLOAD=RX_OK:22;CLOCK:2103151132;MBUS=[2091,I,435][2093,F,12.45]</h1></body></html>
+	 *
+	 * hset PTEST01 MODBUS "[2091,I,435][2093,F,12.45]"
+	 * hgetall PTEST01
+	 * hset PTEST01 MODBUS "NUL"
+	 *
+	 */
+
+int p1,p2, p3;
+char *start, *end;
+
+char localStr[48] = { 0 };
+char *stringp = NULL;
+char *tk_address = NULL;
+char *tk_type = NULL;
+char *tk_value = NULL;
+char *delim = ",;:=><[]";
+
+/*
+	p1 = xCOMMS_check_response(0, "<h1>");
+	if ( p1 == -1 ) {
+		return;
+	}
+	p2 = xCOMMS_check_response( p1, "MBUS=[");
+	if ( p2 == -1 ) {
+		return;
+	}
+	p2 += 6;
+	memset( &localStr, '\0', sizeof(localStr) );
+	xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
+*/
+
+	memcpy(localStr,"MBUS=[2096,I,1122][2092,F,67.89]</h1></body></html>", sizeof(localStr));
+
+	start = strchr(localStr,'[');
+	end = strchr(localStr,']');
+	while ( ( start != NULL) && ( end != NULL ) ) {
+		stringp = start;
+		tk_address = strsep(&stringp,delim);
+		tk_address = strsep(&stringp,delim);
+		tk_type = strsep(&stringp,delim);
+		tk_value = strsep(&stringp,delim);
+		xprintf_P(PSTR("MBUS output[%s][%s][%s]\r\n"), tk_address, tk_value, tk_type);
+		modbus_test_write_output (tk_address, tk_type, tk_value );
+		start = strchr(stringp,'[');
+		end = strchr(stringp,']');
+	}
+
+}
+//------------------------------------------------------------------------------------
+

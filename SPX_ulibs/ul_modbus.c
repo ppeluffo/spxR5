@@ -104,9 +104,7 @@ bool modbus_config_slave_address( char *address)
 	// Configura la direccion del slave.
 	// Se da la direccion en hexadecimal ( 0x??)
 
-char *ptr;
-
-	systemVars.modbus_conf.modbus_slave_address = strtol(address, &ptr, 16);
+	systemVars.modbus_conf.modbus_slave_address = atoi(address);
 	return(true);
 }
 //------------------------------------------------------------------------------------
@@ -119,7 +117,6 @@ bool modbus_config_channel(uint8_t channel,char *s_name,char *s_addr,char *s_len
 //	xprintf_P(PSTR("DEBUG: length=%s\r\n\0"), s_length);
 //	xprintf_P(PSTR("DEBUG: rcode=%s\r\n\0"), s_rcode);
 
-char *ptr;
 char type;
 
 	if ( u_control_string(s_name) == 0 ) {
@@ -141,9 +138,9 @@ char type;
 	if ( ( channel >=  0) && ( channel < MODBUS_CHANNELS ) ) {
 
 		snprintf_P( systemVars.modbus_conf.mbchannel[channel].name, PARAMNAME_LENGTH, PSTR("%s\0"), s_name );
-		systemVars.modbus_conf.mbchannel[channel].address = strtol(s_addr, &ptr, 16);
-		systemVars.modbus_conf.mbchannel[channel].length = strtol(s_length, &ptr, 16);
-		systemVars.modbus_conf.mbchannel[channel].function_code = strtol(s_rcode, &ptr, 16);
+		systemVars.modbus_conf.mbchannel[channel].address = atoi(s_addr);
+		systemVars.modbus_conf.mbchannel[channel].length = atoi(s_length);
+		systemVars.modbus_conf.mbchannel[channel].function_code = atoi(s_rcode);
 		systemVars.modbus_conf.mbchannel[channel].type = type;
 		return(true);
 	}
@@ -160,7 +157,7 @@ uint8_t channel = 0;
 
 	for ( channel = 0; channel < MODBUS_CHANNELS; channel++) {
 		snprintf_P( systemVars.modbus_conf.mbchannel[channel].name, PARAMNAME_LENGTH, PSTR("X\0") );
-		systemVars.modbus_conf.mbchannel[channel].address = 0x00;
+		systemVars.modbus_conf.mbchannel[channel].address = 0;
 		systemVars.modbus_conf.mbchannel[channel].length = 0;
 		systemVars.modbus_conf.mbchannel[channel].function_code = 0;
 		systemVars.modbus_conf.mbchannel[channel].type = 'F';
@@ -168,64 +165,6 @@ uint8_t channel = 0;
 }
 //------------------------------------------------------------------------------------
 // FUNCIONES AUXILIARES
-//------------------------------------------------------------------------------------
-uint8_t modbus_hash(void)
-{
-	// Calcula el hash de la configuracion para mandar en los frames de INIT.
-
- // https://portal.u-blox.com/s/question/0D52p00008HKDMyCAP/python-code-to-generate-checksums-so-that-i-may-validate-data-coming-off-the-serial-interface
-
-uint16_t i;
-uint8_t hash = 0;
-//char dst[48];
-char *p;
-int16_t free_size = sizeof(hash_buffer);
-
-	//	uint8_t modbus_slave_address;
-	//	char var_name[MODBUS_CHANNELS][PARAMNAME_LENGTH];
-	//	uint16_t var_address[MODBUS_CHANNELS];				// Direccion en el slave de la variable a leer
-	//	uint8_t var_length[MODBUS_CHANNELS];				// Cantidad de bytes a leer
-	//	uint8_t var_function_code[MODBUS_CHANNELS];			// Funcion de lectura (3-Holding reg, 4-Normal reg)
-	//  SLA:0x%02x;M0:MBU1,0x0004,0x02,0x02;M1:MBU2,0x0004,0x02,0x02;
-
-	memset(hash_buffer,'\0', sizeof(hash_buffer));
-	i = 0;
-	memset(hash_buffer,'\0', sizeof(hash_buffer));
-	i = snprintf_P( &hash_buffer[i], free_size, PSTR("SLA:0x%02x;"), systemVars.modbus_conf.modbus_slave_address );
-	free_size = (  sizeof(hash_buffer) - i );
-	if ( free_size < 0 ) goto exit_error;
-	p = hash_buffer;
-	while (*p != '\0') {
-		hash = u_hash(hash, *p++);
-	}
-	i=0;
-	memset(hash_buffer,'\0', sizeof(hash_buffer));
-//	i += snprintf_P( &hash_buffer[i], sizeof(hash_buffer), PSTR("M0:%s,"), systemVars.modbus_conf.var_name[0] );
-//	i += snprintf_P(&hash_buffer[i], sizeof(hash_buffer), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[0],systemVars.modbus_conf.var_length[0],systemVars.modbus_conf.var_function_code[0] );
-	free_size = (  sizeof(hash_buffer) - i );
-		if ( free_size < 0 ) goto exit_error;
-	p = hash_buffer;
-	while (*p != '\0') {
-		hash = u_hash(hash, *p++);
-	}
-	i = 0;
-	memset(hash_buffer,'\0', sizeof(hash_buffer));
-//	i += snprintf_P( &hash_buffer[i], sizeof(hash_buffer), PSTR("M1:%s,"), systemVars.modbus_conf.var_name[1] );
-//	i += snprintf_P(&hash_buffer[i], sizeof(hash_buffer), PSTR("0x%04x,0x%02x,0x%02x;"), systemVars.modbus_conf.var_address[1],systemVars.modbus_conf.var_length[1],systemVars.modbus_conf.var_function_code[1] );
-	free_size = (  sizeof(hash_buffer) - i );
-		if ( free_size < 0 ) goto exit_error;
-	p = hash_buffer;
-	while (*p != '\0') {
-		hash = u_hash(hash, *p++);
-	}
-
-	return(hash);
-
-exit_error:
-	xprintf_P( PSTR("COMMS: modbus_hash ERROR !!!\r\n\0"));
-	return(0x00);
-
-}
 //------------------------------------------------------------------------------------
 void modbus_print(file_descriptor_t fd,  uint16_t mbus[] )
 {
@@ -423,9 +362,19 @@ uint8_t frame_size = 0;
 		}
 		break;
 
-	case 0x6:	// READ SINGLE REGISTER
+	case 0x6:	// WRITE SINGLE REGISTER
 		xprintf_PD(f_debug, PSTR("MODBUS_DC: FC=0x06: Write Holding Register\r\n"));
 		frame_size = 8;	//  ADDR + FC + RA_H + RA_L + RV_H + RV_L + CRCH + CRCL
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: byte_count=6\r\n"));
+		hreg->fbytes[0] = data[5];
+		hreg->fbytes[1] = data[4];
+		hreg->fbytes[2] = 0x00;
+		hreg->fbytes[3] = 0x00;
+		break;
+
+	case 0x10:	// WRITE MULTIPLE REGISTER
+		xprintf_PD(f_debug, PSTR("MODBUS_DC: FC=0x10: Write Multiple Register\r\n"));
+		frame_size = 8;	//  ADDR + FC + ADDR_H + ADDR_L + QREG_H + QREG_L + CRCH + CRCL
 		xprintf_PD(f_debug, PSTR("MODBUS_DC: byte_count=6\r\n"));
 		hreg->fbytes[0] = data[5];
 		hreg->fbytes[1] = data[4];
@@ -489,7 +438,7 @@ uint8_t i;
 
 }
 //------------------------------------------------------------------------------------
-void modbus_write_output_register ( bool f_debug, uint8_t f_code, uint16_t address, char type, hold_reg_t *hreg )
+void modbus_write_output_register ( bool f_debug, uint16_t address, char type, hold_reg_t *hreg )
 {
 
 uint8_t data[MBUS_TXMSG_LENGTH];
@@ -497,13 +446,32 @@ uint8_t byte_count = 0;
 uint8_t i;
 
 	data[0] = systemVars.modbus_conf.modbus_slave_address;
-	data[1] = f_code;
-	data[2] = ( address & 0xFF00 ) >> 8;
-	data[3] = ( address & 0x00FF);
+
+	if ( toupper(type) == 'F') {
+		data[1] = 0x10;
+	} else if ( toupper(type) == 'I') {
+		data[1] = 0x06;
+	} else {
+		return;
+	}
+
+	data[2] = ( address & 0xFF00 ) >> 8;		// Address HI
+	data[3] = ( address & 0x00FF);				// Address LO
 	if ( toupper(type) == 'I') {
-		data[4] = ( hreg->ivalue & 0xFF00 ) >> 8;
-		data[5] = hreg->ivalue & 0x00FF;
+		data[4] = ( hreg->ivalue & 0xFF00 ) >> 8;	// Value HI
+		data[5] = hreg->ivalue & 0x00FF;			// Value LO
 		byte_count = 6;
+	} else if ( toupper(type) == 'F') {
+		data[4] = 0;		// Quantity of registers HI
+		data[5] = 2;		// Quantity of registers LO
+		data[6] = 4;					// Byte Count ( 2*N )
+		data[7] = hreg->fbytes[1];
+		data[8] = hreg->fbytes[0];
+		data[9] = hreg->fbytes[3];
+		data[10] = hreg->fbytes[2];
+		byte_count = 11;
+	} else {
+		return;
 	}
 
 	// Log & print
@@ -531,7 +499,6 @@ void modbus_test_generic_poll( char *arg_ptr[16] )
 	// Recibe el argv con los datos en char hex para trasmitir el frame.
 	// El formato es: bytes_counts {bytes in hex}
 
-char *ptr;
 uint8_t byte_count;
 uint8_t data[MBUS_TXMSG_LENGTH];
 uint8_t i;
@@ -544,14 +511,14 @@ hold_reg_t hreg;
 	xprintf_P(PSTR("DEBUG TYPE=%c\r\n"), type);
 
 	// Vemos cuantos bytes vienen
-	byte_count = strtol(arg_ptr[4], &ptr,  16);
+	byte_count = atoi(arg_ptr[4] );
 	xprintf_P(PSTR("MODBUS GENPOLL: byte count = %d\r\n"), byte_count);
 
 	// Armo el frame.
 	memset( data,'\0', MBUS_TXMSG_LENGTH);
 	for (i=0; i < byte_count; i++ ) {
-		data[i] = strtol(arg_ptr[5+i], &ptr,  16);
-		xprintf_P(PSTR("MODBUS GENPOLL: byte_count=[%d], data=[%02x]\r\n"),i,data[i]);
+		data[i] = atoi(arg_ptr[5+i]);
+		xprintf_P(PSTR("MODBUS GENPOLL: byte_count=[%d], data=%d[%02x]\r\n"),i,data[i],data[i]);
 	}
 
 	// Proceso el frame
@@ -639,16 +606,14 @@ char type;
 	}
 }
 //------------------------------------------------------------------------------------
-void modbus_test_write_output (char *s_f_code, char *s_address, char *s_type, char *s_value )
+void modbus_test_write_output (char *s_address, char *s_type, char *s_value )
 {
 	// fcode address type value
 
-uint8_t f_code;
 uint16_t address;
 char type;
 hold_reg_t hreg;
 
-	f_code = atoi(s_f_code);
 	address = atoi(s_address);
 	type = toupper(s_type[0]);
 	if  ( type == 'F') {
@@ -657,6 +622,6 @@ hold_reg_t hreg;
 		hreg.ivalue = atoi(s_value);
 	}
 
-	modbus_write_output_register ( true , f_code, address, type, &hreg );
+	modbus_write_output_register ( DF_MBUS , address, type, &hreg );
 }
 //------------------------------------------------------------------------------------
