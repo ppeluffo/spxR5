@@ -579,37 +579,48 @@ uint8_t u_aplicacion_hash( void )
 
 uint8_t hash = 0;
 
+	//xprintf_P(PSTR("DEBUG: App hash %d\r\n"),sVarsApp.aplicacion);
+
 	switch(sVarsApp.aplicacion) {
+
 	case APP_OFF:
 		hash = xAPP_off_hash();
+		//xprintf_P(PSTR("DEBUG: hash off\r\n"));
 		break;
 
 	case APP_CONSIGNA:
 		hash = xAPP_consigna_hash();
+		//xprintf_P(PSTR("DEBUG: hash consigna\r\n"));
 		break;
 
 	case APP_PERFORACION:
 		hash = xAPP_perforacion_hash();
+		//xprintf_P(PSTR("DEBUG: hash perforacion\r\n"));
 		break;
 
 	case APP_PLANTAPOT:
 		hash = xAPP_plantapot_hash();
+		//xprintf_P(PSTR("DEBUG: hash plantapot\r\n"));
 		break;
 
 	case APP_CAUDALIMETRO:
 		hash = xAPP_caudalimetro_hash();
+		//xprintf_P(PSTR("DEBUG: hash caudalimetro\r\n"));
 		break;
 
 	case APP_EXTERNAL_POLL:
 		hash = xAPP_external_poll_hash();
+		//xprintf_P(PSTR("DEBUG: hash external poll\r\n"));
 		break;
 
 	case APP_PILOTO:
 		hash = xAPP_piloto_hash();
+		//xprintf_P(PSTR("DEBUG: hash piloto\r\n"));
 		break;
 
 	case APP_MODBUS:
 		hash = xAPP_modbus_hash();
+		//xprintf_P(PSTR("DEBUG: hash modbus\r\n"));
 		break;
 
 	}

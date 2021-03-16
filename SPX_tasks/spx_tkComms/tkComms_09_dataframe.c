@@ -410,9 +410,13 @@ static void data_process_response_MBUS(void)
 	 * para escribir un holding register
 	 * <html><body><h1>TYPE=DATA&PLOAD=RX_OK:22;CLOCK:2103151132;MBUS=[2091,I,435][2093,F,12.45]</h1></body></html>
 	 *
-	 * hset PTEST01 MODBUS "[2091,I,435][2093,F,12.45]"
-	 * hgetall PTEST01
-	 * hset PTEST01 MODBUS "NUL"
+	 * Testing desde el server:
+	 * Se abre una consola redis: >redis-cli
+	 * Comandos:
+	 *    hset PTEST01 MODBUS "[2091,I,435][2093,F,12.45]"
+	 *    hgetall PTEST01
+	 *    hset PTEST01 MODBUS "NUL"
+	 *
 	 *
 	 */
 
@@ -441,8 +445,6 @@ hold_reg_t hreg;
 	memset( &localStr, '\0', sizeof(localStr) );
 	xCOMMS_rxbuffer_copy_to(localStr, p2, sizeof(localStr));
 
-	xprintf_P(PSTR("DEBUG: (%s)\r\n"),localStr);
-
 	start = strchr(localStr,'[');
 	end = strchr(localStr,']');
 
@@ -454,8 +456,14 @@ hold_reg_t hreg;
 		tk_value = strsep(&stringp,delim);
 		xprintf_P(PSTR("MBUS output[%s][%s][%s]\r\n"), tk_address, tk_value, tk_type);
 
-		modbus_test_write_output (tk_address, tk_type, tk_value );
-		xprintf_PD( DF_COMMS, PSTR("MBUS [%s][%s][%s]\r\n"), tk_address, tk_value, tk_type);
+		if  ( toupper(tk_type[0]) == 'F') {
+			hreg.fvalue = atof(tk_value);
+		} else {
+			hreg.ivalue = atoi(tk_value);
+		}
+
+		modbus_write_output_register ( DF_MODBUS, atoi(tk_address), toupper(tk_type[0]),  &hreg );
+
 		start = strchr(stringp,'[');
 		end = strchr(stringp,']');
 	}

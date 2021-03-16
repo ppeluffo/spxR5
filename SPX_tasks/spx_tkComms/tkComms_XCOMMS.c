@@ -785,10 +785,12 @@ t_send_status send_status = SEND_FAIL;
 		}
 		break;
 	case SEND_FAIL:
-		xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_SEND Fail.\r\n\0") );
+		//xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_SEND Fail.\r\n\0") );
+		xprintf_P(PSTR("COMMS: SEND Fail.\r\n\0") );
 		break;
 	case SEND_OK:
-		xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_SEND ok.\r\n\0") );
+		//xprintf_PD( DF_COMMS, PSTR("COMMS: fsm_SEND ok.\r\n\0") );
+		xprintf_P( PSTR("COMMS: SEND ok.\r\n\0") );
 		break;
 	}
 

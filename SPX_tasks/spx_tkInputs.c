@@ -33,8 +33,6 @@ void tkInputs_normal(void);
 void tkInputs_external_poll(void);
 void tkInputs_modbus(void);
 
-#define DF_MODBUS ( systemVars.debug == DEBUG_MODBUS )
-
 //------------------------------------------------------------------------------------
 void tkInputs(void * pvParameters)
 {

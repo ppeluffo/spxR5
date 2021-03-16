@@ -1277,7 +1277,7 @@ char str_base[8];
 			id[0] = '0' + i;
 			id[1] = '\0';
 
-			xprintf_P( PSTR("DEBUG MODBUS: ID:%s, name=%s, addr=%s, length=%s, fcode=%s, type=%s\r\n\0"), id, s_name, s_addr, s_length, s_fcode, s_type);
+			//xprintf_P( PSTR("DEBUG MODBUS: ID:%s, name=%s, addr=%s, length=%s, fcode=%s, type=%s\r\n\0"), id, s_name, s_addr, s_length, s_fcode, s_type);
 			modbus_config_channel(i,s_name, s_addr, s_length, s_fcode, s_type );
 
 			xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig MB%d\r\n\0"), i);
