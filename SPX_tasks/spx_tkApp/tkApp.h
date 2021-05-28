@@ -95,6 +95,20 @@ typedef struct {		// Elemento de piloto: presion, hora.
 	float presion;
 } st_piloto_data_t;
 
+struct {
+	bool start_presion_test;
+	bool start_steppers_test;
+	int16_t npulses;
+	uint16_t pwidth;
+	uint16_t startup_time;
+	t_stepper_dir dir;
+	int8_t slot;
+	float pRef;
+	float pB;
+	float pError;
+	int8_t pB_channel;
+} spiloto;
+
 
 typedef struct {
 	aplicacion_t aplicacion;				// Modo de operacion del datalogger
@@ -165,8 +179,10 @@ uint8_t xAPP_piloto_hash( void );
 void xAPP_piloto_config_defaults(void);
 void xAPP_piloto_print_status( void );
 bool xAPP_piloto_config( char *param1, char *param2, char *param3, char *param4 );
-void xAPP_piloto_stepper_test( char *s_dir, char *s_npulses, char *s_dtime, char *s_ptime );
+void xAPP_piloto_stepper_test( char *s_dir, char *s_npulses, char *s_pwidth, char *s_startup_time );
 void xAPP_piloto_presion_test( char *s_out_pres, char *s_out_error );
+void run_piloto_presion_test( void );
+void run_piloto_stepper_test( void );
 
 // APP_MODBUS
 void tkApp_modbus(void);

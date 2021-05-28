@@ -29,6 +29,21 @@ void tkApp_off(void)
 	{
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 		vTaskDelay( ( TickType_t)( 25000 / portTICK_RATE_MS ) );
+
+		// Corren todas las rutinas que quiero que lo hagan tambien en app=off !!!
+
+		// Test de presion
+		if ( spiloto.start_presion_test ) {
+			run_piloto_presion_test();
+			spiloto.start_presion_test = false;
+		}
+
+		// Test de movimiento de stepper
+		if ( spiloto.start_steppers_test ) {
+			run_piloto_stepper_test();
+			spiloto.start_steppers_test = false;
+		}
+
 	}
 }
 //------------------------------------------------------------------------------------

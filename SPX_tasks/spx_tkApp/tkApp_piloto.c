@@ -23,21 +23,6 @@
 typedef enum { AJUSTE70x100 = 0, AJUSTE_BASICO = 1 } t_ajuste_npulses;
 typedef enum { TICK_NORMAL = 0, TICK_INICIO, TICK_CONTROL } t_slot_time_ticks;
 
-struct {
-	bool start_presion_test;
-	bool start_steppers_test;
-	int16_t npulses;
-	uint16_t dtime;
-	uint16_t ptime;
-	t_stepper_dir dir;
-	int8_t slot;
-	float pRef;
-	float pB;
-	float pError;
-	int8_t pB_channel;
-} spiloto;
-
-
 #define MAX_INTENTOS			5
 #define P_CONSIGNA_MIN			1000
 #define P_CONSIGNA_MAX			3000
@@ -49,6 +34,9 @@ struct {
 #define INTERVALO_PB_SECS		5
 #define INTERVALO_TRYES_SECS	15
 
+#define MODO_STANDARD	false
+#define MODO_TEST		true
+
 void pv_calcular_parametros_ajuste(void);
 void pv_aplicar_pulsos(void);
 bool pv_determinar_canal_pB(void);
@@ -57,13 +45,11 @@ int8_t pv_get_slot_actual(uint16_t hhmm );
 t_slot_time_ticks pv_check_tipo_tick( uint16_t hhmm, int8_t slot );
 bool pv_get_hhhmm_now( uint16_t *hhmm);
 
-void pv_ajustar_presion(void);
+void pv_ajustar_presion(bool modo_test);
 void pv_print_parametros(void);
 void pv_calcular_npulses( t_ajuste_npulses metodo_ajuste );
 void pv_xapp_init(void);
 
-void pvstk_piloto_presion_test( void );
-void pvstk_piloto_stepper_test( void );
 void pvstk_piloto(void);
 
 //------------------------------------------------------------------------------------
@@ -83,13 +69,13 @@ void tkApp_piloto(void)
 
 		// Test de presion
 		if ( spiloto.start_presion_test ) {
-			pvstk_piloto_presion_test();
+			run_piloto_presion_test();
 			spiloto.start_presion_test = false;
 		}
 
 		// Test de movimiento de stepper
 		if ( spiloto.start_steppers_test ) {
-			pvstk_piloto_stepper_test();
+			run_piloto_stepper_test();
 			spiloto.start_steppers_test = false;
 		}
 
@@ -155,9 +141,16 @@ uint8_t slot;
 	return(false);
 }
 //------------------------------------------------------------------------------------
-void xAPP_piloto_stepper_test( char *s_dir, char *s_npulses, char *s_dtime, char *s_ptime )
+void xAPP_piloto_stepper_test( char *s_dir, char *s_npulses, char *s_pwidth, char *s_startup_time )
 {
-	// Genera la señal de arranque del test de movimiento del stepper del piloto.
+	/* Genera la señal de arranque del test de movimiento del stepper del piloto.
+	 * Parametros:
+	 * - Direccion
+	 * - Cantidad de pulsos
+	 * - dtime: duracion del pulso
+	 * - ptime: Tiempo de espera de carga de condensadores
+	 */
+
 
 	if ( strcmp_P( strupr(s_dir), PSTR("FW")) == 0 ) {
 		spiloto.dir = STEPPER_FWD;
@@ -169,8 +162,8 @@ void xAPP_piloto_stepper_test( char *s_dir, char *s_npulses, char *s_dtime, char
 	}
 
 	spiloto.npulses = atoi(s_npulses);
-	spiloto.dtime = atoi(s_dtime);
-	spiloto.ptime = atoi(s_ptime);
+	spiloto.pwidth = atoi(s_pwidth);
+	spiloto.startup_time = atoi(s_startup_time);
 	spiloto.start_steppers_test = true;
 }
 //------------------------------------------------------------------------------------
@@ -253,7 +246,7 @@ int8_t slot;
 		slot = pv_get_slot_actual(hhmm_now);
 		spiloto.pRef = sVarsApp.pSlots[slot].presion;
 		spiloto.pError = 0.05;
-		pv_ajustar_presion();
+		pv_ajustar_presion(MODO_STANDARD);
 	}
 }
 //------------------------------------------------------------------------------------
@@ -263,26 +256,29 @@ void pv_aplicar_pulsos(void)
 
 uint16_t steps;
 int8_t sequence = 2;
-char cChar[] = {'|', '/','-','\\', '|','/','-', '\\' };
-uint8_t cChar_pos = 0;
+//char cChar[] = {'|', '/','-','\\', '|','/','-', '\\' };
+//uint8_t cChar_pos = 0;
 
 	// Activo el driver
 	xprintf_P(PSTR("STEPPER driver pwr on\r\n"));
 	stepper_pwr_on();
-	// Espero 15s que se carguen los condensasores
-	vTaskDelay( ( TickType_t)( spiloto.ptime*1000 / portTICK_RATE_MS ) );
+	// Espero que se carguen los condensasores
+	xprintf_P(PSTR("STEPPER driver charging start\r\n"));
+	vTaskDelay( ( TickType_t)( spiloto.startup_time*1000 / portTICK_RATE_MS ) );
 	stepper_awake();
 	vTaskDelay( ( TickType_t)( 100 / portTICK_RATE_MS ) );
 
+	xprintf_P(PSTR("STEPPER driver pulses start\r\n"));
 	for (steps=0; steps < spiloto.npulses; steps++) {
 		sequence = stepper_sequence(sequence, spiloto.dir );
 		//xprintf_P(PSTR("pulse %03d, sec=%d\r\n"), steps, sequence);
 		if ( (steps % 100) == 0 ) {
-			xprintf_P(PSTR("%c\r"),cChar[cChar_pos]);
-			if ( cChar_pos++ == 8)
-				cChar_pos=0;
+			//xprintf_P(PSTR("%c\r"),cChar[cChar_pos]);
+			//if ( cChar_pos++ == 8)
+			//	cChar_pos=0;
+			xprintf_P(PSTR("."));
 		}
-		stepper_pulse(sequence, spiloto.dtime);
+		stepper_pulse(sequence, spiloto.pwidth);
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
 	}
 	xprintf_P(PSTR("\r\n"));
@@ -300,8 +296,8 @@ void pv_print_parametros(void)
 	xprintf_P(PSTR("    pRef=%.02f\r\n"),spiloto.pRef );
 	xprintf_P(PSTR("    dP=%.03f\r\n"), (spiloto.pB - spiloto.pRef));
 	xprintf_P(PSTR("    pulses=%d\r\n"),spiloto.npulses );
-	xprintf_P(PSTR("    ptime=%d\r\n"),spiloto.ptime );
-	xprintf_P(PSTR("    dtime=%d\r\n"),spiloto.dtime );
+	xprintf_P(PSTR("    startup_time=%d\r\n"),spiloto.startup_time );
+	xprintf_P(PSTR("    pwidth=%d\r\n"),spiloto.pwidth );
 	if ( spiloto.dir == STEPPER_FWD ) {
 		xprintf_P(PSTR("    dir=Forward\r\n"));
 	} else {
@@ -321,8 +317,8 @@ void pv_calcular_parametros_ajuste(void)
 	}
 
 	// Paso 2: Intervalo de tiempo entre pulsos en ms.
-	spiloto.dtime = 20;
-	spiloto.ptime = 20;
+	spiloto.pwidth = 10;
+	spiloto.startup_time = 30;
 
 	// Paso 3: Calculo los pulsos a aplicar.
 	pv_calcular_npulses(AJUSTE70x100);
@@ -512,7 +508,7 @@ float pB;
 	xprintf_P(PSTR("PILOTO pB=%.02f\r\n"), spiloto.pB );
 }
 //------------------------------------------------------------------------------------
-void pv_ajustar_presion(void)
+void pv_ajustar_presion(bool modo_test)
 {
 
 uint8_t loops;
@@ -529,14 +525,18 @@ int8_t slot;
 
 	for ( loops = 0; loops < MAX_INTENTOS; loops++ ) {
 
-		if ( ! pv_get_hhhmm_now( &hhmm_now)) {
-			xprintf_P(PSTR("PILOTO: ERROR pv_get_hhmm.!!\r\n"));
-			return;
+		if (modo_test == MODO_STANDARD ) {
+			if ( ! pv_get_hhhmm_now( &hhmm_now)) {
+				xprintf_P(PSTR("PILOTO: ERROR pv_get_hhmm.!!\r\n"));
+				return;
+			}
+
+			slot = pv_get_slot_actual(hhmm_now);
+			spiloto.pRef = sVarsApp.pSlots[slot].presion;
+			spiloto.pError = PERROR;
+
 		}
 
-		slot = pv_get_slot_actual(hhmm_now);
-		spiloto.pRef = sVarsApp.pSlots[slot].presion;
-		spiloto.pError = PERROR;
 
 		xprintf_P(PSTR("PILOTO: Ajuste: pREf=%.02f\r\n"),spiloto.pRef);
 
@@ -579,14 +579,14 @@ int8_t slot;
 
 }
 //------------------------------------------------------------------------------------
-void pvstk_piloto_presion_test( void )
+void run_piloto_presion_test( void )
 {
 	// Funcion privada, subtask que dada una presion de referencia, mueve el piloto
 	// hasta lograrla
-	pv_ajustar_presion();
+	pv_ajustar_presion(MODO_TEST);
 }
 //------------------------------------------------------------------------------------
-void pvstk_piloto_stepper_test( void )
+void run_piloto_stepper_test( void )
 {
 	/*
 	 * Funcion privada, subtask que mueve el stepper en una direccion dada, una
@@ -622,13 +622,16 @@ t_slot_time_ticks tipo_slot_tick;
 
 		if ( tipo_slot_tick == TICK_INICIO ) {
 			xprintf_P(PSTR("PILOTO: Ajuste slot;inicio #%d\r\n"), slot);
-			pv_ajustar_presion();
-			return;
-		} else if ( tipo_slot_tick == TICK_CONTROL ) {
-			xprintf_P(PSTR("PILOTO: Ajuste slot;inside #%d\r\n"), slot);
-			pv_ajustar_presion();
+			pv_ajustar_presion(MODO_STANDARD);
 			return;
 		}
+		/*
+		else if ( tipo_slot_tick == TICK_CONTROL ) {
+			xprintf_P(PSTR("PILOTO: Ajuste slot;inside #%d\r\n"), slot);
+			pv_ajustar_presion(MODO_STANDARD);
+			return;
+		}
+		*/
 	}
 }
 //------------------------------------------------------------------------------------

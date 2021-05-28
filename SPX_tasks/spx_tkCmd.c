@@ -447,7 +447,7 @@ char l_data[10] = { '\0' };
 	}
 
 	// PILOTO STEPPER
-	// write stepper {fw|rev} {npulses} {dpulses}
+	// write stepper {fw|rev} {npulses} {pwidth_ms} {startup_time}
 	if ( ( strcmp_P( strupr(argv[1]), PSTR("STEPPER\0")) == 0) && ( tipo_usuario == USER_TECNICO) ) {
 		xAPP_piloto_stepper_test( argv[2], argv[3], argv[4], argv[5]);
 		pv_snprintfP_OK();
@@ -1233,7 +1233,7 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("         chpoll\r\n\0"));
 				xprintf_P( PSTR("         link, float {fltstr}\r\n\0"));
 				xprintf_P( PSTR("         output address type value\r\n\0"));
-				xprintf_P( PSTR("  stepper {fw|rev} {npulses} {dpulses_ms} {ptime_s}\r\n\0"));
+				xprintf_P( PSTR("  stepper {fw|rev} {npulses} {pwidth_ms} {startup_time_s}\r\n\0"));
 				xprintf_P( PSTR("  piloto {out_pres-kg} {err_range-kg}\r\n\0"));
 			}
 

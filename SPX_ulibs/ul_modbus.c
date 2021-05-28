@@ -431,7 +431,7 @@ uint8_t i;
 	// Transmito
 	modbus_txFrame( f_debug, data, byte_count );
 	// Espero la respuesta
-	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+	vTaskDelay( (portTickType)( 500 / portTICK_RATE_MS ) );
 	modbus_rxFrame( f_debug, data, MBUS_TXMSG_LENGTH );
 	// Proceso respuesta
 	modbus_decodeRxFrame( f_debug, data, MBUS_TXMSG_LENGTH, hreg );

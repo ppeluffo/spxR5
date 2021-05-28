@@ -157,6 +157,7 @@ uint8_t i;
 	// Determino la io_board attached
 	spx_io_board = SPX_IO5CH;
 	if ( I2C_scan_device( BUSADDR_INA_C ) ) {
+	//if ( I2C_scan_device( BUSADDR_RTC_M79410 ) ) {
 		spx_io_board = SPX_IO8CH;
 	}
 

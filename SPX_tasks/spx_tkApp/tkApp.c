@@ -36,6 +36,9 @@ void tkAplicacion(void * pvParameters)
 
 	// De acuedo al modo de operacion disparo la tarea que realiza la
 	// funcion especializada del datalogger.
+	spiloto.start_presion_test = false;
+	spiloto.start_steppers_test = false;
+
 
 	switch( sVarsApp.aplicacion ) {
 	case APP_OFF:
