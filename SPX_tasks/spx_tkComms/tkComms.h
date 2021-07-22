@@ -22,6 +22,9 @@ typedef enum { INIT_AUTH = 0, INIT_SRVUPDATE, INIT_GLOBAL, INIT_BASE, INIT_ANALO
 typedef enum { frame_ENTRY = 0, frame_RESPONSE, frame_NET } t_frame_states;
 typedef enum { rsp_OK = 0, rsp_ERROR, rsp_NONE } t_responses;
 
+typedef enum { GSM, WDCMA, AUTOGSM, AUTOWDCMA } t_modem_mode_selection;
+
+
 #define MAX_TRIES_PWRON 		3	// Intentos de prender HW el modem
 #define MAX_TRYES_NET_ATTCH		3	// Intentos de atachearme a la red GPRS
 #define MAX_TRYES_OPEN_COMMLINK	3	// Intentos de abrir un socket
@@ -53,6 +56,10 @@ typedef struct {
 	uint8_t errores_comms;
 	uint8_t douts;
 	bool set_douts;
+	uint8_t gprs_mode;
+	uint8_t gprs_pref;
+	char gprs_bands[17];
+
 } t_xCOMMS_stateVars;
 
 t_xCOMMS_stateVars xCOMMS_stateVars;
@@ -195,6 +202,15 @@ bool gprs_cmd_linkclose(void);
 bool gprs_cmd_linkstatus(t_link_status *link_status);
 int gprs_findstr_circular( uint16_t start, const char *rsp );
 int gprs_findstr_lineal( uint16_t start, const char *rsp );
+
+void gprs_set_MODO( uint8_t modo);
+void gprs_set_PREF(uint8_t modo);
+void gprs_set_BANDS( char *s_bands);
+void gprs_modem_status(void);
+void gprs_read_MODO(void);
+void gprs_read_PREF(void);
+void gprs_read_BANDS(void);
+
 
 void xSMS_init(void);
 bool xSMS_enqueue(char *dst_nbr, char *msg );

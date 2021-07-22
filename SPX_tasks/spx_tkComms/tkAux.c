@@ -73,6 +73,7 @@ void aux_rxBuffer_fill(char c)
 
 	if ( auxRxBuffer.ptr < AUX_RXBUFFER_LEN )
 		auxRxBuffer.buffer[ auxRxBuffer.ptr++ ] = c;
+
 }
 //------------------------------------------------------------------------------------
 char *aux_get_buffer( void )

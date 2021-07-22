@@ -278,6 +278,8 @@ uint8_t dbm;
 	}
 
 	xprintf_P( PSTR(" [%d,%d,%d]\r\n"),xCOMMS_stateVars.gprs_prendido, xCOMMS_stateVars.gprs_inicializado,xCOMMS_stateVars.errores_comms);
+	gprs_modem_status();
+
 }
 //------------------------------------------------------------------------------------
 void xCOMMS_init(void)

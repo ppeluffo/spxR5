@@ -32,6 +32,7 @@
 #include "pmic_driver.h"
 #include "wdt_driver.h"
 
+
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -65,9 +66,9 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.7b"
+#define SPX_FW_REV "3.0.7f"
 //#define SPX_FW_REV "3.0.5BETA"
-#define SPX_FW_DATE "@ 20210517"
+#define SPX_FW_DATE "@ 202107020"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
@@ -185,6 +186,9 @@ xSemaphoreHandle sem_AINPUTS;
 StaticSemaphore_t AINPUTS_xMutexBuffer;
 #define MSTOTAKEAINPUTSSEMPH ((  TickType_t ) 10 )
 
+xSemaphoreHandle sem_MBUS;
+StaticSemaphore_t MBUS_xMutexBuffer;
+#define MSTOTAKEMBUSSEMPH ((  TickType_t ) 10 )
 
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
@@ -207,7 +211,7 @@ void tkAuxRX(void * pvParameters);
 uint8_t NRO_COUNTERS;
 uint8_t NRO_ANINPUTS;
 uint8_t NRO_DINPUTS;
-
+#include "math.h"
 
 typedef struct {
 	uint16_t idle;
@@ -241,8 +245,9 @@ typedef struct {
 typedef union {
 	uint32_t ivalue;
 	float fvalue;
-	uint8_t fbytes[4];
-} hold_reg_t;
+	uint8_t bytes_raw[4];
+	char rep_str[4];		// Almaceno NaN cuando hay un error.
+} hold_reg_t; // (4)
 
 // Estructura de un registro de IO5CH_MODBUS
 typedef struct {
@@ -323,12 +328,14 @@ typedef struct {
 	uint8_t length;				// Largo en bytes
 	uint8_t function_code;		// Funcion usada para acceder
 	char type;					// f (float) / i (int)
+	uint8_t divisor_p10;		// Potencia de 10 para el divisor en el caso de enteros.
 } modbus_channel_config_t;
 
 // Configuracion de modbus
 typedef struct {
 	uint8_t modbus_slave_address;
 	modbus_channel_config_t mbchannel[MODBUS_CHANNELS];
+	uint16_t waiting_poll_time;
 } modbus_conf_t;
 
 typedef struct {
@@ -483,19 +490,17 @@ void data_print_inputs_modbus(file_descriptor_t fd, st_dataRecord_t *dr, uint16_
 
 void modbus_init(void);
 bool modbus_config_slave_address( char *address);
-bool modbus_config_channel(uint8_t channel,char *s_name, char *s_addr,char *s_length,char *s_rcode, char *s_type  );
+bool modbus_config_channel(uint8_t channel,char *s_name, char *s_addr,char *s_length,char *s_rcode, char *s_type, char *s_divisor_p10  );
 void modbus_config_defaults(void);
-void modbus_txFrame(bool f_debug, uint8_t *data, uint8_t data_size );
-bool modbus_rxFrame( bool f_debug, uint8_t *data, uint8_t max_data_size );
-void modbus_decodeRxFrame ( bool f_debug, uint8_t *data, uint8_t data_size, hold_reg_t *hreg );
+bool modbus_config_waiting_poll_time( char *s_waiting_poll_time);
 void modbus_poll_channel( bool f_debug, uint8_t channel , hold_reg_t *hreg );
 void modbus_write_output_register ( bool f_debug, uint16_t address, char type, hold_reg_t *hreg );
 void modbus_test_generic_poll( char *arg_ptr[16] );
 void modbus_test_link( void );
 void modbus_test_float( char *s_nbr );
+void modbus_test_int( char *s_nbr );
 void modbus_test_channel_poll ( char *s_channel);
 void modbus_test_write_output (char *s_address, char *s_type, char *s_value );
-
 
 bool SPX_SIGNAL( uint8_t signal );
 bool SPX_SEND_SIGNAL( uint8_t signal );

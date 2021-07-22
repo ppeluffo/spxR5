@@ -39,8 +39,8 @@ typedef enum { TICK_NORMAL = 0, TICK_INICIO, TICK_CONTROL } t_slot_time_ticks;
 
 void pv_calcular_parametros_ajuste(void);
 void pv_aplicar_pulsos(void);
-bool pv_determinar_canal_pB(void);
-void pv_leer_presion_baja( int8_t samples, uint16_t intervalo_secs );
+bool pv_determinar_canales_presion(void);
+void pv_leer_presiones( int8_t samples, uint16_t intervalo_secs );
 int8_t pv_get_slot_actual(uint16_t hhmm );
 t_slot_time_ticks pv_check_tipo_tick( uint16_t hhmm, int8_t slot );
 bool pv_get_hhhmm_now( uint16_t *hhmm);
@@ -291,6 +291,8 @@ int8_t sequence = 2;
 //------------------------------------------------------------------------------------
 void pv_print_parametros(void)
 {
+	xprintf_P(PSTR("    pA_channel=%d\r\n"),spiloto.pA_channel );
+	xprintf_P(PSTR("    pA=%.02f\r\n"),spiloto.pA );
 	xprintf_P(PSTR("    pB_channel=%d\r\n"),spiloto.pB_channel );
 	xprintf_P(PSTR("    pB=%.02f\r\n"),spiloto.pB );
 	xprintf_P(PSTR("    pRef=%.02f\r\n"),spiloto.pRef );
@@ -460,7 +462,7 @@ uint16_t time_slot_s;
 
 }
 //------------------------------------------------------------------------------------
-bool pv_determinar_canal_pB(void)
+bool pv_determinar_canales_presion(void)
 {
 	// Busca en la configuracion de los canales aquel que se llama pB
 
@@ -468,44 +470,54 @@ uint8_t i;
 bool sRet = false;
 char l_data[10] = { '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0' };
 
+	spiloto.pA_channel = -1;
 	spiloto.pB_channel = -1;
 	for ( i = 0; i < NRO_ANINPUTS; i++) {
 		// xprintf_P(PSTR("DEBUG: ch=%d, name=%s\r\n"), i, strupr(systemVars.ainputs_conf.name[i]) );
 		memcpy(l_data, systemVars.ainputs_conf.name[i], sizeof(l_data));
 		strupr(l_data);
+		if ( ! strcmp_P( l_data, PSTR("PA") ) ) {
+			spiloto.pA_channel = i;
+			xprintf_P(PSTR("PILOTO: pAchannel=%d\r\n"), spiloto.pA_channel);
+		}
 		if ( ! strcmp_P( l_data, PSTR("PB") ) ) {
 			spiloto.pB_channel = i;
 			xprintf_P(PSTR("PILOTO: pBchannel=%d\r\n"), spiloto.pB_channel);
-			sRet = true;
-			break;
 		}
 	};
+
+	if ( (spiloto.pA_channel != -1) && (spiloto.pB_channel != -1) )
+		sRet = true;
 
 	return(sRet);
 
 }
 //------------------------------------------------------------------------------------
-void pv_leer_presion_baja( int8_t samples, uint16_t intervalo_secs )
+void pv_leer_presiones( int8_t samples, uint16_t intervalo_secs )
 {
 	// Medir la presión de baja N veces a intervalos de 10 s y promediar
 	// Deja el valor EN GRAMOS en spiloto.pB
 
 uint8_t i;
-float pB;
+float pA, pB;
 
-	// Mido pB
+	// Mido pA/pB
+	spiloto.pA = 0;
 	spiloto.pB = 0;
 	for ( i = 0; i < samples; i++) {
 		ctl_watchdog_kick( WDG_APP,  WDG_APP_TIMEOUT );
+		pA = ainputs_read_channel(spiloto.pA_channel);
 		pB = ainputs_read_channel(spiloto.pB_channel);
-		xprintf_P(PSTR("PILOTO pB:[%d]->%0.3f\r\n"), i, pB );
+		xprintf_P(PSTR("PILOTO pA:[%d]->%0.3f, pB:[%d]->%0.3f\r\n"), i, pA, i, pB );
 		// La presion la expreso en gramos !!!
+		spiloto.pA += pA;
 		spiloto.pB += pB;
 		vTaskDelay( ( TickType_t)( intervalo_secs * 1000 / portTICK_RATE_MS ) );
 	}
 
+	spiloto.pA /= samples;
 	spiloto.pB /= samples;
-	xprintf_P(PSTR("PILOTO pB=%.02f\r\n"), spiloto.pB );
+	xprintf_P(PSTR("PILOTO pA=%.02f, pB=%.02f\r\n"), spiloto.pA, spiloto.pB );
 }
 //------------------------------------------------------------------------------------
 void pv_ajustar_presion(bool modo_test)
@@ -518,8 +530,8 @@ int8_t slot;
 	// Realiza la tarea de mover el piloto hasta ajustar la presion
 
 	xprintf_P(PSTR("PILOTO: determino canal de pB...\r\n"));
-	if ( !pv_determinar_canal_pB() ) {
-		xprintf_P(PSTR("PILOTO: Ajuste ERROR: No se puede determinar el canal de pB.!!\r\n"));
+	if ( ! pv_determinar_canales_presion() ) {
+		xprintf_P(PSTR("PILOTO: Ajuste ERROR: No se puede determinar el canal de pA/pB.!!\r\n"));
 		return;
 	}
 
@@ -547,11 +559,30 @@ int8_t slot;
 		}
 
 		xprintf_P(PSTR("PILOTO: loop[%d]\r\n"), loops);
-		xprintf_P(PSTR("PILOTO: leo pB...\r\n"));
-		pv_leer_presion_baja(5, INTERVALO_PB_SECS );
+		xprintf_P(PSTR("PILOTO: leo pA/pB...\r\n"));
+		pv_leer_presiones(5, INTERVALO_PB_SECS );
+
+		// Controles de presion:
+
+		if ( spiloto.pA < 0) {
+			xprintf_P(PSTR("PILOTO: Ajuste ERROR: pA < 0.!!\r\n"));
+			return;
+		}
 
 		if ( spiloto.pB < 0) {
 			xprintf_P(PSTR("PILOTO: Ajuste ERROR: pB < 0.!!\r\n"));
+			return;
+		}
+
+		// Debe haber una diferencia de 500 gr minima para ajustar
+		if ( ( spiloto.pA - spiloto.pB ) < 0.5) {
+			xprintf_P(PSTR("PILOTO: Ajuste ERROR: (pA-pB) < 500gr.!!\r\n"));
+			return;
+		}
+
+		// La presion de referencia debe ser menor a pA
+		if ( ( spiloto.pA - spiloto.pRef ) < 0.5) {
+			xprintf_P(PSTR("PILOTO: Ajuste ERROR: (pA-pRef) < 500gr.!!\r\n"));
 			return;
 		}
 
@@ -574,7 +605,7 @@ int8_t slot;
 
 	}
 	// Muestro la presión que quedo.
-	pv_leer_presion_baja(2, INTERVALO_PB_SECS );
+	pv_leer_presiones(2, INTERVALO_PB_SECS );
 	xprintf_P(PSTR("PILOTO: Fin de ajuste\r\n"));
 
 }

@@ -90,73 +90,73 @@ uint8_t i;
 	}
 
 	if ( f_send_init_frame_base ) {
-		f_send_init_frame_base = false;
 		retS = xCOMMS_process_frame( INIT_BASE, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
 			goto EXIT;
 		}
+		f_send_init_frame_base = false;
 	}
 
 	if ( f_send_init_frame_analog ) {
-		f_send_init_frame_analog = false;
 		retS = xCOMMS_process_frame( INIT_ANALOG, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
 			goto EXIT;
 		}
+		f_send_init_frame_analog = false;
 	}
 
 	if ( f_send_init_frame_digital ) {
-		f_send_init_frame_digital = false;
 		retS = xCOMMS_process_frame( INIT_DIGITAL, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
 			goto EXIT;
 		}
+		f_send_init_frame_digital = false;
 	}
 
 	if ( f_send_init_frame_counters ) {
-		f_send_init_frame_counters = false;
 		retS = xCOMMS_process_frame( INIT_COUNTERS, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
 			goto EXIT;
 		}
+		f_send_init_frame_counters = false;
 	}
 
 	if ( f_send_init_frame_psensor ) {
-		f_send_init_frame_psensor = false;
 		retS = xCOMMS_process_frame( INIT_PSENSOR, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
 			goto EXIT;
 		}
+		f_send_init_frame_psensor = false;
 	}
 
 	if ( f_send_init_frame_range ) {
-		f_send_init_frame_range = false;
 		retS = xCOMMS_process_frame( INIT_RANGE, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
 			goto EXIT;
 		}
+		f_send_init_frame_range = false;
 	}
 
 	if ( f_send_init_frame_app ) {
-		f_send_init_frame_app = false;
 		retS = init_frame_app();
 		if ( ! retS ) {
 			xCOMMS_stateVars.errores_comms++;
 			next_state = ST_ENTRY;
 			goto EXIT;
 		}
+		f_send_init_frame_app = false;
 	}
 
 	// Si alguna configuración requiere que se resetee, lo hacemos aqui.
@@ -522,6 +522,8 @@ bool retS = true;
 		 */
 	retS = xCOMMS_process_frame( INIT_APP_A, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 
+	xprintf_P(PSTR("DEBUG COMMS: (1) aplicacion=%d\r\n\0"),sVarsApp.aplicacion);
+
 	/*
 	 * A partir de aqui veo que parte de la aplicacion debo seguir
 	 * configurando
@@ -558,6 +560,7 @@ bool retS = true;
 		break;
 
 	case APP_PILOTO:
+		xprintf_P(PSTR("DEBUG COMMS: (2) Piloto\r\n\0"));
 		// Requiere 1 frames mas (B):
 		retS = xCOMMS_process_frame(INIT_APP_B, sVarsComms.server_ip_address, sVarsComms.server_tcp_port );
 		f_send_init_frame_app = false;
@@ -1224,7 +1227,7 @@ static void init_reconfigure_params_app_B_modbus(void)
 	// MODBUS
 	// TYPE=INIT&PLOAD=CLASS:APP_B;SLA:1,MB0:PA,2091,2,3,F;MB1:PB,2093,2,3,F;MB3:MDIN,2096,1,3,I;
 	// TYPE=INIT&PLOAD=CLASS:APP_B;SLA:1;M0:MPA,2067,2,3,F;M1:MPB,2069,2,3,F;M2:MDIN,2091,1,2,I;
-	//      M3:X,0,0,0,I;M4:X,0,0,0,I;M5:X,0,0,0,I;M6:X,0,0,0,I;M7:X,0,0,0,I;M8:X,0,0,0,I;M9:X,0,0,0,I;M10:X,0,0,0,I;M11:X,0,0,0,I
+	//      M3:X,0,0,0,I,1;M4:X,0,0,0,I,1;M5:X,0,0,0,I,1;M6:X,0,0,0,I,1;M7:X,0,0,0,I,1;M8:X,0,0,0,I,1;M9:X,0,0,0,I,1;M10:X,0,0,0,I,1;M11:X,0,0,0,I,1
 
 
 int p1,p2;
@@ -1236,6 +1239,7 @@ char *s_addr = NULL;
 char *s_length= NULL;
 char *s_fcode= NULL;
 char *s_type= NULL;
+char *s_div_p10 = NULL;
 char *delim = ",;:=><";
 uint8_t i;
 char id[2];
@@ -1273,13 +1277,13 @@ char str_base[8];
 			s_length = strsep(&stringp,delim);		//2
 			s_fcode = strsep(&stringp,delim);		//3
 			s_type = strsep(&stringp,delim);		//F
+			s_div_p10 = strsep(&stringp,delim);		//F
 
 			id[0] = '0' + i;
 			id[1] = '\0';
 
 			//xprintf_P( PSTR("DEBUG MODBUS: ID:%s, name=%s, addr=%s, length=%s, fcode=%s, type=%s\r\n\0"), id, s_name, s_addr, s_length, s_fcode, s_type);
-			modbus_config_channel(i,s_name, s_addr, s_length, s_fcode, s_type );
-
+			modbus_config_channel(i,s_name, s_addr, s_length, s_fcode, s_type, "1" );
 			xprintf_PD( DF_COMMS, PSTR("COMMS: Reconfig MB%d\r\n\0"), i);
 		}
 	}

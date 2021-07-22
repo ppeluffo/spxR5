@@ -80,13 +80,15 @@ uint8_t tempCTRLA = 0;
 		/* Enable DRE interrupt. */
 		tempCTRLA = USARTC0.CTRLA;
 		tempCTRLA = (tempCTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_LO_gc;
+		//tempCTRLA = (tempCTRLA & ~USART_TXCINTLVL_gm) | USART_TXCINTLVL_LO_gc;
 		USARTC0.CTRLA = tempCTRLA;
 		break;
 	case iUART_TERM:
 		// low level, TXint enabled
-		/* Enable DRE interrupt. */
+		/* Enable DRE,TXC interrupt. */
 		tempCTRLA = USARTF0.CTRLA;
 		tempCTRLA = (tempCTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_LO_gc;
+		//tempCTRLA = (tempCTRLA & ~USART_TXCINTLVL_gm) | USART_TXCINTLVL_LO_gc;
 		USARTF0.CTRLA = tempCTRLA;
 		break;
 	}
@@ -111,6 +113,7 @@ uint8_t tempCTRLA = 0;
 		// Espero que no halla nada en el DREG
 		tempCTRLA = USARTC0.CTRLA;
 		tempCTRLA = (tempCTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_OFF_gc;
+		//tempCTRLA = (tempCTRLA & ~USART_TXCINTLVL_gm) | USART_TXCINTLVL_OFF_gc;
 		USARTC0.CTRLA = tempCTRLA;
 		break;
 	case iUART_TERM:
@@ -118,6 +121,7 @@ uint8_t tempCTRLA = 0;
 		// Espero que no halla nada en el DREG
 		tempCTRLA = USARTF0.CTRLA;
 		tempCTRLA = (tempCTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_OFF_gc;
+		//tempCTRLA = (tempCTRLA & ~USART_TXCINTLVL_gm) | USART_TXCINTLVL_OFF_gc;
 		USARTF0.CTRLA = tempCTRLA;
 		break;
 	}
@@ -192,9 +196,11 @@ void drv_uart_enable_tx_int( uart_id_t iUART )
 		break;
 	case iUART_AUX1:
 		USARTC0.CTRLA = (USARTC0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_LO_gc;
+		//USARTC0.CTRLA = (USARTC0.CTRLA & ~USART_TXCINTLVL_gm) | USART_TXCINTLVL_LO_gc;
 		break;
 	case iUART_TERM:
 		USARTF0.CTRLA = (USARTF0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_LO_gc;
+		//USARTF0.CTRLA = (USARTF0.CTRLA & ~USART_TXCINTLVL_gm) | USART_TXCINTLVL_LO_gc;
 		break;
 	}
 }
@@ -209,9 +215,11 @@ void drv_uart_disable_tx_int( uart_id_t iUART )
 		break;
 	case iUART_AUX1:
 		USARTC0.CTRLA = (USARTC0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_OFF_gc;
+		//USARTC0.CTRLA = (USARTC0.CTRLA & ~USART_TXCINTLVL_gm) | USART_TXCINTLVL_OFF_gc;
 		break;
 	case iUART_TERM:
 		USARTF0.CTRLA = (USARTF0.CTRLA & ~USART_DREINTLVL_gm) | USART_DREINTLVL_OFF_gc;
+		//USARTF0.CTRLA = (USARTF0.CTRLA & ~USART_TXCINTLVL_gm) | USART_TXCINTLVL_OFF_gc;
 		break;
 	}
 }
@@ -428,6 +436,7 @@ uint8_t ctl = 0;
 ISR(USARTC0_DRE_vect)
 {
 
+	// La interrupcion DRE indica que el DATA_REGISTER esta empty pero no el Transmitter shift register !!
 char cChar = ' ';
 int8_t res = false;
 
@@ -441,6 +450,27 @@ int8_t res = false;
 		drv_uart_interruptOff(uart_aux1.uart_id);
 	}
 }
+//----------------------------------------------------------------------------------------
+/*
+ISR(USARTC0_TXC_vect)
+{
+
+	// La interrupcion TXC indica que el DATA y Transmitter shift register estan vacios.
+
+char cChar = ' ';
+int8_t res = false;
+
+	res = rBufferPop( &uart_aux1.TXringBuffer, (char *)&cChar );
+
+	if( res == true ) {
+		// Send the next character queued for Tx
+		USARTC0.DATA = cChar;
+	} else {
+		// Queue empty, nothing to send.
+		drv_uart_interruptOff(uart_aux1.uart_id);
+	}
+}
+*/
 //----------------------------------------------------------------------------------------
 ISR(USARTC0_RXC_vect)
 {
@@ -507,6 +537,25 @@ int8_t res = false;
 		drv_uart_interruptOff(uart_term.uart_id);
 	}
 }
+//----------------------------------------------------------------------------------------
+/*
+ISR(USARTF0_TXC_vect)
+{
+
+char cChar;
+int8_t res = false;
+
+	res = rBufferPop( &uart_term.TXringBuffer, (char *)&cChar );
+
+	if( res == true ) {
+		// Send the next character queued for Tx
+		USARTF0.DATA = cChar;
+	} else {
+		// Queue empty, nothing to send.
+		drv_uart_interruptOff(uart_term.uart_id);
+	}
+}
+*/
 //----------------------------------------------------------------------------------------
 ISR(USARTF0_RXC_vect)
 {

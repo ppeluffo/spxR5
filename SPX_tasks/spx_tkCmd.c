@@ -132,6 +132,7 @@ st_dataRecord_t dr;
 		xprintf_P( PSTR("IOboard SPX8CH\r\n\0") );
 	}
 
+
 	// SIGNATURE ID
 	xprintf_P( PSTR("uID=%s\r\n\0"), NVMEE_readID() );
 
@@ -342,12 +343,15 @@ uint8_t channel;
 
 	xprintf_P( PSTR(">Modbus:\r\n\0"));
 	xprintf_P( PSTR("  mbus sladdr: %02d\r\n\0"), systemVars.modbus_conf.modbus_slave_address );
+	xprintf_P( PSTR("  waittime: %d\r\n\0"), systemVars.modbus_conf.waiting_poll_time );
+
 	for (channel=0; channel<MODBUS_CHANNELS; channel++) {
-		xprintf_P( PSTR("  mb%02d: add:%04d, lg:%02d, fc:%02d, ty=%c, %s]\r\n\0"),
+		xprintf_P( PSTR("  mb%02d: add:%04d, lg:%02d, fc:%02d, ty=%c, f10=%d, %s]\r\n\0"),
 				channel, systemVars.modbus_conf.mbchannel[channel].address,
 				systemVars.modbus_conf.mbchannel[channel].length,
 				systemVars.modbus_conf.mbchannel[channel].function_code,
 				systemVars.modbus_conf.mbchannel[channel].type,
+				systemVars.modbus_conf.mbchannel[channel].divisor_p10,
 				systemVars.modbus_conf.mbchannel[channel].name );
 	}
 
@@ -477,6 +481,12 @@ char l_data[10] = { '\0' };
 
 		if ( ( strcmp_P( strupr(argv[2]), PSTR("FLOAT")) == 0)) {
 			modbus_test_float(argv[3]);
+			pv_snprintfP_OK();
+			return;
+		}
+
+		if ( ( strcmp_P( strupr(argv[2]), PSTR("INT")) == 0)) {
+			modbus_test_int(argv[3]);
 			pv_snprintfP_OK();
 			return;
 		}
@@ -653,6 +663,10 @@ uint8_t cks;
 
 	FRTOS_CMD_makeArgv();
 
+	if ( strcmp_P( strupr(argv[1]), PSTR("TEST\0")) == 0)  {
+		test();
+		return;
+	}
 
 	// MODBUS
 	// read modbus
@@ -848,7 +862,8 @@ uint8_t cks;
 	}
 
 	// GPRS
-	// read gprs (rsp,cts,dcd,ri, sms)
+	// read gprs (rsp,cts,dcd,ri,sms)
+	// read gprs modo,pref,bands
 	if (!strcmp_P( strupr(argv[1]), PSTR("GPRS\0")) && ( tipo_usuario == USER_TECNICO) ) {
 		pv_cmd_rwGPRS(RD_CMD);
 		return;
@@ -902,8 +917,11 @@ bool retS = false;
 		return;
 	}
 
-	// GPRS SAT
+	// GPRS
 	// config gprs SAT {enable|disable}
+	// config gprs modo {AUTO,2G,3G}
+	// config gprs pref {AUTO,2G3G,3G2G}
+	// config gprs bands {bandslist}
 	if (!strcmp_P( strupr(argv[1]), PSTR("GPRS\0")) ) {
 		retS =  pv_cmd_configGPRS();
 		retS ? pv_snprintfP_OK() : pv_snprintfP_ERR();
@@ -1229,9 +1247,9 @@ static void cmdHelpFunction(void)
 				xprintf_P( PSTR("           (open|close) (A|B)\r\n\0"));
 				xprintf_P( PSTR("           pulse (A|B) (secs) \r\n\0"));
 				xprintf_P( PSTR("           power {on|off}\r\n\0"));
-				xprintf_P( PSTR("  modbus genpoll type(f|i) bytes_counts [bytes]\r\n\0"));
-				xprintf_P( PSTR("         chpoll\r\n\0"));
-				xprintf_P( PSTR("         link, float {fltstr}\r\n\0"));
+				xprintf_P( PSTR("  modbus genpoll { type(F|I} sla fcode addr length }\r\n\0"));
+				xprintf_P( PSTR("         chpoll {ch}\r\n\0"));
+				xprintf_P( PSTR("         link, float {fltstr}, int {intstr}\r\n\0"));
 				xprintf_P( PSTR("         output address type value\r\n\0"));
 				xprintf_P( PSTR("  stepper {fw|rev} {npulses} {pwidth_ms} {startup_time_s}\r\n\0"));
 				xprintf_P( PSTR("  piloto {out_pres-kg} {err_range-kg}\r\n\0"));
@@ -1265,6 +1283,7 @@ static void cmdHelpFunction(void)
 			xprintf_P( PSTR("  memory {full}\r\n\0"));
 			xprintf_P( PSTR("  dinputs\r\n\0"));
 			xprintf_P( PSTR("  gprs (rsp,cts,dcd,ri,sms)\r\n\0"));
+			xprintf_P( PSTR("  gprs modo,pref,bands\r\n\0"));
 			xprintf_P( PSTR("  aux rsp\r\n\0"));
 			if ( spx_io_board == SPX_IO5CH ) {
 			//	xprintf_P( PSTR("  modbus rsp\r\n\0"));
@@ -1288,6 +1307,9 @@ static void cmdHelpFunction(void)
 		xprintf_P( PSTR("  user {normal|tecnico}\r\n\0"));
 		xprintf_P( PSTR("  dlgid, apn, port, ip, script, simpasswd\r\n\0"));
 		xprintf_P( PSTR("  comms {GPRS}\r\n\0"));
+		xprintf_P( PSTR("  gprs modo {AUTO,2G,3G}\r\n\0"));
+		xprintf_P( PSTR("  gprs pref {AUTO,2G3G,3G2G}\r\n\0"));
+		xprintf_P( PSTR("  gprs bands {bandslist}\r\n\0"));
 		xprintf_P( PSTR("  gprs SAT {check|enable|disable}\r\n\0"));
 		xprintf_P( PSTR("  pwrsave {on|off} {hhmm1}, {hhmm2}\r\n\0"));
 		xprintf_P( PSTR("  timerpoll {val}, timerdial {val}, timepwrsensor {val}\r\n\0"));
@@ -1318,7 +1340,8 @@ static void cmdHelpFunction(void)
 
 		if ( spx_io_board == SPX_IO5CH ) {
 			xprintf_P( PSTR("  modbus slave {addr}\r\n\0"));
-			xprintf_P( PSTR("         channel {0..%d} name addr length rcode(3,4) type(f,i)\r\n\0"), ( MODBUS_CHANNELS - 1));
+			xprintf_P( PSTR("         channel {0..%d} name addr length rcode(3,4) type(f,i), div_p10\r\n\0"), ( MODBUS_CHANNELS - 1));
+			xprintf_P( PSTR("         waittime {ms}\r\n\0"));
 		}
 
 		xprintf_P( PSTR("  default {SPY|OSE|UTE|CLARO}\r\n\0"));
@@ -1601,6 +1624,29 @@ uint8_t pin = 0;
 
 	if ( cmd_mode == RD_CMD ) {
 		// read gprs (rsp,cts,dcd,ri)
+		// read gprs modo,pref,bands
+
+		// MODO
+		// read gprs modo
+		if ( strcmp_P(strupr(argv[2]), PSTR("MODO\0")) == 0 ) {
+			gprs_read_MODO();
+			return;
+		}
+
+		// PREFERENCES
+		// read gprs pref
+		if ( strcmp_P(strupr(argv[2]), PSTR("PREF\0")) == 0 ) {
+			gprs_read_PREF();
+			return;
+		}
+
+		// BANDS
+		// read gprs bands
+		if ( strcmp_P(strupr(argv[2]), PSTR("BANDS\0")) == 0 ) {
+			gprs_read_BANDS();
+			return;
+		}
+
 
 		// SMS
 		// read gprs sms
@@ -1901,6 +1947,10 @@ uint8_t i2c_address;
 //------------------------------------------------------------------------------------
 static bool pv_cmd_configGPRS(void)
 {
+	// config gprs SAT {enable|disable}
+	// config gprs modo {AUTO,2G,3G}
+	// config gprs pref {AUTO,2G3G,3G2G}
+	// config gprs bands {bandsid}
 
 	// config gprs SAT {check|enable|disable}
 	if ( strcmp_P( strupr(argv[2]), PSTR("SAT\0")) == 0 ) {
@@ -1918,8 +1968,47 @@ static bool pv_cmd_configGPRS(void)
 		}
 	}
 
+	// config gprs modo {AUTO,2G,3G}
+	if ( strcmp_P( strupr(argv[2]), PSTR("MODO\0")) == 0 ) {
+		if ( strcmp_P( strupr(argv[3]), PSTR("AUTO\0")) == 0 ) {
+			gprs_set_MODO(2);
+			return(true);
+		}
+		if ( strcmp_P( strupr(argv[3]), PSTR("2G\0")) == 0 ) {
+			gprs_set_MODO(13);
+			return(true);
+		}
+		if ( strcmp_P( strupr(argv[3]), PSTR("3G\0")) == 0 ) {
+			gprs_set_MODO(14);
+			return(true);
+		}
+	}
+
+	// config gprs pref {AUTO,2G3G,3G2G}
+	if ( strcmp_P( strupr(argv[2]), PSTR("PREF\0")) == 0 ) {
+		if ( strcmp_P( strupr(argv[3]), PSTR("AUTO\0")) == 0 ) {
+			gprs_set_PREF(0);
+			return(true);
+		}
+		if ( strcmp_P( strupr(argv[3]), PSTR("2G3G\0")) == 0 ) {
+			gprs_set_PREF(1);
+			return(true);
+		}
+		if ( strcmp_P( strupr(argv[3]), PSTR("3G2G\0")) == 0 ) {
+			gprs_set_PREF(2);
+			return(true);
+		}
+	}
+
+	// config gprs bands {bandsid}
+	if ( strcmp_P( strupr(argv[2]), PSTR("BANDS\0")) == 0 ) {
+		gprs_set_BANDS(argv[3]);
+		return(true);
+	}
+
 	return(false);
 }
+//------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------
 static void pv_RTC_drift_test(void)
 {
@@ -2009,9 +2098,14 @@ static bool pv_cmd_configMODBUS(void)
 		return ( modbus_config_slave_address(argv[3]) );
 	}
 
-	// config modbus channel {0..%d} name addr length rcode(3,4)
+	// config modbus channel {0..%d} name addr length rcode(3,4), divisor_p10.
 	if ( strcmp_P( strupr(argv[2]), PSTR("CHANNEL\0")) == 0 ) {
-		return (modbus_config_channel(atoi(argv[3]),argv[4],argv[5],argv[6],argv[7], argv[8]) );
+		return (modbus_config_channel(atoi(argv[3]),argv[4],argv[5],argv[6],argv[7], argv[8], argv[9]) );
+	}
+
+	// config modbus waittime
+	if ( strcmp_P( strupr(argv[2]), PSTR("WAITTIME\0")) == 0 ) {
+		return (modbus_config_waiting_poll_time( argv[3] ) );
 	}
 
 	return(false);
@@ -2031,7 +2125,25 @@ void test(void)
 	 *
 	 */
 
-int p1,p2, p3;
+union {
+	uint8_t u8[4];
+	uint32_t u32;
+} bands;
+
+char str[16] = "0xDA69DE0F"; //"0xDE0F";
+char *ptr;
+
+
+	bands.u32 = strtoul( &str[5], &ptr, 16);
+	xprintf_P(PSTR("test b0=%d\r\n"), bands.u8[0]);
+	xprintf_P(PSTR("test b1=%d\r\n"), bands.u8[1]);
+	xprintf_P(PSTR("test b2=%d\r\n"), bands.u8[2]);
+	xprintf_P(PSTR("test b3=%d\r\n"), bands.u8[3]);
+	xprintf_P(PSTR("test u32(0xDE0F)=%lu\r\n"), bands.u32);
+
+	return;
+
+//int p1,p2, p3;
 char *start, *end;
 
 char localStr[48] = { 0 };

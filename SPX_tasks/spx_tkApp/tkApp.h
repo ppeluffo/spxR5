@@ -105,7 +105,9 @@ struct {
 	int8_t slot;
 	float pRef;
 	float pB;
+	float pA;
 	float pError;
+	int8_t pA_channel;
 	int8_t pB_channel;
 } spiloto;
 

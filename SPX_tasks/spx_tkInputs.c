@@ -289,7 +289,6 @@ void data_read_inputs_modbus(st_dataRecord_t *dst, bool f_copy )
 
 int8_t xBytes = 0;
 uint8_t channel;
-hold_reg_t hreg;
 
 	// Solo copio el buffer. No poleo.
 	if ( f_copy ) {
@@ -303,13 +302,8 @@ hold_reg_t hreg;
 		if ( ! strcmp ( systemVars.modbus_conf.mbchannel[channel].name, "X" ) )
 			continue;
 
-		modbus_poll_channel( DF_MODBUS, channel, &hreg );
+		modbus_poll_channel( DF_MODBUS, channel, &dst->df.mbus.mbinputs[channel] );
 
-		if ( systemVars.modbus_conf.mbchannel[channel].type == 'F') {
-			dst->df.mbus.mbinputs[channel].fvalue = hreg.fvalue;
-		} else {
-			dst->df.mbus.mbinputs[channel].ivalue = hreg.ivalue;
-		}
 	}
 
 	// Agrego el timestamp
@@ -383,13 +377,30 @@ uint8_t i = 0;
 
 	for ( i = 0; i < MODBUS_CHANNELS; i++) {
 
-		if ( strcmp ( systemVars.modbus_conf.mbchannel[i].name, "X" ) != 0 ) {
+		// Si no esta definido, salteo
+		if ( strcmp ( systemVars.modbus_conf.mbchannel[i].name, "X" ) == 0 )
+			continue;
 
-			if ( systemVars.modbus_conf.mbchannel[i].type == 'F') {
-				xfprintf_P(fd, PSTR("%s:%.02f;"), systemVars.modbus_conf.mbchannel[i].name, dr->df.mbus.mbinputs[i].fvalue );
-			} else {
-				xfprintf_P(fd, PSTR("%s:%d;"), systemVars.modbus_conf.mbchannel[i].name, dr->df.mbus.mbinputs[i].ivalue );
-			}
+		// Si hubo error de lectura, muestro NaN y salteo
+		if ( strcmp ( dr->df.mbus.mbinputs[i].rep_str, "NaN") == 0 ) {
+			xfprintf_P(fd, PSTR("%s:NaN;"), systemVars.modbus_conf.mbchannel[i].name );
+			continue;
+		}
+
+		// Si es float, muestro y salteo
+		if ( systemVars.modbus_conf.mbchannel[i].type == 'F') {
+			xfprintf_P(fd, PSTR("%s:%.02f;"), systemVars.modbus_conf.mbchannel[i].name, dr->df.mbus.mbinputs[i].fvalue );
+			continue;
+		}
+
+		// Si es entero con 2 bytes imprimo con %d y salteo
+		if ( ( systemVars.modbus_conf.mbchannel[i].type == 'I') && ( systemVars.modbus_conf.mbchannel[i].length == 1 ) ) {
+			xfprintf_P(fd, PSTR("%s:%d;"), systemVars.modbus_conf.mbchannel[i].name, (uint16_t) (dr->df.mbus.mbinputs[i].ivalue ) );
+		}
+
+		// Si es entero con 4 bytes imprimo con %lu y salteo
+		if ( ( systemVars.modbus_conf.mbchannel[i].type == 'I') && ( systemVars.modbus_conf.mbchannel[i].length == 2 ) ) {
+			xfprintf_P(fd, PSTR("%s:%lu;"), systemVars.modbus_conf.mbchannel[i].name, dr->df.mbus.mbinputs[i].ivalue );
 		}
 
 	}

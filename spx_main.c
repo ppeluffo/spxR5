@@ -41,6 +41,14 @@
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  * ------------------------------------------------------------------------
+ * Version 3.0.7d @ 20210531
+ * - Agrego un parametro que configurable solo por comando que es el tiempo
+ *   de espera de respuestas modbus
+ * - Agrego un loop que reintenta una lectura hasta MBUS_POLL_TRYES veces
+ * - En caso de error de lectura, la medida queda con -9999.
+ * - modbus_decodeError: Veo si retorno un entero o float para poner la flag
+ *
+ * ------------------------------------------------------------------------
  * Version 3.0.6c @ 20201226
  * En los DLG-8, por un tema de ruido eléctrico, hay veces que el modem no
  * responde.
@@ -517,6 +525,7 @@ int main( void )
 	sem_SYSVars = xSemaphoreCreateMutexStatic( &SYSVARS_xMutexBuffer );
 	sem_WDGS = xSemaphoreCreateMutexStatic( &WDGS_xMutexBuffer );
 	sem_AINPUTS = xSemaphoreCreateMutexStatic( &AINPUTS_xMutexBuffer );
+	sem_MBUS = xSemaphoreCreateMutexStatic( &MBUS_xMutexBuffer );
 
 	xprintf_init();
 	FAT_init();
