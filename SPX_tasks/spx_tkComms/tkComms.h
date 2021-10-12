@@ -18,6 +18,8 @@ typedef enum { NET_OPEN = 0, NET_CLOSE, NET_UNKNOWN, NET_TO } t_net_status;
 typedef enum { SEND_OK = 0, SEND_FAIL, SEND_NODATA } t_send_status;
 typedef enum { ATCMD_ENTRY = 0, ATCMD_TEST, ATCMD_CMD, ATCMD_WAIT, ATCMD_EXIT } atcmd_state_t;
 
+typedef enum { RSP_OK = 0, RSP_ERR, RSP_TO } atcmd_rsp_t;
+
 typedef enum { INIT_AUTH = 0, INIT_SRVUPDATE, INIT_GLOBAL, INIT_BASE, INIT_ANALOG, INIT_DIGITAL, INIT_COUNTERS, INIT_RANGE, INIT_PSENSOR, INIT_APP_A, INIT_APP_B, INIT_APP_C, INIT_APP_D, INIT_MODBUS, DATA, SCAN } t_frame;
 typedef enum { frame_ENTRY = 0, frame_RESPONSE, frame_NET } t_frame_states;
 typedef enum { rsp_OK = 0, rsp_ERROR, rsp_NONE } t_responses;
@@ -176,9 +178,11 @@ void gprs_flush_RX_buffer(void);
 void gprs_flush_TX_buffer(void);
 
 void gprs_print_RX_buffer(void);
-int gprs_check_response( uint16_t start, const char *rsp );
-int gprs_check_response_with_to( uint16_t start, const char *rsp, uint8_t timeout );
+int16_t gprs_check_response( uint16_t start, const char *rsp );
+int16_t gprs_check_response_with_to( uint16_t start, const char *rsp, uint8_t timeout );
 void gprs_rxbuffer_copy_to( char *dst, uint16_t start, uint16_t size );
+
+bool gprs_sendATcmd(int8_t timeout, char *cmd, char *rsp );
 
 //------------------------------------------------------------------------------------
 
@@ -200,8 +204,8 @@ bool gprs_cmd_netclose(void);
 bool gprs_cmd_linkopen(char *ip, char *port);
 bool gprs_cmd_linkclose(void);
 bool gprs_cmd_linkstatus(t_link_status *link_status);
-int gprs_findstr_circular( uint16_t start, const char *rsp );
-int gprs_findstr_lineal( uint16_t start, const char *rsp );
+int16_t gprs_findstr_circular( uint16_t start, const char *rsp );
+int16_t gprs_findstr_lineal( uint16_t start, const char *rsp );
 
 void gprs_set_MODO( uint8_t modo);
 void gprs_set_PREF(uint8_t modo);
@@ -235,5 +239,7 @@ void aux_flush_TX_buffer(void);
 void aux_print_RX_buffer( bool ascii_mode );
 char *aux_get_buffer( void );
 uint16_t aux_get_buffer_ptr( void );
+
+//--------------------------------------------------------------------------------------------
 
 #endif /* SRC_SPX_TASKS_SPX_TKCOMMS_TKCOMMS_H_ */

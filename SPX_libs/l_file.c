@@ -13,7 +13,7 @@
 static bool pv_FAT_load( FAT_t *fat );
 static bool pv_FAT_save( FAT_t *fat );
 static uint8_t pv_chksum8(const char *buff, size_t len);
-static void pv_FAT_check_integrity(void);
+static bool pv_FAT_check_integrity(void);
 
 xSemaphoreHandle sem_FAT;
 StaticSemaphore_t FAT_xMutexBuffer;
@@ -136,7 +136,13 @@ int8_t bytes_written = -1;
 	FCB.fat.rcds4wr--;
 	FCB.fat.rcds4rd++;
 
-	pv_FAT_check_integrity();
+	if ( !pv_FAT_check_integrity() ) {
+		// DEBO REFORMATEAR LA MEMORIA
+		// Suelto el semaforo
+		xSemaphoreGive( sem_FAT);
+		FF_format(false);
+		return(-1);
+	}
 
 	// Actualizo la fat
 	pv_FAT_save(&FCB.fat);
@@ -202,7 +208,13 @@ int8_t bytes_read = 0U;
 	FCB.fat.rdPTR = (++FCB.fat.rdPTR == FF_MAX_RCDS) ?  0 : FCB.fat.rdPTR;
 	FCB.fat.rcds4rd--;
 	FCB.fat.rcds4del++;
-	pv_FAT_check_integrity();
+	if ( ! pv_FAT_check_integrity() ) {
+		// DEBO REFORMATEAR LA MEMORIA
+		// Suelto el semaforo
+		xSemaphoreGive( sem_FAT);
+		FF_format(false);
+		return(-1);
+	}
 	// Actualizo la fat
 	pv_FAT_save(&FCB.fat);
 
@@ -378,7 +390,13 @@ void FAT_read( FAT_t *fat )
 	while ( xSemaphoreTake(sem_FAT, ( TickType_t ) 5 ) != pdTRUE )
 		vTaskDelay( ( TickType_t)( 1 ) );
 
-	pv_FAT_check_integrity();
+	if ( !pv_FAT_check_integrity() ) {
+		// DEBO REFORMATEAR LA MEMORIA
+		// Suelto el semaforo
+		xSemaphoreGive( sem_FAT);
+		FF_format(false);
+		return;
+	}
 	memcpy( fat, &FCB.fat, sizeof(FAT_t));
 
 	// libero el semaforo
@@ -445,7 +463,7 @@ uint8_t checksum = 0;
 	return (checksum);
 }
 //----------------------------------------------------------------------------------
-static void pv_FAT_check_integrity(void)
+static bool pv_FAT_check_integrity(void)
 {
 
 	// Verifica que los punteros esten en los limites 0 - FF_MAX_RCDS.
@@ -466,12 +484,12 @@ static void pv_FAT_check_integrity(void)
 		goto RESET_FAT;
 	}
 
-	return;
+	return(true);
 
 RESET_FAT:
 	xprintf_P(PSTR("MEMORY ERROR: Reset to default\r\n\0"));
-	FF_format(false);
-	return;
+	//FF_format(false);
+	return(false);
 
 }
 //----------------------------------------------------------------------------------

@@ -355,10 +355,14 @@ int xReturn = 0;
 			xCom->xBlockTime = *((uint8_t *)pvValue);
 			break;
 		case ioctl_UART_CLEAR_RX_BUFFER:
+			portENTER_CRITICAL();
 			rBufferFlush(&xCom->uart->RXringBuffer);
+			portEXIT_CRITICAL();
 			break;
 		case ioctl_UART_CLEAR_TX_BUFFER:
+			portENTER_CRITICAL();
 			rBufferFlush(&xCom->uart->TXringBuffer);
+			portEXIT_CRITICAL();
 			break;
 		case ioctl_UART_ENABLE_TX_INT:
 			drv_uart_enable_tx_int( xCom->uart->uart_id );
@@ -401,6 +405,7 @@ int frtos_uart_read( periferico_serial_port_t *xCom, char *pvBuffer, uint16_t xB
 int xBytesReceived = 0U;
 portTickType xTicksToWait = 0;
 xTimeOutType xTimeOut;
+bool retS;
 
 	xTicksToWait = 10;
 	vTaskSetTimeOutState( &xTimeOut );
@@ -409,7 +414,8 @@ xTimeOutType xTimeOut;
 	while( xBytesReceived < xBytes )
 	{
 
-		if( rBufferPop( &xCom->uart->RXringBuffer, &((char *)pvBuffer)[ xBytesReceived ] ) == true ) {
+		retS = rBufferPop( &xCom->uart->RXringBuffer, &((char *)pvBuffer)[ xBytesReceived ] );
+		if(  retS == true ) {
 			xBytesReceived++;
 			taskYIELD();
 		} else {

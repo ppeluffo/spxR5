@@ -23,6 +23,7 @@ static bool pv_cmd_configGPRS(void);
 static void pv_RTC_drift_test(void);
 static void pv_cmd_rwAUX(uint8_t cmd_mode );
 static bool pv_cmd_configMODBUS(void);
+static void pv_cmd_status_ids(void);
 
 void test(void);
 
@@ -134,7 +135,8 @@ st_dataRecord_t dr;
 
 
 	// SIGNATURE ID
-	xprintf_P( PSTR("uID=%s\r\n\0"), NVMEE_readID() );
+	//xprintf_P( PSTR("uID=%s\r\n\0"), NVMEE_readID() );
+	pv_cmd_status_ids();
 
 	// Last reset cause
 	xprintf_P( PSTR("WRST=0x%02X\r\n\0") ,wdg_resetCause );
@@ -415,32 +417,6 @@ char l_data[10] = { '\0' };
 		test();
 		return;
 	}
-	/*
-
-	if ( strcmp_P( strupr(argv[1]), PSTR("TEST\0")) == 0)  {
-		if ( strcmp_P( strupr(argv[2]), PSTR("ENQUEUE\0")) == 0)  {
-			xSMS_enqueue( argv[3], argv[4] );
-			pv_snprintfP_OK();
-			return;
-		}
-		if ( strcmp_P( strupr(argv[2]), PSTR("DEQUEUE\0")) == 0)  {
-			sms_boundle = xSMS_dequeue();
-			if ( sms_boundle != NULL ) {
-				xprintf_P(PSTR("deq nro=[%s]\r\n\0"), sms_boundle->nro);
-				xprintf_P(PSTR("deq msg=[%s]\r\n\0"),sms_boundle->msg);
-				pv_snprintfP_OK();
-				return;
-			} else {
-				pv_snprintfP_ERR();
-				return;
-			}
-		}
-		if ( strcmp_P( strupr(argv[2]), PSTR("DELETE\0")) == 0)  {
-			xSMS_delete();
-			return;
-		}
-	}
-*/
 
 	// PILOTO
 	// piloto {out_pres} {err_range}
@@ -1618,6 +1594,7 @@ uint8_t pin = 0;
 			return;
 		}
 
+		pv_snprintfP_ERR();
 		return;
 	}
 
@@ -2181,6 +2158,24 @@ char *delim = ",;:=><[]";
 		modbus_test_write_output (tk_address, tk_type, tk_value );
 		start = strchr(stringp,'[');
 		end = strchr(stringp,']');
+	}
+
+}
+//------------------------------------------------------------------------------------
+static void pv_cmd_status_ids(void)
+{
+	/*
+	 * Muestra en pantalla los ID del micro y el tipo de micro.
+	 */
+
+	xprintf_P( PSTR("uID=%s\r\n"), NVMEE_readID() );
+	xprintf_P( PSTR("devID=%s "), NVMEE_read_device_ID() );
+	if ( strstr( NVMEE_read_device_ID(), "1e9843") ) {
+		xprintf_P(PSTR("(AVR XMEGA256 A3BU)\r\n"));
+	} else 	if ( strstr( NVMEE_read_device_ID(), "1e9842") ) {
+		xprintf_P(PSTR("(AVR XMEGA256 A3U)\r\n"));
+	} else {
+		xprintf_P(PSTR("(AVR)\r\n"));
 	}
 
 }

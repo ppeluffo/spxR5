@@ -66,14 +66,18 @@
 //------------------------------------------------------------------------------------
 // DEFINES
 //------------------------------------------------------------------------------------
-#define SPX_FW_REV "3.0.7f"
+#define SPX_FW_REV "3.0.7i"
 //#define SPX_FW_REV "3.0.5BETA"
-#define SPX_FW_DATE "@ 202107020"
+#define SPX_FW_DATE "@ 20211012"
 
 #define SPX_HW_MODELO "spxR5 HW:xmega256A3B R1.1"
 //#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master(beta)"
-#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master Mbus."
-
+//#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS Master Mbus."
+#if configUSE_TICKLESS_IDLE == 2
+#define SPX_FTROS_VERSION "FW:FRTOS10 TICKLESS"
+#else
+#define SPX_FTROS_VERSION "FW:FRTOS10"
+#endif
 //#define BETA_TEST
 //#define MODEM_SIMULATOR
 //#define MONITOR_STACK	1
@@ -190,10 +194,16 @@ xSemaphoreHandle sem_MBUS;
 StaticSemaphore_t MBUS_xMutexBuffer;
 #define MSTOTAKEMBUSSEMPH ((  TickType_t ) 10 )
 
+xSemaphoreHandle sem_RXBUFF;
+StaticSemaphore_t RXBUFF_xMutexBuffer;
+#define MSTOTAKERXBUFFSEMPH ((  TickType_t ) 10 )
+
+
 void tkCtl(void * pvParameters);
 void tkCmd(void * pvParameters);
 void tkInputs(void * pvParameters);
 void tkComms(void * pvParameters);
+void tkXComms(void * pvParameters);
 void tkCommsRX(void * pvParameters);
 void tkAplicacion(void * pvParameters);
 void tkAuxRX(void * pvParameters);

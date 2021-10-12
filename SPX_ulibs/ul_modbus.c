@@ -291,6 +291,10 @@ uint8_t length;				// Cantidad de bytes a leer.
 	mbus_ctl.length = length;
 	mbus_ctl.type = type;
 
+	xprintf_P(PSTR("DEBUG_MODBUS: addr=0x%02x\r\n"), mbus_ctl.address);
+	xprintf_P(PSTR("DEBUG_MODBUS: length=0x%02x\r\n"), mbus_ctl.length);
+	xprintf_P(PSTR("DEBUG_MODBUS: type=0x%02x\r\n"), mbus_ctl.type);
+
 	pv_modbus_io( f_debug, &mbus_ctl, hreg);
 
 }

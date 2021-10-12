@@ -10,7 +10,7 @@
 #define WDG_GPRSRX_TIMEOUT WDG_TO60
 
 //------------------------------------------------------------------------------------
-void tkComms(void * pvParameters)
+ void tkComms(void * pvParameters)
 {
 
 ( void ) pvParameters;
@@ -88,7 +88,7 @@ uint32_t ulNotifiedValue;
 		if ( xCOMMS_stateVars.gprs_prendido == true ) {
 			// Leo el UART de GPRS
 			if ( frtos_read( fdGPRS, &c, 1 ) == 1 ) {
-				gprs_rxbuffer_put(c);
+				gprs_rxbuffer_put2(c);
 			}
 
 		} else {

@@ -41,6 +41,17 @@
  * -GUI
  *  Revisar en el servidor que grabe el UID en los inits. !!!
  * ------------------------------------------------------------------------
+ *  R3.0.7i @ 2021-10-12:
+ *  - Modificado para soportar los micros A3U. Estos no tienen el RTC32 que se
+ *    usa en modo tickeless por lo que ahora elimino dicha funcion desde
+ *    FRTOSCOnfig ( configUSE_TICKLESS_IDLE )
+ *  - Agrego en cmd::status que lea e indique los device ID.
+ *  - Para programarlo se debe hacer desde cmd.mode ya que el tipo de micro cambia
+ *  - Con fuses:
+ *  avrdude -px256a3u -cavrispmkII -Pusb -V -u -e -Uflash:w:spxR6.hex:a -Ufuse0:w:0xff:m -Ufuse1:w:0xaa:m -Ufuse2:w:0xbd:m -Ufuse4:w:0xf5:m -Ufuse5:w:0xd6:m
+ *  - Sin fuses
+ *  avrdude -px256a3u -cavrispmkII -Pusb -V -u -e -Uflash:w:spxR6.hex:a
+  * ------------------------------------------------------------------------
  * Version 3.0.7d @ 20210531
  * - Agrego un parametro que configurable solo por comando que es el tiempo
  *   de espera de respuestas modbus
@@ -497,7 +508,11 @@ int main( void )
 
 	// Clock principal del sistema
 	u_configure_systemMainClock();
+
+#if configUSE_TICKLESS_IDLE == 2
 	u_configure_RTC32();
+#endif
+
 	sysTicks = 0;
 
 	// Configuramos y habilitamos el watchdog a 8s.
@@ -526,6 +541,7 @@ int main( void )
 	sem_WDGS = xSemaphoreCreateMutexStatic( &WDGS_xMutexBuffer );
 	sem_AINPUTS = xSemaphoreCreateMutexStatic( &AINPUTS_xMutexBuffer );
 	sem_MBUS = xSemaphoreCreateMutexStatic( &MBUS_xMutexBuffer );
+	sem_RXBUFF = xSemaphoreCreateMutexStatic( &RXBUFF_xMutexBuffer );
 
 	xprintf_init();
 	FAT_init();

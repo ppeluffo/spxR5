@@ -372,9 +372,15 @@ void gprs_rxbuffer_reset(void)
 {
 	// Vacia el buffer y lo inicializa
 
+
 #ifdef GPRS_RX_LINEAL_BUFFER
-	memset( gprs_rxbuffer.buffer, '\0', GPRS_RXBUFFER_LEN);
-	gprs_rxbuffer.ptr = 0;
+	while ( xSemaphoreTake( sem_RXBUFF, MSTOTAKERXBUFFSEMPH ) != pdTRUE )
+		taskYIELD();
+
+		memset( gprs_rxbuffer.buffer, '\0', GPRS_RXBUFFER_LEN);
+		gprs_rxbuffer.ptr = 0;
+
+	xSemaphoreGive( sem_RXBUFF );
 
 #else
 	memset( gprs_rxbuffer.buffer, '\0', GPRS_RXBUFFER_LEN);
@@ -383,6 +389,7 @@ void gprs_rxbuffer_reset(void)
 	gprs_rxbuffer.max = GPRS_RXBUFFER_LEN;
 	gprs_rxbuffer.full = false;
 #endif
+
 
 }
 //------------------------------------------------------------------------------------
@@ -461,14 +468,20 @@ void gprs_rxbuffer_retreat_pointer(void)
 void gprs_rxbuffer_put( char data)
 {
 	// Avanza sobreescribiendo el ultimo si esta lleno
+
 #ifdef GPRS_RX_LINEAL_BUFFER
-	gprs_rxbuffer.buffer[ gprs_rxbuffer.ptr ] = data;
+	while ( xSemaphoreTake( sem_RXBUFF, MSTOTAKERXBUFFSEMPH ) != pdTRUE )
+		taskYIELD();
+
+		gprs_rxbuffer.buffer[ gprs_rxbuffer.ptr ] = data;
+		gprs_rxbuffer_advance_pointer();
+
+	xSemaphoreGive( sem_RXBUFF );
+
 #else
 	gprs_rxbuffer.buffer[gprs_rxbuffer.head] = data;
-#endif
-
 	gprs_rxbuffer_advance_pointer();
-
+#endif
 
 }
 //------------------------------------------------------------------------------------
@@ -476,19 +489,10 @@ bool gprs_rxbuffer_put2( char data )
 {
 	// Solo inserta si hay lugar
 
-#ifdef GPRS_RX_LINEAL_BUFFER
-	if ( gprs_rxbuffer.ptr < GPRS_RXBUFFER_LEN ) {
-		gprs_rxbuffer.buffer[ gprs_rxbuffer.ptr++ ] = data;
-		return(true);
-	}
-
-#else
-    if(!gprs_rxbuffer_full()) {
-    	gprs_rxbuffer.buffer[gprs_rxbuffer.head] = data;
-    	gprs_rxbuffer_advance_pointer();
-        return(true);
-    }
-#endif
+	 if(!gprs_rxbuffer_full()) {
+		 gprs_rxbuffer_put(data);
+		 return(true);
+	 }
 
     return(false);
 }
@@ -505,6 +509,7 @@ bool gprs_rxbuffer_get( char * data )
     if( !gprs_rxbuffer_empty() ){
         *data = gprs_rxbuffer.buffer[gprs_rxbuffer.tail];
         gprs_rxbuffer_retreat_pointer();
+        xSemaphoreGive( sem_RXBUFF );
         return(true);
     }
 #endif
@@ -514,6 +519,7 @@ bool gprs_rxbuffer_get( char * data )
 //------------------------------------------------------------------------------------
 void gprs_flush_RX_buffer(void)
 {
+	// El rx buffer de la uart es circular por lo tanto no los flusheo.
 	frtos_ioctl( fdGPRS,ioctl_UART_CLEAR_RX_BUFFER, NULL);
 	gprs_rxbuffer_reset();
 }
@@ -531,11 +537,17 @@ void gprs_print_RX_buffer( void )
 		return;
 
 	xprintf_P( PSTR ("\r\nGPRS: rxbuff>\r\n\0"));
+
 #ifdef GPRS_RX_LINEAL_BUFFER
 	// Imprimo todo el buffer local de RX. Sale por \0.
 	// Uso esta funcion para imprimir un buffer largo, mayor al que utiliza xprintf_P. !!!
-	xnprint( gprs_rxbuffer.buffer, GPRS_RXBUFFER_LEN );
-	xprintf_P( PSTR ("\r\n[%d]\r\n\0"), gprs_rxbuffer.ptr );
+	while ( xSemaphoreTake( sem_RXBUFF, MSTOTAKERXBUFFSEMPH ) != pdTRUE )
+		taskYIELD();
+
+		xnprint( gprs_rxbuffer.buffer, GPRS_RXBUFFER_LEN );
+		xprintf_P( PSTR ("\r\n[%d]\r\n\0"), gprs_rxbuffer.ptr );
+
+	xSemaphoreGive( sem_RXBUFF );
 
 #else
 
@@ -565,14 +577,21 @@ void gprs_print_RX_buffer( void )
 
 }
 //------------------------------------------------------------------------------------
-int gprs_check_response( uint16_t start, const char *rsp )
+int16_t gprs_check_response( uint16_t start, const char *rsp )
 {
 	// Modifico para solo compara en mayusculas
 
-int i;
+int16_t i;
 
 #ifdef GPRS_RX_LINEAL_BUFFER
-	i = gprs_findstr_lineal(start, rsp);
+
+	while ( xSemaphoreTake( sem_RXBUFF, MSTOTAKERXBUFFSEMPH ) != pdTRUE )
+		taskYIELD();
+
+		i = gprs_findstr_lineal(start, rsp);
+
+	xSemaphoreGive( sem_RXBUFF );
+
 #else
 	i = gprs_findstr_circular(start, rsp);
 #endif
@@ -580,12 +599,12 @@ int i;
 	return(i);
 }
 //------------------------------------------------------------------------------------
-int gprs_check_response_with_to( uint16_t start, const char *rsp, uint8_t timeout )
+int16_t gprs_check_response_with_to( uint16_t start, const char *rsp, uint8_t timeout )
 {
 	// Espera una respuesta durante un tiempo dado.
 	// Hay que tener cuidado que no expire el watchdog por eso lo kickeo aqui. !!!!
 
-int ret = -1;
+int16_t ret = -1;
 
 	while ( timeout > 0 ) {
 		timeout--;
@@ -593,7 +612,7 @@ int ret = -1;
 
 		// Veo si tengo la respuesta correcta.
 		ret = gprs_check_response (start, rsp);
-		if ( ret > 0)
+		if ( ret >= 0)
 			return(ret);
 	}
 
@@ -662,7 +681,7 @@ void gprs_hw_pwr_on(uint8_t delay_factor)
 	 * Prendo la fuente del modem y espero que se estabilize la fuente.
 	 */
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS:gprs_hw_pwr_on.\r\n\0") );
+	xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_hw_pwr_on.\r\n\0") );
 
 	IO_clr_GPRS_SW();	// GPRS=0V, PWR_ON pullup 1.8V )
 	IO_set_GPRS_PWR();	// Prendo la fuente ( alimento al modem ) HW
@@ -679,7 +698,7 @@ void gprs_sw_pwr(void)
 	 * la entrada PWR_SW esta en 1.
 	 * El PWR_ON se pulsa a 0 saturando el fet.
 	 */
-	xprintf_PD( DF_COMMS, PSTR("COMMS:gprs_sw_pwr\r\n\0") );
+	xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_sw_pwr\r\n\0") );
 	IO_set_GPRS_SW();	// GPRS_SW = 3V, PWR_ON = 0V.
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	IO_clr_GPRS_SW();	// GPRS_SW = 0V, PWR_ON = pullup, 1.8V
@@ -693,7 +712,7 @@ void gprs_apagar(void)
 	 *
 	 */
 
-	xprintf_PD( DF_COMMS, PSTR("COMMS:gprs_apagar\r\n\0") );
+	xprintf_PD( DF_COMMS, PSTR("COMMS: gprs_apagar\r\n\0") );
 	gprs_CPOF();
 
 	IO_clr_GPRS_SW();	// Es un FET que lo dejo cortado
@@ -1103,6 +1122,7 @@ bool retS;
 	return(retS);
 }
  //------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------
 bool gprs_CPAS(uint8_t await_times)
 {
 
@@ -1438,11 +1458,9 @@ bool gprs_CREG( void )
 	 En realidad el comando retorna en no mas de 5s, pero el registro puede demorar hasta 1 minuto
 	 o mas, dependiendo de la calidad de señal ( antena ) y la red.
 	 Para esto, el mon_sqe lo ponemos antes.
-
 	 CREG testea estar registrado en la red celular
 	 CGREG testea estar registrado en la red GPRS.
 	 https://www.multitech.com/documents/publications/manuals/S000700.pdf
-
 	*/
 
 bool retS;
@@ -1595,7 +1613,7 @@ char *gprs_get_ccid(void)
 	return( gprs_status.buff_gprs_ccid );
 
 }
-//------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
 bool pv_get_token( char *p, char *buff, uint8_t size)
 {
 
@@ -1947,6 +1965,46 @@ union {
 	}
 }
 //------------------------------------------------------------------------------------
+bool gprs_sendATcmd(int8_t timeout, char *cmd, char *rsp )
+{
+	// Envia un comando y espera una respuesta.
+	// El comando puede ser nulo y entonces solo esperamos respuesta.
+	// Las respuestas pueden ser RSP_OK, RSP_ERR, RSP_TO.
+
+
+bool retS = false;
+
+//	xprintf_P(PSTR("DEBUG: timeout=%d\r\n"), timeout);
+//	xprintf_P(PSTR("DEBUG: cmd=%s\r\n"), cmd );
+//	xprintf_P(PSTR("DEBUG: rsp=%s\r\n"), rsp_ok);
+
+	gprs_flush_TX_buffer();
+	gprs_flush_RX_buffer();
+	gprs_atcmd_preamble();
+
+	// Puedo no mandar un comando pero solo esperar una respuesta ( ej. PBDONE )
+	if ( cmd != '\0' )
+		xfprintf_P( fdGPRS , PSTR("%s"), cmd);
+
+	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+
+	// Si espero una respuesta
+	if ( rsp != '\0') {
+		while ( timeout-- > 0) {
+			if ( gprs_check_response(0, rsp ) >= 0 ) {
+				retS = true;
+				goto quit;
+			}
+			vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
+		}
+	}
+
+quit:
+
+	gprs_print_RX_buffer();
+	return (retS);
+}
+//------------------------------------------------------------------------------------
 /*
  * Los comandos son solo eso. Se manda el string AT correspondiente y se espera
  * hasta 10s la respuesta OK / ERROR
@@ -2193,7 +2251,7 @@ EXIT:
 //------------------------------------------------------------------------------------
 // FUNCIONES AUXILIARES SOBRE EL rxbuffer
 //------------------------------------------------------------------------------------
-int gprs_findstr_circular( uint16_t start, const char *rsp )
+int16_t gprs_findstr_circular( uint16_t start, const char *rsp )
 {
 	// Busca el string apundado por *rsp en gprs_rxbuffer.
 	// Si no lo encuentra devuelve -1
@@ -2237,7 +2295,7 @@ char c1, c2;
 
 }
 //------------------------------------------------------------------------------------
-int gprs_findstr_lineal( uint16_t start, const char *rsp )
+int16_t gprs_findstr_lineal( uint16_t start, const char *rsp )
 {
 uint16_t i, j, k;
 char c1, c2;
@@ -2277,8 +2335,15 @@ void gprs_rxbuffer_copy_to( char *dst, uint16_t start, uint16_t size )
 uint16_t i;
 
 #ifdef GPRS_RX_LINEAL_BUFFER
-	for (i = 0; i < size; i++)
-		dst[i] = gprs_rxbuffer.buffer[i+start];
+
+	while ( xSemaphoreTake( sem_RXBUFF, MSTOTAKERXBUFFSEMPH ) != pdTRUE )
+		taskYIELD();
+
+		for (i = 0; i < size; i++)
+			dst[i] = gprs_rxbuffer.buffer[i+start];
+
+	xSemaphoreGive( sem_RXBUFF );
+
 #else
 
 uint16_t j;
